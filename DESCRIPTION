@@ -1,0 +1,13 @@
+Package: causalOT
+Type: Package
+Title: What the package does (short line)
+Version: 1.0
+Date: 2019-12-19
+Author: Who wrote it
+Maintainer: Who to complain to <yourfault@somewhere.net>
+Description: More about what it does (maybe more than one line)
+License: What license is it under?
+Imports: Rcpp (>= 1.0.3)
+LinkingTo: Rcpp, RcppEigen
+Suggests: 
+    testthat (>= 2.1.0)
