@@ -1,4 +1,4 @@
-set.seed(908709)
+set.seed(670220875) #from random.org
 
 #### Load Packages ####
 library(ROI)
@@ -16,6 +16,7 @@ n <- 2^9
 p <- 6
 nsims <- 100
 power <- 1
+std_mean_diff <- 0.1
 
 #### data Gen Fun ####
 gen_x <- function(n, param_x) {
@@ -355,7 +356,7 @@ param_x <- list(x_13 = list(mean = rep(0, 3),
                 x6 = list(p = 0.5))
 
 
-
+#### Simulations ####
 cl <- parallel::makeCluster(parallel::detectCores()-1)
 registerDoParallel(cl)
 # registerDoSEQ()
@@ -383,13 +384,13 @@ low_overlap <- foreach(sim = 1:nsims) %dopar% {
   n1 <- nrow(x1)
   n0 <- nrow(x0)
   
-  #### dist fun ####
+  #### dist mat ####
   dist <- "Lp"
   cost.calc <- switch(dist, "Lp" = causalOT::cost_calc_lp,
                       "mahalanobis" = causalOT::cost_mahalanobis)
   
   #### Original ####
-  OP <- qp_sbw(x,z, rep(0.1,6))
+  OP <- qp_sbw(x,z, rep(std_mean_diff,p))
   res <- ROI.plugin.cplex:::solve_OP(OP)
   # return(NULL)
   
@@ -419,7 +420,7 @@ low_overlap <- foreach(sim = 1:nsims) %dopar% {
   mass1 <- rep(1/n1,n1)
   # cost <- as.matrix(dist(rbind(x0,x1), method = "minkowski", p = 2))[1:n0, n0 + (1:n1)]
   cost <- cost.calc(x0,x1, 1)
-  cost <- cost[weights > 0,]
+  cost <- cost[weights>0 ,]
   
   # w2_b4 <- transport::wasserstein(rep(1/n0,n0), mass1, p = 2, tplan = NULL, costm = cost)
   w2_match <- transport::wasserstein(mass0, mass1, p = power, tplan = NULL, costm = cost)
@@ -457,10 +458,10 @@ low_overlap <- foreach(sim = 1:nsims) %dopar% {
   #   facet_wrap(~match, nrow = 2, ncol = 1)
   
   #### W2 ####
-  dist <- "Lp"
-  cost.calc <- switch(dist, "Lp" = causalOT::cost_calc_lp,
-                      "mahalanobis" = causalOT::cost_mahalanobis)
-  OP_w2 <- qp_w2(x, z, 1.3, p = power, target = "treated",dist = dist)
+  # dist <- "Lp"
+  # cost.calc <- switch(dist, "Lp" = causalOT::cost_calc_lp,
+  #                     "mahalanobis" = causalOT::cost_mahalanobis)
+  OP_w2 <- qp_w2(x, z, w2_match, p = power, target = "treated",dist = dist)
   # OP_w2 <- update_wp_tol(OP_w2, new_val = 1.25)
   res_w2 <- ROI.plugin.cplex:::solve_OP(OP_w2)
   if(all(is.na(ROI::solution(res_w2)))){
@@ -575,21 +576,28 @@ low_overlap <- foreach(sim = 1:nsims) %dopar% {
   #         "W2 DR Hajek" = w2_drh))
   
   #### ATE calc ####
-  OPate <- qp_sbw(x,1-z, rep(0.1,6))
+  OPate <- qp_sbw(x,1-z, rep(std_mean_diff,p))
   res_ate <- ROI.plugin.cplex:::solve_OP(OPate)
-  
   # res <- ROI::ROI_solve(CP, solver = "ecos")
   sol_ate <- ROI::solution(res_ate)
   weights_ate <- sol_ate[1:sum(z)]
+  mass1_ate <- weights_ate[weights_ate>0]
+  mass0_ate <- weights[weights>0]
+  cost_rm_ate <- cost[weights>0, weights_ate>0]
+  
+  w2_b4_sbw_ate <- transport::wasserstein(mass0_ate, mass1_ate, p = 2, tplan = NULL, costm = cost_rm_ate)
+  
+  
+  
   
   # dist <- "Lp"
   # cost.calc <- switch(dist, "Lp" = cost_calc_lp,
   # "mahalanobis" = cost_mahalanobis)
-  OP_w2_ctrl <- qp_w2(x,1-z, 1.3, p = power, target = "treated",dist = dist)
+  OP_w2_ctrl <- qp_w2(x,1-z, w2_b4_sbw_ate, p = power, target = "treated",dist = dist)
   # OP_w2_ctrl <- update_wp_tol(OP_w2_ctrl, new_val = 1.25)
   res_w2_ctrl <- ROI.plugin.cplex:::solve_OP(OP_w2_ctrl)
   if(all(is.na(ROI::solution(res_w2_ctrl)))){
-    OP_w2_ctrl <- update_wp_tol(OP_w2_ctrl, new_val = 0.9 * w2_match)
+    OP_w2_ctrl <- update_wp_tol(OP_w2_ctrl, new_val = 0.9 * w2_b4_sbw_ate)
     res_w2_ctrl <- ROI.plugin.cplex:::solve_OP(OP_w2_ctrl)
   }
   # print(res_w2_ctrl)
@@ -605,14 +613,12 @@ low_overlap <- foreach(sim = 1:nsims) %dopar% {
   # sbw_ate_weight[z==1] <- weights_ate
   # w2_ate_weight[z==1] <- w1_marg_w2_ate
   
-  mass0_ate <- weights[weights>0]
+  
   mass0_ate_w2 <- w0_marg_w2[w0_marg_w2>0]
-  mass1_ate <- weights_ate[weights_ate>0]
   mass1_ate_w2 <- w1_marg_w2_ate[w1_marg_w2_ate>0]
-  cost_rm_ate <- cost[weights>0, weights_ate>0]
   cost_rm_w2_ate <- cost[w0_marg_w2>0, w1_marg_w2_ate>0]
   
-  w2_b4_sbw_ate <- transport::wasserstein(mass0_ate, mass1_ate, p = 2, tplan = NULL, costm = cost_rm_ate)
+  
   w2_match_w2_ate <- transport::wasserstein(mass0_ate_w2, mass1_ate_w2, p = 2, tplan = NULL, costm = cost_rm_w2_ate)
   
   # pc_ate <- data.frame(id = 1:n, prcomp(x)$x[,1:2], z= factor(z), unmatch = unmatch_weight, 
@@ -639,29 +645,45 @@ low_overlap <- foreach(sim = 1:nsims) %dopar% {
   #         "W2 DR Hajek" = w2_drh_ate))
   out <- list(ATT = list("Naive" = naive_att,
                          "SBW Hajek" = sbw_h,
-                         "W2 Hajek" =w2_h,
+                         "Wass Hajek" =w2_h,
                          "SBW DR Hajek" = sbw_drh,
-                         "W2 DR Hajek" = w2_drh),
+                         "Wass DR Hajek" = w2_drh),
               ATE = list("Naive" = naive,
                          "SBW Hajek" = sbw_h_ate,
-                         "W2 Hajek" =w2_h_ate,
+                         "Wass Hajek" =w2_h_ate,
                          "SBW DR Hajek" = sbw_drh_ate,
-                         "W2 DR Hajek" = w2_drh_ate),
+                         "Wass DR Hajek" = w2_drh_ate),
               W2 = list("pre-match" = w2_b4_w2, "ATT sbw" = w2_match_sbw, "ATT w2" = w2_match_w2,
-                        "ATE sbw" = w2_b4_sbw_ate, "ATE w2" = w2_match_w2_ate)
+                        "ATE sbw" = w2_b4_sbw_ate, "ATE w2" = w2_match_w2_ate),
+              ESS = list(control = list(pre = sum(z==0), SBW = 1/sum(weights^2), Wass = 1/sum(w0_marg_w2^2)),
+                         treated = list(pre = sum(z==1), SBW = 1/sum(weights_ate^2), Wass = 1/sum(w1_marg_w2_ate^2))
+                         )
   )
   return(out) 
 }
 stopCluster(cl)
 
+#### Calculate summary stat ####
+
 ATT <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$ATT)))
 ATE <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$ATE)))
-W2 <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$W2)))
+W2  <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$W2)))
+ESS <- list()
+ESS$control <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$ESS$control)))
+ESS$treated <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$ESS$treated)))
 
 colMeans(ATT)
 colMeans(ATE)
 colMeans(W2)
+colMeans(ESS)
+
 
 colVar(ATT)#*(nsims-1)/nsims
 colVar(ATE)#*(nsims-1)/nsims
 colVar(W2)
+colVar(ESS)
+
+colMeans(ATT^2)
+colMeans(ATE^2)
+
+# saveRDS(low_overlap, file = "lo_w1_2020019.rds")

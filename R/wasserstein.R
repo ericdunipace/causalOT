@@ -1,0 +1,53 @@
+wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
+  
+  if(is.numeric(a)) {
+    stopifnot(all.equal(sum(a) ,1))
+  }
+  if(is.numeric(b)){
+    stopifnot(all.equal(sum(b) ,1))
+  }
+  if(is.null(cost)){
+    stop("cost matrix must be specified if only masses are given")
+  }
+  if(is.null(tplan)){
+    nzero_row <- a>0
+    nzero_col <- b>0
+    a <- a[nzero_row]
+    b <- b[nzero_col]
+    cost <- cost[nzero_row, nzero_col]
+  }
+  return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
+}
+wasserstein_p.causalWeights <- function(a, b = NULL, p = 1, tplan = NULL, cost = NULL,...) {
+  mass_a <- as.numeric(a$w0)
+  mass_b <- as.numeric(a$w1)
+  estimate <- mass$estimate
+  if(a$estimate == "feasible"){
+    idx <- which(a$gamma != 0, arr.ind = TRUE)
+    tplan <- data.frame(from = idx[,1], to = idx[,2], mass = a$gamma[idx])
+  }
+  return(wasserstein_p.default(a = mass_a, b = mass_b, p = p, tplan = tplan, cost = cost, ...))
+}
+
+wasserstein_p.matrix <- function(a, b, p = 1, tplan = NULL, cost = NULL, dist = "Lp",...) {
+  if(is.null(cost)) {
+    cost.calc <- switch(dist, "Lp" = causalOT::cost_calc_lp,
+                        "mahalanobis" = causalOT::cost_mahalanobis)
+    cost <- cost.calc(a, b, p, direction = "rowwise")
+  }
+  if(!is.null(tplan)) {
+    mass_a <- as.numeric(tapply(tplan$mass, factor(tplan$from), sum))
+    mass_b <- as.numeric(tapply(tplan$mass, factor(tplan$to), sum))
+  } else {
+    mass_a <- rep(1/nrow(a), nrow(a))
+    mass_b <- rep(1/nrow(b), nrow(b))
+  }
+  return(wasserstein_p.default(a = a, b = b, p = p, tplan = tplan, cost = cost, ...))
+}
+
+setGeneric("wasserstein_p", function(a, b, ...) UseMethod("wasserstein_p"))  
+setMethod("wasserstein_p", signature(a = "numeric", b= "numeric"), wasserstein_p.default)
+setMethod("wasserstein_p", signature(a = "causalWeights", b= "NULL"), wasserstein_p.causalWeights)
+setMethod("wasserstein_p", signature(a = "causalWeights", b= "numeric"), wasserstein_p.causalWeights)
+setMethod("wasserstein_p", signature(a = "causalWeights", b= "matrix"), wasserstein_p.causalWeights)
+setMethod("wasserstein_p", signature(a = "matrix", b= "matrix"), wasserstein_p.matrix)
