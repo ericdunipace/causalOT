@@ -91,8 +91,8 @@ prep_data.data.frame <- function(data,...) {
   } else {
     outcome
   }
-  
-  df <- data[c(y.var, x.vars)]
+  df <- data.frame(y = data[y.var], x = data[x.vars])
+  # df <- data[c(y.var, x.vars)]
   z <- data[[tx.var]]
   
   return(list(df = df, z = z))

@@ -1,33 +1,21 @@
 setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimate = "character"))
-calc_weight.DataSim <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
-                                method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+
+calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
+                                method = c("SBW","Wasserstein", "Constrained Wasserstein",
+                                           "Logistic"),
                                 ...) {
   method <- match.arg(method)
   estimate <- match.arg(estimate)
-  op <- quadprog(data, constraint,  estimate, 
-           method,
-           ...)
-  dots <- list(...)
-  if(is.null(dots$control)) {
-    control <- list(trace = 0L, round = 1L)
+  
+  sol <- if(method != "Logistic") {
+    calc_weight_bal(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
+                            method = c("SBW","Wasserstein", "Constrained Wasserstein",
+                                       "Logistic"),
+                            ...)
+  } else {
+    calc_weight_glm (data, constraint, estimate,...)
   }
-  # skip_cplex <- FALSE
-  # if (method == "Constrained Wasserstein") {
-  #   check <- check_wass_const(op)
-  #   skip_cplex <- check$skip_cplex
-  # }
-  # if (skip_cplex) {
-  #   res <- list(xopt = check$res, status = 1)
-  # } else {
-    res <- Rcplex::Rcplex(cvec = c(op$obj$L), Amat = op$LC$A, 
-                        bvec = op$LC$vals, Qmat = op$obj$Q,
-                        lb = 0, ub = Inf, control=control,
-                        objsense = "min", sense = op$LC$dir,
-                        vtype = "C", n = 1)
-    Rcplex::Rcplex.close()
-  # }
-  if(res$status != 1) warning("Algorithm did not converge!!!")
-  sol <- renormalize(res$xopt) # normalize to have closer to sum 1
+  
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   gamma <- NULL
   ns <- data$get_n()
@@ -62,6 +50,79 @@ calc_weight.DataSim <- function(data, constraint,  estimate = c("ATT", "ATC","fe
   return(output)
 }
 
+calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
+                            ...) {
+  dots <- list(...)
+  pd <- prep_data(data,...)
+  z <- pd$z
+  df <- pd$df
+  
+  n1 <- sum(z)
+  n0 <- sum(1-z)
+  if(any(colnames(df) == "y")) {
+    df$y <- NULL
+  }
+  if(is.null(dots$formula)) {
+    dots$formula <- formula(z ~ .)
+  }
+  mod <- glm(dots$formula, data.frame(z = z, df), family = "binomial")
+  pred <- predict(mod, type = "response")
+  
+  if (constraint > 0 & contraint < 1) {
+    Ks  <- sort(c(constraint, 1-constraint))
+    up  <- Ks[2]
+    low <- Ks[1]
+    
+    pred[pred > up] <- up
+    pred[pred < low]<- low
+  }
+  
+  weight <- rep(NA, n1 + n0)
+  if (estimate == "ATT") {
+    weight[z==1] <- rep(1/n1, n1)
+    weight[z==0] <- 1/pred[z==0]
+  } else if (estimate == "ATC") {
+    weight[z==1] <- 1/(1-sol[z==1])
+    weight[z==0] <- rep(1/n1, n1)
+  } else if (estimate == "ATE") {
+    weight[z==1] <- 1/(1-pred[z==1])
+    weight[z==0] <- 1/pred[z==0]
+  }
+  return(weight)
+}
+
+calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
+                                method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+                                ...) {
+  method <- match.arg(method)
+  estimate <- match.arg(estimate)
+  op <- quadprog(data, constraint,  estimate, 
+                 method,
+                 ...)
+  dots <- list(...)
+  if(is.null(dots$control)) {
+    control <- list(trace = 0L, round = 1L)
+  }
+  # skip_cplex <- FALSE
+  # if (method == "Constrained Wasserstein") {
+  #   check <- check_wass_const(op)
+  #   skip_cplex <- check$skip_cplex
+  # }
+  # if (skip_cplex) {
+  #   res <- list(xopt = check$res, status = 1)
+  # } else {
+  res <- Rcplex::Rcplex(cvec = c(op$obj$L), Amat = op$LC$A, 
+                        bvec = op$LC$vals, Qmat = op$obj$Q,
+                        lb = 0, ub = Inf, control=control,
+                        objsense = "min", sense = op$LC$dir,
+                        vtype = "C", n = 1)
+  Rcplex::Rcplex.close()
+  # }
+  if(res$status != 1) warning("Algorithm did not converge!!!")
+  sol <- renormalize(res$xopt) # normalize to have closer to sum 1
+  return(sol)
+}
+
 convert_ATE <- function(weight1, weight2) {
   list_weight <- list(weight1, weight2)
   check.vals <- sapply(list_weight, function(w) w$estimate)
@@ -83,5 +144,5 @@ convert_ATE <- function(weight1, weight2) {
 }
 
 setOldClass("DataSim")
-setGeneric("calc_weight", function(data, ...) UseMethod("calc_weight"))
-setMethod("calc_weight", "DataSim", calc_weight.DataSim)
+# setGeneric("calc_weight", function(data, ...) UseMethod("calc_weight"))
+# setMethod("calc_weight", "DataSim", calc_weight.DataSim)

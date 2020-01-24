@@ -13,7 +13,7 @@ ground_power <- 2
 std_mean_diff <- c(0.001, 0.01, 0.1, 1)
 overlap <- c("low","high")
 design <- c("A","B")
-distance <- c("Lp", "Mahalanobis")
+distance <- c("Lp", "mahalanobis")
 
 #### get simulation functions ####
 original <- data_sim_holder(design, overlap)
