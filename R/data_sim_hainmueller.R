@@ -1,12 +1,18 @@
 Hainmueller <- R6::R6Class("Hainmueller", 
     inherit = DataSim,
     public = list(
+      gen_data = function() {
+        self$gen_x()
+        self$gen_z()
+        self$gen_y()
+        invisible(self)
+      },
       gen_x = function() {
-        stopifnot(length(n) >0 )
-        x13 <- private$param$param_x$x_13$mean + matrix(rnorm(n * 3), nrow = n, ncol = 3) %*% chol(private$param$param_x$x_13$covar)
-        x4 <- runif(n, private$param$param_x$x4$lower, private$param$param_x$x4$upper)
-        x5 <- rchisq(n, df = private$param$param_x$x5$df)
-        x6 <- rbinom(n, size = 1, prob =private$param$param_x$x6$p)
+        stopifnot(length(private$n) >0 )
+        x13 <- private$param$param_x$x_13$mean + matrix(rnorm(private$n * 3), nrow = private$n, ncol = 3) %*% chol(private$param$param_x$x_13$covar)
+        x4 <- runif(private$n, private$param$param_x$x4$lower, private$param$param_x$x4$upper)
+        x5 <- rchisq(private$n, df = private$param$param_x$x5$df)
+        x6 <- rbinom(private$n, size = 1, prob =private$param$param_x$x6$p)
         
         private$x <- cbind(x13, x4, x5, x6)
         colnames(private$x) <- paste0("X",1:6)
@@ -15,21 +21,21 @@ Hainmueller <- R6::R6Class("Hainmueller",
       },
       gen_y = function() {
            if(all(dim(private$x) == 0)) gen_x()
-           mean_y <- if(design =="A" | design == 1) {
+           mean_y <- if(private$design =="A" | private$design == 1) {
              private$x %*% private$param$beta_y
-           } else if (design =="B" | design == 2) {
+           } else if (private$design =="B" | private$design == 2) {
              (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2
            } else {
              stop("design must be one of 'A' or 'B'")
            }
-           private$y <- c(mean_y + rnorm(n, mean = 0, sd = private$param$sigma_y))
+           private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
            private$check_data()
            invisible(self)
          },
       gen_z = function() {
        if(all(dim(private$x) == 0)) gen_x()
        mean_z <- private$x %*% private$param$beta_z
-       latent_z <- mean_z + rnorm(n, mean=0, sd = private$param$sigma_z)
+       latent_z <- mean_z + rnorm(private$n, mean=0, sd = private$param$sigma_z)
        private$z <- c(ifelse(latent_z <0, 0, 1))
        private$check_data()
        invisible(self)
@@ -69,7 +75,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                     miss.null <- function(xx) {
                       return(missing(xx) | is.null(xx))
                     }
-                    if(is.null(design) & (miss.null(beta_y) ) ) {
+                    if(is.null(private$design) & (miss.null(beta_y) ) ) {
                       private$design <- "A"
                     }
                     if(is.null(overlap) & (miss.null(sigma_z) )) {
@@ -96,13 +102,13 @@ Hainmueller <- R6::R6Class("Hainmueller",
                       temp_param$beta_z <- param$beta_z
                     }
                     if(miss.null(sigma_z)) {
-                      temp_param$sigma_z <- default_param$sigma_z[[overlap]]
+                      temp_param$sigma_z <- default_param$sigma_z[[private$overlap]]
                     } else {
                       stopifnot(is.numeric(sigma_z))
                       temp_param$sigma_z <- param$sigma_z
                     }
                     if(miss.null(beta_y)) {
-                      temp_param$beta_y <- default_param$beta_y[[design]]
+                      temp_param$beta_y <- default_param$beta_y[[private$design]]
                     } else {
                       stopifnot(is.vector(beta_y))
                       temp_param$beta_y <- param$beta_y

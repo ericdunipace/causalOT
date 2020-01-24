@@ -21,8 +21,7 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
 wasserstein_p.causalWeights <- function(a, b = NULL, p = 1, tplan = NULL, cost = NULL,...) {
   mass_a <- as.numeric(a$w0)
   mass_b <- as.numeric(a$w1)
-  estimate <- mass$estimate
-  if(a$estimate == "feasible"){
+  if((a$estimate == "feasible") & !is.null(a$gamma)){
     idx <- which(a$gamma != 0, arr.ind = TRUE)
     tplan <- data.frame(from = idx[,1], to = idx[,2], mass = a$gamma[idx])
   }

@@ -1,108 +1,12 @@
-outcome_model_DRH <- function(.self, weights, ...) {
-  dots <- list(...)
-  est <- dots$est
-  if(is.null(est)) est <- "ATE"
-  design <- model.matrix(.self$formula, data=.self$x)
-  n <- .self$n
-  # design0 <- design[z==0,,drop=FALSE]
-  # design1 <- design[z==1,,drop=FALSE]
-  # y0 <- y[z==0]
-  # y1 <- y[z==1]
-  w0 <- weights$z0
-  w1 <- weights$z1
-  w <- rep(NA, n)
-  w[.self$z==0] <- w0
-  w[.self$z==1] <- w1
-  w <- w/sum(w)
-  
-  #(w * (1-z))/sum((w * (1-z)))
-  
-  if(est == "ATE") {
-    model0 <- lm(.self$y ~ design, subset = .self$z == 0)
-    f0 <- predict(model0, data.frame(design))
-    mu_0 <- mean(f0)
-    e_0 <- model0$resid #c(y - f0)
-    y_0 <- mu_0 + e_0 %*% w0 
-    
-    model1 <- lm(.self$y ~ design, subset = .self$z == 1)
-    f1 <- predict(model1, data.frame(design)) #model1$fitted.values#
-    mu_1 <- mean(f1)
-    e_1 <- model1$resid #c(y - f1)
-    y_1 <- mu_1 + e_1 %*% w1 #(w * z)/sum(w*z)
-  } else if (est == "ATT") {
-    y_1 <- mean(.self$y[.self$z==1])
-  } else if (est == "ATC") {
-    model1 <- lm(y ~ design, subset = z == 1)
-    f1 <- predict(model1, data.frame(design)) #model1$fitted.values#
-    mu_1 <- mean(f1)
-    e_1 <- model1$resid #c(y - f1)
-    y_1 <- mu_1 + e_1 %*% w1 #(w * z)/sum(w*z)
-    y_0 <- mean(.self$y[.self$z==0])
-  }
-  
-  tx_effect <- y_1 - y_0
-  
-  return(tx_effect)
-}
 
-outcome_model_H <- function(data, weights, ...) {
-  dots <- list(...)
-  est <- dots$est
-  if(is.null(est)) est <- "ATE"
-  design <- .data$get_x()
-  ns <- data$get_n()
-  n <- sum(ns)
-  n1 <- ns["n1"]
-  n0 <- ns["n0"]
-  # design0 <- design[z==0,,drop=FALSE]
-  # design1 <- design[z==1,,drop=FALSE]
-  y <- data$get_y()
-  z <- data$get_z()
-  y0 <- y[z==0]
-  y1 <- y[z==1]
-  w0 <- weights$w0
-  w1 <- weights$w1
-  if(is.null(w1)) w1 <- rep(1/n1,n1)
-  w <- rep(NA, n)
-  w[z==0] <- w0
-  w[z==1] <- w1
-  w  <- renormalize(w)
-  w1 <- renormalize(w1)
-  w0 <- renormalize(w0)
-  
-  if(est == "ATE") {
-    y_1 <- y1 %*% w1
-    y_0 <- y0 %*% w0
-  } else if (est == "ATT") {
-    y_1 <- mean(y1)
-    y_0 <- y0 %*% w0
-  } else if (est == "ATC") {
-    y_0 <- mean(y0)
-    y_1 <- y1 %*% w1
-  }
-  
-  tx_effect <- y_1 - y_0
-  
-  return(tx_effect)
-}
-
-# outcome_model <- function(.self, weights, method = c("Hajek"), doubly.robust =c(TRUE, FALSE),...) {
-#   meth <- match.arg(method)
-#   dr <- match.arg(doubly.robust)
-#   estimator <- ifelse(dr, paste0("DR.",meth), meth)
-#   fun <- switch(estimator, Hajek = outcome_model_H,
-#          DR.Hajek = outcome_model_DRH)
-#   return(fun(.self, weights, ...))
-# }
 
 outcome_calc <- function(data, z, weights, formula, model.fun) {
   
   w0 <- weights$w0
   w1 <- weights$w1
-  
-  
-  fit_1 <- model.fun(formula$treated, data, subset = z==1)
-  fit_0 <- model.fun(formula$control, data, subset = z==0)
+
+  fit_1 <- model.fun(formula$treated, data[z==1,,drop=FALSE])
+  fit_0 <- model.fun(formula$control, data[z==0,,drop=FALSE])
   
   f_1   <- predict(fit_1, data) 
   f_0   <- predict(fit_0, data) 
@@ -204,15 +108,14 @@ prep_data.list <- function(data, ...) {
 
 prep_data.DataSim <- function(data, ...) {
   #create data.frame
-  df <- data.frame(data$get_y(), data$get_x())
+  df <- data.frame(y = data$get_y(), data$get_x())
   z <- data$get_z()
   
   return(list(df = df, z = z))
 }
 
 outcome_model <- function(data, formula = NULL, weights, 
-                                  hajek = TRUE
-                          , 
+                                  hajek = TRUE, 
                                   doubly.robust = c(TRUE, FALSE), 
                                   target = c("ATT", "ATC", "ATE", "feasible"), 
                                   model = NULL, ...) {
