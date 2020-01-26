@@ -6,7 +6,7 @@ library(dplyr)
 
 #### Data Fun ####
 n <- 2^9
-p <- 100
+p <- 6
 nsims <- 6
 overlap <- "low"
 design <- "B"
