@@ -7,13 +7,13 @@ library(dplyr)
 #### Data Fun ####
 n <- 2^9
 p <- 6
-nsims <- 100
+nsims <- 10
 power <- 1
-ground_power <- 1
+ground_power <- 2
 std_mean_diff <- 0.1
 overlap <- "low"
-design <- "A"
-distance <- "Lp"
+design <- "B"
+distance <- "mahalanobis"
 
 #### get simulation functions ####
 original <- Hainmueller$new(n = n, p = p, 
@@ -24,8 +24,9 @@ original <- Hainmueller$new(n = n, p = p,
 #### Simulations ####
 cl <- parallel::makeCluster(parallel::detectCores()-1)
 registerDoParallel(cl)
+# cl <- FALSE
 output <- sim.function(original, nsims, ground_p = ground_power, p = power, 
-                       std_mean_diff = std_mean_diff,
+                       standardized.mean.difference = std_mean_diff,
                        distance = distance, parallel = cl)
 stopCluster(cl)
 

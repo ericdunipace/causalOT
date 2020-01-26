@@ -6,12 +6,14 @@ generate_holder <- function(outcome = TRUE) {
   
   estimates <- options$estimates
   dr <- options$dr
+  matched <- options$matched
   weights <- options$weights
   
   weight.list <- sapply(weights, function(i){NULL}, simplify = FALSE)
   
   if(outcome) {
-    dr.list <- sapply(dr, function(i){weight.list}, simplify=FALSE)
+    m.list <- sapply(matched, function(i){weight.list}, simplify=FALSE)
+    dr.list <- sapply(dr, function(i){m.list}, simplify=FALSE)
     output <- sapply(estimates, function(i) {dr.list}, simplify=FALSE)
   } else {
     output <- sapply(estimates, function(i) {weight.list}, simplify = FALSE)
@@ -24,7 +26,8 @@ get_holder_options <- function() {
   estimates <- c("ATT", "ATC", "ATE", "feasible")
   dr <- c("Hajek", "DR Hajek")
   weights <- c("SBW", "Constrained Wasserstein", "Wasserstein")
-  return(list(estimates = estimates, dr = dr, weights = weights))
+  matched <- c("Unmatched", "Matched")
+  return(list(estimates = estimates, dr = dr, weights = weights, matched = matched))
 }
 
 convert_holder <- function(x, outcome = TRUE) {
@@ -43,6 +46,7 @@ convert_holder <- function(x, outcome = TRUE) {
   estimates <- c("Naive", options$estimates)
   dr <- options$dr
   weights <- options$weights
+  matched <- options$matched
   
   un <- unlist(x)
   poss.names <- names(un)
@@ -54,11 +58,13 @@ convert_holder <- function(x, outcome = TRUE) {
   weight.vec <- factor(find.names(poss.names, sort(weights, decreasing = TRUE)), levels = weights)
   
   if(outcome) {
+    m.tf  <- !grepl("Unmatched", poss.names)
     dr.tf <- grepl("DR", poss.names)
     hj.tf <- grepl("Hajek", poss.names)
     df <- data.frame(values = un, estimate = est.vec, 
                      weighting.method = weight.vec, 
-                     hajek = hj.tf,  doubly.robust = dr.tf)
+                     hajek = hj.tf,  doubly.robust = dr.tf,
+                     matched = m.tf)
   } else {
     df <- data.frame(values = un, estimate = est.vec, 
                      weighting.method = weight.vec)

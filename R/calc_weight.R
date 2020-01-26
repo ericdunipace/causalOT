@@ -3,14 +3,15 @@ setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL"
 calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
                                 method = c("SBW","Wasserstein", "Constrained Wasserstein",
                                            "Logistic"),
+                        transport.matrix = FALSE,
                                 ...) {
   method <- match.arg(method)
   estimate <- match.arg(estimate)
+  dots <- list(...)
   
   sol <- if(method != "Logistic") {
-    calc_weight_bal(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
-                            method = c("SBW","Wasserstein", "Constrained Wasserstein",
-                                       "Logistic"),
+    calc_weight_bal(data, constraint,  estimate = estimate, 
+                            method = method,
                             ...)
   } else {
     calc_weight_glm (data, constraint, estimate,...)
@@ -45,6 +46,9 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","feasible")
       output$w1 <- renormalize(res$xopt[ns["n0"] + 1:ns["n1"]])
     }
   }
+  if (isTRUE(transport.matrix)) {
+    output$gamma <- calc_gamma(output, ...)
+  }
   output$estimate <- estimate
   class(output) <- "causalWeights"
   return(output)
@@ -59,6 +63,7 @@ calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
   
   n1 <- sum(z)
   n0 <- sum(1-z)
+  n  <- n1 + n0
   if(any(colnames(df) == "y")) {
     df$y <- NULL
   }
@@ -79,14 +84,14 @@ calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
   
   weight <- rep(NA, n1 + n0)
   if (estimate == "ATT") {
-    weight[z==1] <- rep(1/n1, n1)
-    weight[z==0] <- 1/pred[z==0]
+    weight[z==1] <- rep(1/n0, n0)
+    weight[z==0] <- pred[z==0]/(1 - pred[z==0]) * 1/n1
   } else if (estimate == "ATC") {
-    weight[z==1] <- 1/(1-sol[z==1])
+    weight[z==1] <- (1 - pred[z==0])/pred[z==0] * 1/n0
     weight[z==0] <- rep(1/n1, n1)
   } else if (estimate == "ATE") {
-    weight[z==1] <- 1/(1-pred[z==1])
-    weight[z==0] <- 1/pred[z==0]
+    weight[z==1] <- 1/pred[z==1] * 1/n
+    weight[z==0] <- 1/(1-pred[z==0]) * 1/n
   }
   return(weight)
 }
@@ -123,7 +128,7 @@ calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasib
   return(sol)
 }
 
-convert_ATE <- function(weight1, weight2) {
+convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
   list_weight <- list(weight1, weight2)
   check.vals <- sapply(list_weight, function(w) w$estimate)
   ATT.pres <- check.vals %in% "ATT"
@@ -139,8 +144,37 @@ convert_ATE <- function(weight1, weight2) {
   
   output$w0 <- ATT.weight$w0
   output$w1 <- ATC.weight$w1
+  if(transport.matrix) {
+    dots <- list(...)
+    cost <- dots$cost
+    p <- dots$p
+    if(is.null(cost) | is.null(p)) stop("To calculate transportation matrix, 'p' and 'cost' must be specified")
+    transp_plan <- transport::transport(output$w0, output$w1, p = p, costm = cost)
+    output$gamma <- matrix(0, nrow = length(output$w0), ncol = length(output$w1))
+    for(i in 1:nrow(transp_plan)) { 
+      output$gamma[transp_plan$from[i], transp_plan$to[i]] <- transp_plan$mass[i]
+    }
+  }
   output$estimate <- "ATE"
   return(output)
+}
+
+calc_gamma <- function(weights, ...) {
+  dots <- list(...)
+  n1 <- length(weights$w1)
+  n0 <- length(weights$w0)
+  if(!is.null(dots$cost) & ! is.null(dots$p)) {
+    tplan <- transport::transport(a = weights$w0,
+                                          b = weights$w1,
+                                          p = dots$p,
+                                          costm = dots$cost)
+    gamma <- matrix(0, nrow = n0, ncol = n1)
+    gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
+    
+  } else {
+    gamma <- NULL
+  }
+  return(gamma)
 }
 
 setOldClass("DataSim")

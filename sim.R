@@ -7,7 +7,7 @@ library(dplyr)
 #### Data Fun ####
 n <- 2^9
 p <- 6
-nsims <- 3
+nsims <- 100
 power <- c(1,2)
 ground_power <- 2
 std_mean_diff <- c(0.001, 0.01, 0.1, 1)
@@ -51,6 +51,9 @@ parallel::stopCluster(cl)
 saveRDS(output, file = "all_20200124.rds")
 
 #### Calculate summary stat ####
+o <- "low"
+smd <- 0.01
+cat(o, "overlap, design",d, ", using", pp, "-Wasserstein distance, and standardized mean difference of",smd )
 to_print <- output[[o]][[d]][[pp]][[dist]][[smd]]
 to_print$outcome %>% 
   group_by(estimate, weighting.method, doubly.robust) %>% 
@@ -69,10 +72,12 @@ to_print$`2-Wasserstein` %>%
   summarize(average = mean(values),
             variance = var(values))
 
-to_print[[paste(c(pp,"Wasserstein"),collapse="-")]] %>% 
+if(pp!=2) {
+  to_print[[paste(c(pp,"Wasserstein"),collapse="-")]] %>% 
   group_by(estimate, weighting.method) %>% 
   summarize(average = mean(values),
             variance = var(values))
+}
 
 #check number sims correct
 to_print$outcome %>% 

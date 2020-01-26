@@ -1,11 +1,14 @@
 sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1, 
-                         std_mean_diff = 0.1,
+                         standardized.mean.difference = 0.1,
                          distance = c("Lp", "mahalanobis"),
-                         parallel = TRUE) {
+                         parallel = FALSE) {
   
   nsims <- as.integer(nsims)
+  standardized.mean.difference <- as.numeric(standardized.mean.difference)
+  
   stopifnot(nsims > 0)
   stopifnot(inherits(dataGen, "DataSim"))
+  stopifnot(standardized.mean.difference > 0)
   
   #### dist mat ####
   dist <- match.arg(distance)
@@ -35,7 +38,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
   simulations <- foreach::foreach(sim = 1:nsims) %dorng% {
 
     #### Gen Data ####
-    target <- dataGen$clone()
+    target <- dataGen$clone(deep = TRUE)
     target$gen_data()
     ns <- target$get_n()
     n1 <- ns["n1"]
@@ -57,6 +60,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     estimates <- options$estimates[1:3]
     wn <- options$weights
     DR <- options$dr
+    mch<- options$matched
     
     delta <- list(NULL)
 
@@ -69,22 +73,27 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     #### Naive Outcome
     outcome$Naive <- outcome_model(data = target, weights = original_mass,
                                    doubly.robust = FALSE, hajek = FALSE,
+                                   matched = FALSE,
                                    target = "ATE")
     
     #### fill lists ####
     for(i in estimates) {
       for(j in wn ){
-        delta <- if(j == "SBW") {
-          std_mean_diff
+        delta[[1]] <- if(j == "SBW") {
+          standardized.mean.difference
         } else {
           wass[[i]][["SBW"]]
         }
         if(i != "ATE"){
-          weights[[i]][[j]] <- calc_weight(target,  constraint = delta,
+          weights[[i]][[j]] <- calc_weight(target,  constraint = delta[[1]],
                                            estimate = i, method = j,
-                                           cost = cost, p = p)
+                                           cost = cost, p = p,
+                                           transport.matrix = TRUE)
         } else {
-          weights[[i]][[j]] <- convert_ATE(weights[["ATT"]][[j]], weights[["ATC"]][[j]])
+          weights[[i]][[j]] <- convert_ATE(weights[["ATT"]][[j]], 
+                                           weights[["ATC"]][[j]],
+                                           transport.matrix = TRUE,
+                                           cost = cost, p = p)
         }
         pop_frac[[i]][[j]] <- ESS(weights[[i]][[j]])/c(n0,n1)
         
@@ -98,9 +107,16 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
         }
         for (k in DR) {
           dr <- grepl("DR", k)
-          outcome[[i]][[k]][[j]] <- outcome_model(data = target, weights = weights[[i]][[j]],
-                                                  doubly.robust = dr, hajek = TRUE,
-                                                  target = i)
+          # for(l in mch[1:(dr+1)]){
+          for(l in mch){
+            matched <- grepl("Matched", l, fixed = TRUE)
+            outcome[[i]][[k]][[l]][[j]] <- outcome_model(data = target, weights = weights[[i]][[j]],
+                                                         hajek = TRUE,
+                                                         doubly.robust = dr,
+                                                         matched = matched,
+                                                         target = i)
+          }
+          
         }
       }
     }
@@ -144,3 +160,4 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
 }
 
 setGeneric("%dorng%", doRNG::`%dorng%`)
+setGeneric("%dopar%", foreach::`%dopar%`)

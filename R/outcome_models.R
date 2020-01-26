@@ -1,26 +1,64 @@
 
 
-outcome_calc <- function(data, z, weights, formula, model.fun) {
+outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate) {
   
   w0 <- weights$w0
   w1 <- weights$w1
+  t_ind <- z==1
+  c_ind <- z==0
 
-  fit_1 <- model.fun(formula$treated, data[z==1,,drop=FALSE])
-  fit_0 <- model.fun(formula$control, data[z==0,,drop=FALSE])
-  
+  fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
+  fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
   f_1   <- predict(fit_1, data) 
-  f_0   <- predict(fit_0, data) 
-  mu_1  <- mean(f_1)
-  mu_0  <- mean(f_0)
-  e_1   <- fit_1$resid 
-  e_0   <- fit_0$resid 
+  f_0   <- predict(fit_0, data)
   
-  y_1   <- mu_1 + e_1 %*% w1
-  y_0   <- mu_0 + e_0 %*% w0
+  if (matched) {
+    if(is.null(weights$gamma)) {
+      stop("Transport matrix must be specified for matched estimator")
+    }
+    # rad   <- (2*z - 1)
+    e_1   <- (data$y - f_1)
+    e_0   <- (data$y - f_0)
+    idx   <- which(weights$gamma !=0, arr.ind = TRUE)
+    
+    gamma_vec <- c(weights$gamma[idx])
+    
+    e_1_t <- e_1[t_ind]
+    e_1_c <- e_1[c_ind]
+    e_0_t <- e_0[t_ind]
+    e_0_c <- e_0[c_ind]
+    
+    if(estimate == "ATT" | estimate == "ATE" | estimate == "feasible") {
+      tau_t <- crossprod((e_0_t[idx[,2]] - e_0_c[idx[,1]]), gamma_vec)
+    }
+    if(estimate == "ATC" | estimate == "ATE" | estimate == "feasible") {
+      tau_c <- crossprod((e_1_t[idx[,2]] - e_1_c[idx[,1]]), gamma_vec)
+    }
+    if(estimate == "ATT"){
+      tx_effect <- c(tau_t)
+    } else if (estimate == "ATC") {
+      tx_effect <- c(tau_c)
+    } else if(estimate == "ATE" | estimate == "feasible") {
+      t_w   <- 1/(sum(w1^2))
+      c_w   <- 1/(sum(w0^2))
+      
+      tx_effect <- c(( t_w * tau_t + c_w * tau_c)/(c_w + t_w))
+    }
+    
+  } else {
+    mu_1  <- mean(f_1)
+    mu_0  <- mean(f_0)
+    e_1   <- fit_1$residuals
+    e_0   <- fit_0$residuals
+    
+    y_1   <- mu_1 + e_1 %*% w1
+    y_0   <- mu_0 + e_0 %*% w0
+    
+    tx_effect <- c(y_1 - y_0)
+  }
   
-  tx_effect <- y_1 - y_0
   
-  return(c(tx_effect))
+  return(tx_effect)
 }
 
 calc_form <- function(formula, doubly.robust, target) {
@@ -37,14 +75,14 @@ calc_form <- function(formula, doubly.robust, target) {
   formula$control <- form_obs
   
   if (doubly.robust) {
-    if(target == "ATT") {
-      formula$control <- form_mod
-    } else if(target == "ATC") {
-      formula$treated <- form_mod
-    } else if (target == "ATE" | target == "feasible") {
-      formula$treated <- form_mod
-      formula$control <- form_mod
-    }
+      if(target == "ATT") {
+        formula$control <- form_mod
+      } else if(target == "ATC") {
+        formula$treated <- form_mod
+      } else if (target == "ATE" | target == "feasible") {
+        formula$treated <- form_mod
+        formula$control <- form_mod
+      }
   }
   return(formula)
 }
@@ -91,7 +129,7 @@ prep_data.data.frame <- function(data,...) {
   } else {
     outcome
   }
-  df <- data.frame(y = data[y.var], x = data[x.vars])
+  df <- data.frame(y = data[y.var], data[x.vars])
   # df <- data[c(y.var, x.vars)]
   z <- data[[tx.var]]
   
@@ -100,7 +138,7 @@ prep_data.data.frame <- function(data,...) {
 
 prep_data.list <- function(data, ...) {
   #create data.frame
-  df <- data.frame(data$y, data$x)
+  df <- data.frame(y = data$y, data$x)
   z <- data$z
   
   return(list(df = df, z = z))
@@ -116,13 +154,16 @@ prep_data.DataSim <- function(data, ...) {
 
 outcome_model <- function(data, formula = NULL, weights, 
                                   hajek = TRUE, 
-                                  doubly.robust = c(TRUE, FALSE), 
+                                  doubly.robust = TRUE,
+                                  matched = FALSE,
                                   target = c("ATT", "ATC", "ATE", "feasible"), 
                                   model = NULL, ...) {
   #get args
   dots <- list(...)
+  
   # hajek <- match.arg(hajek)
-  dr <- doubly.robust
+  dr <- doubly.robust[1]
+  matched <- matched[1]
   if(is.null(target)){
     if(inherits(weights, "causalWeights")){
       target <- weights$estimate
@@ -139,7 +180,8 @@ outcome_model <- function(data, formula = NULL, weights,
   prep.data <- prep_data(data)
   
   #get estimate
-  estimate <- outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun)
+  estimate <- outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun,
+                           matched, target)
   
   return(estimate)
 }

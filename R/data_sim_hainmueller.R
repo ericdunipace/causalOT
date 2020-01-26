@@ -9,7 +9,11 @@ Hainmueller <- R6::R6Class("Hainmueller",
       },
       gen_x = function() {
         stopifnot(length(private$n) >0 )
-        x13 <- private$param$param_x$x_13$mean + matrix(rnorm(private$n * 3), nrow = private$n, ncol = 3) %*% chol(private$param$param_x$x_13$covar)
+        x13 <- matrix(private$param$param_x$x_13$mean, nrow = private$n,
+                      ncol = 3, byrow = TRUE) + 
+          matrix(rnorm(private$n * 3), 
+                 nrow = private$n, 
+                 ncol = 3) %*% chol(private$param$param_x$x_13$covar)
         x4 <- runif(private$n, private$param$param_x$x4$lower, private$param$param_x$x4$upper)
         x5 <- rchisq(private$n, df = private$param$param_x$x5$df)
         x6 <- rbinom(private$n, size = 1, prob =private$param$param_x$x6$p)
@@ -36,7 +40,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
        if(all(dim(private$x) == 0)) gen_x()
        mean_z <- private$x %*% private$param$beta_z
        latent_z <- mean_z + rnorm(private$n, mean=0, sd = private$param$sigma_z)
-       private$z <- c(ifelse(latent_z <0, 0, 1))
+       private$z <- c(ifelse(latent_z < 0, 0, 1))
        private$check_data()
        invisible(self)
      },
@@ -67,11 +71,14 @@ Hainmueller <- R6::R6Class("Hainmueller",
                    sigma_z = param$sigma_z, sigma_y = param$sigma_y,
                    param_x = param$param_x)
        
-     }
+     },
+      get_design = function() {
+        return(c(design = private$design, overlap = private$overlap))
+      }
      ),
      private = list(design = "character",
-                  overlap = "character",
-                  set_param = function(beta_z, beta_y, sigma_z, sigma_y, param_x) {
+                    overlap = "character",
+                    set_param = function(beta_z, beta_y, sigma_z, sigma_y, param_x) {
                     miss.null <- function(xx) {
                       return(missing(xx) | is.null(xx))
                     }
@@ -154,7 +161,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                     }
                     private$param <- temp_param
                   }
-                  )
+                    )
 )
 
 # hainmueller$lock(c("n","p","param","design","overlap"))
