@@ -1,7 +1,7 @@
-generate_holder <- function(outcome = TRUE) {
+generate_holder <- function(outcome = TRUE, ...) {
   # type = c("list","data.frame")
   # type <- match.arg(type)
-  
+  dots <- list(...)
   options <- get_holder_options()
   
   estimates <- options$estimates
@@ -18,6 +18,13 @@ generate_holder <- function(outcome = TRUE) {
   } else {
     output <- sapply(estimates, function(i) {weight.list}, simplify = FALSE)
   }
+  if(length(dots)) {
+    temp_vec <- sapply(dots, function(i) {as.character(i)}, simplify=FALSE)
+    for(i in seq_along(dots)) {
+      holder <- output
+      output <- sapply(temp_vec[[i]], function(i) {holder}, simplify = FALSE)
+    }
+  } 
   class(output) <- "outputHolder"
   return(output)
 }
@@ -30,7 +37,7 @@ get_holder_options <- function() {
   return(list(estimates = estimates, dr = dr, weights = weights, matched = matched))
 }
 
-convert_holder <- function(x, outcome = TRUE) {
+convert_holder <- function(x, outcome = TRUE, addl.terms = NULL) {
   stopifnot(inherits(x, "outputHolder"))
   options <- get_holder_options()
   
@@ -72,6 +79,13 @@ convert_holder <- function(x, outcome = TRUE) {
   fac <- df$weighting.method
   df$weighting.method <- factor(ifelse(is.na(fac), "None", as.character(fac)), levels = c(levels(fac), "None"))
   
+  if(!is.null(addl.terms)) {
+    nat <- names(addl.terms)
+    for(i in seq_along(addl.terms)) {
+      df[[nat[i]]] <- factor(find.names(poss.names, addl.terms[[i]]), levels = addl.terms[[i]])
+    }
+  }
+  
   return(df)
 }
 
@@ -81,11 +95,11 @@ data_sim_holder <- function(design, overlap) {
   return(output)
 }
 
-sim_holder <- function(design, overlap, distance, power, std_mean_diff) {
-  smd.list <- sapply(as.character(std_mean_diff), function(i){NULL}, simplify=FALSE)
-  plist    <- sapply(power, function(i){smd.list}, simplify=FALSE)
-  dlist    <- sapply(distance, function(i){plist}, simplify=FALSE)
-  des.list <- sapply(design, function(i){dlist}, simplify=FALSE)
+sim_holder <- function(design, overlap) {
+  # smd.list <- sapply(as.character(std_mean_diff), function(i){NULL}, simplify=FALSE)
+  # plist    <- sapply(power, function(i){smd.list}, simplify=FALSE)
+  # dlist    <- sapply(distance, function(i){plist}, simplify=FALSE)
+  des.list <- sapply(design, function(i){NULL}, simplify=FALSE)
   output <- sapply(overlap, function(i) {des.list}, simplify = FALSE)
   return(output)
 }

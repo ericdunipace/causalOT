@@ -7,7 +7,7 @@ library(dplyr)
 #### Data Fun ####
 n <- 2^9
 p <- 6
-nsims <- 100
+nsims <- 3
 power <- c(1,2)
 ground_power <- 2
 std_mean_diff <- c(0.001, 0.01, 0.1, 1)
@@ -16,35 +16,31 @@ design <- c("A","B")
 distance <- c("Lp", "mahalanobis")
 
 #### get simulation functions ####
-original <- data_sim_holder(design, overlap)
-  
-for (o in overlap) {
-  for (d in design) {
-    original[[o]][[d]] <- Hainmueller$new(n = n, p = p, 
-                                          design = d, overlap = o)
-  }
-}
+# original <- data_sim_holder(design, overlap)
+#   
+# for (o in overlap) {
+#   for (d in design) {
+#     original[[o]][[d]] <- Hainmueller$new(n = n, p = p, 
+#                                           design = d, overlap = o)
+#   }
+# }
 
 #### output holder function ####
-output <- sim_holder(design, overlap, power, distance, std_mean_diff)
+output <- sim_holder(design, overlap)
 
 #### Simulations ####
 cl <- parallel::makeCluster(parallel::detectCores()-1)
 doParallel::registerDoParallel(cl)
 for (o in overlap) {
   for (d in design) {
-    for(pp in power) {
-      for (dist in distance) {
-        for(smd in std_mean_diff) {
-          output[[o]][[d]][[pp]][[dist]][[as.character(smd)]] <- 
-            sim.function(original[[o]][[d]], nsims, 
+    output[[o]][[d]] <- 
+            sim.function(Hainmueller$new(n = n, p = p, 
+                                         design = d, overlap = o), 
+             nsims, 
              ground_p = ground_power, 
-             p = pp, 
-             std_mean_diff = smd,
-             distance = dist, parallel = cl)
-        }
-      }
-    }
+             p = power, 
+             standardized.mean.difference = std_mean_diff,
+             distance = distance, parallel = cl)
   }
 }
 parallel::stopCluster(cl)
