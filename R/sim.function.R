@@ -86,7 +86,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     # mean.diffs <- as.character(standardized.mean.difference)
     
     # use lists to avoid copy
-    delta <- std.mean.diff <- pp <- gp <- cost <- list(NULL)
+    cost.calc <- delta <- std.mean.diff <- pp <- gp <- cost <- list(NULL)
     
     #### Naive Outcome
     outcome$Naive <- outcome_model(data = target, weights = original_mass,
@@ -96,11 +96,11 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     
     #### fill lists ####
     for(dist.name in  addl.terms$metric) {
-      cost.calc <- switch(dist.name, "Lp" = causalOT::cost_calc_lp,
+      cost.calc[[1]] <- switch(dist.name, "Lp" = causalOT::cost_calc_lp,
                           "mahalanobis" = causalOT::cost_mahalanobis)
       for (gpowers in addl.terms$ground.power) {
         gp[[1]] <- as.numeric(gpowers)
-        cost[[1]] <- cost.calc(X = target$get_x0(), Y = target$get_x1(), 
+        cost[[1]] <- cost.calc[[1]](X = target$get_x0(), Y = target$get_x1(), 
                                ground_p = gp[[1]], direction = "rowwise")
         for(powers in addl.terms$wasserstein.power) {
           pp[[1]] <- as.numeric(powers)

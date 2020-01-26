@@ -19,8 +19,6 @@ std_mean_diff <- c(0.001, 0.01, 0.1, 0.2)
 original <- Hainmueller$new(n = n, p = p, 
                             design = design, overlap = overlap)
 
-
-
 #### Simulations ####
 cl <- parallel::makeCluster(parallel::detectCores())
 doParallel::registerDoParallel(cl)
@@ -60,4 +58,4 @@ output$outcome %>%
   filter(weighting.method == "None") %>%
   summarize(total_sims = n() == nsims)
 
-saveRDS(output, file = "low_w1_20200126.rds")
+saveRDS(output, file = "low_B_20200126.rds")
