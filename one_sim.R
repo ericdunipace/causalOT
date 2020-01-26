@@ -31,9 +31,9 @@ parallel::stopCluster(cl)
 print(proc.time() - times)
 #### Calculate summary stat ####
 print(output$outcome %>% 
-  filter(estimate == "ATE" & metric == "mahalanobis") %>% 
+  filter(estimate == "ATE") %>% 
   group_by(weighting.method, doubly.robust, matched, 
-           standardized.mean.difference, wasserstein.power) %>% 
+           standardized.mean.difference, wasserstein.power, metric) %>% 
   summarize(bias = mean(values),
             variance = var(values),
             mse = mean(values^2)),
@@ -41,19 +41,21 @@ print(output$outcome %>%
 
 
 output$`ESS/N` %>% 
-  group_by(estimate, weighting.method, Population) %>% 
+  group_by(weighting.method, doubly.robust, matched, 
+           standardized.mean.difference, wasserstein.power) %>% 
   summarize(average = mean(values),
             variance = var(values))
 
-output$`2-Wasserstein` %>% 
-  group_by(estimate, weighting.method) %>% 
-  summarize(average = mean(values),
-            variance = var(values))
-
-output[[paste(c(power,"Wasserstein"),collapse="-")]] %>% 
-  group_by(estimate, weighting.method) %>% 
-  summarize(average = mean(values),
-            variance = var(values))
+# output$`2-Wasserstein` %>% 
+#   group_by(weighting.method, doubly.robust, matched, 
+#            standardized.mean.difference, wasserstein.power) %>% 
+#   summarize(average = mean(values),
+#             variance = var(values))
+# 
+# output[[paste(c(power,"Wasserstein"),collapse="-")]] %>% 
+#   group_by(estimate, weighting.method) %>% 
+#   summarize(average = mean(values),
+#             variance = var(values))
 
 #check number sims correct
 output$outcome %>% 
