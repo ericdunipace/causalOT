@@ -80,9 +80,11 @@ convert_holder <- function(x, outcome = TRUE, addl.terms = NULL) {
   df$weighting.method <- factor(ifelse(is.na(fac), "None", as.character(fac)), levels = c(levels(fac), "None"))
   
   if(!is.null(addl.terms)) {
-    nat <- names(addl.terms)
-    for(i in seq_along(addl.terms)) {
-      df[[nat[i]]] <- factor(find.names(poss.names, addl.terms[[i]]), levels = addl.terms[[i]])
+    labels <- addl.terms$labels
+    vals <- addl.terms$values
+    nat <- names(labels)
+    for(i in seq_along(labels)) {
+      df[[nat[i]]] <- factor(find.names(poss.names, labels[[i]]), levels = labels[[i]], labels = vals[[i]])
     }
   }
   

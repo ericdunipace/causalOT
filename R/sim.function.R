@@ -35,11 +35,23 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
   }
   
   #### iterate through metrics and such ####
-  addl.terms <- list(standardized.mean.difference = as.character(standardized.mean.difference),
-                     wasserstein.power = as.character(p), 
-                     ground.power = as.character(ground_p),
-                     metric = as.character(dist)
+  addl.terms <- list(standardized.mean.difference = paste0("std_diff_",standardized.mean.difference),
+                     wasserstein.power = paste0("wpower_",p), 
+                     ground.power = paste0("gpower_",ground_p),
+                     metric = paste0("metric_",dist)
                      )
+  names(standardized.mean.difference) <- addl.terms$standardized.mean.difference
+  names(p)        <- addl.terms$wasserstein.power
+  names(ground_p) <- addl.terms$ground.power
+  names(dist)   <- addl.terms$metric
+  
+  term.values  <- list(standardized.mean.difference = standardized.mean.difference,
+                     wasserstein.power = p, 
+                     ground.power = ground_p,
+                     metric = dist)
+  
+  fill.df <- list(labels = addl.terms,
+                  values = term.values)
   
   #### run simulations ####
   simulations <- foreach::foreach(sim = 1:nsims) %dorng% {
@@ -96,16 +108,16 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     
     #### fill lists ####
     for(dist.name in  addl.terms$metric) {
-      cost.calc[[1]] <- switch(dist.name, "Lp" = causalOT::cost_calc_lp,
+      cost.calc[[1]] <- switch(dist[dist.name], "Lp" = causalOT::cost_calc_lp,
                           "mahalanobis" = causalOT::cost_mahalanobis)
       for (gpowers in addl.terms$ground.power) {
-        gp[[1]] <- as.numeric(gpowers)
+        gp[[1]] <- ground_p[[gpowers]]
         cost[[1]] <- cost.calc[[1]](X = target$get_x0(), Y = target$get_x1(), 
                                ground_p = gp[[1]], direction = "rowwise")
         for(powers in addl.terms$wasserstein.power) {
-          pp[[1]] <- as.numeric(powers)
+          pp[[1]] <- p[powers]
           for(diffs in addl.terms$standardized.mean.difference) {
-            std.mean.diff[[1]] <- as.numeric(diffs)
+            std.mean.diff[[1]] <- standardized.mean.difference[diffs]
             # original wass #
             wass[[dist.name]][[gpowers]][[powers]][[diffs]]$original <- 
               wasserstein_p(original_mass$w0, original_mass$w1, p = pp[[1]],
@@ -178,17 +190,17 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
   }
   if(stopcl) parallel::stopCluster(cl)
   
-  outcome <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$outcome, outcome = TRUE, addl.terms) ))
+  outcome <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$outcome, outcome = TRUE, fill.df) ))
   
   # ATT <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$outcome$ATT)))
   # ATC <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$outcome$ATC)))
   # ATE <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$outcome$ATE)))
   # feasible <- do.call("rbind", lapply(low_overlap, function(l) as.data.frame(l$outcome$feasible)))
-  pop_frac <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$pop_frac, outcome = FALSE, addl.terms)))
+  pop_frac <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$pop_frac, outcome = FALSE, fill.df)))
   pop_frac$Population <- ifelse(grepl("Treated", rownames(pop_frac)), "Treated","Control")
 
-  W2 <-  do.call("rbind", lapply(simulations, function(l) convert_holder(l$W2, outcome = FALSE, addl.terms)))
-  WassP <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$wass, outcome = FALSE, addl.terms)))
+  W2 <-  do.call("rbind", lapply(simulations, function(l) convert_holder(l$W2, outcome = FALSE, fill.df)))
+  WassP <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$wass, outcome = FALSE, fill.df)))
   
   fac <- as.character(W2$estimate)
   fac[is.na(fac)] <- "Original"

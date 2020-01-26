@@ -7,13 +7,13 @@ library(dplyr)
 #### Sim param ####
 n <- 2^9
 p <- 6
-nsims <- 4
+nsims <- 100
 overlap <- "low"
 design <- "B"
 distance <- c("Lp", "mahalanobis")
 power <- c(1,2)
 ground_power <- 2
-std_mean_diff <- c(0.001, 0.01, 0.1, 0.2)
+std_mean_diff <- c(0.001, 0.01, 0.1)
 
 #### get simulation functions ####
 original <- Hainmueller$new(n = n, p = p, 
@@ -31,11 +31,13 @@ parallel::stopCluster(cl)
 print(proc.time() - times)
 #### Calculate summary stat ####
 print(output$outcome %>% 
-  group_by(estimate, weighting.method, doubly.robust, matched) %>% 
+  filter(estimate == "ATE" & metric == "mahalanobis") %>% 
+  group_by(weighting.method, doubly.robust, matched, 
+           standardized.mean.difference, wasserstein.power) %>% 
   summarize(bias = mean(values),
             variance = var(values),
             mse = mean(values^2)),
-  n = 37)
+  n = 39)
 
 
 output$`ESS/N` %>% 
