@@ -4,16 +4,16 @@ set.seed(224893390) #from random.org
 library(causalOT)
 library(dplyr)
 
-#### Data Fun ####
+#### Sim param ####
 n <- 2^9
 p <- 6
-nsims <- 6
+nsims <- 4
 overlap <- "low"
 design <- "B"
-distance <- "mahalanobis"#c("Lp", "mahalanobis")
-power <- 1#c(1,2)
+distance <- c("Lp", "mahalanobis")
+power <- c(1,2)
 ground_power <- 2
-std_mean_diff <- 0.1#c(0.001, 0.01, 0.1, 0.2)
+std_mean_diff <- c(0.001, 0.01, 0.1, 0.2)
 
 #### get simulation functions ####
 original <- Hainmueller$new(n = n, p = p, 

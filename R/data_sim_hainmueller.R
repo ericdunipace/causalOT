@@ -46,11 +46,9 @@ Hainmueller <- R6::R6Class("Hainmueller",
      },
       initialize = function(n = 100, p = 6, param = list(), design = "A", overlap = "low", ...) {
        
-       if(missing(p) | is.null(p)) {
-         private$p <- 6
-       } else {
-         private$p <- p
-       }
+       if(p != 6) warning("'p' set to 6 automatically")
+       private$p <- 6 # p is always 6 for this guy
+       
        if(missing(n) | is.null(n)) {
          private$n <- 100
        } else {

@@ -4,7 +4,7 @@ set.seed(-110942628) #from random.org
 library(causalOT)
 library(dplyr)
 
-#### Data Fun ####
+#### Sim Param ####
 n <- 2^9
 p <- 6
 nsims <- 3
