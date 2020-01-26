@@ -29,6 +29,8 @@ output <- sim.function(original, nsims, ground_p = ground_power, p = power,
                        distance = distance, parallel = cl)
 parallel::stopCluster(cl)
 print(proc.time() - times)
+saveRDS(output, file = "low_B_20200126.rds")
+
 #### Calculate summary stat ####
 print(output$outcome %>% 
   filter(estimate == "ATE") %>% 
@@ -62,4 +64,4 @@ output$outcome %>%
   filter(weighting.method == "None") %>%
   summarize(total_sims = n() == nsims)
 
-saveRDS(output, file = "low_B_20200126.rds")
+
