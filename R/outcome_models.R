@@ -13,15 +13,15 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate
   f_0   <- predict(fit_0, data)
   
   if (matched) {
-    if(is.null(weights$gamma)) {
-      stop("Transport matrix must be specified for matched estimator")
-    }
+    # if(is.null(weights$gamma)) {
+    #   stop("Transport matrix must be specified for matched estimator")
+    # }
     # rad   <- (2*z - 1)
     e_1   <- (data$y - f_1)
     e_0   <- (data$y - f_0)
-    idx   <- which(weights$gamma !=0, arr.ind = TRUE)
-    
-    gamma_vec <- c(weights$gamma[idx])
+    # idx   <- which(weights$gamma !=0, arr.ind = TRUE)
+    # 
+    # gamma_vec <- c(weights$gamma[idx])
     
     e_1_t <- e_1[t_ind]
     e_1_c <- e_1[c_ind]
@@ -29,20 +29,27 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate
     e_0_c <- e_0[c_ind]
     
     if(estimate == "ATT" | estimate == "ATE" | estimate == "feasible") {
-      tau_t <- crossprod((e_0_t[idx[,2]] - e_0_c[idx[,1]]), gamma_vec)
+      tau_t <- c(mean(e_0_t) - sum(e_0_c*w0))
+      tau_c <- 0
     }
     if(estimate == "ATC" | estimate == "ATE" | estimate == "feasible") {
-      tau_c <- crossprod((e_1_t[idx[,2]] - e_1_c[idx[,1]]), gamma_vec)
+      tau_t <- 0
+      tau_c <- c(sum(e_1_t*w1) - mean(e_1_c))
     }
     if(estimate == "ATT"){
-      tx_effect <- c(tau_t)
+      tx_effect <- tau_t
     } else if (estimate == "ATC") {
-      tx_effect <- c(tau_c)
+      tx_effect <- tau_c
     } else if(estimate == "ATE" | estimate == "feasible") {
-      t_w   <- 1/(sum(w1^2))
-      c_w   <- 1/(sum(w0^2))
+      if(estimate == "ATE") {
+        t_w   <- sum(t_ind) #1/(sum(w1^2))
+        c_w   <- sum(c_ind) #1/(sum(w0^2))
+      } else if (estimate == "feasible") {
+        t_w   <- 1/(sum(w1^2))
+        c_w   <- 1/(sum(w0^2))
+      }
       
-      tx_effect <- c(( t_w * tau_t + c_w * tau_c)/(c_w + t_w))
+      tx_effect <- ( t_w * tau_t + c_w * tau_c)/(c_w + t_w)
     }
     
   } else {

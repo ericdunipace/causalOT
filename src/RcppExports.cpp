@@ -7,6 +7,19 @@
 
 using namespace Rcpp;
 
+// cost_calculation_
+Rcpp::NumericMatrix cost_calculation_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p);
+RcppExport SEXP _causalOT_cost_calculation_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type A_(A_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type B_(B_SEXP);
+    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
+    rcpp_result_gen = Rcpp::wrap(cost_calculation_(A_, B_, p));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cost_mahal_
 Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p);
 RcppExport SEXP _causalOT_cost_mahal_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP) {
@@ -65,6 +78,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
     {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 3},
     {"_causalOT_rcppeigen_hello_world", (DL_FUNC) &_causalOT_rcppeigen_hello_world, 0},
     {"_causalOT_rcppeigen_outerproduct", (DL_FUNC) &_causalOT_rcppeigen_outerproduct, 1},

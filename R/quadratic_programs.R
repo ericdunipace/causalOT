@@ -229,7 +229,7 @@ qp_wass_const <- function(x, z, K, p = 2, target = c("ATC", "ATT",
   LC <- list()
   LC$A <- rbind(cost_vec, sum_const, marg_const_mat)
   LC$vals <- c(K^p, 1, marg_const)
-  LC$dir <- c("E", rep("E", 1 + marg_const_n))
+  LC$dir <- c("L", rep("E", 1 + marg_const_n))
   
   op <- list(obj=obj, LC=LC)
   return(op)

@@ -3,10 +3,10 @@ Type: Package
 Title: What the package does (short line)
 Version: 1.0
 Date: 2019-12-19
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
+Author: Eric Dunipace
+Maintainer: Eric Dunipace <edunipace@g.harvard.edu>
+Description: Uses Wasserstein distances to find optimal matches for weighting estimators for causal inference.
+License: GPL (>=2.0)
 Imports: 
     Rcpp (>= 1.0.3),
     R6 (>= 2.4.1),
@@ -15,9 +15,10 @@ Imports:
     doRNG,
     parallel,
     doParallel,
-Depends:
     Matrix
-LinkingTo: Rcpp, RcppEigen
+LinkingTo: 
+    Rcpp, 
+    RcppEigen
 Suggests: 
     testthat (>= 2.1.0),
     Rcplex,

@@ -1,7 +1,7 @@
 sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1, 
                          standardized.mean.difference = 0.1,
                          distance = c("Lp", "mahalanobis"),
-                         parallel = FALSE) {
+                         parallel = FALSE, seed = NULL) {
   
   nsims <- as.integer(nsims)
   standardized.mean.difference <- as.numeric(standardized.mean.difference)
@@ -32,6 +32,10 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     doParallel::registerDoParallel(cl)
   } else {
     foreach::registerDoSEQ()
+  }
+  
+  if(!is.null(seed)) {
+    set.seed(seed)
   }
   
   #### iterate through metrics and such ####
@@ -210,12 +214,18 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
   fac[is.na(fac)] <- "Original"
   WassP$estimate <- factor(fac, levels = c("Original","ATT","ATC","ATE"))
   
+  rng <- attr(simulations, "rng")
+  
   
   output <- list(outcome,
                  pop_frac,
                  W2,
-                 WassP)
-  names(output) <- c("outcome","ESS/N","2-Wasserstein", paste(c(p,"Wasserstein"),collapse="-"))
+                 WassP,
+                 rng)
+  names(output) <- c("outcome","ESS/N",
+                     "2-Wasserstein", 
+                     paste(c(p,"Wasserstein"), collapse="-"),
+                     "RNG")
   return(output)
 }
 

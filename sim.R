@@ -9,21 +9,22 @@ n <- 2^9
 p <- 6
 nsims <- 3
 power <- c(1,2)
-ground_power <- 2
-std_mean_diff <- c(0.001, 0.01, 0.1, 1)
+ground_power <- c(1,2)
+std_mean_diff <- c(0.001, 0.01, 0.1, 0.2)
 overlap <- c("low","high")
 design <- c("A","B")
-distance <- c("Lp", "mahalanobis")
+distance <- c("mahalanobis")
 
 #### get simulation functions ####
-# original <- data_sim_holder(design, overlap)
-#   
-# for (o in overlap) {
-#   for (d in design) {
-#     original[[o]][[d]] <- Hainmueller$new(n = n, p = p, 
-#                                           design = d, overlap = o)
-#   }
-# }
+original <- seeds <- data_sim_holder(design, overlap)
+
+for (o in overlap) {
+  for (d in design) {
+    original[[o]][[d]] <- Hainmueller$new(n = n, p = p,
+                                          design = d, overlap = o)
+    seeds[[o]][[d]] <- sample.int(.Machine$integer.max, size = 1)
+  }
+}
 
 #### output holder function ####
 output <- sim_holder(design, overlap)
@@ -31,20 +32,23 @@ output <- sim_holder(design, overlap)
 #### Simulations ####
 cl <- parallel::makeCluster(parallel::detectCores()-1)
 doParallel::registerDoParallel(cl)
+times <- proc.time()
 for (o in overlap) {
   for (d in design) {
     output[[o]][[d]] <- 
-            sim.function(Hainmueller$new(n = n, p = p, 
-                                         design = d, overlap = o), 
+            sim.function(original[[o]][[d]], 
              nsims, 
              ground_p = ground_power, 
              p = power, 
              standardized.mean.difference = std_mean_diff,
-             distance = distance, parallel = cl)
+             distance = distance, parallel = cl,
+             seed = seeds[[o]][[d]])
   }
 }
+run.time <- (proc.time() - times)
+print(run.time)
 parallel::stopCluster(cl)
-saveRDS(output, file = "all_20200124.rds")
+saveRDS(output, file = "all_20200126.rds")
 
 #### Calculate summary stat ####
 o <- "low"
