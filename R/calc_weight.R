@@ -17,7 +17,7 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feas
     calc_weight_glm (data, constraint, estimate,...)
   }
   
-  if (isTRUE(transport.matrix)) {
+  if (isTRUE(transport.matrix) & is.null(output$gamma)) {
     output$gamma <- calc_gamma(output, ...)
   }
   output$estimate <- estimate
