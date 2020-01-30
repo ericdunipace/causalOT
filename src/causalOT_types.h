@@ -1,6 +1,5 @@
 #include <RcppEigen.h>
 
-//[[Rcpp::depends(RcppEigen)]]
 typedef Eigen::VectorXd vector;
 typedef Eigen::Matrix<long double, Eigen::Dynamic,  1> vectorLD;
 typedef Eigen::VectorXi vectorI;
