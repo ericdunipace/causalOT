@@ -35,7 +35,8 @@ dataGen <- Hainmueller$new(n = n, p = p,
 times <- proc.time()
 output <- sim.function(dataGen = dataGen, nsims = nsims, ground_p = ground_power, p = power, 
                        standardized.mean.difference = std_mean_diff,
-                       distance = distance, solver = solver, parallel = FALSE, seed = seed)
+                       distance = distance, solver = solver, parallel = FALSE, seed = seed,
+                       run.feasible = FALSE)
 run.time <- (proc.time() - times)
 print(run.time)
 
