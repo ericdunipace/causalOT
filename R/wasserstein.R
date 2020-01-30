@@ -16,6 +16,7 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
     b <- b[nzero_col]
     cost <- cost[nzero_row, nzero_col, drop = FALSE]
   }
+  
   return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
 }
 wasserstein_p.causalWeights <- function(a, b = NULL, p = 1, tplan = NULL, cost = NULL,...) {

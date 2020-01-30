@@ -166,16 +166,27 @@ calc_gamma <- function(weights, ...) {
     if(!isTRUE(all.equal(sum(a) ,1))) a <- renormalize(a)
     if(!isTRUE(all.equal(sum(b) ,1))) b <- renormalize(b)
     
-    cost <- dots$cost[nzero_row, nzero_col, drop = FALSE]
-    transp_plan <- transport::transport(a, b, p = p, costm = cost)
-    tplan <- transport::transport(a = a,
-                                          b = b,
-                                          p = dots$p,
-                                          costm = cost)
     temp_gamma <- matrix(0, nrow = n_a, ncol = n_b)
-    temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
     gamma <- matrix(0, nrow=n0,ncol = n1)
+    if(n_a == 1 | n_b == 1) {
+      if(n_a == 1) {
+        temp_gamma[1,1:n_b] <- b
+      } else if ( n_b == 1) {
+        temp_gamma[1:n_a,1] <- a
+      }
+    } else {
+      cost <- dots$cost[nzero_row, nzero_col, drop = FALSE]
+      transp_plan <- transport::transport(a, b, p = p, costm = cost)
+      tplan <- transport::transport(a = a,
+                                    b = b,
+                                    p = dots$p,
+                                    costm = cost)
+     
+      temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
+      
+    }
     gamma[nzero_row, nzero_col] <- temp_gamma
+    
     
   } else {
     gamma <- NULL

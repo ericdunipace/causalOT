@@ -27,7 +27,8 @@ cl <- FALSE
 times <- proc.time()
 output <- sim.function(original, nsims, ground_p = ground_power, p = power, 
                        standardized.mean.difference = std_mean_diff,
-                       distance = distance, solver = solver, parallel = cl)
+                       distance = distance, solver = solver, parallel = cl,
+                       run.feasible = FALSE)
 # parallel::stopCluster(cl)
 run.time <- (proc.time() - times)
 print(run.time)
