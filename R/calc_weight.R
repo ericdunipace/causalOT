@@ -10,9 +10,9 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","feasible")
   dots <- list(...)
   
   sol <- if(method != "Logistic") {
-    calc_weight_bal(data, constraint,  estimate = estimate, 
+    do.call("calc_weight_bal", list(data, constraint,  estimate = estimate, 
                             method = method,
-                            ...)
+                            ...))
   } else {
     calc_weight_glm (data, constraint, estimate,...)
   }
@@ -98,33 +98,16 @@ calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
 
 calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
                                 method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+                            solver = c("cplex","gurobi"),
                                 ...) {
   method <- match.arg(method)
   estimate <- match.arg(estimate)
-  op <- quadprog(data, constraint,  estimate, 
+  qp <- quadprog(data, constraint,  estimate, 
                  method,
                  ...)
   dots <- list(...)
-  if(is.null(dots$control)) {
-    control <- list(trace = 0L, round = 1L)
-  }
-  # skip_cplex <- FALSE
-  # if (method == "Constrained Wasserstein") {
-  #   check <- check_wass_const(op)
-  #   skip_cplex <- check$skip_cplex
-  # }
-  # if (skip_cplex) {
-  #   res <- list(xopt = check$res, status = 1)
-  # } else {
-  res <- Rcplex::Rcplex(cvec = c(op$obj$L), Amat = op$LC$A, 
-                        bvec = op$LC$vals, Qmat = op$obj$Q,
-                        lb = 0, ub = Inf, control=control,
-                        objsense = "min", sense = op$LC$dir,
-                        vtype = "C", n = 1)
-  Rcplex::Rcplex.close()
-  # }
-  if(res$status != 1) warning("Algorithm did not converge!!!")
-  sol <- renormalize(res$xopt) # normalize to have closer to sum 1
+  
+  sol <- QPsolver(qp, solver = solver,...) # normalize to have closer to sum 1
   return(sol)
 }
 
