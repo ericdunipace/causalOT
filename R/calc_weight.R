@@ -132,11 +132,18 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
     cost <- dots$cost
     p <- dots$p
     if(is.null(cost) | is.null(p)) stop("To calculate transportation matrix, 'p' and 'cost' must be specified")
-    transp_plan <- transport::transport(output$w0, output$w1, p = p, costm = cost)
+    nzero_row <- output$w0>0
+    nzero_col <- output$w1>0
+    a <- output$w0[nzero_row]
+    b <- output$w1[nzero_col]
+    cost <- cost[nzero_row, nzero_col]
+    transp_plan <- transport::transport(a, b, p = p, costm = cost)
     output$gamma <- matrix(0, nrow = length(output$w0), ncol = length(output$w1))
+    gamma <- matrix(0, nrow = length(a), ncol = length(b))
     for(i in 1:nrow(transp_plan)) { 
-      output$gamma[transp_plan$from[i], transp_plan$to[i]] <- transp_plan$mass[i]
+      gamma[transp_plan$from[i], transp_plan$to[i]] <- transp_plan$mass[i]
     }
+    output$gamma[nzero_row, nzero_col] <- gamma
   }
   output$estimate <- "ATE"
   return(output)
