@@ -31,17 +31,19 @@ gurobi_solver <- function(qp, ...) {
   model$sense[qp$LC$dir=="G"] <- '>='
   model$rhs <- qp$LC$vals
   model$vtype <- rep("C", num_param)
+  model$lb <- rep(0, num_param)
   model$ub <- rep(Inf, num_param)
   params <- list(OutputFlag = 0)
   
   res <- gurobi::gurobi(model, params)
-  
+  sol <- (res$x)[1:num_param]
+  sol[sol<0] <- 0
   # obj_total <- out$obj
   # 
   # status <- out$status
   # 
   # dual_vars <- out$pi[-length(out$pi)]
-  return((res$x)[1:num_param])
+  return(sol)
 }
 
 QPsolver <- function(qp, solver = c("cplex","gurobi"), ...) {
