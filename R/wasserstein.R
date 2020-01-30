@@ -1,10 +1,10 @@
 wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
   
   if(is.numeric(a)) {
-    stopifnot(all.equal(sum(a) ,1))
+    if(!isTRUE(all.equal(sum(a) ,1))) a <- renormalize(a)
   }
   if(is.numeric(b)){
-    stopifnot(all.equal(sum(b) ,1))
+    if(!isTRUE(all.equal(sum(b) ,1))) b <- renormalize(b)
   }
   if(is.null(cost)){
     stop("cost matrix must be specified if only masses are given")

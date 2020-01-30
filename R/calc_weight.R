@@ -1,6 +1,6 @@
 setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimate = "character"))
 
-calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
+calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feasible"), 
                                 method = c("SBW","Wasserstein", "Constrained Wasserstein",
                                            "Logistic"),
                         transport.matrix = FALSE,
@@ -9,7 +9,7 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","feasible")
   estimate <- match.arg(estimate)
   dots <- list(...)
   
-  sol <- if(method != "Logistic") {
+  output <- if(method != "Logistic") {
     do.call("calc_weight_bal", list(data, constraint,  estimate = estimate, 
                             method = method,
                             ...))
@@ -17,35 +17,6 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","feasible")
     calc_weight_glm (data, constraint, estimate,...)
   }
   
-  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
-  gamma <- NULL
-  ns <- data$get_n()
-  if(method == "Wasserstein" | method == "Constrained Wasserstein") {
-    gamma <- matrix(sol, ns["n0"], ns["n1"])
-    if(estimate == "ATT") {
-      sol <- rowSums(gamma)
-    } else if (estimate == "ATC") {
-      sol <- colSums(gamma)
-    } else if (estimate == "feasible") {
-      sol <- gamma
-    }
-    output$gamma <- gamma
-  }
-  if(estimate == "ATT") {
-    output$w0 <- sol
-    output$w1 <- rep.int(1/ns["n1"],ns["n1"])
-  } else if (estimate == "ATC") {
-    output$w0 <- rep.int(1/ns["n0"],ns["n0"])
-    output$w1 <- sol
-  } else if (estimate == "feasible") {
-    if(method == "Wasserstein" | method == "Constrained Wasserstein"){
-      output$w0 <- rowSums(gamma)
-      output$w1 <- colSums(gamma)
-    } else if (method == "SBW") {
-      output$w0 <- renormalize(res$xopt[1:ns["n0"]])
-      output$w1 <- renormalize(res$xopt[ns["n0"] + 1:ns["n1"]])
-    }
-  }
   if (isTRUE(transport.matrix)) {
     output$gamma <- calc_gamma(output, ...)
   }
@@ -81,19 +52,18 @@ calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
     pred[pred > up] <- up
     pred[pred < low]<- low
   }
-  
-  weight <- rep(NA, n1 + n0)
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   if (estimate == "ATT") {
-    weight[z==1] <- rep(1/n1, n1)
-    weight[z==0] <- pred[z==0]/(1 - pred[z==0]) * 1/n1
+    output$w1 <- rep(1/n1,n1)
+    output$w0 <- pred[z==0]/(1 - pred[z==0]) * 1/n1
   } else if (estimate == "ATC") {
-    weight[z==1] <- (1 - pred[z==0])/pred[z==0] * 1/n0
-    weight[z==0] <- rep(1/n0, n0)
+    output$w1 <- (1 - pred[z==1])/pred[z==1] * 1/n0
+    output$w0 <- rep(1/n0,n0)
   } else if (estimate == "ATE") {
-    weight[z==1] <- 1/pred[z==1] * 1/n
-    weight[z==0] <- 1/(1-pred[z==0]) * 1/n
+    output$w1 <- 1/pred[z==1] * 1/n
+    output$w0 <- 1/(1-pred[z==0]) * 1/n
   }
-  return(weight)
+  return(output)
 }
 
 calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
@@ -108,7 +78,37 @@ calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasib
   dots <- list(...)
   
   sol <- QPsolver(qp, solver = solver,...) # normalize to have closer to sum 1
-  return(sol)
+  
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
+  gamma <- NULL
+  ns <- data$get_n()
+  if(method == "Wasserstein" | method == "Constrained Wasserstein") {
+    gamma <- matrix(sol, ns["n0"], ns["n1"])
+    if(estimate == "ATT") {
+      sol <- rowSums(gamma)
+    } else if (estimate == "ATC") {
+      sol <- colSums(gamma)
+    } else if (estimate == "feasible") {
+      sol <- gamma
+    }
+    output$gamma <- gamma
+  }
+  if(estimate == "ATT") {
+    output$w0 <- sol
+    output$w1 <- rep.int(1/ns["n1"],ns["n1"])
+  } else if (estimate == "ATC") {
+    output$w0 <- rep.int(1/ns["n0"],ns["n0"])
+    output$w1 <- sol
+  } else if (estimate == "feasible") {
+    if(method == "Wasserstein" | method == "Constrained Wasserstein"){
+      output$w0 <- rowSums(gamma)
+      output$w1 <- colSums(gamma)
+    } else if (method == "SBW") {
+      output$w0 <- renormalize(res$xopt[1:ns["n0"]])
+      output$w1 <- renormalize(res$xopt[ns["n0"] + 1:ns["n1"]])
+    }
+  }
+  return(output)
 }
 
 convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
@@ -132,18 +132,19 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
     cost <- dots$cost
     p <- dots$p
     if(is.null(cost) | is.null(p)) stop("To calculate transportation matrix, 'p' and 'cost' must be specified")
-    nzero_row <- output$w0>0
-    nzero_col <- output$w1>0
-    a <- output$w0[nzero_row]
-    b <- output$w1[nzero_col]
-    cost <- cost[nzero_row, nzero_col]
-    transp_plan <- transport::transport(a, b, p = p, costm = cost)
-    output$gamma <- matrix(0, nrow = length(output$w0), ncol = length(output$w1))
-    gamma <- matrix(0, nrow = length(a), ncol = length(b))
-    for(i in 1:nrow(transp_plan)) { 
-      gamma[transp_plan$from[i], transp_plan$to[i]] <- transp_plan$mass[i]
-    }
-    output$gamma[nzero_row, nzero_col] <- gamma
+    # nzero_row <- output$w0>0
+    # nzero_col <- output$w1>0
+    # a <- output$w0[nzero_row]
+    # b <- output$w1[nzero_col]
+    # cost <- cost[nzero_row, nzero_col]
+    # transp_plan <- transport::transport(a, b, p = p, costm = cost)
+    # output$gamma <- matrix(0, nrow = length(output$w0), ncol = length(output$w1))
+    # gamma <- matrix(0, nrow = length(a), ncol = length(b))
+    # for(i in 1:nrow(transp_plan)) { 
+    #   gamma[transp_plan$from[i], transp_plan$to[i]] <- transp_plan$mass[i]
+    # }
+    # output$gamma[nzero_row, nzero_col] <- gamma
+    output$gamma <- calc_gamma(weights = output, cost = cost, p = p)
   }
   output$estimate <- "ATE"
   return(output)
@@ -154,12 +155,24 @@ calc_gamma <- function(weights, ...) {
   n1 <- length(weights$w1)
   n0 <- length(weights$w0)
   if(!is.null(dots$cost) & ! is.null(dots$p)) {
-    tplan <- transport::transport(a = weights$w0,
-                                          b = weights$w1,
+    nzero_row <- weights$w0>0
+    nzero_col <- weights$w1>0
+    
+    a <- weights$w0[nzero_row]
+    b <- weights$w1[nzero_col]
+    n_a <- length(a)
+    n_b <- length(b)
+    
+    cost <- dots$cost[nzero_row, nzero_col]
+    transp_plan <- transport::transport(a, b, p = p, costm = cost)
+    tplan <- transport::transport(a = a,
+                                          b = b,
                                           p = dots$p,
-                                          costm = dots$cost)
-    gamma <- matrix(0, nrow = n0, ncol = n1)
-    gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
+                                          costm = cost)
+    temp_gamma <- matrix(0, nrow = n_a, ncol = n_b)
+    temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
+    gamma <- matrix(0, nrow=n0,ncol = n1)
+    gamma[nzero_row, nzero_col] <- temp_gamma
     
   } else {
     gamma <- NULL

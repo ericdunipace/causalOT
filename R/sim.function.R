@@ -59,7 +59,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                   values = term.values)
   
   #### run simulations ####
-  simulations <- foreach::foreach(sim = 1:nsims) %dorng% {
+  for(nn in 1:nsims) {
+  # simulations <- foreach::foreach(sim = 1:nsims) %dorng% {
 
     #### Gen Data ####
     target <- dataGen$clone(deep = TRUE)
@@ -139,7 +140,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                 } else {
                   wass[[dist.name]][[gpowers]][[powers]][[diffs]][[i]][["SBW"]]
                 }
-                if(i != "ATE"){
+                if(i != "ATE" | j == "Logistic"){
                   weights[[i]][[j]] <- 
                     calc_weight(target,  constraint = delta[[1]],
                                                    estimate = i, method = j,
