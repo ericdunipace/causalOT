@@ -231,7 +231,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                  rng)
   names(output) <- c("outcome","ESS/N",
                      "2-Wasserstein", 
-                     paste(c(p,"Wasserstein"), collapse="-"),
+                     "Wasserstein",
                      "RNG")
   return(output)
 }
