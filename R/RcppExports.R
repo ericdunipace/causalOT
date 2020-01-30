@@ -9,19 +9,3 @@ cost_mahal_ <- function(A_, B_, p) {
     .Call('_causalOT_cost_mahal_', PACKAGE = 'causalOT', A_, B_, p)
 }
 
-rcppeigen_hello_world <- function() {
-    .Call('_causalOT_rcppeigen_hello_world', PACKAGE = 'causalOT')
-}
-
-rcppeigen_outerproduct <- function(x) {
-    .Call('_causalOT_rcppeigen_outerproduct', PACKAGE = 'causalOT', x)
-}
-
-rcppeigen_innerproduct <- function(x) {
-    .Call('_causalOT_rcppeigen_innerproduct', PACKAGE = 'causalOT', x)
-}
-
-rcppeigen_bothproducts <- function(x) {
-    .Call('_causalOT_rcppeigen_bothproducts', PACKAGE = 'causalOT', x)
-}
-
