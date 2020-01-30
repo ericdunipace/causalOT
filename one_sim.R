@@ -7,7 +7,7 @@ library(dplyr)
 #### Sim param ####
 n <- 2^9
 p <- 6
-nsims <- 4
+nsims <- 1
 overlap <- "low"
 design <- "B"
 distance <- c("Lp", "mahalanobis")
@@ -21,14 +21,14 @@ original <- Hainmueller$new(n = n, p = p,
                             design = design, overlap = overlap)
 
 #### Simulations ####
-cl <- parallel::makeCluster(parallel::detectCores())
-doParallel::registerDoParallel(cl)
-# cl <- FALSE
+# cl <- parallel::makeCluster(parallel::detectCores())
+# doParallel::registerDoParallel(cl)
+cl <- FALSE
 times <- proc.time()
 output <- sim.function(original, nsims, ground_p = ground_power, p = power, 
                        standardized.mean.difference = std_mean_diff,
                        distance = distance, solver = solver, parallel = cl)
-parallel::stopCluster(cl)
+# parallel::stopCluster(cl)
 run.time <- (proc.time() - times)
 print(run.time)
 saveRDS(output, file = "low_B_20200129.rds")

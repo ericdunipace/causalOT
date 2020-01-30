@@ -73,7 +73,7 @@ calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
   mod <- glm(dots$formula, data.frame(z = z, df), family = "binomial")
   pred <- predict(mod, type = "response")
   
-  if (constraint > 0 & contraint < 1) {
+  if (constraint > 0 & constraint < 1) {
     Ks  <- sort(c(constraint, 1-constraint))
     up  <- Ks[2]
     low <- Ks[1]
@@ -84,11 +84,11 @@ calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
   
   weight <- rep(NA, n1 + n0)
   if (estimate == "ATT") {
-    weight[z==1] <- rep(1/n0, n0)
+    weight[z==1] <- rep(1/n1, n1)
     weight[z==0] <- pred[z==0]/(1 - pred[z==0]) * 1/n1
   } else if (estimate == "ATC") {
     weight[z==1] <- (1 - pred[z==0])/pred[z==0] * 1/n0
-    weight[z==0] <- rep(1/n1, n1)
+    weight[z==0] <- rep(1/n0, n0)
   } else if (estimate == "ATE") {
     weight[z==1] <- 1/pred[z==1] * 1/n
     weight[z==0] <- 1/(1-pred[z==0]) * 1/n

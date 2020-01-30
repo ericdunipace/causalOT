@@ -134,7 +134,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                              cost = cost[[1]])
             for(i in estimates) {
               for(j in wn ){
-                delta[[1]] <- if(j == "SBW") {
+                delta[[1]] <- if(j == "SBW" | j == "Logistic") {
                   std.mean.diff[[1]]
                 } else {
                   wass[[dist.name]][[gpowers]][[powers]][[diffs]][[i]][["SBW"]]
