@@ -61,8 +61,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
   
   #### run simulations ####
   # for(nn in 1:nsims) {
-  simulations <- lapply(1:nsims, function(sim) {
-  # simulations <- foreach::foreach(sim = 1:nsims) %dorng% {
+  # simulations <- lapply(1:nsims, function(sim) {
+  simulations <- foreach::foreach(sim = 1:nsims) %dorng% {
 
     #### Gen Data ####
     target <- dataGen$clone(deep = TRUE)
@@ -198,7 +198,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                 pop_frac = pop_frac
     )
     return(out) 
-  })
+  # })
+  }
   if(stopcl) parallel::stopCluster(cl)
   
   outcome <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$outcome, outcome = TRUE, fill.df) ))
