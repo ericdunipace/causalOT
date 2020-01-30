@@ -163,6 +163,9 @@ calc_gamma <- function(weights, ...) {
     n_a <- length(a)
     n_b <- length(b)
     
+    if(!isTRUE(all.equal(sum(a) ,1))) a <- renormalize(a)
+    if(!isTRUE(all.equal(sum(b) ,1))) b <- renormalize(b)
+    
     cost <- dots$cost[nzero_row, nzero_col]
     transp_plan <- transport::transport(a, b, p = p, costm = cost)
     tplan <- transport::transport(a = a,
