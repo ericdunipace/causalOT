@@ -16,8 +16,17 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
     b <- b[nzero_col]
     cost <- cost[nzero_row, nzero_col, drop = FALSE]
   }
+  n_a <- length(a)
+  n_b <- length(b)  
+  if(n_a == 1 | n_b == 1) {
+    if(n_a == 1) {
+      return(c((sum(cost^p * b))^(1/p)))
+    } else if ( n_b == 1) {
+      return(c((sum(cost^p * a))^(1/p)))
+    } else {
+      return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
+    }
   
-  return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
 }
 wasserstein_p.causalWeights <- function(a, b = NULL, p = 1, tplan = NULL, cost = NULL,...) {
   mass_a <- as.numeric(a$w0)
