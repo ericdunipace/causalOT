@@ -141,6 +141,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                   wass[[dist.name]][[gpowers]][[powers]][[diffs]][[i]][["SBW"]]
                 }
                 if(i != "ATE" | j == "Logistic"){
+                  if(j == "Logistic" & i == "feasible") next
                   weights[[i]][[j]] <- 
                     calc_weight(target,  constraint = delta[[1]],
                                                    estimate = i, method = j,
