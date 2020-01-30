@@ -34,7 +34,7 @@ gurobi_solver <- function(qp, ...) {
   model$ub <- rep(Inf, num_param)
   params <- list(OutputFlag = 0)
   
-  res <- gurobi(model, params)
+  res <- gurobi::gurobi(model, params)
   
   # obj_total <- out$obj
   # 
