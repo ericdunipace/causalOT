@@ -96,7 +96,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     
     #names to iterate through
     options <- get_holder_options()
-    estimates <- options$estimates[1:3]
+    estimates <- options$estimates
     wn <- options$weights
     DR <- options$dr
     mch<- options$matched
