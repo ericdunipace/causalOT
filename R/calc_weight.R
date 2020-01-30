@@ -17,7 +17,7 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feas
     calc_weight_glm (data, constraint, estimate,...)
   }
   
-  if (isTRUE(transport.matrix) & is.null(output$gamma)) {
+  if (isTRUE(transport.matrix)) {
     output$gamma <- calc_gamma(output, ...)
   }
   output$estimate <- estimate
@@ -166,7 +166,7 @@ calc_gamma <- function(weights, ...) {
     if(!isTRUE(all.equal(sum(a) ,1))) a <- renormalize(a)
     if(!isTRUE(all.equal(sum(b) ,1))) b <- renormalize(b)
     
-    cost <- dots$cost[nzero_row, nzero_col]
+    cost <- dots$cost[nzero_row, nzero_col, drop = FALSE]
     transp_plan <- transport::transport(a, b, p = p, costm = cost)
     tplan <- transport::transport(a = a,
                                           b = b,

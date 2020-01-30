@@ -14,12 +14,11 @@ overlap <- Sys.getenv('OVERLAP')
 seed.file <- file.path("seeds.Rdmped")
 source(seed.file)
 seed <- seed_array[design, overlap, arraynum]
-set.seed(seed)
 
 #### Sim param ####
 n <- 2^9
 p <- 6
-nsims <- 1
+nsims <- 10
 distance <- c("Lp", "mahalanobis")
 power <- c(1,2)
 ground_power <- 2
@@ -36,7 +35,7 @@ dataGen <- Hainmueller$new(n = n, p = p,
 times <- proc.time()
 output <- sim.function(dataGen = dataGen, nsims = nsims, ground_p = ground_power, p = power, 
                        standardized.mean.difference = std_mean_diff,
-                       distance = distance, solver = solver, parallel = FALSE)
+                       distance = distance, solver = solver, parallel = FALSE, seed = seed)
 run.time <- (proc.time() - times)
 print(run.time)
 
