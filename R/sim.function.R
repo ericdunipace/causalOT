@@ -2,7 +2,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                          standardized.mean.difference = 0.1,
                          distance = c("Lp", "mahalanobis"),
                          solver = c("cplex","gurobi"),
-                         parallel = FALSE, seed = NULL) {
+                         parallel = FALSE, seed = NULL,
+                         run.feasible = TRUE) {
   
   nsims <- as.integer(nsims)
   standardized.mean.difference <- as.numeric(standardized.mean.difference)
@@ -100,6 +101,7 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     wn <- options$weights
     DR <- options$dr
     mch<- options$matched
+    if(!run.feasible) estimates <- estimates[estimates != "feasible"]
     # powers <- addl.terms$power
     # mean.diffs <- as.character(standardized.mean.difference)
     
