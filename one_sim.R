@@ -14,6 +14,7 @@ distance <- c("Lp", "mahalanobis")
 power <- c(1,2)
 ground_power <- 2
 std_mean_diff <- c(0.001, 0.01, 0.1)
+solver <- "cplex" # "gurobi"
 
 #### get simulation functions ####
 original <- Hainmueller$new(n = n, p = p, 
@@ -26,7 +27,7 @@ doParallel::registerDoParallel(cl)
 times <- proc.time()
 output <- sim.function(original, nsims, ground_p = ground_power, p = power, 
                        standardized.mean.difference = std_mean_diff,
-                       distance = distance, parallel = cl)
+                       distance = distance, solver = solver, parallel = cl)
 parallel::stopCluster(cl)
 run.time <- (proc.time() - times)
 print(run.time)

@@ -1,6 +1,7 @@
 sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1, 
                          standardized.mean.difference = 0.1,
                          distance = c("Lp", "mahalanobis"),
+                         solver = c("cplex","gurobi"),
                          parallel = FALSE, seed = NULL) {
   
   nsims <- as.integer(nsims)
@@ -143,7 +144,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                     calc_weight(target,  constraint = delta[[1]],
                                                    estimate = i, method = j,
                                                    cost = cost[[1]], p = pp[[1]],
-                                                   transport.matrix = TRUE)
+                                                   transport.matrix = TRUE,
+                                                   solver = solver)
                 } else {
                   weights[[i]][[j]] <- 
                     convert_ATE(weights[["ATT"]][[j]], 
