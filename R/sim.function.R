@@ -2,7 +2,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                          standardized.mean.difference = 0.1,
                          distance = c("Lp", "mahalanobis"),
                          solver = c("cplex","gurobi"),
-                         parallel = FALSE, seed = NULL,
+                         parallel = FALSE, 
+                         seed = NULL,
                          run.feasible = TRUE) {
   
   nsims <- as.integer(nsims)
@@ -23,17 +24,21 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
     parallel <- TRUE
     stopcl <- FALSE
   } else if (isTRUE(parallel)) {
-    cl <- parallel::makeCluster(parallel::detectCores()-1)
-    stopcl <- TRUE
+    # cl <- parallel::makeCluster(parallel::detectCores()-1)
+    # stopcl <- TRUE
   } else {
     parallel <- FALSE
     stopcl <- FALSE
   }
   
+  # if(parallel) {
+  #   doParallel::registerDoParallel(cl)
+  # } else {
+  #   foreach::registerDoSEQ()
+  # }
+  
   if(parallel) {
-    doParallel::registerDoParallel(cl)
-  } else {
-    foreach::registerDoSEQ()
+    warning("parallel not yet supported")
   }
   
   if(!is.null(seed)) {
@@ -61,8 +66,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
   
   #### run simulations ####
   # for(nn in 1:nsims) {
-  # simulations <- lapply(1:nsims, function(sim) {
-  simulations <- foreach::foreach(sim = 1:nsims) %dorng% {
+  simulations <- lapply(1:nsims, function(sim) {
+  # simulations <- foreach::foreach(sim = 1:nsims, .errorhandling = "pass") %dorng% {
 
     #### Gen Data ####
     target <- dataGen$clone(deep = TRUE)
@@ -198,8 +203,8 @@ sim.function <- function(dataGen, nsims = 100, ground_p = 2, p = 1,
                 pop_frac = pop_frac
     )
     return(out) 
-  # })
-  }
+  })
+  # }
   if(stopcl) parallel::stopCluster(cl)
   
   outcome <- do.call("rbind", lapply(simulations, function(l) convert_holder(l$outcome, outcome = TRUE, fill.df) ))

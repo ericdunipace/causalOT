@@ -105,3 +105,54 @@ sim_holder <- function(design, overlap) {
   output <- sapply(overlap, function(i) {des.list}, simplify = FALSE)
   return(output)
 }
+
+check.names <- function(...) {
+  names <- lapply(..., colnames)
+  test.name <- names[[1]]
+  stopifnot(all(sapply(names, all.equal, test.name)))
+}
+
+check.all.df <- function(...) {
+  stopifnot(all(sapply(..., inherits, "data.frame")))
+}
+
+combine_holder_df <- function(..., simulation_name = NULL) {
+  
+  check.names(...)
+  check.all.df(...)
+  
+  new_df <- do.call("rbind", ...)
+  if(!is.null(simulation_name)) {
+    simulation_name <- as.character(simulation_name)
+    new_df$simulation.setting <- simulation_name
+  }
+  
+  return(new_df)
+}
+
+combine_sims <- function(..., simulation_name = NULL) {
+  
+  if(is.list(...)) {
+    dots <- (...)
+  } else {
+    dots <- list(...)
+  }
+  slot.names <- names(dots[[1]])
+  length.slots <- length(slot.names)
+  
+  outlist <- vector("list", length.slots)
+  names(outlist) <- slot.names
+  temp_list <- list(NULL)
+  
+  for(i in 1:length.slots) {
+    temp_list[[1]] <- lapply(dots, function(out) out[[slot.names[i]]])
+    if(slot.names[i] != "RNG") {
+      outlist[[i]] <- do.call("combine_holder_df", 
+                            list(temp_list[[1]], simulation_name = simulation_name))
+    } else {
+      outlist[[i]] <- unlist(temp_list[[1]], recursive = FALSE)
+    }
+  }
+  
+  return(outlist)
+}
