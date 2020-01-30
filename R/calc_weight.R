@@ -104,8 +104,8 @@ calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasib
       output$w0 <- rowSums(gamma)
       output$w1 <- colSums(gamma)
     } else if (method == "SBW") {
-      output$w0 <- renormalize(res$xopt[1:ns["n0"]])
-      output$w1 <- renormalize(res$xopt[ns["n0"] + 1:ns["n1"]])
+      output$w0 <- renormalize(sol[1:ns["n0"]])
+      output$w1 <- renormalize(sol[ns["n0"] + 1:ns["n1"]])
     }
   }
   return(output)
