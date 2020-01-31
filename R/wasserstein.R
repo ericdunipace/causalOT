@@ -18,15 +18,12 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
   }
   n_a <- length(a)
   n_b <- length(b)  
-  if(n_a == 1 | n_b == 1) {
-    if(n_a == 1) {
-      return(c((sum(c(cost^p) * c(b)))^(1/p)))
-    } else if ( n_b == 1) {
-      return(c((sum(c(cost^p) * c(a)))^(1/p)))
-    } else {
-      return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
-    }
-  
+  if(n_a == 1) {
+    return(c((sum(c(cost^p) * c(b)))^(1/p)))
+  } else if ( n_b == 1) {
+    return(c((sum(c(cost^p) * c(a)))^(1/p)))
+  } else {
+    return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
   }
 }
 
