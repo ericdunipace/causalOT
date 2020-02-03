@@ -25,7 +25,7 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feas
   return(output)
 }
 
-calc_weight_glm<- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
+calc_weight_glm <- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
                             ...) {
   dots <- list(...)
   pd <- prep_data(data,...)
@@ -81,7 +81,8 @@ calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasib
   
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   gamma <- NULL
-  ns <- data$get_n()
+  ns <- get_n(data, ...)
+  
   if(method == "Wasserstein" | method == "Constrained Wasserstein") {
     gamma <- matrix(sol, ns["n0"], ns["n1"])
     if(estimate == "ATT") {
@@ -194,6 +195,17 @@ calc_gamma <- function(weights, ...) {
   return(gamma)
 }
 
+get_n.DataSim <- function(data,...) {
+  return(data$get_n())
+}
+
+get_n.data.frame <- function(data,...) {
+  df <- prep_data(data,...)
+  ns <- c(n0 = sum(df$z==1), n1 = sum(df$z==0))
+  return(ns)
+}
+
 setOldClass("DataSim")
-# setGeneric("calc_weight", function(data, ...) UseMethod("calc_weight"))
-# setMethod("calc_weight", "DataSim", calc_weight.DataSim)
+setGeneric("get_n", function(data, ...) UseMethod("get_n"))
+setMethod("get_n", "DataSim", get_n.DataSim)
+setMethod("get_n", "data.frame", get_n.data.frame)

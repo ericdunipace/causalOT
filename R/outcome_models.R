@@ -116,29 +116,43 @@ calc_hajek <- function(weights, target, hajek) {
 }
 
 prep_data.data.frame <- function(data,...) {
+  
   #create data.frame
   dots <- list(...)
   tx_ind <- dots$treatment.indicator
   cov_bal <- dots$balance.covariates
   outcome <- dots$outcome
+  
+  if(is.null(cov_bal)) {
+    stop("must specify covariates for balance 'balance.covariates' either by name or column number")
+  }
+  
+  if(is.null(tx_ind)) {
+    stop("must specify treatment indicator 'treatment.indicator' either by name or column number")
+  }
+  
+  if(is.null(outcome)) {
+    stop("must specify outcome 'outcome' either by name or column number")
+  }
+  
   tx.var <- if(is.character(tx_ind)) {
     match(tx_ind, colnames(data))
   } else {
     tx_ind
   }
-  x.vars <- if(is.character(cov.bal)) {
+  x.vars <- if(is.character(cov_bal)) {
     match(cov_bal, colnames(data))
   } else {
     cov_bal
   }
-  y.var <- if(is.character(y.val)) {
+  y.var <- if(is.character(outcome)) {
     match(outcome, colnames(data))
   } else {
     outcome
   }
   df <- data.frame(y = data[y.var], data[x.vars])
   # df <- data[c(y.var, x.vars)]
-  z <- data[[tx.var]]
+  z <- as.integer(data[[tx.var]])
   
   return(list(df = df, z = z))
 }
@@ -146,7 +160,7 @@ prep_data.data.frame <- function(data,...) {
 prep_data.list <- function(data, ...) {
   #create data.frame
   df <- data.frame(y = data$y, data$x)
-  z <- data$z
+  z <- as.integer(data$z)
   
   return(list(df = df, z = z))
 }

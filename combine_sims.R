@@ -1,10 +1,10 @@
 library(causalOT)
 
 #### Output settings ####
-jobids      <- as.character(c(41809323, 41856419, 41854105))
+jobids      <- as.character(c(41854652))
 n           <- "512"
 p           <- "6"
-design      <- "B"
+design      <- "A"
 overlap     <- "low"
 simsett     <- "hainmueller"
 curdate     <- as.character(Sys.Date())

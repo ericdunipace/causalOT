@@ -25,6 +25,40 @@ quadprog.DataSim <- function(data, constraint,  estimate = c("ATT", "ATC","feasi
   }
   return(qp)
 }
+
+quadprog.data.frame <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
+                             method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+                             ...) {
+  meth <- match.arg(method)
+  est <- match.arg(estimate)
+  
+  df <- prep_data(data, ...)
+  z <- as.numeric(df$z)
+  x <- as.matrix(df$df[,!(colnames(df$df) == "y")])
+  col_x <- ncol(x)
+  
+  qp <- if(meth == "SBW") {
+    if(length(constraint) != col_x)  {
+      K <- rep(constraint, col_x)[1:col_x]
+    } else {
+      K <- constraint
+    }
+    qp_sbw(x=x, z = z, K = K, estimate = est)
+  } else if (meth == "Wasserstein") {
+    dots <- list(...)
+    if(is.null(dots$p)) dots$p <- 2
+    if(is.null(dots$dist)) dots$dist <- "Lp"
+    qp_wass(x=x, z=z,
+            p=dots$p, target = est, dist = dots$dist, cost = dots$cost)
+  } else if (meth == "Constrained Wasserstein") {
+    dots <- list(...)
+    if(is.null(dots$p)) dots$p <- 2
+    if(is.null(dots$dist)) dots$dist <- "Lp"
+    qp_wass_const(x=x, z=z, K=constraint, 
+                  p=dots$p, target = est, dist = dots$dist, cost = dots$cost)
+  }
+  return(qp)
+}
 qp_sbw <- function(x, z, K, estimate = c("ATT", "ATC", "feasible")) {
   est <- match.arg(estimate)
   if (est == "ATC") {
@@ -383,4 +417,5 @@ check_wass_const <- function(opt_problem) {
 # setOldClass("DataSim")
 setGeneric("quadprog", function(data, ...) UseMethod("quadprog"))
 setMethod("quadprog", "DataSim", quadprog.DataSim)
+setMethod("quadprog", "data.frame", quadprog.data.frame)
 
