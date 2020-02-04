@@ -116,8 +116,8 @@ qp_sbw <- function(x, z, K, estimate = c("ATT", "ATC", "feasible")) {
   A2 <- x_constraint
   
   A <- rbind(A1, A2, A2)
-  vals <- c(rep(1,nrow(A1)), K_lwr, K_upr)
-  dir <- c(rep("E",nrow(A1)),rep("G",d), rep("L",d))
+  vals <- c(rep(1, nrow(A1)), K_lwr, K_upr)
+  dir <- c(rep("E", nrow(A1)),rep("G",d), rep("L",d))
   # dir <- c(ROI::eq(1), ROI::geq(d), ROI::leq(d))
   # LC <- ROI::L_constraint(A, dir, vals)
   

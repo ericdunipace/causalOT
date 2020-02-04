@@ -91,6 +91,61 @@ convert_holder <- function(x, outcome = TRUE, addl.terms = NULL) {
   return(df)
 }
 
+convert_holder_sbw <- function(x, outcome = TRUE, addl.terms = NULL) {
+  stopifnot(inherits(x, "outputHolder"))
+  options <- get_holder_options()
+  
+  find.names <- function(x, lookup) {
+    out <- rep(NA, length(x))
+    for(i in lookup) {
+      idx <- which(grepl(i, x))
+      out[idx] <- i
+    }
+    return(out)
+  }
+  
+  estimates <- c("Naive", options$estimates)
+  dr <- options$dr
+  weights <- c("SBW_j", "SBW")
+  matched <- options$matched
+  
+  un <- unlist(x)
+  poss.names <- names(un)
+  # dr.vals <- grep("DR", dr, value = TRUE)
+  # hj.vals <- grep("Hajek", dr, value = TRUE)
+  
+  dr.tf <- hj.tf <- NULL
+  est.vec <- factor(find.names(poss.names, estimates), levels = estimates)
+  weight.vec <- factor(find.names(poss.names, sort(weights, decreasing = FALSE)), levels = weights)
+  
+  if(outcome) {
+    m.tf  <- !grepl("Unmatched", poss.names)
+    dr.tf <- grepl("DR", poss.names)
+    hj.tf <- grepl("Hajek", poss.names)
+    df <- data.frame(values = un, estimate = est.vec, 
+                     weighting.method = weight.vec, 
+                     hajek = hj.tf,  doubly.robust = dr.tf,
+                     matched = m.tf)
+  } else {
+    df <- data.frame(values = un, estimate = est.vec, 
+                     weighting.method = weight.vec)
+  }
+  fac <- df$weighting.method
+  df$weighting.method <- factor(ifelse(is.na(fac), "None", as.character(fac)), levels = c(levels(fac), "None"))
+  
+  if(!is.null(addl.terms)) {
+    labels <- addl.terms$labels
+    vals <- addl.terms$values
+    nat <- names(labels)
+    for(i in seq_along(labels)) {
+      df[[nat[i]]] <- factor(find.names(poss.names, labels[[i]]), levels = labels[[i]], labels = vals[[i]])
+    }
+  }
+  
+  return(df)
+}
+
+
 data_sim_holder <- function(design, overlap) {
   des.list <- sapply(design, function(i){NULL}, simplify=FALSE)
   output <- sapply(overlap, function(i) {des.list}, simplify = FALSE)

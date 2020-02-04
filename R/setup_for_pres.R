@@ -1,11 +1,11 @@
 setup_data_for_table <- function(data) {
   logistic <- data$outcome %>% 
-    filter(estimate == "ATE" & metric == "Lp" &
-             weighting.method == "Logistic" & wasserstein.power == 1)
+    filter(estimate == "ATE" & metric == "mahalanobis" &
+             weighting.method == "Logistic" & wasserstein.power == 2)
   
-  notlog <- logistic <- data$outcome %>% 
-    filter(estimate == "ATE" & metric == "Lp" &
-             weighting.method != "Logistic")
+  notlog <- data$outcome %>% 
+    filter(estimate == "ATE" & metric == "mahalanobis" &
+             weighting.method != "Logistic" & wasserstein.power == 2)
   
   #### Gen tibbles ####
   
@@ -19,7 +19,7 @@ setup_data_for_table <- function(data) {
               # Variance = var(values),
               RMSE = sqrt(mean(values^2)))
   
-  colnames(ltibble)[1:2] <- c("Estimator", "$\\alpha$ augmentation level")
+  colnames(ltibble)[1:2] <- c("Estimator", "$\\alpha$ truncation level")
   ltibble$Estimator <- ifelse(ltibble$Estimator, "DR Hajek", "Hajek")
   
   nl.tibbleDR <- notlog %>% 
@@ -57,7 +57,7 @@ setup_data_for_table <- function(data) {
               # Variance = var(values),
               RMSE = sqrt(mean(values^2)))
   
-  colnames(ltibbleM)[1:2] <- c("Estimator", "$\\alpha$ augmentation level")
+  colnames(ltibbleM)[1:2] <- c("Estimator", "$\\alpha$ truncation level")
   ltibbleM$Estimator <- ifelse(ltibbleM$Estimator, "Bias Adj. Matched", "Matched" )
   
   nl.tibbleDRM <- notlog %>% 
