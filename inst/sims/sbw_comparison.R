@@ -19,23 +19,46 @@ original <- Hainmueller$new(n = n, p = p,
                             design = design, overlap = overlap)
 
 #### Simulations ####
-cl <- parallel::makeCluster(parallel::detectCores())
-doParallel::registerDoParallel(cl)
-# cl <- FALSE
-times <- proc.time()
-# debugonce(compare_sbw_mine)
-output <- compare_sbw_mine(original, nsims = nsims, 
-                              standardized.mean.difference = std_mean_diff,
-                              solver = solver,
-                              parallel = cl)
-run.time <- (proc.time() - times)
-print(run.time)
-parallel::stopCluster(cl)
-
+outfile <- file.path("Output/sbw_comparison.rds")
+if (file.exists(outfile)) {
+  output <- readRDS(outfile)
+} else {
+  cl <- parallel::makeCluster(parallel::detectCores())
+  doParallel::registerDoParallel(cl)
+  # cl <- FALSE
+  times <- proc.time()
+  # debugonce(compare_sbw_mine)
+  output <- compare_sbw_mine(original, nsims = nsims, 
+                             standardized.mean.difference = std_mean_diff,
+                             solver = solver,
+                             parallel = cl)
+  run.time <- (proc.time() - times)
+  print(run.time)
+  parallel::stopCluster(cl)
+  saveRDS(output, file = outfile)
+}
 #### print results ####
 
-output$outcome %>% filter(estimate == "ATE") %>%
-  group_by(weighting.method,doubly.robust, matched,
-           standardized.mean.difference) %>%
+print(output$outcome %>% filter(estimate == "ATT") %>%
+  group_by(doubly.robust, matched,
+           standardized.mean.difference,
+           weighting.method) %>%
   summarize(bias = mean(values),
-            RMSE = sqrt(mean(values^2)))
+            RMSE = sqrt(mean(values^2))),
+  n = 40)
+
+print(output$outcome %>% filter(estimate == "ATC") %>%
+  group_by(doubly.robust, matched,
+           standardized.mean.difference,
+           weighting.method) %>%
+  summarize(bias = mean(values),
+            RMSE = sqrt(mean(values^2))),
+n = 40)
+
+print(output$outcome %>% filter(estimate == "ATE") %>%
+  group_by(doubly.robust, matched,
+           standardized.mean.difference,
+           weighting.method) %>%
+  summarize(bias = mean(values),
+            RMSE = sqrt(mean(values^2))),
+n = 40)
