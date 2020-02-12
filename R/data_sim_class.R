@@ -2,7 +2,7 @@ DataSim <- R6::R6Class("DataSim",
         public = list(get_x = function() { return( private$x)},
                       get_y = function() { return( private$y)},
                       get_z = function() { return( private$z)},
-                      get_n = function() {return(c("n1" = private$n1, "n0" = private$n0))},
+                      get_n = function() {return(c("n0" = private$n0, "n1" = private$n1))},
                       get_x1 = function() {
                         if(!is.character(private$x)) {
                           if(is.character(private$x1)) private$x1 <- private$x[private$z == 1,,drop=FALSE]
@@ -21,7 +21,8 @@ DataSim <- R6::R6Class("DataSim",
                       },
                       get_p = function() {
                         return(private$p)
-                      }),
+                      },
+                      gen_data = function(){NULL}),
          private = list(n = "numeric",
                        p = "numeric",
                        x = "matrix",
@@ -39,52 +40,299 @@ DataSim <- R6::R6Class("DataSim",
                            private$n0 <- sum(private$z == 0)
                          }
                        }#,
-                       # weights = "list",
-                       # std_diff = "numeric",
-                       # wass_param = "list",
-                       # qp = "list",
-                       # wass_dists = "list"
-                       )#,
-         # methods = list(outcome = function(estimate = c("ATT", "ATC", "ATE"),
-         #                                  method = c("Hajek","HT"), 
-         #                                  doubly.robust = c(TRUE, FALSE),
-         #                                  weight.type = c("Wasserstein", "SBW", "Logistic")
-         #                                  ) {
-         #   est <- match.arg(estimate)
-         #   meth <- match.arg(method)
-         #   wt <- match.arg(weight.type)
-         #   dr <- match.arg(doubly.roubst)
-         #   
-         # },
-         # set_qp = function(method = c("Wasserstein", "SBW"),
-         #                   estimate = c("ATC", "ATT", "ATE")) {
-         #   est <- match.arg(estimate)
-         #   meth <- match.arg(meth)
-         #   if(meth== "SBW") {
-         #     K <- rep(std_diff, p)
-         #     qp$sbw <<- qp_sbw(x, z, K)
-         #   } else if (meth == "Wasserstein") {
-         #     K <- wass_param$max
-         #     qp$wass <<- qp_w2(x, z, K, p = wass_param$power,)
-         #   }
-         # },
-         # calc_weights = function(method = c("Wasserstein", "SBW","Logistic"),
-         #                   estimate = c("ATC", "ATT", "ATE")) {
-         #   est <- match.arg(estimate)
-         #   meth <- match.arg(method)
-         #   if(meth == "Logistic"){
-         #     fit <- glm(z ~ x, family = "binomial")
-         #     weights$logistic <<- predict(fit, type = "response")
-         #   } else if (meth == "SBW") {
-         #     fit <- ROI.plugin.cplex:::solve_OP(qp$sbw)
-         #     weights$sbw <<- ROI::solution(fit)
-         #   } else if (meth == "Wasserstein") {
-         #     fit <- ROI.plugin.cplex:::solve_OP(qp$wass)
-         #     weights$wasserstein <<- ROI::solution(fit)
-         #   }
-         # }
-         # )
+                       )
 )
-# setOldClass("DataSim")
-# #### Generate Y functions ####
-# setGeneric("gen_y")
+
+Hainmueller <- R6::R6Class("Hainmueller", 
+                           inherit = DataSim,
+                           public = list(
+                             gen_data = function() {
+                               self$gen_x()
+                               self$gen_z()
+                               self$gen_y()
+                               invisible(self)
+                             },
+                             gen_x = function() {
+                               stopifnot(length(private$n) >0 )
+                               x13 <- matrix(private$param$param_x$x_13$mean, nrow = private$n,
+                                             ncol = 3, byrow = TRUE) + 
+                                 matrix(rnorm(private$n * 3), 
+                                        nrow = private$n, 
+                                        ncol = 3) %*% chol(private$param$param_x$x_13$covar)
+                               x4 <- runif(private$n, private$param$param_x$x4$lower, private$param$param_x$x4$upper)
+                               x5 <- rchisq(private$n, df = private$param$param_x$x5$df)
+                               x6 <- rbinom(private$n, size = 1, prob =private$param$param_x$x6$p)
+                               
+                               private$x <- cbind(x13, x4, x5, x6)
+                               colnames(private$x) <- paste0("X",1:6)
+                               private$check_data()
+                               invisible(self)
+                             },
+                             gen_y = function() {
+                               if(all(dim(private$x) == 0)) gen_x()
+                               mean_y <- if(private$design =="A" | private$design == 1) {
+                                 private$x %*% private$param$beta_y
+                               } else if (private$design =="B" | private$design == 2) {
+                                 (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2
+                               } else {
+                                 stop("design must be one of 'A' or 'B'")
+                               }
+                               private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
+                               private$check_data()
+                               invisible(self)
+                             },
+                             gen_z = function() {
+                               if(all(dim(private$x) == 0)) gen_x()
+                               mean_z <- private$x %*% private$param$beta_z
+                               latent_z <- mean_z + rnorm(private$n, mean=0, sd = private$param$sigma_z)
+                               private$z <- c(ifelse(latent_z < 0, 0, 1))
+                               private$check_data()
+                               invisible(self)
+                             },
+                             initialize = function(n = 100, p = 6, param = list(), design = "A", overlap = "low", ...) {
+                               
+                               if(p != 6) warning("'p' set to 6 automatically")
+                               private$p <- 6 # p is always 6 for this guy
+                               
+                               if(missing(n) | is.null(n)) {
+                                 private$n <- 100
+                               } else {
+                                 private$n <- n
+                               }
+                               if(missing(design ) | is.null(design) ) {
+                                 private$design <- "A"
+                               } else {
+                                 private$design <- match.arg(design, c("A","B"))
+                               }
+                               if( missing(overlap) | is.null(overlap) ) {
+                                 private$overlap <- "low"
+                               } else {
+                                 private$overlap <- match.arg(overlap, c("low","high"))
+                               }
+                               private$
+                                 set_param(beta_z = param$beta_z, beta_y = param$beta_y,
+                                           sigma_z = param$sigma_z, sigma_y = param$sigma_y,
+                                           param_x = param$param_x)
+                               
+                             },
+                             get_design = function() {
+                               return(c(design = private$design, overlap = private$overlap))
+                             }
+                           ),
+                           private = list(design = "character",
+                                          overlap = "character",
+                                          set_param = function(beta_z, beta_y, sigma_z, sigma_y, param_x) {
+                                            miss.null <- function(xx) {
+                                              return(missing(xx) | is.null(xx))
+                                            }
+                                            if(is.null(private$design) & (miss.null(beta_y) ) ) {
+                                              private$design <- "A"
+                                            }
+                                            if(is.null(overlap) & (miss.null(sigma_z) )) {
+                                              private$overlap <- "low"
+                                            }
+                                            default_param <- list(
+                                              beta_z = c(1,2,-2,-1,-0.5,1),
+                                              beta_y = list(A = c(1,1,1,-1,1,1),
+                                                            B = c(1,1,1)),
+                                              sigma_z= list(low = sqrt(30),
+                                                            high = sqrt(100)),
+                                              sigma_y = 1,
+                                              param_x = list(x_13 = list(mean = rep(0, 3),
+                                                                         covar = matrix(c(2,1,-1,1,1,-0.5, -1, -0.5, 1), nrow = 3,ncol = 3)),
+                                                             x4 = list(lower = -3, upper = 3),
+                                                             x5 = list(df = 1),
+                                                             x6 = list(p = 0.5))
+                                            )
+                                            temp_param <- list()
+                                            if(miss.null(beta_z)) {
+                                              temp_param$beta_z <- default_param$beta_z
+                                            } else {
+                                              stopifnot(is.vector(param$beta_z))
+                                              temp_param$beta_z <- param$beta_z
+                                            }
+                                            if(miss.null(sigma_z)) {
+                                              temp_param$sigma_z <- default_param$sigma_z[[private$overlap]]
+                                            } else {
+                                              stopifnot(is.numeric(sigma_z))
+                                              temp_param$sigma_z <- param$sigma_z
+                                            }
+                                            if(miss.null(beta_y)) {
+                                              temp_param$beta_y <- default_param$beta_y[[private$design]]
+                                            } else {
+                                              stopifnot(is.vector(beta_y))
+                                              temp_param$beta_y <- param$beta_y
+                                            }
+                                            if(miss.null(sigma_y)) {
+                                              temp_param$sigma_y <- default_param$sigma_y
+                                            } else {
+                                              temp_param$sigma_y <-param$sigma_y
+                                            }
+                                            if(miss.null(param_x)) {
+                                              temp_param$param_x <- default_param$param_x
+                                            } else {
+                                              names_param_x <- c('x_13','x4','x5','x6')
+                                              if(miss.null(param_x$x_13)) {
+                                                temp_param$param_x$x_13 <- default_param$param_x$x_13
+                                              } else {
+                                                stopifnot(length(param_x$x_13$mean)==3)
+                                                stopifnot(all(dim(param_x$x_13$covar) %in% 3 ))
+                                                temp_param$param_x$x_13 <-param$param_x$x_13
+                                              }
+                                              if(miss.null(param_x$x_4)) {
+                                                temp_param$param_x$x_4 <- default_param$param_x$x_4
+                                              } else {
+                                                stopifnot(is.numeric(param_x$x_4$lower))
+                                                stopifnot(is.numeric(param_x$x_4$upper))
+                                                temp_param$param_x$x_4 <-param$param_x$x_4
+                                              }
+                                              if(miss.null(param_x$x_5)) {
+                                                temp_param$param_x$x_5 <- default_param$param_x$x_5
+                                              } else {
+                                                stopifnot(is.numeric(param_x$x_5$df))
+                                                stopifnot(is.numeric(param_x$x_5$df>0))
+                                                temp_param$param_x$x_5 <-param$param_x$x_5
+                                              }
+                                              if(miss.null(param_x$x_6)) {
+                                                temp_param$param_x$x_6 <- default_param$param_x$x_6
+                                              } else {
+                                                stopifnot(is.numeric(param_x$x_6$p))
+                                                stopifnot(is.numeric(param_x$x_6$p>0))
+                                                stopifnot(is.numeric(param_x$x_6$p<1))
+                                                temp_param$param_x$x_6 <-param$param_x$x_6
+                                              }
+                                            }
+                                            private$param <- temp_param
+                                          }
+                           )
+)
+
+Kallus2019 <- R6::R6Class("Kallus2019", 
+                           inherit = DataSim,
+                           public = list(
+                             gen_data = function() {
+                               self$gen_x()
+                               self$gen_z()
+                               self$gen_y()
+                               invisible(self)
+                             },
+                             gen_x = function() {
+                               stopifnot(length(private$n) >0 )
+                               private$x <- matrix(rnorm(private$n * private$p, 
+                                                         mean = private$param$param_x$mean, 
+                                                         sd =  private$param$param_x$sd), 
+                                                   nrow = private$n, ncol = private$p)
+                               colnames(private$x) <- paste0("X",1:5)
+                               private$check_data()
+                               invisible(self)
+                             },
+                             gen_y = function() {
+                               if(all(dim(private$x) == 0)) gen_x()
+                               if(all(dim(private$z) == 0)) gen_z()
+                               mean_y <- 0.75 * private$z + 
+                                 0.05 * private$z^2 + 0.001 * private$z^3 +
+                                 1.5 * rowSums(private$x) + 
+                                 1.125 * rowSums(private$x)
+                               
+                               private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
+                               private$check_data()
+                               invisible(self)
+                             },
+                             gen_z = function() {
+                               if(all(dim(private$x) == 0)) gen_x()
+                               design_z <- cbind(1, rowSums(private$x)^private$d)
+                               mean_z <- design_z %*% private$param$beta_z
+                               private$z <- c(mean_z + rnorm(private$n, 0, private$param$sigma_z))
+                               private$check_data()
+                               invisible(self)
+                             },
+                             initialize = function(n = 1024, p = 5, param = list(), design = "A", ...) {
+                               
+                               if(p != 5) warning("'p' set to 5 automatically")
+                               private$p <- 5 # p is always 6 for this guy
+                               
+                               if(missing(n) | is.null(n)) {
+                                 private$n <- 1024
+                               } else {
+                                 private$n <- n
+                               }
+                               if(missing(design ) | is.null(design) ) {
+                                 private$design <- "A"
+                               } else {
+                                 private$design <- match.arg(design, c("A","B","C"))
+                               }
+                               private$
+                                 set_param(
+                                           beta_z = param$beta_z, #beta_y = param$beta_y,
+                                           sigma_z = param$sigma_z, 
+                                           sigma_y = param$sigma_y,
+                                           param_x = param$param_x)
+                               
+                             },
+                             get_design = function() {
+                               return(switch(private$design,
+                                      A = "A: linear",
+                                      B = "B: quadratic",
+                                      C = "C: cubic"))
+                             }
+                           ),
+                           private = list(d = "numeric",
+                                          design = "character",
+                                          # overlap = "character",
+                                          set_param = function(beta_z, sigma_z, sigma_y, param_x) {
+                                            miss.null <- function(xx) {
+                                              return(missing(xx) | is.null(xx))
+                                            }
+                                            if(is.null(private$design) ) {
+                                              private$design <- "A"
+                                            }
+                                            private$d <- switch(private$design,
+                                                                A = 1, 
+                                                                B = 2,
+                                                                C = 3)
+                                            default_param <- list(
+                                              # beta_z = c(1,2,-2,-1,-0.5,1),
+                                              beta_z = switch(private$design,
+                                                              A = c(0,1),
+                                                              B = c(-3, 0.25),
+                                                              C = c(-2.5, 0.05)),
+                                              sigma_z= sqrt(5),
+                                              sigma_y = 0,
+                                              param_x = list(mean = 0,
+                                                              sd = sqrt(5))
+                                            )
+                                            temp_param <- list()
+                                            if(miss.null(beta_z)) {
+                                              temp_param$beta_z <- default_param$beta_z
+                                            } else {
+                                              stopifnot(is.vector(param$beta_z))
+                                              temp_param$beta_z <- param$beta_z
+                                            }
+                                            if(miss.null(sigma_z)) {
+                                              temp_param$sigma_z <- default_param$sigma_z[[private$overlap]]
+                                            } else {
+                                              stopifnot(is.numeric(sigma_z))
+                                              temp_param$sigma_z <- param$sigma_z
+                                            }
+                                            # if(miss.null(beta_y)) {
+                                            #   temp_param$beta_y <- default_param$beta_y[[private$design]]
+                                            # } else {
+                                            #   stopifnot(is.vector(beta_y))
+                                            #   temp_param$beta_y <- param$beta_y
+                                            # }
+                                            if(miss.null(sigma_y)) {
+                                              temp_param$sigma_y <- default_param$sigma_y
+                                            } else {
+                                              temp_param$sigma_y <-param$sigma_y
+                                            }
+                                            if(miss.null(param_x)) {
+                                              temp_param$param_x <- default_param$param_x
+                                            } else {
+                                              if(is.null(param$param_x$mean) | is.null(param$param_x$sd)) stop("Must specify parameters of x as list(mean = , sd = )")
+                                              temp_param$param_x$mean <- param$param_x$mean
+                                              temp_param$param_x$sd <- param$param_x$sd
+                                            }
+                                            private$param <- temp_param
+                                          }
+                           )
+)
