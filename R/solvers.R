@@ -36,8 +36,10 @@ gurobi_solver <- function(qp, ...) {
   params <- list(OutputFlag = 0)
   
   res <- gurobi::gurobi(model, params)
+  if(res$status != "OPTIMAL") warning("Algorithm did not converge!!!")
   sol <- (res$x)[1:num_param]
   sol[sol<0] <- 0
+  
   # obj_total <- out$obj
   # 
   # status <- out$status

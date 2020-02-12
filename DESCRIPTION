@@ -15,7 +15,8 @@ Imports:
     doRNG,
     parallel,
     doParallel,
-    Matrix
+    Matrix,
+    data.table
 LinkingTo: 
     Rcpp, 
     RcppEigen
@@ -23,5 +24,6 @@ Suggests:
     testthat (>= 2.1.0),
     Rcplex,
     gurobi,
+    Rmosek,
     dplyr,
     sbw

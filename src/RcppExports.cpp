@@ -33,10 +33,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// entry
+void entry(SEXP& xx, Rcpp::NumericMatrix& y, int colX_);
+RcppExport SEXP _causalOT_entry(SEXP xxSEXP, SEXP ySEXP, SEXP colX_SEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP& >::type xx(xxSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< int >::type colX_(colX_SEXP);
+    entry(xx, y, colX_);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
     {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 3},
+    {"_causalOT_entry", (DL_FUNC) &_causalOT_entry, 3},
     {NULL, NULL, 0}
 };
 

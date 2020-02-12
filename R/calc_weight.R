@@ -3,16 +3,18 @@ setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL"
 calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feasible"), 
                                 method = c("SBW","Wasserstein", "Constrained Wasserstein",
                                            "Logistic"),
-                        transport.matrix = FALSE,
+                        transport.matrix = FALSE, grid.search = FALSE,
                                 ...) {
   method <- match.arg(method)
   estimate <- match.arg(estimate)
-  dots <- list(...)
+  grid.search <- ifelse(isTRUE(grid.search), TRUE, FALSE)
   
-  output <- if(method != "Logistic") {
+  output <- if(method == "SBW" & grid.search) {
+    do.call("sbw_grid_search", list(data, constraint,  estimate = estimate, ...))
+  } else if( method != "Logistic") {
     do.call("calc_weight_bal", list(data, constraint,  estimate = estimate, 
-                            method = method,
-                            ...))
+                                    method = method,
+                                    ...))
   } else {
     calc_weight_glm (data, constraint, estimate,...)
   }

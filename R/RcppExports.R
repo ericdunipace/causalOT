@@ -9,3 +9,7 @@ cost_mahal_ <- function(A_, B_, p) {
     .Call('_causalOT_cost_mahal_', PACKAGE = 'causalOT', A_, B_, p)
 }
 
+entry <- function(xx, y, colX_) {
+    invisible(.Call('_causalOT_entry', PACKAGE = 'causalOT', xx, y, colX_))
+}
+

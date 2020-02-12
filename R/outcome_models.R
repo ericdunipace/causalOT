@@ -1,5 +1,3 @@
-
-
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate) {
   
   w0 <- weights$w0
@@ -115,64 +113,6 @@ calc_hajek <- function(weights, target, hajek) {
   return(weights)
 }
 
-prep_data.data.frame <- function(data,...) {
-  
-  #create data.frame
-  dots <- list(...)
-  tx_ind <- dots$treatment.indicator
-  cov_bal <- dots$balance.covariates
-  outcome <- dots$outcome
-  
-  if(is.null(cov_bal)) {
-    stop("must specify covariates for balance 'balance.covariates' either by name or column number")
-  }
-  
-  if(is.null(tx_ind)) {
-    stop("must specify treatment indicator 'treatment.indicator' either by name or column number")
-  }
-  
-  if(is.null(outcome)) {
-    stop("must specify outcome 'outcome' either by name or column number")
-  }
-  
-  tx.var <- if(is.character(tx_ind)) {
-    match(tx_ind, colnames(data))
-  } else {
-    tx_ind
-  }
-  x.vars <- if(is.character(cov_bal)) {
-    match(cov_bal, colnames(data))
-  } else {
-    cov_bal
-  }
-  y.var <- if(is.character(outcome)) {
-    match(outcome, colnames(data))
-  } else {
-    outcome
-  }
-  df <- data.frame(y = data[y.var], data[x.vars])
-  # df <- data[c(y.var, x.vars)]
-  z <- as.integer(data[[tx.var]])
-  
-  return(list(df = df, z = z))
-}
-
-prep_data.list <- function(data, ...) {
-  #create data.frame
-  df <- data.frame(y = data$y, data$x)
-  z <- as.integer(data$z)
-  
-  return(list(df = df, z = z))
-}
-
-prep_data.DataSim <- function(data, ...) {
-  #create data.frame
-  df <- data.frame(y = data$get_y(), data$get_x())
-  z <- data$get_z()
-  
-  return(list(df = df, z = z))
-}
-
 outcome_model <- function(data, formula = NULL, weights, 
                                   hajek = TRUE, 
                                   doubly.robust = TRUE,
@@ -206,9 +146,4 @@ outcome_model <- function(data, formula = NULL, weights,
   
   return(estimate)
 }
-
-setGeneric("prep_data", function(data, ...) UseMethod("prep_data"))
-setMethod("prep_data", signature(data = "DataSim"), prep_data.DataSim)
-setMethod("prep_data", signature(data = "data.frame"), prep_data.data.frame)
-setMethod("prep_data", signature(data = "list"), prep_data.list)
   
