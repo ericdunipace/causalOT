@@ -18,3 +18,22 @@ for (i in iter_seq) {
 
 microbenchmark::microbenchmark(transport::transport(a = rep(1/n,n), b = rep(1/n,n), costm = cost, p = 1),
                                times = 10)
+
+set.seed(234897)
+n <- 1e7
+max <- 5e5
+p <- 8
+x0 <- matrix(rnorm(n*p), p, n) #observations are column-wise
+x1 <- matrix(rnorm(n,p), p,n)
+
+if(n <= max) tplan <- approxOT::transport_plan(x0, x1, 2, 2, "colwise", "hilbert")$tplan
+if(n > max) {
+  tplan <- list()
+  tplan$from <-  approxOT::hilbert_proj_(x1) + 1
+  tplan$to <- approxOT::hilbert_proj_(x0) + 1
+  tplan$mass <- rep(1/n,n)
+}
+hilbert.dist <- sqrt(weighted.mean(colSums((x0[,tplan$to] - x1[,tplan$from])^2), w = tplan$mass))
+
+
+swap.dist <- approxOT::transport_plan(x0, x1, 2, 2, "colwise", "swapping")

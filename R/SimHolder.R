@@ -41,7 +41,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                        } else {
                                          private$grid.search <- isTRUE(grid.search)
                                        }
-                                       if(!is.null(standardized.difference.means) & !private$grid.search) {
+                                       if(!is.null(standardized.difference.means)) {
                                          private$standardized.difference.means <- standardized.difference.means
                                        } else {
                                          private$standardized.difference.means <- NULL
@@ -71,9 +71,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                        private$model.augmentation <- match.arg(model.augmentation, c("both", "yes", "no"))
                                        private$match <- match.arg(match, c("both", "yes", "no"))
                                        # private$cost.setup()
-                                       private$method.setup()
                                        
-                                       private$max.conditions <- private$max.cond.calc()
                                        private$temp.output <- vector("list", length = private$nmethod)
                                        names(private$temp.output) <- private$method
                                        
@@ -86,6 +84,8 @@ SimHolder <- R6::R6Class("SimHolder",
                                        private$wass_df$ground_p <- rep_len(rep(private$ground_powers, each = n_w), length.out = nrows)
                                        private$wass_df$wass_p <- rep_len(private$wass_powers, length.out = nrows)
                                        private$wass_df$dist <- numeric(nrows)
+                                       private$method.setup()
+                                       
                                        private$output.dt <- data.table::data.table(
                                                             method = rep(private$method[1], private$max.conditions),
                                                             estimand = character(private$max.conditions),
@@ -93,9 +93,10 @@ SimHolder <- R6::R6Class("SimHolder",
                                                             model.augmentation = logical(private$max.conditions),
                                                             match = logical(private$max.conditions),
                                                             solver = character(private$max.conditions),
-                                                            delta = vector("list", private$max.conditions),
+                                                            delta = numeric(private$max.conditions),
+                                                            options = vector("list", private$max.conditions),
                                                             wasserstein = lapply(1:private$max.conditions, function(i) private$wass_df),
-                                                            estimate = numeric(private$max.conditions)
+                                                            estimate = rep(NA_real_, private$max.conditions)
                                                             )
                                        private$weights <- sapply(private$estimand, function(i) {NULL}, simplify = NULL)
                                      }
@@ -135,32 +136,72 @@ SimHolder <- R6::R6Class("SimHolder",
                                         n_m <- length(private$metric)
                                         nrows <- n_g * n_m
                                         ns <- private$simulator$get_n()
-                                        private$costs <- list(metric = rep(private$metric, each = n_g))
-                                        private$costs$ground_p <- rep_len(private$ground_powers, length.out = nrows)
-                                        private$costs$cost <- lapply(1:nrows, function(i) matrix(0, nrow = ns["n0"], ncol = ns["n1"] ))   
+                                        # private$costs <- vector("list", n_g)
+                                        # names(private$costs) <- private$metric
+                                          # list(metric = rep(private$metric, each = n_g))
+                                        private$costs <- sapply(private$metric, 
+                                                                function(i) sapply(as.character(private$ground_powers), 
+                                                                                   function(j) matrix(0, nrow = ns["n0"], ncol = ns["n1"] ), simplify = FALSE), simplify = FALSE)
+                                        # private$costs$cost <- lapply(1:nrows, function(i) matrix(0, nrow = ns["n0"], ncol = ns["n1"] ))   
                                         x0 <- private$simulator$get_x0()
                                         x1 <- private$simulator$get_x1()
-                                        for(i in 1:nrows) {
-                                            private$costs$cost[[i]] <- private$cost.fun(x0, x1,
-                                                                                        ground_p = private$costs$ground_p[i], 
+                                        for(i in as.character(private$metric)) {
+                                            for(j in as.character(private$ground_powers)) {
+                                              private$costs[[i]][[j]] <- private$cost.fun(x0, x1,
+                                                                                        ground_p = as.numeric(j), 
                                                                                         "rowwise", 
-                                                                                        private$costs$metric[i])
+                                                                                        i)
+                                            }
                                         }
                                       },
+                                      get_delta = function(opts, estimand, method) {
+                                        if(method == "Constrained Wasserstein") {
+                                          tf.est <- private$temp.output[["SBW"]]$estimand == estimand
+                                          tf.delta <- private$temp.output[["SBW"]]$delta == opts$delta
+                                          tf.delta <- if(all(is.na(tf.delta)) & isTRUE(private$grid.search)) rep(TRUE, length(tf.delta))
+                                          select.rows <- which(tf.delta & tf.est)[1]
+                                          temp.wass <- private$temp.output[["SBW"]][select.rows, "wasserstein"][[1]]
+                                          idx <- which(temp.wass$metric == opts$metric & 
+                                                         temp.wass$ground_p == opts$ground_p &
+                                                         temp.wass$wass_p == opts$wass_p )
+                                          delta <- temp.wass$dist[idx]
+                                          # if(is.null(delta)) delta <- NA
+                                          return(delta)
+                                        } else if (method == "Wasserstein") {
+                                          return(NA)
+                                        } else {
+                                          return(opts$delta)
+                                        }
+                                      },
+                                      check.skip = function(weights) {
+                                      skip <- FALSE
+                                      if(isTRUE(is.na(weights$w0)) | isTRUE(length(weights$w0) == 0) | isTRUE(is.null(weights$w0))) {
+                                        skip <- TRUE
+                                      }
+                                      if(isTRUE(is.na(weights$w1)) | isTRUE(length(weights$w1) == 0) | isTRUE(is.null(weights$w1))) {
+                                        skip <- TRUE
+                                      }
+                                      return(skip)
+                                    },
                                       estimate = function(method) {
                                         cur <- private$method.lookup[private$method.lookup$method == method,]
-                                        # opts <- private$set.opts(cur)
-                                        iter <- 1
+                                        # if(method == "Constrained Wasserstein") cur$options <- private$get_delta(cur$options[[1]])
+                                        iter <- 1L
                                         data.table::set(private$output.dt, i = NULL, j = "method" , value = as.character(cur$method))
                                         wass.df <- private$wass_df
-                                        for (est in cur$estimand[[1]]) {
-                                          for (solver in cur$solver) {
-                                            for (o in opts) {
-                                              private$weight.calc(cur, 
-                                                                  est, 
-                                                                  solver,
-                                                                  cost = private$costs[[o$metric]][[o$ground_p]], 
-                                                                  p = o$wass_p)
+                                        for (solver in cur$solver) {
+                                          for (o in cur$options[[1]]) {
+                                            for (est in cur$estimand[[1]]) {
+                                              delta <- private$get_delta(o, est, method)
+                                              if ( isTRUE(is.null(delta)) ) next
+                                              private$weight.calc(cur = cur, 
+                                                                  estimand = est, 
+                                                                  solver = solver,
+                                                                  delta = delta,
+                                                                  cost = if(is.null(o$metric) | is.null(o$ground_p)){NULL} else {private$costs[[o$metric]][[o$ground_p]]}, 
+                                                                  p = o$wass_p,
+                                                                  grid.search = isTRUE(o$grid.search))
+                                              if(private$check.skip(private$weights[[est]])) next
                                               for (mods in cur$outcome.model[[1]]) {
                                                 for (aug in cur$model.aug[[1]]) {
                                                   for (match in cur$match[[1]]) {
@@ -169,24 +210,25 @@ SimHolder <- R6::R6Class("SimHolder",
                                                       data.table::set(private$output.dt, i = iter, j = "model.augmentation" , value = aug)
                                                       data.table::set(private$output.dt, i = iter, j = "match" , value = match)
                                                       data.table::set(private$output.dt, i = iter, j = "solver" , value = solver)
-                                                      data.table::set(private$output.dt, i = iter, j = "delta" , value = o$delta)
-                                                      private$wass.calc(iter, estimand)
+                                                      data.table::set(private$output.dt, i = iter, j = "delta" , value = if(!is.null(o$delta)){o$delta} else {NA_real_})
+                                                      data.table::set(private$output.dt, i = iter, j = "options" , value = list(o))
+                                                      private$wass.calc(iter, est)
                                                       data.table::set(private$output.dt, i = iter, j = "estimate", 
                                                                       value = outcome_model(private$simulator, 
                                                                                             formula = cur$outcome.formula[[1]][[aug + 1]],
-                                                                                            weights = weights[[est]],
+                                                                                            weights = private$weights[[est]],
                                                                                             hajek = TRUE,
                                                                                             doubly.robust = aug,
                                                                                             matched = match,
                                                                                             target = est,
                                                                                             model = match.fun(private$outcome.model[[1]])))
-                                                      iter <- iter + 1
+                                                      iter <- iter + 1L
                                                     }
                                                   }
                                                 }
                                               }
                                             }
-                                          }
+                                        }
                                       },
                                       method.setup = function() {
                                         private$method.lookup <- data.frame(method = private$method)
@@ -215,7 +257,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                                                    Wasserstein = private$solver
                                         ))
                                         sdm <- private$standardized.difference.means
-                                        if(isTRUE(private$grid.search)) sdm <- "NA"
+                                        if(isTRUE(private$grid.search)) sdm <- NA
                                         wass_list <- Cwass_list <- list(metric = private$metric,
                                                           ground_p = private$ground_powers,
                                                           wass_p = private$wass_powers,
@@ -227,14 +269,17 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                                                     Logistic = list(delta = private$truncations),
                                                                                                                     SBW = list(grid.search = private$grid.search,
                                                                                                                                delta = sdm),   
-                                                                                                                    'Constrained Wasserstein' = wass_list,    
+                                                                                                                    'Constrained Wasserstein' = Cwass_list,    
                                                                                                                     Wasserstein = wass_list))
+                                        if("Logistic" %in% private$method) private$method.lookup$estimand[private$method.lookup$method == "Logistic"][[1]] <- private$estimand[private$estimand != "feasible"]
+                                        private$max.conditions <- private$max.cond.calc()
                                         for(i in private$method) private$method.lookup$options[[i]] <- private$set.opts(private$method.lookup[i == private$method.lookup$method,])
                                     },
                                       max.cond.calc = function() {
                                         dims <- sapply(private$method, function(mm){
                                           cur <- private$method.lookup[private$method.lookup$method == mm,]
-                                          noptions <- prod(sapply(cur$options[[1]], length))
+                                          lens <- sapply(cur$options[[1]], length)
+                                          noptions <- prod(lens[lens!=0])
                                           cur$options <- NULL
                                           dim <- prod( sapply(unlist(cur, recursive = FALSE), length) ) * noptions
                                           return(dim)
@@ -248,8 +293,8 @@ SimHolder <- R6::R6Class("SimHolder",
                                         iter.list <- if(cur$method == "Wasserstein") {
                                           private$wass_df[1:3]
                                         } else if (cur$method == "Constrained Wasserstein") {
-                                          temp.delta <- cur$options[[1]]$delta
-                                          temp <- lapply(private$wass_df[1:3], function(o) if(!is.null(temp.delta)) {rep(o, each = length(temp.delta))} else {o})
+                                          temp.delta <- cur$options[[1]]$std_diff
+                                          temp <- lapply(private$wass_df[1:3], function(o) if(!is.null(temp.delta)) {rep(o, each = lens["std_diff"])} else {o})
                                           if(!is.null(temp.delta)) {
                                             temp$delta <- rep_len(temp.delta, length(temp[[1]]))
                                           } else {
@@ -265,44 +310,51 @@ SimHolder <- R6::R6Class("SimHolder",
                                         return(opts)
                                       },
                                       update = function() {
-                                      private$simulator$gen_data()
-                                      private$cost.setup()
-                                      for(mm in private$method) {
-                                        private$temp.output[[mm]] <- private$estimate(mm)
-                                      }
+                                        private$simulator$gen_data()
+                                        private$cost.setup()
+                                        for(mm in private$method) {
+                                          private$estimate(mm) #updates private$estimate(mm)
+                                          private$temp.output[[mm]] <- private$output.dt[!is.na(private$output.dt$estimate),] 
+                                          data.table::set(private$output.dt, i = NULL, j = "estimate", value = NA_real_)
+                                        }
                                       
-                                      return(data.table::rbindlist(temp.output))
-                                    },
+                                        return(data.table::rbindlist(private$temp.output))
+                                      },
                                       wass.calc = function(iter, estimand) {
-                                        wass.df <- private$wass_df["dist"]
-                                        wass_iter <- 1
-                                        for(metric in private$wass_df$metric) {
-                                          for(ground_p in private$wass_df$ground_p) {
-                                            for(wass_p in private$wass_df$wass_p) {
+                                        wass.df <- private$wass_df
+                                        wass_iter <- 1L
+                                        for(metric in private$metric) {
+                                          for(ground_p in private$ground_powers) {
+                                            for(wass_p in private$wass_powers) {
                                               wass.df[["dist"]][[wass_iter]] <- causalOT::wasserstein_p(private$weights[[estimand]], 
                                                                                                    p = wass_p, 
-                                                                                                   cost = private$costs[[metric]][[ground_p]])
-                                              wass_iter <- wass_iter + 1
+                                                                                                   cost = private$costs[[metric]][[as.character(ground_p)]])
+                                              # names(wass.df[["dist"]][[wass_iter]]) <-
+                                              wass_iter <- wass_iter + 1L
                                             }
                                           }
                                         }
-                                        data.table::set(private$output.dt, i = iter, j = "wasserstein" , value = wass.df)
+                                        data.table::set(private$output.dt, i = iter, j = "wasserstein" , value = list(wass.df))
                                     },
                                       weight.calc = function(cur, estimand, 
-                                                             solver, cost = NULL, 
-                                                             p = NULL) {
+                                                             solver, delta,
+                                                             cost = NULL, 
+                                                             p = NULL,
+                                                             grid.search = FALSE) {
                                         method <- as.character(cur$method[[1]])
+                                        if(grid.search & method == "SBW") delta <- private$standardized.difference.means
                                         if (estimand != "ATE" | method == "Logistic") {
                                           private$weights[[estimand]]<- 
-                                            calc_weight(private$simulator,  constraint = private$get_constraint(cur),
+                                            calc_weight(private$simulator,  constraint = delta,
                                                         estimate = estimand, method = method,
-                                                        cost = cost, p = p,
+                                                        cost = cost, p = p[[1]],
                                                         transport.matrix = FALSE,
-                                                        solver = solver)
+                                                        solver = solver,
+                                                        grid.search = grid.search)
                                         } else {
                                           private$weights[[estimand]] <- 
-                                            convert_ATE(weights[["ATT"]], 
-                                                        weights[["ATC"]],
+                                            convert_ATE(private$weights[["ATT"]], 
+                                                        private$weights[["ATC"]],
                                                         transport.matrix = FALSE,
                                                         cost = cost, p = p[[1]])
                                         }

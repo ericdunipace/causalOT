@@ -37,8 +37,7 @@ test_that("SimHolder generates object", {
   testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
 })
 
-
-test_that("SimHolder generates object", {
+test_that("SimHolder runs", {
   set.seed(9867)
   
   #### Load Packages ####
@@ -47,7 +46,7 @@ test_that("SimHolder generates object", {
   #### Sim param ####
   n <- 2^7
   p <- 6
-  nsims <- 1
+  nsims <- 2
   overlap <- "low"
   design <- "B"
   distance <- c("Lp", "mahalanobis")
@@ -60,9 +59,12 @@ test_that("SimHolder generates object", {
   original <- Hainmueller$new(n = n, p = p, 
                               design = design, overlap = overlap)
   # SimHolder$debug("initialize")
-  SimHolder$debug("update")
-  SimHolder$debug("estimate")
+  # SimHolder$debug("update")
+  # SimHolder$debug("estimate")
+  # SimHolder$debug("get_delta")
   # SimHolder$debug("method.setup")
+  # SimHolder$debug("cost.setup")
+  # SimHolder$debug("max.cond.calc")
   sh <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = FALSE,
@@ -77,6 +79,75 @@ test_that("SimHolder generates object", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  sh$run()
+  testthat::expect_warning(sh$run())
+  testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
+  testthat::expect_type(original$get_x0(), "double")
+  testthat::expect_type(original$get_x1(), "double")
+  testthat::expect_type(original$get_z(), "double")
+  testthat::expect_type(original$get_y(), "double")
+})
+
+test_that("SimHolder with grid works", {
+  set.seed(082374)
   
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^7
+  p <- 6
+  nsims <- 2
+  overlap <- "low"
+  design <- "B"
+  distance <- c("Lp", "mahalanobis")
+  power <- c(1,2)
+  ground_power <- 1:2
+  std_mean_diff <- c( 0.1, 1)
+  solver <- "gurobi"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  # SimHolder$debug("initialize")
+  # SimHolder$debug("update")
+  # SimHolder$debug("estimate")
+  # SimHolder$debug("get_delta")
+  # SimHolder$debug("method.setup")
+  # SimHolder$debug("cost.setup")
+  # SimHolder$debug("max.cond.calc")
+  sh <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = TRUE,
+                      truncations = std_mean_diff,
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      match = "both",
+                      solver = "gurobi",
+                      wass_powers = power,
+                      ground_powers = ground_power,
+                      metrics = distance)
+  testthat::expect_warning(sh$run())
+  sh2 <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = TRUE,
+                      truncations = std_mean_diff,
+                      standardized.difference.means = NULL,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      match = "both",
+                      solver = "gurobi",
+                      wass_powers = power,
+                      ground_powers = ground_power,
+                      metrics = distance)
+  testthat::expect_warning(sh2$run())
+  testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
+  testthat::expect_type(original$get_x0(), "double")
+  testthat::expect_type(original$get_x1(), "double")
+  testthat::expect_type(original$get_z(), "double")
+  testthat::expect_type(original$get_y(), "double")
 })

@@ -16,7 +16,8 @@ Imports:
     parallel,
     doParallel,
     Matrix,
-    data.table
+    data.table,
+    approxOT
 LinkingTo: 
     Rcpp, 
     RcppEigen

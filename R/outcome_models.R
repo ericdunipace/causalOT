@@ -123,8 +123,8 @@ outcome_model <- function(data, formula = NULL, weights,
   dots <- list(...)
   
   # hajek <- match.arg(hajek)
-  dr <- doubly.robust[1]
-  matched <- matched[1]
+  dr <- isTRUE(doubly.robust[1])
+  matched <- isTRUE(matched[1])
   if(is.null(target)){
     if(inherits(weights, "causalWeights")){
       target <- weights$estimate

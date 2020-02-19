@@ -14,7 +14,7 @@ testthat::test_that("grid search function works, dataSim", {
   estimates <- c("ATT", "ATC","feasible")
   
   #### get simulation functions ####
-  data <- Hainmueller$new(n = n, p = p, 
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
                               design = design, overlap = overlap)
   
   data$gen_data()

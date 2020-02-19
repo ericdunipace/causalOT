@@ -34,10 +34,12 @@ DataSim <- R6::R6Class("DataSim",
                        x0 = "vector",
                        x1 = "vector",
                        check_data = function() {
-                         complete <- all(is.matrix(private$x) & is.vector(private$z) & is.vector(private$y))
+                         complete <- all(is.matrix(private$x) & is.vector(private$z) )
                          if(complete) {
                            private$n1 <- sum(private$z == 1)
                            private$n0 <- sum(private$z == 0)
+                           private$x1 <- private$x[private$z == 1,,drop=FALSE]
+                           private$x0 <- private$x[private$z == 0,,drop=FALSE]
                          }
                        }#,
                        )
@@ -50,6 +52,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                self$gen_x()
                                self$gen_z()
                                self$gen_y()
+                               # private$check_data()
                                invisible(self)
                              },
                              gen_x = function() {
@@ -78,7 +81,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                  stop("design must be one of 'A' or 'B'")
                                }
                                private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
-                               private$check_data()
+                               # private$check_data()
                                invisible(self)
                              },
                              gen_z = function() {
@@ -128,7 +131,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                             if(is.null(private$design) & (miss.null(beta_y) ) ) {
                                               private$design <- "A"
                                             }
-                                            if(is.null(overlap) & (miss.null(sigma_z) )) {
+                                            if(is.null(private$overlap) & (miss.null(sigma_z) )) {
                                               private$overlap <- "low"
                                             }
                                             default_param <- list(

@@ -3,7 +3,7 @@ sbw_grid_search <- function(data, grid = NULL,
                             n.boot = 100,
                             ...) 
 {
-  if(is.null(grid)) grid <- seq(0, 0.5, length.out = 100)
+  if(all(is.null(grid)) | all(is.na(grid))) grid <- seq(0, 0.5, length.out = 100)
   weight.list <- lapply(grid, function(delta) {
     out <- do.call("calc_weight_bal", list(data = data, constraint = delta,  estimate = estimate, 
                                              method = "SBW",
