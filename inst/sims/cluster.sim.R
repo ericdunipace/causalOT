@@ -22,7 +22,8 @@ nsims <- 10
 distance <- c("Lp", "mahalanobis")
 wass_power <- c(1,2)
 ground_power <- 1:2
-std_mean_diff <- trunc <- c(0, 0.01, 0.05, 0.1, 0.2)
+std_mean_diff <- seq(0,0.2, length.out = 100)
+trunc <- c(0, 0.01, 0.05, 0.1, 0.2)
 solver <- "gurobi"
 augmentation <- match <- "both"
 grid.search <- TRUE
@@ -31,7 +32,7 @@ grid.search <- TRUE
 
 #### get simulation functions ####
 dataGen <- Hainmueller$new(n = n, p = p, 
-                            design = design, overlap = overlap)
+                           design = design, overlap = overlap)
 
 #### Simulations ####
 times <- proc.time()
