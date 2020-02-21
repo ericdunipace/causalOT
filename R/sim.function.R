@@ -21,7 +21,10 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
   
   stopifnot(nsims > 0)
   stopifnot(inherits(dataGen, "DataSim"))
-  stopifnot(all(standardized.mean.difference > 0))
+  stopifnot(all(standardized.mean.difference >= 0))
+  stopifnot(all(truncations >= 0))
+  stopifnot(all(truncations <= 1))
+  
   
   #### dist mat ####
   dist <- match.arg(distance, several.ok = TRUE)

@@ -20,10 +20,12 @@ n <- 2^9
 p <- 6
 nsims <- 10
 distance <- c("Lp", "mahalanobis")
-power <- c(1,2)
-ground_power <- 2
-std_mean_diff <- c(0.01, 0.05, 0.1, 0.2)
+wass_power <- c(1,2)
+ground_power <- 1:2
+std_mean_diff <- trunc <- c(0, 0.01, 0.05, 0.1, 0.2)
 solver <- "gurobi"
+augmentation <- match <- "both"
+grid.search <- TRUE
 # overlap don't set b/c environmental parameter
 # design don't set b/c environmental parameter
 
@@ -33,10 +35,20 @@ dataGen <- Hainmueller$new(n = n, p = p,
 
 #### Simulations ####
 times <- proc.time()
-output <- sim.function(dataGen = dataGen, nsims = nsims, ground_p = ground_power, p = power, 
+output <- sim.function(dataGen = dataGen,
+                       nsims = nsims, 
+                       ground_p = ground_power, 
+                       p = wass_power,
+                       grid.search = grid.search,
+                       match = match,
+                       augmentation = agumentation,
                        standardized.mean.difference = std_mean_diff,
-                       distance = distance, solver = solver, parallel = FALSE, seed = seed,
-                       run.feasible = TRUE)
+                       truncations = trunc,
+                       distance = distance, 
+                       solver = solver,
+                       seed = seed)
+
+
 run.time <- (proc.time() - times)
 print(run.time)
 

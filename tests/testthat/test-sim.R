@@ -14,8 +14,9 @@ test_that("sim.function works", {
   power <- c(1,2)
   ground_power <- 2
   trunc <- std_mean_diff <- c(0.001, 0.01, 0.1)
-  agumentation <- "both"
+  agumentation <- match <- "both"
   solver <- "gurobi"
+  grid.search <- TRUE
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -27,7 +28,9 @@ test_that("sim.function works", {
                           nsims = nsims, 
                           ground_p = ground_power, 
                           p = power, 
+                          grid.search = grid.search,
                           augmentation = agumentation,
+                          match = match,
                           standardized.mean.difference = std_mean_diff,
                           truncations = trunc,
                           distance = distance, 
