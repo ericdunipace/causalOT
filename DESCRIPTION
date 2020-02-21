@@ -16,8 +16,7 @@ Imports:
     parallel,
     doParallel,
     Matrix,
-    data.table,
-    approxOT
+    data.table
 LinkingTo: 
     Rcpp, 
     RcppEigen
@@ -27,4 +26,5 @@ Suggests:
     gurobi,
     Rmosek,
     dplyr,
-    sbw
+    sbw,
+    approxOT
