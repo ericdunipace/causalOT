@@ -65,6 +65,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                  augmentation = NULL),
                                                            model.augmentation = "both",
                                                            match = "both",
+                                                           calculate.feasible = FALSE,
                                                            solver = "gurobi",
                                                            wass_powers = 2,
                                                            ground_powers = 2,
@@ -108,9 +109,10 @@ SimHolder <- R6::R6Class("SimHolder",
                                        private$ground_powers <- as.numeric(ground_powers)
                                        private$metric <- match.arg(metrics,
                                                                    c("Lp", "mahalanobis"), several.ok = TRUE)
-
+                                       private$calculate.feasible <- isTRUE(calculate.feasible)
                                        options <- get_holder_options()
                                        private$estimand <- options$estimates
+                                       if(!private$calculate.feasible) private$estimand <- private$estimand[private$estimand != "feasible"]
                                        private$method <- options$weights
                                        private$nmethod <- length(private$method)
                                        private$model.augmentation <- match.arg(model.augmentation, c("both", "yes", "no"))
@@ -146,7 +148,8 @@ SimHolder <- R6::R6Class("SimHolder",
                                        private$weights <- sapply(private$estimand, function(i) {NULL}, simplify = NULL)
                                      }
                                      ),
-                       private = list(costs = "list",
+                       private = list(calculate.feasible = "logical",
+                                      costs = "list",
                                       estimand = "vector",
                                       grid.search = "logical",
                                       ground_powers = "vector",

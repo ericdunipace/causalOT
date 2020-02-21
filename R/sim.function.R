@@ -2,11 +2,13 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
                           grid.search = TRUE,
                           match = c("both", "yes", "no"),
                           augmentation = c("both", "yes", "no"),
-                         standardized.mean.difference = 0.1,
-                         truncations = 0.1,
-                         distance = c("Lp", "mahalanobis"),
-                         solver = c("cplex","gurobi", "mosek"),
-                         seed = NULL, ...) {
+                          standardized.mean.difference = 0.1,
+                          truncations = 0.1,
+                          distance = c("Lp", "mahalanobis"),
+                          solver = c("cplex","gurobi", "mosek"),
+                          calculate.feasible = FALSE,
+                          seed = NULL, ...) 
+{
   
   nsims <- as.integer(nsims)
   grid.search <- isTRUE(grid.search)
@@ -44,6 +46,7 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
                                        augmentation = dots$outcome.formula$augmentation),
                 model.augmentation = augmentation,
                 match = match,
+                calculate.feasible = calculate.feasible,
                 solver = solver,
                 wass_powers = p,
                 ground_powers = ground_p,

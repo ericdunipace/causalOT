@@ -34,6 +34,7 @@ test_that("sim.function works", {
                           standardized.mean.difference = std_mean_diff,
                           truncations = trunc,
                           distance = distance, 
+                          calculate.feasible = FALSE,
                           solver = solver)
   
 })
