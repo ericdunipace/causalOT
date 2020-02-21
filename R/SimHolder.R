@@ -26,12 +26,12 @@ SimHolder <- R6::R6Class("SimHolder",
                                     },
                                      get.outcome = function(output) {
                                        exclude <- c("wasserstein", "ESS.frac")
-                                       exclude.cn <- (-which(exclude %in% colnames(output)))
+                                       exclude.cn <- (-which(colnames(output) %in% exclude))
                                        return(output[,exclude.cn])
                                      },
                                      get.ESS.frac = function(output) {
                                        exclude <- c("wasserstein", "estimate", "ESS.frac")
-                                       exclude.cn <- (-which(exclude %in% colnames(output)))
+                                       exclude.cn <- (-which(colnames(output) %in% exclude))
                                        ESS.output <- output[,exclude.cn]
                                        data.table::setDT(ESS.output)
                                        ESS <- data.table::rbindlist(output[,"ESS.frac"])
@@ -45,7 +45,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                        nrep <- check.rep[1]
                                        
                                        exclude <- c("wasserstein", "estimate", "ESS.frac")
-                                       exclude.cn <- (-which(exclude %in% colnames(output)))
+                                       exclude.cn <- (-which(colnames(output) %in% exclude))
                                        wass.output <- output[rep(1:nrow(output), each = nrep),exclude.cn]
                                        data.table::setDT(wass.output)
                                        cn <- colnames(wass.dt)
