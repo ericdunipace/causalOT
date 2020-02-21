@@ -1,6 +1,6 @@
 Package: causalOT
 Type: Package
-Title: What the package does (short line)
+Title: Causal Weighting Using Optimal Transport
 Version: 1.0
 Date: 2019-12-19
 Author: Eric Dunipace
@@ -27,4 +27,4 @@ Suggests:
     foreach,
     doRNG,
     parallel,
-    doParallel,
+    doParallel
