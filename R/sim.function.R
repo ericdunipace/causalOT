@@ -35,7 +35,7 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
   
   #### run simulations ####
   sh <- SimHolder$new(nsim = nsims,
-                dataSim = original,
+                dataSim = dataGen,
                 grid.search = grid.search,
                 truncations = truncations,
                 standardized.difference.means = standardized.mean.difference,
