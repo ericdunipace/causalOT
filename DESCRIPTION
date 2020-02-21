@@ -11,10 +11,6 @@ Imports:
     Rcpp (>= 1.0.3),
     R6 (>= 2.4.1),
     transport,
-    foreach,
-    doRNG,
-    parallel,
-    doParallel,
     Matrix,
     data.table
 LinkingTo: 
@@ -27,4 +23,8 @@ Suggests:
     Rmosek,
     dplyr,
     sbw,
-    approxOT
+    approxOT,
+    foreach,
+    doRNG,
+    parallel,
+    doParallel,
