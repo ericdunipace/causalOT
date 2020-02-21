@@ -24,7 +24,7 @@ test_that("sim.function works", {
   
   #### Simulations ####
   # debugonce(sim.function)
-  output <- sim.function(dataGen = original, 
+  testthat::expect_silent(output <- sim.function(dataGen = original, 
                           nsims = nsims, 
                           ground_p = ground_power, 
                           p = power, 
@@ -35,6 +35,19 @@ test_that("sim.function works", {
                           truncations = trunc,
                           distance = distance, 
                           calculate.feasible = FALSE,
-                          solver = solver)
+                          solver = solver))
+  
+  testthat::expect_silent(output <- sim.function(dataGen = original, 
+                         nsims = nsims, 
+                         ground_p = ground_power, 
+                         p = power, 
+                         grid.search = grid.search,
+                         augmentation = agumentation,
+                         match = match,
+                         standardized.mean.difference = std_mean_diff,
+                         truncations = trunc,
+                         distance = distance, 
+                         calculate.feasible = TRUE,
+                         solver = solver))
   
 })
