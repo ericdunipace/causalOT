@@ -8,8 +8,53 @@ SimHolder <- R6::R6Class("SimHolder",
                                      }
                                    },
                                      get.output = function() {
-                                      return(data.table::rbindlist(private$output))
+                                       full <- data.table::rbindlist(private$output)
+                                       exclude <- "options"
+                                       exclude.cn <- -which(colnames(private$output[[1]]) == exclude)
+                                       
+                                       output <- full[,exclude.cn]
+                                       excluded <- data.table::rbindlist(lapply(private$output, function(o) 
+                                         data.table::rbindlist(lapply(o[[exclude]], as.data.frame), 
+                                                               use.names = TRUE, 
+                                                               fill = TRUE)),   
+                                                                         use.names = TRUE, 
+                                                                         fill = TRUE)
+                                       data.table::setDT(output)
+                                       for(j in colnames(excluded)) data.table::set(output, i = NULL, j = j,  value = excluded[,j])
+                                       
+                                      return(output)
                                     },
+                                     get.outcome = function(output) {
+                                       exclude <- c("wasserstein", "ESS.frac")
+                                       exclude.cn <- (-which(exclude %in% colnames(output)))
+                                       return(output[,exclude.cn])
+                                     },
+                                     get.ESS.frac = function(output) {
+                                       exclude <- c("wasserstein", "estimate", "ESS.frac")
+                                       exclude.cn <- (-which(exclude %in% colnames(output)))
+                                       ESS.output <- output[,exclude.cn]
+                                       data.table::setDT(ESS.output)
+                                       ESS <- data.table::rbindlist(output[,"ESS.frac"])
+                                       for(j in colnames(ESS)) data.table::set(ESS, i = NULL, j = j, value = ESS[,j])
+                                       return(ESS)
+                                     },
+                                     get.wass = function(output) {
+                                       wass.dt <- data.table::rbindlist(lapply(output[,"wasserstein"], function(o) as.data.frame(o)), idcol = TRUE)
+                                       check.rep <- table(wass.dt[,".id"])
+                                       stopifnot(all(check.rep == check.rep[1]))
+                                       nrep <- check.rep[1]
+                                       
+                                       exclude <- c("wasserstein", "estimate", "ESS.frac")
+                                       exclude.cn <- (-which(exclude %in% colnames(output)))
+                                       wass.output <- output[rep(1:nrow(output), each = nrep),exclude.cn]
+                                       data.table::setDT(wass.output)
+                                       cn <- colnames(wass.dt)
+                                       # cn <- cn[cn!= ".id"]
+                                       
+                                       for(j in cn) data.table::set(wass.output, i = NULL, j = j, value = wass.dt[,j])
+                                       
+                                       return(wass.dt)
+                                     },
                                      initialize = function(nsim = 100,
                                                            dataSim,
                                                            grid.search = TRUE,
@@ -94,7 +139,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                             match = logical(private$max.conditions),
                                                             solver = character(private$max.conditions),
                                                             delta = numeric(private$max.conditions),
-                                                            options = vector("list", private$max.conditions),
+                                                            options = lapply(1:private$max.conditions, function(i) list(NA)), #vector("list", private$max.conditions),
                                                             wasserstein = lapply(1:private$max.conditions, function(i) private$wass_df),
                                                             estimate = rep(NA_real_, private$max.conditions)
                                                             )
@@ -198,7 +243,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                   estimand = est, 
                                                                   solver = solver,
                                                                   delta = delta,
-                                                                  cost = if(is.null(o$metric) | is.null(o$ground_p)){NULL} else {private$costs[[o$metric]][[o$ground_p]]}, 
+                                                                  cost = if(is.null(o$metric) | is.null(o$ground_p)){NULL} else {private$costs[[o$metric]][[as.character(o$ground_p)]]}, 
                                                                   p = o$wass_p,
                                                                   grid.search = isTRUE(o$grid.search))
                                               if(private$check.skip(private$weights[[est]])) next
@@ -211,7 +256,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                       data.table::set(private$output.dt, i = iter, j = "match" , value = match)
                                                       data.table::set(private$output.dt, i = iter, j = "solver" , value = solver)
                                                       data.table::set(private$output.dt, i = iter, j = "delta" , value = if(!is.null(o$delta)){o$delta} else {NA_real_})
-                                                      data.table::set(private$output.dt, i = iter, j = "options" , value = list(o))
+                                                      data.table::set(private$output.dt, i = iter, j = "options" , value = list(list(o)))
                                                       private$wass.calc(iter, est)
                                                       data.table::set(private$output.dt, i = iter, j = "estimate", 
                                                                       value = outcome_model(private$simulator, 

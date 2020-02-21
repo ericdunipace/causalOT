@@ -25,7 +25,7 @@ original <- Hainmueller$new(n = n, p = p,
 # doParallel::registerDoParallel(cl)
 cl <- FALSE
 times <- proc.time()
-output <- sim.function(original, nsims, ground_p = ground_power, p = power, 
+output <- causalOT:::.sim.function(original, nsims, ground_p = ground_power, p = power, 
                        standardized.mean.difference = std_mean_diff,
                        distance = distance, solver = solver, parallel = cl,
                        run.feasible = FALSE)
