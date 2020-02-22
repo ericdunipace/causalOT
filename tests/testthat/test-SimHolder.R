@@ -129,7 +129,7 @@ test_that("SimHolder with grid works", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_warning(sh$run())
+  testthat::expect_silent(sh$run())
   sh2 <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
