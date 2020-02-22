@@ -49,5 +49,7 @@ test_that("sim.function works", {
                          distance = distance, 
                          calculate.feasible = TRUE,
                          solver = solver))
-  
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1))
+  testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
 })

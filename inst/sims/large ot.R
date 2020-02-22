@@ -24,7 +24,7 @@ n <- 1e7
 max <- 5e5
 p <- 8
 x0 <- matrix(rnorm(n*p), p, n) #observations are column-wise
-x1 <- matrix(rnorm(n,p), p,n)
+x1 <- matrix(rnorm(n,p), p, n)
 
 if(n <= max) tplan <- approxOT::transport_plan(x0, x1, 2, 2, "colwise", "hilbert")$tplan
 if(n > max) {
@@ -36,4 +36,16 @@ if(n > max) {
 hilbert.dist <- sqrt(weighted.mean(colSums((x0[,tplan$to] - x1[,tplan$from])^2), w = tplan$mass))
 
 
-swap.dist <- approxOT::transport_plan(x0, x1, 2, 2, "colwise", "swapping")
+# swap.dist <- approxOT::transport_plan(x0, x1, 2, 2, "colwise", "swapping") # too slow
+
+
+set.seed(234897)
+n <- 1e7
+max <- 5e5
+p <- 8
+x0 <- matrix(rnorm(n*p), p, n) #observations are column-wise
+x1 <- matrix(rnorm(n,p), p, n)
+tplan_full <- list()
+tplan_full$z <- c(rep(0, n), rep(1,n))
+tplan_full$idx <- approxOT::hilbert_proj_(cbind(x0,x1)) + 1
+
