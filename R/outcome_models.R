@@ -26,12 +26,12 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate
     e_0_t <- e_0[t_ind]
     e_0_c <- e_0[c_ind]
     
+    tau_t <- 0
+    tau_c <- 0
     if(estimate == "ATT" | estimate == "ATE" | estimate == "feasible") {
       tau_t <- c(mean(e_0_t) - sum(e_0_c*w0))
-      tau_c <- 0
     }
     if(estimate == "ATC" | estimate == "ATE" | estimate == "feasible") {
-      tau_t <- 0
       tau_c <- c(sum(e_1_t*w1) - mean(e_1_c))
     }
     if(estimate == "ATT"){
