@@ -50,14 +50,14 @@ SimHolder <- R6::R6Class("SimHolder",
                                        
                                        exclude <- c("wasserstein", "estimate", "ESS.frac")
                                        exclude.cn <- (-which(colnames(output) %in% exclude))
-                                       wass.output <- output[rep(1:nrow(output), each = nrep),exclude.cn]
+                                       wass.output <- output[rep(1:nrow(output), each = nrep), exclude.cn]
                                        data.table::setDT(wass.output)
                                        cn <- colnames(wass.dt)
                                        # cn <- cn[cn!= ".id"]
                                        
                                        for(j in cn) data.table::set(wass.output, i = NULL, j = j, value = wass.dt[,j])
                                        
-                                       return(wass.dt)
+                                       return(wass.output)
                                      },
                                      initialize = function(nsim = 100,
                                                            dataSim,

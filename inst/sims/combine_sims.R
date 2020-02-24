@@ -1,10 +1,10 @@
 library(causalOT)
 
 #### Output settings ####
-jobids      <- as.character(c(44893116))
+jobids      <- as.character(c(45196661,45196661))
 n           <- "512"
 p           <- "6"
-design      <- "A"
+design      <- "B"
 overlap     <- "high"
 simsett     <- "hainmueller"
 curdate     <- as.character(Sys.Date())
@@ -19,7 +19,7 @@ for(i in seq_along (sel.files) ) {
 }
 
 #### Combine ####
-output      <- causalOT:::combine_sims(file.holder, simulation_name = simsett)
+output      <- causalOT:::combine_sims(file.holder, simulation_name = paste(simsett, "design", design, "overlap", overlap, sep="_"))
 
 outname     <- paste(c(simsett, "des", design, "overlap", overlap, "n", n, "date", curdate), collapse="_")
 saveRDS(output, file = file.path("Output", paste0(outname,".rds")))

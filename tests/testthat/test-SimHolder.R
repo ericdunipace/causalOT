@@ -60,7 +60,7 @@ test_that("SimHolder runs", {
                               design = design, overlap = overlap)
   # SimHolder$debug("initialize")
   # SimHolder$debug("update")
-  # SimHolder$debug("estimate")
+  SimHolder$debug("estimate")
   # SimHolder$debug("get_delta")
   # SimHolder$debug("method.setup")
   # SimHolder$debug("cost.setup")
@@ -85,6 +85,9 @@ test_that("SimHolder runs", {
   testthat::expect_type(original$get_x1(), "double")
   testthat::expect_type(original$get_z(), "double")
   testthat::expect_type(original$get_y(), "double")
+  
+  out <- sh$get.output()
+  outcome <- sh$get.outcome(out)
 })
 
 test_that("SimHolder with grid works", {
@@ -102,7 +105,7 @@ test_that("SimHolder with grid works", {
   distance <- c("Lp", "mahalanobis")
   power <- c(1,2)
   ground_power <- 1:2
-  std_mean_diff <- c( 0.1, 1)
+  std_mean_diff <- c(0, 0.1, 1)
   solver <- "gurobi"
   
   #### get simulation functions ####

@@ -43,7 +43,7 @@ calc_weight_glm <- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
   if(is.null(dots$formula)) {
     dots$formula <- formula(z ~ .)
   }
-  mod <- glm(dots$formula, data.frame(z = z, df), family = "binomial")
+  mod <- glm(dots$formula, data.frame(z = z, df), family = binomial(link = "logit"))
   pred <- predict(mod, type = "response")
   
   if (constraint > 0 & constraint < 1) {
