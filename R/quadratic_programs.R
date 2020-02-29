@@ -517,7 +517,7 @@ qp_wass <- function(x, z, p = 2, target = c("ATC", "ATT",
   
   L0 <- cost_vec #simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
   #nrow = 1, ncol = n0*n1) #c(rep(0, n0*n1)) #c( w = rep( -marg_mass, n0 * n1 ) )
-  obj <- list(Q = Q0,
+  obj <- list(Q = NULL,#Q0,
               L = L0)
   
   LC <- list()
