@@ -33,7 +33,7 @@ gurobi_solver <- function(qp, ...) {
   model$vtype <- rep("C", num_param)
   model$lb <- rep(0, num_param)
   model$ub <- rep(Inf, num_param)
-  params <- list(OutputFlag = 1)
+  params <- list(OutputFlag = 0)
   
   # dots <- list(...)
   # model$pstart <- dots$init.sol
