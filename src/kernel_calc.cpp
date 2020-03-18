@@ -15,7 +15,7 @@ matrix covariance_kern(const refMatConst & samples) {
   int d = samples.cols();
   rowVector mean = samples.colwise().mean();
   
-  if(d != mean.rows()) Rcpp::stop("Dimension of mean vector not match dimension of samples vector!");
+  if(d != mean.cols()) Rcpp::stop("Dimension of mean vector does not match the dimension of samples vector!");
   matrix c_samples = samples.rowwise() - mean;
   return matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(c_samples.transpose(), 1.0/double(S-1));
 }

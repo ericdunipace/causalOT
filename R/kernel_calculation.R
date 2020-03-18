@@ -1,6 +1,4 @@
-kernel_calculation <- function(X, z, d = 2, theta = NULL, gamma = NULL, metric = c("Lp","mahalanobis")) {
-  
-  dir <- match.arg(direction)
+kernel_calculation <- function(X, z, d = 1.0, theta = NULL, gamma = NULL, metric = c("Lp","mahalanobis")) {
   
   if(!is.matrix(X)) X <- as.matrix(X)
   if(!is.matrix(z)) z <- as.matrix(z)
@@ -19,7 +17,7 @@ kernel_calculation <- function(X, z, d = 2, theta = NULL, gamma = NULL, metric =
                        calc_covariance = calc_covariance) )
 }
 
-kerenel_param_check <- function(param) {
+kernel_param_check <- function(param) {
   
   if(is.null(param)) {
     param <- as.double(c(1.0,1.0))
@@ -40,9 +38,9 @@ kerenel_param_check <- function(param) {
   return(param)
 }
 
-kerenel_power_check <- function(d) {
+kernel_power_check <- function(d) {
   
-  if(is.missing(d)) d <- 1.0
+  if(missing(d)) d <- 1.0
   if(is.null(d)) d <- 1.0
   
   if (!is.double(d) ) d <- as.double(d)
