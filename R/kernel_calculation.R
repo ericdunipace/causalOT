@@ -1,4 +1,4 @@
-kernel_calculation <- function(X, z, d = 2, theta = NULL, gamma = NULL) {
+kernel_calculation <- function(X, z, d = 2, theta = NULL, gamma = NULL, metric = c("Lp","mahalanobis")) {
   
   dir <- match.arg(direction)
   
@@ -7,11 +7,16 @@ kernel_calculation <- function(X, z, d = 2, theta = NULL, gamma = NULL) {
   
   if(nrow(X) != nrow(z)) stop("Observations of X and z must be equal")
   
+  met <- match.arg(metric)
+  calc_covariance <- isTRUE(met == "mahalanobis")
+  
   theta <- kernel_param_check(theta)
   gamma <- kernel_param_check(gamma)
   d <- kernel_power_check(d)
   
-  return( kernel_calc_(X, Y, d, theta, gamma) )
+  return( kernel_calc_(X_ = X, z_ = z, d = d, 
+                       theta_ = theta, gamma_ = gamma,
+                       calc_covariance = calc_covariance) )
 }
 
 kerenel_param_check <- function(param) {
