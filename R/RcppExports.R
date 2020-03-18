@@ -9,6 +9,10 @@ cost_mahal_ <- function(A_, B_, p) {
     .Call('_causalOT_cost_mahal_', PACKAGE = 'causalOT', A_, B_, p)
 }
 
+kernel_calc_ <- function(X_, z_, d, theta_, gamma_, calc_covariance) {
+    .Call('_causalOT_kernel_calc_', PACKAGE = 'causalOT', X_, z_, d, theta_, gamma_, calc_covariance)
+}
+
 entry <- function(xx, y, colX_) {
     invisible(.Call('_causalOT_entry', PACKAGE = 'causalOT', xx, y, colX_))
 }

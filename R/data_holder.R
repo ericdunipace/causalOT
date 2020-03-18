@@ -32,7 +32,7 @@ generate_holder <- function(outcome = TRUE, ...) {
 get_holder_options <- function() {
   estimates <- c("ATT", "ATC", "ATE", "feasible")
   dr <- c("Hajek", "DR Hajek")
-  weights <- c("Logistic","SBW", "Constrained Wasserstein", "Wasserstein")
+  weights <- c("Logistic","SBW", "RKHS", "Constrained Wasserstein", "Wasserstein")
   matched <- c("Unmatched", "Matched")
   return(list(estimates = estimates, dr = dr, weights = weights, matched = matched))
 }

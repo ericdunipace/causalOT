@@ -60,7 +60,7 @@ test_that("SimHolder runs", {
                               design = design, overlap = overlap)
   # SimHolder$debug("initialize")
   # SimHolder$debug("update")
-  SimHolder$debug("estimate")
+  # SimHolder$debug("estimate")
   # SimHolder$debug("get_delta")
   # SimHolder$debug("method.setup")
   # SimHolder$debug("cost.setup")

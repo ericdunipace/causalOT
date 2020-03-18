@@ -3,13 +3,15 @@
 matrix covariance(const refMatConst & samples) {
   int S = samples.cols();
   int d = samples.rows();
-  matrix c_samples(d, S);
+  // matrix c_samples(d, S);
   vector mean = samples.rowwise().mean();
-  
   if(d != mean.rows()) Rcpp::stop("Dimension of mean vector not match dimension of samples vector!");
-  for(int i = 0 ; i < S; i++){
-    c_samples.col(i) = samples.col(i) - mean;
-  }
+  
+  matrix c_samples = samples.colwise() - mean;
+  
+  // for(int i = 0 ; i < S; i++){
+  //   c_samples.col(i) = samples.col(i) - mean;
+  // }
   return matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(c_samples, 1.0/double(S-1));
 }
 

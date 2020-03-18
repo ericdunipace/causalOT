@@ -33,6 +33,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// kernel_calc_
+Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::NumericMatrix& z_, const double d, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const bool calc_covariance);
+RcppExport SEXP _causalOT_kernel_calc_(SEXP X_SEXP, SEXP z_SEXP, SEXP dSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP calc_covarianceSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type z_(z_SEXP);
+    Rcpp::traits::input_parameter< const double >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
+    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_calc_(X_, z_, d, theta_, gamma_, calc_covariance));
+    return rcpp_result_gen;
+END_RCPP
+}
 // entry
 void entry(SEXP& xx, Rcpp::NumericMatrix& y, int colX_);
 RcppExport SEXP _causalOT_entry(SEXP xxSEXP, SEXP ySEXP, SEXP colX_SEXP) {
@@ -49,6 +65,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
     {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 3},
+    {"_causalOT_kernel_calc_", (DL_FUNC) &_causalOT_kernel_calc_, 6},
     {"_causalOT_entry", (DL_FUNC) &_causalOT_entry, 3},
     {NULL, NULL, 0}
 };

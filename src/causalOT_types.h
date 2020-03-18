@@ -3,6 +3,7 @@
 typedef Eigen::VectorXd vector;
 typedef Eigen::Matrix<long double, Eigen::Dynamic,  1> vectorLD;
 typedef Eigen::VectorXi vectorI;
+typedef Eigen::RowVectorXd rowVector;
 
 typedef Eigen::MatrixXd matrix;
 typedef Eigen::MatrixXi matrixI;

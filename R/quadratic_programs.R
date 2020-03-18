@@ -529,6 +529,36 @@ qp_wass <- function(x, z, p = 2, target = c("ATC", "ATT",
   return(op)
 }
 
+qp_rkhs <- function(x, z, estimate = c("ATT", "ATC", "feasible"), d = 1, theta = c(1,1),
+                    gamma = c(1,1), lambda = 1, cost = NULL, ...) {
+  # est <- match.arg(estimate)
+  # if (est == "ATC") {
+  #   z <- 1 - z
+  # }
+  n <- nrow(x)
+  
+  dist <- match.arg(dist)
+  
+  if(is.null(cost)) { 
+    cost <- kernel_calculation(x, z, d = d, theta = theta, gamma = gamma)
+  } else {
+    stopifnot(all(dim(cost) %in% c(nrow(x1),nrow(x0))))
+  }
+  
+  Q0 <- (1/(n^2)) * (cost + diag(lambda/(n^2), n ,n))
+  
+  L0 <- c(w = -2/(n^2) * c(colMeans(cost)))
+  
+  A <- rep(1.0/n, n)
+  vals <- n
+  dir <- "E"
+  
+  quick_op <- list(obj = list(Q = Q0, L = L0),
+                   LC = list(A = A, dir = dir,
+                             vals = vals))
+  return(quick_op)
+}
+
 check_wass_const <- function(opt_problem) {
   cost <- c(opt_problem$LC$A[1,])
   const <- c(opt_problem$LC$vals[1])
@@ -543,6 +573,7 @@ check_wass_const <- function(opt_problem) {
   }
   return(output)
 }
+
 
 # setOldClass("DataSim")
 setGeneric("quadprog", function(data, ...) UseMethod("quadprog"))

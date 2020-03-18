@@ -15,6 +15,10 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feas
     do.call("calc_weight_bal", list(data, constraint,  estimate = estimate, 
                                     method = method,
                                     ...))
+  } else if (method == "RKHS"){
+    do.call("calc_weight_RKHS", list(data, constraint,  estimate = estimate, 
+                                     method = method,
+                                     ...))
   } else {
     calc_weight_glm (data, constraint, estimate,...)
   }
@@ -114,6 +118,28 @@ calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasib
   return(output)
 }
 
+calc_weight_RKHS <- function(data, constraint,
+                            solver = c("cplex","gurobi"),
+                            ...) {
+  method <- match.arg(method)
+  estimate <- match.arg(estimate)
+  qp <- quadprog(data, constraint,  estimate, 
+                 method,
+                 ...)
+  dots <- list(...)
+  
+  sol <- QPsolver(qp, solver = solver,...) # normalize to have closer to sum 1
+  
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
+  gamma <- NULL
+  ns <- get_n(data, ...)
+  z <- get_z(data, ...)
+  
+  output$w0 <- renormalize(sol[z == 0])
+  output$w1 <- renormalize(sol[z == 1])
+  return(output)
+}
+
 convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
   list_weight <- list(weight1, weight2)
   check.vals <- sapply(list_weight, function(w) w$estimate)
@@ -197,6 +223,15 @@ calc_gamma <- function(weights, ...) {
   return(gamma)
 }
 
+get_z.DataSim <- function(data,...) {
+  return(data$get_z())
+}
+
+get_z.data.frame <- function(data,...) {
+  df <- prep_data(data,...)
+  return(df$z)
+}
+
 get_n.DataSim <- function(data,...) {
   return(data$get_n())
 }
@@ -208,6 +243,9 @@ get_n.data.frame <- function(data,...) {
 }
 
 setOldClass("DataSim")
+setGeneric("get_z", function(data, ...) UseMethod("get_z"))
+setMethod("get_z", "DataSim", get_z.DataSim)
+setMethod("get_z", "data.frame", get_z.data.frame)
 setGeneric("get_n", function(data, ...) UseMethod("get_n"))
 setMethod("get_n", "DataSim", get_n.DataSim)
 setMethod("get_n", "data.frame", get_n.data.frame)

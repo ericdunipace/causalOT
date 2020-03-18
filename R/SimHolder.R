@@ -293,6 +293,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                         private$method.lookup$weight.fun <- sapply(private$method, function(mm) switch(mm,
                                                                                                                        Logistic = "calc_weight",
                                                                                                                        SBW = "calc_weight",
+                                                                                                                       RKHS = "calc_weight",
                                                                                                                        'Constrained Wasserstein' = "calc_weight",    
                                                                                                                        Wasserstein = "calc_weight"
                                         ))
@@ -310,6 +311,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                         private$method.lookup$solver <- sapply(private$method, function(mm) switch(mm,
                                                                                                                    Logistic = "glm",
                                                                                                                    SBW = private$solver,
+                                                                                                                   RKHS = private$solver,
                                                                                                                    'Constrained Wasserstein' = private$solver,    
                                                                                                                    Wasserstein = private$solver
                                         ))
@@ -326,6 +328,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                                                     Logistic = list(delta = private$truncations),
                                                                                                                     SBW = list(grid.search = private$grid.search,
                                                                                                                                delta = sdm),   
+                                                                                                                    RKHS = list(lambda = NULL),
                                                                                                                     'Constrained Wasserstein' = Cwass_list,    
                                                                                                                     Wasserstein = wass_list))
                                         if("Logistic" %in% private$method) private$method.lookup$estimand[private$method.lookup$method == "Logistic"][[1]] <- private$estimand[private$estimand != "feasible"]
