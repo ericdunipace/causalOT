@@ -1,7 +1,10 @@
-kernel_calculation <- function(X, z, d = 1.0, theta = NULL, gamma = NULL, metric = c("Lp","mahalanobis")) {
+kernel_calculation <- function(X, z, p = 1.0, theta = NULL, gamma = NULL, sigma_2 = NULL, metric = c("mahalanobis","Lp"),
+                               is.dose = FALSE) {
   
   if(!is.matrix(X)) X <- as.matrix(X)
   if(!is.matrix(z)) z <- as.matrix(z)
+  
+  if(!is.logical(is.dose)) is.dose <- isTRUE(is.dose)
   
   if(nrow(X) != nrow(z)) stop("Observations of X and z must be equal")
   
@@ -10,11 +13,20 @@ kernel_calculation <- function(X, z, d = 1.0, theta = NULL, gamma = NULL, metric
   
   theta <- kernel_param_check(theta)
   gamma <- kernel_param_check(gamma)
-  d <- kernel_power_check(d)
+  sigma_2 <- kernel_sigma_check(sigma_2, nrow(X), is.dose)
+  p <- kernel_power_check(p)
   
-  return( kernel_calc_(X_ = X, z_ = z, d = d, 
-                       theta_ = theta, gamma_ = gamma,
-                       calc_covariance = calc_covariance) )
+  if(is.dose) {
+    return(kernel_calc_dose_(X_ = X, z_ = z, p = p, 
+                 theta_ = theta, gamma_ = gamma,
+                 calc_covariance = calc_covariance))
+  } else {
+    return(kernel_calc_(X_ = X, z = z, p = p, 
+                      theta_ = theta, gamma_ = gamma,
+                      sigma_2 = sigma_2,
+                      calc_covariance = calc_covariance))
+  }
+  
 }
 
 kernel_param_check <- function(param) {
@@ -38,11 +50,44 @@ kernel_param_check <- function(param) {
   return(param)
 }
 
-kernel_power_check <- function(d) {
+kernel_power_check <- function(p) {
   
-  if(missing(d)) d <- 1.0
-  if(is.null(d)) d <- 1.0
+  if(missing(p)) p <- 1.0
+  if(is.null(p)) p <- 1.0
   
-  if (!is.double(d) ) d <- as.double(d)
-  return(d)
+  if (!is.double(p) ) p <- as.double(p)
+  return(p)
+}
+
+kernel_sigma_check <- function(s, n, is.dose) {
+  if(!is.null(s)) {
+    if(length(s) == 1) s <- rep(s, n)
+    return(as.double(s))
+  } else if (!is.dose) {
+    stop("sigma^2 must be specified if using binary treatment kernel")
+  } else {
+    return(s)
+  }
+}
+
+calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FALSE ) {
+  met <- match.arg(metric)
+  if(!is.matrix(X)) X <- as.matrix(X)
+  
+  if(!is.logical(is.dose)) is.dose <- isTRUE(is.dose)
+  
+  calc_covariance <- isTRUE(met == "mahalanobis")
+  
+  if(is.dose) {
+    if(!is.matrix(z)) z <- as.matrix(z)
+    
+    if(nrow(X) != length(z)) stop("Observations of X and z must be equal")
+    return( similarity_calc_dose_(X_ = X, z_ = z,
+                       calc_covariance = calc_covariance) )
+  } else {
+    if(!is.integer(z)) z <- as.integer(z)
+    
+    return( similarity_calc_(X_ = X,
+                             calc_covariance = calc_covariance) )
+  }
 }

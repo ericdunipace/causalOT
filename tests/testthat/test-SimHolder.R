@@ -1,4 +1,4 @@
-test_that("SimHolder generates object", {
+testthat::test_that("SimHolder generates object", {
   set.seed(9867)
   
   #### Load Packages ####
@@ -37,7 +37,7 @@ test_that("SimHolder generates object", {
   testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
 })
 
-test_that("SimHolder runs", {
+testthat::test_that("SimHolder runs", {
   set.seed(9867)
   
   #### Load Packages ####
@@ -90,7 +90,7 @@ test_that("SimHolder runs", {
   outcome <- sh$get.outcome(out)
 })
 
-test_that("SimHolder with grid works", {
+testthat::test_that("SimHolder with grid works", {
   set.seed(082374)
   
   #### Load Packages ####
@@ -118,6 +118,7 @@ test_that("SimHolder with grid works", {
   # SimHolder$debug("method.setup")
   # SimHolder$debug("cost.setup")
   # SimHolder$debug("max.cond.calc")
+  # SimHolder$debug("weight.calc")
   sh <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
@@ -132,7 +133,7 @@ test_that("SimHolder with grid works", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_silent(sh$run())
+  testthat::expect_warning(sh$run())
   sh2 <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,

@@ -1,24 +1,31 @@
 setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimate = "character"))
 
 calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feasible"), 
-                                method = c("SBW","Wasserstein", "Constrained Wasserstein",
+                                method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
                                            "Logistic"),
                         transport.matrix = FALSE, grid.search = FALSE,
                                 ...) {
   method <- match.arg(method)
   estimate <- match.arg(estimate)
-  grid.search <- ifelse(isTRUE(grid.search), TRUE, FALSE)
+  grid.search <- isTRUE(grid.search)
   
   output <- if(method == "SBW" & grid.search) {
-    do.call("sbw_grid_search", list(data, constraint,  estimate = estimate, ...))
+    do.call("sbw_grid_search", list(data, estimate = estimate, ...))
+  } else if (method == "RKHS" | method == "RKHS.dose") {
+    if (grid.search) {
+      do.call("RKHS_grid_search", list(data = data, estimate = estimate, 
+                                       method = method,
+                                       ...))
+    } else {
+      do.call("calc_weight_RKHS", list(data = data, estimate = estimate, 
+                                       method = method,
+                                       ...))
+      
+    }
   } else if( method != "Logistic") {
     do.call("calc_weight_bal", list(data, constraint,  estimate = estimate, 
                                     method = method,
                                     ...))
-  } else if (method == "RKHS"){
-    do.call("calc_weight_RKHS", list(data, constraint,  estimate = estimate, 
-                                     method = method,
-                                     ...))
   } else {
     calc_weight_glm (data, constraint, estimate,...)
   }
@@ -118,13 +125,13 @@ calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasib
   return(output)
 }
 
-calc_weight_RKHS <- function(data, constraint,
-                            solver = c("cplex","gurobi"),
-                            ...) {
-  method <- match.arg(method)
+calc_weight_RKHS <- function(data, estimate = c("ATE"), method = c("RKHS", "RKHS.dose"),
+                             solver = c("cplex","gurobi"),
+                             ...) {
   estimate <- match.arg(estimate)
-  qp <- quadprog(data, constraint,  estimate, 
-                 method,
+  method <- match.arg(method)
+  qp <- quadprog(data = data, constraint = NULL, estimate = estimate, 
+                 method = method,
                  ...)
   dots <- list(...)
   

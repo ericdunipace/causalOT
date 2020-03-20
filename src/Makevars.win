@@ -1,7 +1,12 @@
-## With Rcpp 0.11.0 and later, we no longer need to set PKG_LIBS as there is
-## no user-facing library. The include path to headers is already set by R.
-#PKG_LIBS = 
+STANHEADERS_SRC = $(shell "$(R_HOME)/bin$(R_ARCH_BIN)/Rscript" -e "message()" -e "cat(system.file('include', 'src', package = 'StanHeaders', mustWork = TRUE))" -e "message()" | grep "StanHeaders")
 
-## With R 3.1.0 or later, you can uncomment the following line to tell R to 
-## enable compilation with C++11 (or even C++14) where available
-CXX_STD = CXX11
+PKG_CPPFLAGS = -I"../inst/include" -I"$(STANHEADERS_SRC)" -DBOOST_DISABLE_ASSERTS -DEIGEN_NO_DEBUG
+
+CXX_STD = CXX14
+
+all: $(SHLIB)
+
+clean:
+		RM -rf *.so *.o
+
+.phony: all clean

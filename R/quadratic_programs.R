@@ -1,8 +1,9 @@
-quadprog.DataSim <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
-                             method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+quadprog.DataSim <- function(data, constraint,  estimate = c("ATT", "ATC", "ATE","feasible"), 
+                             method = supported.methods(),
                              ...) {
-  meth <- match.arg(method)
+  meth <- match.arg(method, supported.methods())
   est <- match.arg(estimate)
+  
   qp <- if(meth == "SBW") {
     if(length(constraint) != data$get_p())  {
       K <- rep(constraint, data$get_p())[1:data$get_p()]
@@ -22,6 +23,19 @@ quadprog.DataSim <- function(data, constraint,  estimate = c("ATT", "ATC","feasi
     if(is.null(dots$dist)) dots$dist <- "Lp"
     qp_wass_const(x=data$get_x(), z=data$get_z(), K=constraint, 
             p=dots$p, target = est, dist = dots$dist, cost = dots$cost)
+  } else if (meth == "RKHS" | meth == "RKHS.dose") {
+    dots <- list(...)
+    if(is.null(dots$p)) dots$p <- 1
+    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
+    if(is.null(dots$theta)) dots$theta <- c(1,1)
+    if(is.null(dots$gamma)) dots$gamma <- c(1,1)
+    if(is.null(dots$lambda)) dots$lambda <- 0
+    
+    qp_rkhs(x=data$get_x(), z=data$get_z(),
+                  p=dots$p, theta = dots$theta, gamma = dots$gamma,
+            lambda = dots$lambda,
+            dist = dots$dist, cost = dots$cost,
+            is.dose = isTRUE(meth == "RKHS.dose"))
   }
   return(qp)
 }
@@ -56,6 +70,18 @@ quadprog.data.frame <- function(data, constraint,  estimate = c("ATT", "ATC","fe
     if(is.null(dots$dist)) dots$dist <- "Lp"
     qp_wass_const(x=x, z=z, K=constraint, 
                   p=dots$p, target = est, dist = dots$dist, cost = dots$cost)
+  } else if (meth == "RKHS") {
+    dots <- list(...)
+    if(is.null(dots$p)) dots$p <- 1
+    if(is.null(dots$dist)) dots$dist <- "Lp"
+    if(is.null(dots$theta)) dots$theta <- c(1,1)
+    if(is.null(dots$gamma)) dots$gamma <- c(1,1)
+    if(is.null(dots$lambda)) dots$lambda <- 0
+    
+    qp_rkhs(x=x, z=z,
+            p=dots$p, theta = dots$theta, gamma = dots$gamma,
+            lambda = dots$lambda,
+            dist = dots$dist, cost = dots$cost)
   }
   return(qp)
 }
@@ -529,8 +555,10 @@ qp_wass <- function(x, z, p = 2, target = c("ATC", "ATT",
   return(op)
 }
 
-qp_rkhs <- function(x, z, estimate = c("ATT", "ATC", "feasible"), d = 1, theta = c(1,1),
-                    gamma = c(1,1), lambda = 1, cost = NULL, ...) {
+qp_rkhs <- function(x, z, p = 1, theta = c(1,1),
+                    gamma = c(1,1), lambda = 0, 
+                    dist = c("mahalanobis","Lp"), cost = NULL, 
+                    is.dose = FALSE, ...) {
   # est <- match.arg(estimate)
   # if (est == "ATC") {
   #   z <- 1 - z
@@ -538,19 +566,22 @@ qp_rkhs <- function(x, z, estimate = c("ATT", "ATC", "feasible"), d = 1, theta =
   n <- nrow(x)
   
   dist <- match.arg(dist)
+  # cost.fun <- switch(isTRUE(is.dose),
+  #                    "TRUE" = "kernel_calculation",
+  #                    "FALSE" = 
   
   if(is.null(cost)) { 
-    cost <- kernel_calculation(x, z, d = d, theta = theta, gamma = gamma)
+    cost <- kernel_calculation(x, z, p = p, theta = theta, gamma = gamma, metric = dist, is.dose = is.dose)
   } else {
-    stopifnot(all(dim(cost) %in% c(nrow(x1),nrow(x0))))
+    stopifnot(all(dim(cost) %in% n))
   }
   
   Q0 <- (1/(n^2)) * (cost + diag(lambda/(n^2), n ,n))
   
   L0 <- c(w = -2/(n^2) * c(colMeans(cost)))
   
-  A <- rep(1.0/n, n)
-  vals <- n
+  A <- t(rep(1.0/n, n))
+  vals <- as.double(n)
   dir <- "E"
   
   quick_op <- list(obj = list(Q = Q0, L = L0),

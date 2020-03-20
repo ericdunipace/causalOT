@@ -2,18 +2,38 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 cost_calculation_ <- function(A_, B_, p) {
-    .Call('_causalOT_cost_calculation_', PACKAGE = 'causalOT', A_, B_, p)
+    .Call(`_causalOT_cost_calculation_`, A_, B_, p)
 }
 
 cost_mahal_ <- function(A_, B_, p) {
-    .Call('_causalOT_cost_mahal_', PACKAGE = 'causalOT', A_, B_, p)
+    .Call(`_causalOT_cost_mahal_`, A_, B_, p)
 }
 
-kernel_calc_ <- function(X_, z_, d, theta_, gamma_, calc_covariance) {
-    .Call('_causalOT_kernel_calc_', PACKAGE = 'causalOT', X_, z_, d, theta_, gamma_, calc_covariance)
+kernel_calc_dose_ <- function(X_, z_, p, theta_, gamma_, calc_covariance) {
+    .Call(`_causalOT_kernel_calc_dose_`, X_, z_, p, theta_, gamma_, calc_covariance)
+}
+
+similarity_calc_dose_ <- function(X_, z_, calc_covariance) {
+    .Call(`_causalOT_similarity_calc_dose_`, X_, z_, calc_covariance)
+}
+
+kernel_calc_ <- function(X_, z, p, theta_, gamma_, sigma_2_, calc_covariance) {
+    .Call(`_causalOT_kernel_calc_`, X_, z, p, theta_, gamma_, sigma_2_, calc_covariance)
+}
+
+kernel_update_ <- function(sim_, z_, p, theta_, gamma_, sigma_2_) {
+    .Call(`_causalOT_kernel_update_`, sim_, z_, p, theta_, gamma_, sigma_2_)
+}
+
+similarity_calc_ <- function(X_, calc_covariance) {
+    .Call(`_causalOT_similarity_calc_`, X_, calc_covariance)
+}
+
+marginal_lik_gp_ <- function(y_, K_) {
+    .Call(`_causalOT_marginal_lik_gp_`, y_, K_)
 }
 
 entry <- function(xx, y, colX_) {
-    invisible(.Call('_causalOT_entry', PACKAGE = 'causalOT', xx, y, colX_))
+    invisible(.Call(`_causalOT_entry`, xx, y, colX_))
 }
 

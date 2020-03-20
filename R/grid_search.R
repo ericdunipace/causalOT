@@ -31,6 +31,41 @@ sbw_grid_search <- function(data, grid = NULL,
   return(weight.list[[min.idx]])
 }
 
+RKHS_grid_search <- function(data, grid = NULL, 
+                             method = c("RKHS", "RKHS.dose"),
+                            n.boot = 100,
+                            ...) 
+{
+  meth <- match.arg(method)
+  if(all(is.null(grid)) | all(is.na(grid))) grid <- seq(0, 100, length.out = 11)
+  weight.list <- lapply(grid, function(delta) {
+    out <- do.call("calc_weight_RKHS", list(data = data,
+                                           lambda = delta,
+                                           method = meth,
+                                           ...))
+    return(out)
+  })
+  pd <- prep_data(data, ...)
+  x1 <- as.matrix(pd$df[pd$z == 1,-1])
+  x0 <- as.matrix(pd$df[pd$z == 0,-1])
+  x <- rbind(x0,x1)
+  mean.bal.dat <- cbind(z = pd$z, x)
+  
+  n <- nrow(pd$df)
+  
+  bootIdx <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
+  output <- rep(NA, length(grid))
+  names(output) <- as.character(grid)
+  for(g in seq_along(grid)) {
+    output[g] <- mean(sapply(bootIdx, mean_bal_grid, weight = weight.list[[g]], 
+                             data = mean.bal.dat, tx_ind = "z", balance.covariates = colnames(x)))
+  }
+  min.idx <- which(output == min(output, na.rm=TRUE))
+  weight.list[[min.idx]]$estimate <- "ATE"
+  weight.list[[min.idx]]$lambda <- grid[min.idx]
+  return(weight.list[[min.idx]])
+}
+
 mean_bal_grid <- function(bootIdx, weight, data, tx_ind,...) {
   wvec <- c(weight$w0, weight$w1)
   dataResamp <- data[bootIdx,]
