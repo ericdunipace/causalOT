@@ -1,4 +1,4 @@
-test_that("sim.function works", {
+testthat::test_that("sim.function works", {
   set.seed(224893390) #from random.org
   
   #### Load Packages ####
@@ -24,7 +24,7 @@ test_that("sim.function works", {
   
   #### Simulations ####
   # debugonce(sim.function)
-  testthat::expect_silent(output <- sim.function(dataGen = original, 
+  testthat::expect_s3_class(output <- sim.function(dataGen = original, 
                           nsims = nsims, 
                           ground_p = ground_power, 
                           p = power, 
@@ -35,9 +35,9 @@ test_that("sim.function works", {
                           truncations = trunc,
                           distance = distance, 
                           calculate.feasible = FALSE,
-                          solver = solver))
+                          solver = solver), "simOutput")
   
-  testthat::expect_silent(output <- sim.function(dataGen = original, 
+  testthat::expect_warning(testthat::expect_s3_class(output <- sim.function(dataGen = original, 
                          nsims = nsims, 
                          ground_p = ground_power, 
                          p = power, 
@@ -48,7 +48,7 @@ test_that("sim.function works", {
                          truncations = trunc,
                          distance = distance, 
                          calculate.feasible = TRUE,
-                         solver = solver))
+                         solver = solver), "simOutput"))
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1))
   testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))

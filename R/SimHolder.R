@@ -64,7 +64,8 @@ SimHolder <- R6::R6Class("SimHolder",
                                                            grid.search = TRUE,
                                                            truncations = NULL,
                                                            standardized.difference.means = NULL,
-                                                           RKHS = list(lambdas = NULL, theta = NULL, gamma = NULL, p = NULL),
+                                                           RKHS = list(lambdas = NULL, theta = NULL, gamma = NULL, p = NULL,
+                                                                       sigma_2 = NULL, opt = NULL, opt.method = NULL),
                                                            outcome.model = "lm",
                                                            outcome.formula = list(none = NULL,
                                                                                  augmentation = NULL),
@@ -105,14 +106,29 @@ SimHolder <- R6::R6Class("SimHolder",
                                          if(is.null(RKHS$gamma)) RKHS$gamma <- as.double(c(1,1))
                                          private$RKHS$gamma <- RKHS$gamma
                                          
-                                         if(is.null(RKHS$p)) RKHS$p <- as.double(1)
+                                         if(is.null(RKHS$p)) RKHS$p <- as.double(2)
                                          private$RKHS$p <- RKHS$p
+                                         
+                                         if(is.null(RKHS$sigma_2)) RKHS$sigma_2 <- as.double(1)
+                                         private$RKHS$sigma_2  <- RKHS$sigma_2 
+                                         
+                                         if(is.null(RKHS$opt)) RKHS$opt <- TRUE
+                                         private$RKHS$opt <- RKHS$opt
+                                         
+                                         if(is.null(RKHS$opt.method)) RKHS$opt.method <- "stan"
+                                         private$RKHS$opt.method <- RKHS$opt.method
+                                         if(!is.null(RKHS$iter)) {
+                                           private$RKHS$iter <- RKHS$iter
+                                         }
+                                         
                                        } else {
                                          private$RKHS <- list()
                                          private$RKHS$lambdas <-  as.double(seq(0,100, length.out = 11))
                                          private$RKHS$theta <- as.double(c(1,1))
                                          private$RKHS$gamma <- as.double(c(1,1))
-                                         private$RKHS$p <- as.double(1)
+                                         private$RKHS$p <- as.double(2)
+                                         private$RKHS$opt <- TRUE
+                                         private$RKHS$opt.method <- "stan"
                                        }
                                        if(is.null(grid.search) & (is.null(standardized.difference.means) | is.null(RKHS))) {
                                          private$grid.search <- TRUE
@@ -254,14 +270,17 @@ SimHolder <- R6::R6Class("SimHolder",
                                             for (est in cur$estimand[[1]]) {
                                               delta <- private$get_delta(o, est, method)
                                               if ( isTRUE(is.null(delta)) ) next
-                                              if ( isTRUE(method == "RKHS") & isFALSE(est == "ATE" | est == "feasible") ) next
+                                              if ( isTRUE(method == "RKHS" | method == "RKHS.dose") & isFALSE(est == "ATE" | est == "feasible") ) next
                                               private$weight.calc(cur = cur, 
                                                                   estimand = est, 
                                                                   solver = solver,
                                                                   delta = delta,
                                                                   cost = private$get_cost(o), 
                                                                   p = private$get_power(o),
-                                                                  grid.search = isTRUE(o$grid.search))
+                                                                  grid.search = isTRUE(o$grid.search),
+                                                                  opt.hyperparam = isTRUE(o$opt),
+                                                                  opt.method = o$opt.method
+                                                                  )
                                               if(private$check.skip(private$weights[[est]])) next
                                               ess.frac <- list(ESS(private$weights[[est]])/ns)
                                               for (mods in cur$outcome.model[[1]]) {
@@ -356,18 +375,32 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                                                    Logistic = "glm",
                                                                                                                    SBW = private$solver,
                                                                                                                    RKHS = private$solver,
+                                                                                                                   RKHS.dose = private$solver,
                                                                                                                    'Constrained Wasserstein' = private$solver,    
                                                                                                                    Wasserstein = private$solver
                                         ))
                                         sdm <- private$standardized.difference.means
                                         lambdas <- private$RKHS$lambdas
+                                        theta = list(private$RKHS$theta)
+                                        gamma = list(private$RKHS$gamma)
+                                        rkhs_p = private$RKHS$p
+                                        sigma_2 = private$RKHS$sigma_2
+                                        grid.search = private$grid.search
                                         if(isTRUE(private$grid.search)) sdm <- NA
                                         if(isTRUE(private$grid.search)) lambdas <- NA
+                                        if(isTRUE(private$RKHS$opt)) {
+                                          theta = NA
+                                          gamma = NA
+                                          sigma_2 = NA
+                                        }
                                         RKHS_list <- list(delta = lambdas,
-                                                          theta = list(private$RKHS$theta),
-                                                          gamma = list(private$RKHS$gamma),
-                                                          rkhs_p = private$RKHS$p,
-                                                          grid.search = private$grid.search)
+                                                          theta = theta,
+                                                          gamma = gamma,
+                                                          rkhs_p = rkhs_p,
+                                                          sigma_2 = sigma_2,
+                                                          grid.search = private$grid.search,
+                                                          opt = private$RKHS$opt,
+                                                          opt.method = private$RKHS$opt.method)
                                         wass_list <- Cwass_list <- list(metric = private$metric,
                                                           ground_p = private$ground_powers,
                                                           wass_p = private$wass_powers,
@@ -380,6 +413,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                                                     SBW = list(grid.search = private$grid.search,
                                                                                                                                delta = sdm),   
                                                                                                                     RKHS = RKHS_list,
+                                                                                                                    RKHS.dose = RKHS_list,
                                                                                                                     'Constrained Wasserstein' = Cwass_list,    
                                                                                                                     Wasserstein = wass_list))
                                         if("Logistic" %in% private$method) private$method.lookup$estimand[private$method.lookup$method == "Logistic"][[1]] <- private$estimand[private$estimand != "feasible"]
@@ -452,21 +486,30 @@ SimHolder <- R6::R6Class("SimHolder",
                                                              solver, delta,
                                                              cost = NULL, 
                                                              p = NULL,
-                                                             grid.search = FALSE) {
+                                                             grid.search = FALSE,
+                                                             opt.hyperparam = TRUE,
+                                                             opt.method = c("stan", "optim", "bayesian.optimization")) {
                                         method <- as.character(cur$method[[1]])
                                         if(grid.search & method == "SBW") delta <- private$standardized.difference.means
                                         if(grid.search & method == "RKHS") delta <- private$RKHS$lambdas
-                                        if ((estimand != "ATE" & method != "RKHS") | (estimand == "ATE" & method == "RKHS") | method == "Logistic") {
+                                        if ((estimand != "ATE" & method != "RKHS" & method != "RKHS.dose") | 
+                                            ((estimand == "ATE" | estimand == "feasible") & method == "RKHS") | 
+                                            ((estimand == "ATE" | estimand == "feasible") & method == "RKHS.dose") | 
+                                            method == "Logistic") {
                                           private$weights[[estimand]]<- 
                                             calc_weight(private$simulator,  constraint = delta,
                                                         estimate = estimand, method = method,
                                                         cost = cost, p = p[[1]],
                                                         transport.matrix = FALSE,
                                                         solver = solver,
+                                                        opt.hyperparam = opt.hyperparam,
+                                                        opt.method = opt.method,
                                                         grid.search = grid.search,
                                                         grid = delta,
                                                         theta = private$RKHS$theta,
-                                                        gamma = private$RKHS$gamma)
+                                                        gamma = private$RKHS$gamma,
+                                                        iter = if(is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
+                                                        maxit = if(is.null(private$RKHS$iter)) 2000 else private$RKHS$iter)
                                         } else {
                                           private$weights[[estimand]] <- 
                                             convert_ATE(private$weights[["ATT"]], 

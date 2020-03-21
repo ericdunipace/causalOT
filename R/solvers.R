@@ -6,12 +6,15 @@ cplex_solver <- function(qp, ...) {
   if(is.null(dots$control)) {
     control <- list(trace = 0L, round = 1L)
   }
-  res <- Rcplex::Rcplex(cvec = c(qp$obj$L), Amat = qp$LC$A, 
+  
+  fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
+  invisible(capture.output( res <-
+  Rcplex::Rcplex(cvec = c(qp$obj$L), Amat = qp$LC$A, 
                         bvec = qp$LC$vals, Qmat = qp$obj$Q,
                         lb = 0, ub = Inf, control=control,
                         objsense = "min", sense = qp$LC$dir,
-                        vtype = "C", n = 1)
-  Rcplex::Rcplex.close()
+                        vtype = "C", n = 1) , type = "message", file = fn.capt))
+  invisible(capture.output(Rcplex::Rcplex.close(), type = "message", append = TRUE, file = fn.capt))
   
   if(res$status != 1) warning("Algorithm did not converge!!!")
   

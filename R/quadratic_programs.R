@@ -25,15 +25,16 @@ quadprog.DataSim <- function(data, constraint,  estimate = c("ATT", "ATC", "ATE"
             p=dots$p, target = est, dist = dots$dist, cost = dots$cost)
   } else if (meth == "RKHS" | meth == "RKHS.dose") {
     dots <- list(...)
-    if(is.null(dots$p)) dots$p <- 1
+    if(is.null(dots$p)) dots$p <- 2
     if(is.null(dots$dist)) dots$dist <- "mahalanobis"
     if(is.null(dots$theta)) dots$theta <- c(1,1)
     if(is.null(dots$gamma)) dots$gamma <- c(1,1)
     if(is.null(dots$lambda)) dots$lambda <- 0
+    if(is.null(dots$sigma_2)) dots$sigma_2 <- 0
     
     qp_rkhs(x=data$get_x(), z=data$get_z(),
                   p=dots$p, theta = dots$theta, gamma = dots$gamma,
-            lambda = dots$lambda,
+            lambda = dots$lambda, sigma_2 = dots$sigma_2,
             dist = dots$dist, cost = dots$cost,
             is.dose = isTRUE(meth == "RKHS.dose"))
   }
@@ -557,6 +558,7 @@ qp_wass <- function(x, z, p = 2, target = c("ATC", "ATT",
 
 qp_rkhs <- function(x, z, p = 1, theta = c(1,1),
                     gamma = c(1,1), lambda = 0, 
+                    sigma_2 = 0,
                     dist = c("mahalanobis","Lp"), cost = NULL, 
                     is.dose = FALSE, ...) {
   # est <- match.arg(estimate)
@@ -571,18 +573,33 @@ qp_rkhs <- function(x, z, p = 1, theta = c(1,1),
   #                    "FALSE" = 
   
   if(is.null(cost)) { 
-    cost <- kernel_calculation(x, z, p = p, theta = theta, gamma = gamma, metric = dist, is.dose = is.dose)
+    cost <- kernel_calculation(x, z, p = p, theta = theta, gamma = gamma, sigma_2 = 0, metric = dist, is.dose = is.dose)
   } else {
     stopifnot(all(dim(cost) %in% n))
   }
   
-  Q0 <- (1/(n^2)) * (cost + diag(lambda/(n^2), n ,n))
+  if(is.dose) {
+    Q0 <- (1/(n^2)) * (cost + diag(lambda/(n^2), n ,n))
+    
+    L0 <- c(w = -2/(n^2) * c(colMeans(cost)))
+    
+    A <- t(rep(1.0/n, n))
+    vals <- as.double(n)
+    dir <- "E"
+    
+  } else {
+    Q0 <- cost + diag(sigma_2, n ,n)
+    
+    L0 <- c(w = -2/n * c(colMeans(cost)))
+    
+    A <- rbind(t(1/n * z),
+               t(1/n * (1-z)  ))
+    vals <- as.double(c(n,n))
+    dir <- c("E", "E")
+  }
   
-  L0 <- c(w = -2/(n^2) * c(colMeans(cost)))
   
-  A <- t(rep(1.0/n, n))
-  vals <- as.double(n)
-  dir <- "E"
+  
   
   quick_op <- list(obj = list(Q = Q0, L = L0),
                    LC = list(A = A, dir = dir,

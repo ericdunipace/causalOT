@@ -9,12 +9,12 @@ testthat::test_that("confirm kernel functions correct, LP", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "Lp")
+  K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "Lp", is.dose = TRUE)
   
   mu_x <- colMeans(x)
   mu_z <- mean(z)
   
-  a <- x - matrix(mu_x, n, p, byrow=TRUE)
+  a <- x - matrix(mu_x, n, d, byrow=TRUE)
   b <- as.matrix(z - mu_z)
   
   x_mat <- tcrossprod(a)
@@ -37,12 +37,12 @@ testthat::test_that("confirm kernel functions correct, mahalanobis", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "mahalanobis")
+  K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "mahalanobis", is.dose = TRUE)
   
   mu_x <- colMeans(x)
   mu_z <- mean(z)
   
-  a <- backsolve(chol(cov(x)), t(x - matrix(mu_x, n, p, byrow=TRUE)) , transpose = TRUE)
+  a <- backsolve(chol(cov(x)), t(x - matrix(mu_x, n, d, byrow=TRUE)) , transpose = TRUE)
   b <- 1/sd(z) * as.matrix(z - mu_z)
   
   x_mat <- crossprod(a)
@@ -66,7 +66,7 @@ testthat::test_that("different values of parameters, Lp", {
   mu_x <- colMeans(x)
   mu_z <- mean(z)
   
-  a <- x - matrix(mu_x, n, p, byrow=TRUE)
+  a <- x - matrix(mu_x, n, d, byrow=TRUE)
   b <- as.matrix(z - mu_z)
   
   x_mat <- tcrossprod(a)
@@ -78,7 +78,7 @@ testthat::test_that("different values of parameters, Lp", {
     theta <- c(v,v)
     gamma <- c(v,v)
     
-    K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "Lp")
+    K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "Lp", is.dose = TRUE)
     
     K_temp <- gamma[1] * (1 + theta[1] * x_mat)^p * gamma[2] * (1 + theta[2] * z_mat)^p
     
@@ -98,7 +98,7 @@ testthat::test_that("different values of parameters, mahalanobis", {
   mu_x <- colMeans(x)
   mu_z <- mean(z)
   
-  a <- backsolve(chol(cov(x)), t(x - matrix(mu_x, n, p, byrow=TRUE)) , transpose = TRUE)
+  a <- backsolve(chol(cov(x)), t(x - matrix(mu_x, n, d, byrow=TRUE)) , transpose = TRUE)
   b <- 1/sd(z) * as.matrix(z - mu_z)
   
   x_mat <- crossprod(a)
@@ -111,7 +111,7 @@ testthat::test_that("different values of parameters, mahalanobis", {
     gamma <- c(v,v)
   
   
-    K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "mahalanobis")
+    K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, metric = "mahalanobis", is.dose = TRUE)
 
     K_temp <- gamma[1] * (1 + theta[1] * x_mat)^p * gamma[2] * (1 + theta[2] * z_mat)^p
     

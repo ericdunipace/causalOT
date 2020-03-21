@@ -19,28 +19,29 @@ testthat::test_that("parameter optimization for RKHS", {
   
   # debugonce("RKHS_param_opt")
   
-  opt <- RKHS_param_opt(x, y, z, power = 2:3,
+  opt1 <- RKHS_param_opt(x, y, z, power = 2:3,
                  metric = c("mahalanobis", "Lp"), is.dose = FALSE, 
                          opt.method = c("bayesian.optimization"),
-                 bounds = list(theta_0 = c(0,5),
-                      theta_1 = c(.Machine$double.xmin,5),
-                      gamma_0 = c(.Machine$double.xmin,5),
-                      gamma_1 = c(.Machine$double.xmin,5),
+                 bounds = list(theta_0 = c(.Machine$double.xmin,100),
+                      theta_1 = c(.Machine$double.xmin,100),
+                      gamma_0 = c(.Machine$double.xmin,1000),
+                      gamma_1 = c(.Machine$double.xmin,1000),
                       sigma2 = c(.Machine$double.xmin,1)),
-                 initPoints = 10,
+                 initPoints = 6,
                  iters.k = 1,
-                 iters.n = 10
+                 iters.n = 1
                  ) 
   
   # debugonce("RKHS_param_opt")
   
-  opt <- RKHS_param_opt(x, y, z, power = 2:3,
+  testthat::expect_silent(opt2 <- RKHS_param_opt(x, y, z, power = 2:3,
                         metric = c("mahalanobis"), is.dose = FALSE, 
-                        opt.method = c("optim"), control = list(maxit = 1000))
+                        opt.method = c("optim"), control = list(maxit = 10)))
                         
   # debugonce("RKHS_param_opt")
   
-  opt <- RKHS_param_opt(x, y, z, p = 2:3,
+  testthat::expect_silent(opt3 <- RKHS_param_opt(x, y, z, p = 2:3,
                         metric = c("mahalanobis"), is.dose = FALSE, 
-                        opt.method = c("stan")) 
+                        opt.method = c("stan"), iter = 10))
+  
 })

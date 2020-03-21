@@ -1,0 +1,140 @@
+RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp"), is.dose = FALSE, 
+                           opt.method = c("stan", "optim","bayesian.optimization"), ...) {
+  
+  opt.method <- match.arg(opt.method)
+  metric <- match.arg(metric)
+  opt.method <- match.arg(opt.method)
+  is.dose <- isTRUE(is.dose)
+  power <- as.integer(power)
+  
+  y_std <- scale(y)
+  
+  similarity_mats <- calc_similarity(x,z, metric = metric, is.dose)
+  
+  kern_dose <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
+    K <- gamma_0*(1.0 + theta_0 * similarity_mats[["Z"]])^p *  gamma_1*(1.0 + theta_1 * similarity_mats[["X"]])^p
+    n <- nrow(K)
+    return(K + diag(sigma2, n, n))
+  }
+  kern_ <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
+    s2 <- as.double(rep(sigma2, length(z)))
+    return(kernel_update_(sim_ = similarity_mats, z_ = z, theta_ = c(theta_0, theta_1),
+                          gamma_ =c(gamma_0, gamma_1), p = p, sigma_2_ = s2))
+    
+  }
+  cmb_kern <- switch(as.character(is.dose),
+                     "TRUE" = kern_dose,
+                     "FALSE" = kern_)
+  
+  if(opt.method == "bayesian.optimization") {
+    
+    scoring_fun <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
+      K <- cmb_kern(theta_0, theta_1, gamma_0, gamma_1, sigma2)
+      score <- marginal_lik_gp_(y_std, K)
+      if(is.nan(score)) score <- -.Machine$double.xmax
+      if(is.infinite(score)) score <- -.Machine$double.xmax
+      return(list(Score = score))
+    }
+    args <- list(FUN = scoring_fun, ...)
+    args <- args[!duplicated(names(args))]
+    
+    if(is.null(args$bounds)) args$bounds <- list(theta_0 = c(.Machine$double.xmin,100),
+                                                 theta_1 = c(.Machine$double.xmin,100),
+                                                 gamma_0 = c(.Machine$double.xmin,1000),
+                                                 gamma_1 = c(.Machine$double.xmin,1000),
+                                                 sigma2 = c(.Machine$double.xmin,1))
+    if(is.null(args$initPoints)) args$initPoints <- 10
+    if(is.null(args$iters.n)) args$iters.n <- 5
+    if(is.null(args$iters.k)) args$iters.k <- 1
+    res <- vals <- vector("list", length(power))
+    param <- list()
+    for(i in seq_along(power) ) {
+      p <- power[i]
+      res[[i]] <- do.call(ParBayesianOptimization::bayesOpt, args)
+      param <- ParBayesianOptimization::getBestPars(res[[i]])
+      vals[[i]] <- do.call(scoring_fun, param)
+    }
+    idx <- which.max(unlist(vals))
+    param <- ParBayesianOptimization::getBestPars(res[[idx]])
+    param$p <- power[idx]
+  } else if(opt.method == "optim") {
+    scoring_fun <- function(param) {
+      exp.param <- exp(param)
+      K <- cmb_kern(exp.param["theta_0"], 
+                    exp.param["theta_1"], 
+                    exp.param["gamma_0"], 
+                    exp.param["gamma_1"], 
+                    exp.param["sigma2"])
+      score <- marginal_lik_gp_(y_std, K)
+      if(is.nan(score)) score <- -.Machine$double.xmax
+      return(-score)
+    } 
+    # grad_fun <- function(theta_0, theta_1, gamma_0, gamma_1, p, sigma2) {
+    #   K <- cmb_kern(theta_0, theta_1, gamma_0, gamma_1, p, sigma2)
+    #   val <- marg_lik_gp_grad_(y, K)
+    #   return(-val)
+    # }
+    
+    args <- list(par = c(theta_0 = 0, theta_1 = 0, 
+                         gamma_0=0, gamma_1=0, sigma2=0),
+                 fn = scoring_fun, gr = NULL, ...)
+    args <- args[!duplicated(names(args))]
+    args <- args[names(args) %in% names(formals(optim))]
+    res <- vector("list", length(power))
+    
+    for(i in seq_along(power) ) {
+      p <-  power[i]
+      res[[i]] <- do.call("optim", args)
+      # samp <- rstan::vb(stan_mod, data = data_stan)
+    }
+    # res <- do.call("optim", list(par = c(theta_0 = 0, theta_1 = 0, 
+    #                                      gamma_0=0, gamma_1=0, sigma2=0),
+    #                              fn = scoring_fun, gr = NULL, ...))
+    idx <- which.min(sapply(res, function(r) r$value[1]))
+    param <- lapply(exp(res[[idx]]$par), function(r) r)
+    param$p <- power[idx]
+  } else if (opt.method == "stan") {
+    if(is.list(similarity_mats)) {
+      dis_x <- similarity_mats[["X"]]
+      dis_z <- similarity_mats[["Z"]]
+    } else {
+      dis_x <- similarity_mats
+      dis_z <- matrix(0, nrow(dis_x), ncol(dis_x))
+    }
+    arguments <- list(
+      data = list(N = as.integer(length(y)),
+                  y = c(y_std),
+                  discrep = dis_x,
+                  discrep_z = dis_z,
+                  z = z,
+                  p = power[1],
+                  is_dose = as.integer(is.dose)),
+      ...,
+      as_vector = FALSE
+    )
+    formals.stan <- c("iter", "save_iterations", 
+                      "refresh", "init_alpha", "tol_obj", "tol_grad", "tol_param", 
+                      "tol_rel_obj", "tol_rel_grad", "history_size",
+                      "object", "data", "seed", "init", "check_data",
+                      "sample_file", "algorithm", "verbose", "hessian", 
+                      "as_vector", "draws", "constrained", "importance_resampling")
+    arguments <- arguments[!duplicated(names(arguments))]
+    arguments <- arguments[names(arguments) %in% formals.stan]
+    if(is.null(arguments$object)) arguments$object <- stanmodels$gp_hyper
+    res <- vector("list", length(power))
+    for(i in seq_along(power) ) {
+      arguments$data$p <-  as.double(power[i])
+      res[[i]] <- do.call(rstan::optimizing, arguments)
+      # samp <- rstan::vb(stan_mod, data = data_stan)
+    }
+    idx <- which.max(sapply(res, function(r) r$par$marg_lik))
+    param <- res[[idx]]$par
+    param$sigma2 <- param$sigma
+    param$p <- power[idx]
+  }
+  out <- list(theta = c(param$theta_0, param$theta_1),
+              gamma = c(param$gamma_0, param$gamma_1),
+              p = param$p,
+              sigma_2 = param$sigma2)
+  return(out)
+}

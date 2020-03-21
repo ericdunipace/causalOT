@@ -12,7 +12,7 @@ calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feas
   output <- if(method == "SBW" & grid.search) {
     do.call("sbw_grid_search", list(data, estimate = estimate, ...))
   } else if (method == "RKHS" | method == "RKHS.dose") {
-    if (grid.search) {
+    if (grid.search & method == "RKHS.dose") {
       do.call("RKHS_grid_search", list(data = data, estimate = estimate, 
                                        method = method,
                                        ...))
@@ -125,17 +125,39 @@ calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasib
   return(output)
 }
 
-calc_weight_RKHS <- function(data, estimate = c("ATE"), method = c("RKHS", "RKHS.dose"),
-                             solver = c("cplex","gurobi"),
+calc_weight_RKHS <- function(data, estimate = c("ATE", "feasible"), method = c("RKHS", "RKHS.dose"),
+                             solver = c("cplex","gurobi"), opt.hyperparam = TRUE,
                              ...) {
   estimate <- match.arg(estimate)
   method <- match.arg(method)
-  qp <- quadprog(data = data, constraint = NULL, estimate = estimate, 
+  opt.hyperparam <- isTRUE(opt.hyperparam)
+  
+  if(opt.hyperparam) {
+    pd <- prep_data(data,...)
+    opt_args <- list(x=pd$df[,-1], y = pd$df$y, z = pd$z, power = 2:3, ...)
+    opt_args <- opt_args[!duplicated(names(opt_args))]
+    param <- do.call("RKHS_param_opt", opt_args)
+    rm(opt_args)
+    rm(pd)
+    
+    args <- c(list(data = data,
+                 constraint = NULL,
+                 estimate = estimate,
+                 method = method),
+                 param,
+                 list(...))
+  } else {
+    args <- list(data = data,
+                 constraint = NULL,
+                 estimate = estimate,
                  method = method,
                  ...)
+  }
+  args <- args[!duplicated(names(args))]
+  qp <- do.call("quadprog",args)
   dots <- list(...)
   
-  sol <- QPsolver(qp, solver = solver,...) # normalize to have closer to sum 1
+  sol <- QPsolver(qp, solver = solver, ...) # normalize to have closer to sum 1
   
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   gamma <- NULL
