@@ -1,3 +1,3 @@
 supported.methods <- function() {
-  return(c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein"))
+  return(c("Logistic","SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein"))
 }
