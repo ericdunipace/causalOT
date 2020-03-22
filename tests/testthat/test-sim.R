@@ -37,7 +37,8 @@ testthat::test_that("sim.function works", {
                           calculate.feasible = FALSE,
                           solver = solver), "simOutput")
   
-  testthat::expect_warning(testthat::expect_s3_class(output <- sim.function(dataGen = original, 
+  # testthat::expect_silent
+  (testthat::expect_s3_class(output <- sim.function(dataGen = original, 
                          nsims = nsims, 
                          ground_p = ground_power, 
                          p = power, 

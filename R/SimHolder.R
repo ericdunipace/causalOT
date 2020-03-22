@@ -65,6 +65,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                            truncations = NULL,
                                                            standardized.difference.means = NULL,
                                                            RKHS = list(lambdas = NULL, theta = NULL, gamma = NULL, p = NULL,
+                                                                       metrics = "malahanobis",
                                                                        sigma_2 = NULL, opt = NULL, opt.method = NULL),
                                                            outcome.model = "lm",
                                                            outcome.formula = list(none = NULL,
@@ -93,6 +94,8 @@ SimHolder <- R6::R6Class("SimHolder",
                                        } else {
                                          private$standardized.difference.means <- NULL
                                        }
+                                       private$metric <- match.arg(metrics,
+                                                                   c("Lp", "mahalanobis"), several.ok = TRUE)
                                        if(!is.null(RKHS) & !missing(RKHS)) {
                                          if(!is.list(RKHS)) RKHS <- list(RKHS)
                                          private$RKHS <- list()
@@ -121,12 +124,16 @@ SimHolder <- R6::R6Class("SimHolder",
                                            private$RKHS$iter <- RKHS$iter
                                          }
                                          
+                                         if(is.null(RKHS$metrics)) RKHS$metrics <- private$metric
+                                         private$RKHS$metric <- RKHS$metrics
                                        } else {
                                          private$RKHS <- list()
                                          private$RKHS$lambdas <-  as.double(seq(0,100, length.out = 11))
                                          private$RKHS$theta <- as.double(c(1,1))
                                          private$RKHS$gamma <- as.double(c(1,1))
                                          private$RKHS$p <- as.double(2)
+                                         private$RKHS$metric <- private$metric
+                                         private$RKHS$sigma_2 <- as.double(1)
                                          private$RKHS$opt <- TRUE
                                          private$RKHS$opt.method <- "stan"
                                        }
@@ -150,8 +157,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                        private$solver <- match.arg(solver, c("gurobi","cplex","mosek"))
                                        private$wass_powers <- as.numeric(wass_powers)
                                        private$ground_powers <- as.numeric(ground_powers)
-                                       private$metric <- match.arg(metrics,
-                                                                   c("Lp", "mahalanobis"), several.ok = TRUE)
+                                       
                                        private$calculate.feasible <- isTRUE(calculate.feasible)
                                        options <- get_holder_options()
                                        private$estimand <- options$estimates
@@ -397,6 +403,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                           theta = theta,
                                                           gamma = gamma,
                                                           rkhs_p = rkhs_p,
+                                                          metric = private$RKHS$metric,
                                                           sigma_2 = sigma_2,
                                                           grid.search = private$grid.search,
                                                           opt = private$RKHS$opt,

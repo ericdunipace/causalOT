@@ -148,7 +148,7 @@ testthat::test_that("SimHolder with grid works", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_silent(sh2$run())
+  testthat::expect_warning(sh2$run())
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -216,7 +216,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
                        wass_powers = power,
                        ground_powers = ground_power,
                        metrics = distance)
-  testthat::expect_silent(sh2$run())
+  testthat::expect_warning(sh2$run())
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
