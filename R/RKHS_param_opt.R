@@ -7,7 +7,7 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
   is.dose <- isTRUE(is.dose)
   power <- as.integer(power)
   
-  y_std <- scale(y)
+  y_std <- scale(y, scale = FALSE)
   
   similarity_mats <- calc_similarity(x,z, metric = metric, is.dose)
   
