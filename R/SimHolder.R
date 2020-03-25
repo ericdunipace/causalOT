@@ -398,11 +398,12 @@ SimHolder <- R6::R6Class("SimHolder",
                                           theta = NA
                                           gamma = NA
                                           sigma_2 = NA
+                                          rkhs_p = NA
                                         }
                                         RKHS_list <- list(delta = lambdas,
                                                           theta = theta,
                                                           gamma = gamma,
-                                                          # rkhs_p = rkhs_p,
+                                                          rkhs_p = rkhs_p,
                                                           metric = private$RKHS$metric,
                                                           sigma_2 = sigma_2,
                                                           grid.search = private$grid.search,
