@@ -12,14 +12,89 @@ void kernel_calculation(const matrix & A, matrix & kernel_matrix, double p,
   kernel_matrix.array() = gamma * kernel_matrix.array().pow(p);
 }
 
-matrix covariance_kern(const refMatConst & samples) {
-  int S = samples.rows();
-  int d = samples.cols();
-  rowVector mean = samples.colwise().mean();
+matrix mean_kern(const refMatConst & X, const Rcpp::IntegerVector & z,
+                 const std::string & estimand) {
   
-  if(d != mean.cols()) Rcpp::stop("Dimension of mean vector does not match the dimension of samples vector!");
-  matrix c_samples = samples.rowwise() - mean;
-  return matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(c_samples.transpose(), 1.0/double(S-1));
+  int d = X.cols();
+  int N = X.rows();
+  
+  rowVector mean_x = rowVector::Zero(d);
+  
+  if(estimand == "ATE") {
+    mean_x = X.colwise().mean();
+  } else if (estimand == "ATT") {
+    int nt = Rcpp::sum(z);
+    
+    for(int i = 0; i < N; i ++) {
+      if(z(i) == 1) {
+        mean_x += X.row(i) / double(nt);
+      }
+    }
+  } else if (estimand == "ATC") {
+    int nc = N - Rcpp::sum(z);
+    
+    for(int i = 0; i < N; i ++) {
+      if(z(i) == 0) {
+        mean_x += X.row(i) / double(nc);
+      }
+    }
+  }
+  return(mean_x);
+}
+
+void covariance_kern(matrix & A, 
+                     const Rcpp::IntegerVector & z,
+                     const std::string & estimand) {
+  int N = A.rows();
+  int d = A.cols();
+
+  matrix covX(d,d);
+  
+  if(estimand == "ATE") {
+    covX = matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A.transpose(), 1.0/double(N-1));
+    
+  } else if (estimand == "ATT") {
+    int nt = Rcpp::sum(z);
+    matrix At(nt,d);
+    int idx = 0;
+    
+    for(int i = 0; i < N; i ++) {
+      if(z(i) == 1) {
+        At.row(idx) = A.row(i);
+        idx++;
+      }
+    }
+    
+    covX = matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(At.transpose(), 1.0/double(nt-1));
+    
+  } else if (estimand == "ATC") {
+    int nc = N - Rcpp::sum(z);
+    matrix Ac(nc,d);
+    int idx = 0;
+    
+    for(int i = 0; i < N; i ++) {
+      if(z(i) == 0) {
+        Ac.row(idx) = A.row(i);
+        idx++;
+      }
+    }
+    covX = matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(Ac.transpose(), 1.0/double(nc-1));
+  }
+  
+  matrix temp_A = covX.llt().matrixL().solve(A.transpose());
+  A = temp_A.transpose(); 
+  
+}
+
+matrix covariance_centered(matrix & A) {
+  int N = A.rows();
+  int d = A.cols();
+  // rowVector mean = samples.colwise().mean();
+  
+  matrix covX = matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A.transpose(), 1.0/double(N-1));
+  
+  return(covX);
+  
 }
 
 //[[Rcpp::export]]
@@ -47,8 +122,8 @@ Rcpp::NumericMatrix kernel_calc_dose_(const Rcpp::NumericMatrix & X_,  //confoun
   matrix B = z.rowwise() - mean_z;
   
   if(calc_covariance) {
-    const matrix covX = covariance_kern(X);
-    const matrix covZ = covariance_kern(z);
+    const matrix covX = covariance_centered(A);
+    const matrix covZ = covariance_centered(B);
     
     const matrix temp_A = covX.llt().matrixL().solve(A.transpose());
     A = temp_A.transpose(); 
@@ -85,8 +160,8 @@ Rcpp::List similarity_calc_dose_(const Rcpp::NumericMatrix & X_,  //confounders
   matrix B = z.rowwise() - mean_z;
   
   if(calc_covariance) {
-    const matrix covX = covariance_kern(X);
-    const matrix covZ = covariance_kern(z);
+    const matrix covX = covariance_centered(A);
+    const matrix covZ = covariance_centered(B);
     
     const matrix temp_A = covX.llt().matrixL().solve(A.transpose());
     A = temp_A.transpose(); 
@@ -101,62 +176,62 @@ Rcpp::List similarity_calc_dose_(const Rcpp::NumericMatrix & X_,  //confounders
 }
   
   
-  //[[Rcpp::export]]
-  Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
-                                        const Rcpp::IntegerVector & z,  //tx, a vector but easier if matrix
-                                        const double p,
-                                        const Rcpp::NumericVector  & theta_,
-                                        const Rcpp::NumericVector & gamma_,
-                                        const Rcpp::NumericVector & sigma_2_,
-                                        const bool calc_covariance ) {
-    
-    int N = X_.rows();
-    if(N != z.size() ) Rcpp::stop("Observations for X and treatement indicator must be equal!");
-    if(N != sigma_2_.size() ) Rcpp::stop("Observations for X and variances must be equal!");
-    
-    const matMap X(Rcpp::as<matMap >(X_));
-    const vecMap sigma_2(Rcpp::as<vecMap>(sigma_2_));
-    // const matMap z(Rcpp::as<matMap >(z_));
-    const double theta_0 = theta_(0);
-    const double theta_1 = theta_(1);
-    const double gamma_0 = gamma_(0);
-    const double gamma_1 = gamma_(1);
-    matrix theta = matrix::Zero(N,N);
-    matrix gamma = matrix::Zero(N,N);
-    
-    const rowVector mean_x = X.colwise().mean();
+//[[Rcpp::export]]
+Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
+                                      const Rcpp::IntegerVector & z,  //tx, a vector but easier if matrix
+                                      const double p,
+                                      const Rcpp::NumericVector  & theta_,
+                                      const Rcpp::NumericVector & gamma_,
+                                      const Rcpp::NumericVector & sigma_2_,
+                                      const bool calc_covariance,
+                                      const std::string & estimand) {
+  
+  int N = X_.rows();
+  int d = X_.cols();
+  if(N != z.size() ) Rcpp::stop("Observations for X and treatement indicator must be equal!");
+  if(N != sigma_2_.size() ) Rcpp::stop("Observations for X and variances must be equal!");
+  
+  const matMap X(Rcpp::as<matMap >(X_));
+  const vecMap sigma_2(Rcpp::as<vecMap>(sigma_2_));
+  // const matMap z(Rcpp::as<matMap >(z_));
+  const double theta_0 = theta_(0);
+  const double theta_1 = theta_(1);
+  const double gamma_0 = gamma_(0);
+  const double gamma_1 = gamma_(1);
+  matrix theta = matrix::Zero(N,N);
+  matrix gamma = matrix::Zero(N,N);
+  
+  rowVector mean_x = mean_kern(X, z, estimand);
 
-    matrix A = X.rowwise() - mean_x;
+  matrix A = X.rowwise() - mean_x;
+  
 
-    if(calc_covariance) {
-      const matrix covX = covariance_kern(X);
-
-      const matrix temp_A = covX.llt().matrixL().solve(A.transpose());
-      A = temp_A.transpose(); 
-      
-    }
-    
-    for(int i = 0; i < N; i ++) {
-      for(int j = 0; j < N; j ++) {
-        if( z(i) ==1 & z(j) == 1 ) {
-          theta(i,j) = theta_1;
-          gamma(i,j) = gamma_1;
-        }
-        if( z(i) == 0 & z(j) == 0 ) {
-          theta(i,j) = theta_0;
-          gamma(i,j) = gamma_0;
-        }
+  if(calc_covariance) {
+    covariance_kern(A, z, estimand);
+  }
+  
+  for(int i = 0; i < N; i ++) {
+    for(int j = 0; j < N; j ++) {
+      if( z(i) ==1 & z(j) == 1 ) {
+        theta(i,j) = theta_1;
+        gamma(i,j) = gamma_1;
+      }
+      if( z(i) == 0 & z(j) == 0 ) {
+        theta(i,j) = theta_0;
+        gamma(i,j) = gamma_0;
       }
     }
-    
-    
-    matrix kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
-   
-    matrix kernel_matrix = sigma_2.asDiagonal();
-    kernel_matrix.array() += (kernel_matrix_X.array() *theta.array() + 1.0).pow(p) * gamma.array();
-    
-    return Rcpp::wrap(kernel_matrix);
   }
+  
+  
+  matrix kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
+ 
+  matrix kernel_matrix = sigma_2.asDiagonal();
+  kernel_matrix.array() += (kernel_matrix_X.array() *theta.array() + 1.0).pow(p) * gamma.array();
+  
+  return Rcpp::wrap(kernel_matrix);
+}
+
 //[[Rcpp::export]]
 Rcpp::NumericMatrix kernel_update_(const Rcpp::NumericMatrix & sim_,  //similarity matrix
                                  const Rcpp::IntegerVector & z_,  //tx
@@ -202,22 +277,20 @@ Rcpp::NumericMatrix kernel_update_(const Rcpp::NumericMatrix & sim_,  //similari
 
 //[[Rcpp::export]]
 matrix similarity_calc_(const Rcpp::NumericMatrix & X_,  //confounders
-                                 const bool calc_covariance) { 
+                        const Rcpp::IntegerVector & z,
+                                 const bool calc_covariance,
+                                 const std::string & estimand) { 
   
   int N = X_.rows();
 
   const matMap X(Rcpp::as<matMap >(X_));
 
-  const rowVector mean_x = X.colwise().mean();
+  const rowVector mean_x = mean_kern(X, z, estimand);
 
   matrix A = X.rowwise() - mean_x;
 
   if(calc_covariance) {
-    const matrix covX = covariance_kern(X);
-
-    const matrix temp_A = covX.llt().matrixL().solve(A.transpose());
-    A = temp_A.transpose(); 
-    
+    covariance_kern(A, z, estimand);
   }
 
   

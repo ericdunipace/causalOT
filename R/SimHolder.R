@@ -76,8 +76,10 @@ SimHolder <- R6::R6Class("SimHolder",
                                                            solver = "gurobi",
                                                            wass_powers = 2,
                                                            ground_powers = 2,
-                                                           metrics = "Lp") {
+                                                           metrics = "Lp", 
+                                                           cluster = FALSE) {
                                        private$nsim <- nsim
+                                       private$cluster <- cluster
 
                                        if(is.null(dataSim) | !inherits(dataSim, "DataSim")) {
                                          stop("DataSim class must be given")
@@ -199,6 +201,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                      }
                                      ),
                        private = list(calculate.feasible = "logical",
+                                      cluster = "logical",
                                       costs = "list",
                                       estimand = "vector",
                                       grid.search = "logical",
@@ -276,7 +279,9 @@ SimHolder <- R6::R6Class("SimHolder",
                                             for (est in cur$estimand[[1]]) {
                                               delta <- private$get_delta(o, est, method)
                                               if ( isTRUE(is.null(delta)) ) next
-                                              if ( isTRUE(method == "RKHS" | method == "RKHS.dose") & isFALSE(est == "ATE" | est == "feasible") ) next
+                                              if ( isTRUE(method == "RKHS" | method == "RKHS.dose") & isTRUE(est == "feasible") ) next
+                                              if ( isTRUE(method == "RKHS.dose") & isFALSE(est == "ATE") ) next
+                                              
                                               private$weight.calc(cur = cur, 
                                                                   estimand = est, 
                                                                   solver = solver,
@@ -500,13 +505,10 @@ SimHolder <- R6::R6Class("SimHolder",
                                         method <- as.character(cur$method[[1]])
                                         if(grid.search & method == "SBW") delta <- private$standardized.difference.means
                                         if(grid.search & method == "RKHS") delta <- private$RKHS$lambdas
-                                        if ((estimand != "ATE" & method != "RKHS" & method != "RKHS.dose") | 
-                                            ((estimand == "ATE" | estimand == "feasible") & method == "RKHS") | 
-                                            ((estimand == "ATE" | estimand == "feasible") & method == "RKHS.dose") | 
-                                            method == "Logistic") {
+                                        if (estimand != "cATE") {
                                           private$weights[[estimand]]<- 
                                             calc_weight(private$simulator,  constraint = delta,
-                                                        estimate = estimand, method = method,
+                                                        estimand = estimand, method = method,
                                                         cost = cost, p = p[[1]],
                                                         transport.matrix = FALSE,
                                                         solver = solver,

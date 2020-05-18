@@ -63,8 +63,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // kernel_calc_
-Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const bool calc_covariance);
-RcppExport SEXP _causalOT_kernel_calc_(SEXP X_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP calc_covarianceSEXP) {
+Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const bool calc_covariance, const std::string& estimand);
+RcppExport SEXP _causalOT_kernel_calc_(SEXP X_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -75,7 +75,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type sigma_2_(sigma_2_SEXP);
     Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    rcpp_result_gen = Rcpp::wrap(kernel_calc_(X_, z, p, theta_, gamma_, sigma_2_, calc_covariance));
+    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_calc_(X_, z, p, theta_, gamma_, sigma_2_, calc_covariance, estimand));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -96,14 +97,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // similarity_calc_
-matrix similarity_calc_(const Rcpp::NumericMatrix& X_, const bool calc_covariance);
-RcppExport SEXP _causalOT_similarity_calc_(SEXP X_SEXP, SEXP calc_covarianceSEXP) {
+matrix similarity_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const bool calc_covariance, const std::string& estimand);
+RcppExport SEXP _causalOT_similarity_calc_(SEXP X_SEXP, SEXP zSEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z(zSEXP);
     Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    rcpp_result_gen = Rcpp::wrap(similarity_calc_(X_, calc_covariance));
+    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
+    rcpp_result_gen = Rcpp::wrap(similarity_calc_(X_, z, calc_covariance, estimand));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -139,9 +142,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 3},
     {"_causalOT_kernel_calc_dose_", (DL_FUNC) &_causalOT_kernel_calc_dose_, 6},
     {"_causalOT_similarity_calc_dose_", (DL_FUNC) &_causalOT_similarity_calc_dose_, 3},
-    {"_causalOT_kernel_calc_", (DL_FUNC) &_causalOT_kernel_calc_, 7},
+    {"_causalOT_kernel_calc_", (DL_FUNC) &_causalOT_kernel_calc_, 8},
     {"_causalOT_kernel_update_", (DL_FUNC) &_causalOT_kernel_update_, 6},
-    {"_causalOT_similarity_calc_", (DL_FUNC) &_causalOT_similarity_calc_, 2},
+    {"_causalOT_similarity_calc_", (DL_FUNC) &_causalOT_similarity_calc_, 4},
     {"_causalOT_marginal_lik_gp_", (DL_FUNC) &_causalOT_marginal_lik_gp_, 2},
     {"_causalOT_entry", (DL_FUNC) &_causalOT_entry, 3},
     {"_rcpp_module_boot_stan_fit4gp_hyper_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4gp_hyper_mod, 0},

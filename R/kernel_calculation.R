@@ -1,10 +1,15 @@
-kernel_calculation <- function(X, z, p = 1.0, theta = NULL, gamma = NULL, sigma_2 = NULL, metric = c("mahalanobis","Lp"),
-                               is.dose = FALSE) {
+kernel_calculation <- function(X, z, p = 1.0, 
+                               theta = NULL, gamma = NULL, sigma_2 = NULL, 
+                               metric = c("mahalanobis","Lp"),
+                               is.dose = FALSE, 
+                               estimand = c("ATE","ATT","ATC")) {
   
   if(!is.matrix(X)) X <- as.matrix(X)
   if(!is.matrix(z)) z <- as.matrix(z)
   
   if(!is.logical(is.dose)) is.dose <- isTRUE(is.dose)
+  
+  estimand <- match.arg(estimand)
   
   if(nrow(X) != nrow(z)) stop("Observations of X and z must be equal")
   
@@ -24,7 +29,8 @@ kernel_calculation <- function(X, z, p = 1.0, theta = NULL, gamma = NULL, sigma_
     return(kernel_calc_(X_ = X, z = z, p = p, 
                       theta_ = theta, gamma_ = gamma,
                       sigma_2 = sigma_2,
-                      calc_covariance = calc_covariance))
+                      calc_covariance = calc_covariance,
+                      estimand = estimand))
   }
   
 }
@@ -70,8 +76,11 @@ kernel_sigma_check <- function(s, n, is.dose) {
   }
 }
 
-calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FALSE ) {
+calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FALSE,
+                             estimand = c("ATE","ATT","ATC")) {
   met <- match.arg(metric)
+  estimand <- match.arg(estimand)
+  
   if(!is.matrix(X)) X <- as.matrix(X)
   
   if(!is.logical(is.dose)) is.dose <- isTRUE(is.dose)
@@ -82,12 +91,42 @@ calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FAL
     if(!is.matrix(z)) z <- as.matrix(z)
     
     if(nrow(X) != length(z)) stop("Observations of X and z must be equal")
+    if(estimand != "ATE") warning("RKHS dose method can only do ATE. ATE will be returned.")
     return( similarity_calc_dose_(X_ = X, z_ = z,
                        calc_covariance = calc_covariance) )
   } else {
     if(!is.integer(z)) z <- as.integer(z)
     
-    return( similarity_calc_(X_ = X,
-                             calc_covariance = calc_covariance) )
+    return( similarity_calc_(X_ = X, z = z,
+                             calc_covariance = calc_covariance,
+                             estimand = estimand) )
+  }
+}
+
+
+ot_calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FALSE,
+                             estimand = c("ATE","ATT","ATC")) {
+  met <- match.arg(metric)
+  estimand <- match.arg(estimand)
+  
+  if(!is.matrix(X)) X <- as.matrix(X)
+  
+  if(!is.logical(is.dose)) is.dose <- isTRUE(is.dose)
+  
+  calc_covariance <- isTRUE(met == "mahalanobis")
+  
+  if(is.dose) {
+    if(!is.matrix(z)) z <- as.matrix(z)
+    
+    if(nrow(X) != length(z)) stop("Observations of X and z must be equal")
+    if(estimand != "ATE") warning("RKHS dose method can only do ATE. ATE will be returned.")
+    return( similarity_calc_dose_(X_ = X, z_ = z,
+                                  calc_covariance = calc_covariance) )
+  } else {
+    if(!is.integer(z)) z <- as.integer(z)
+    
+    return( similarity_calc_(X_ = X, z = z,
+                             calc_covariance = calc_covariance,
+                             estimand = estimand) )
   }
 }

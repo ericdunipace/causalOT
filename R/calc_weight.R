@@ -1,44 +1,61 @@
-setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimate = "character"))
+setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimand = "character"))
 
-calc_weight <- function(data, constraint,  estimate = c("ATT", "ATC","ATE","feasible"), 
-                                method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
-                                           "Logistic"),
+calc_weight <- function(data, constraint=NULL,  estimand = c("ATT", "ATC","ATE", "cATE", "feasible"), 
+                        method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
+                                   "Logistic"),
                         transport.matrix = FALSE, grid.search = FALSE,
-                                ...) {
+                        ...) {
   method <- match.arg(method)
-  estimate <- match.arg(estimate)
+  estimand <- match.arg(estimand)
   grid.search <- isTRUE(grid.search)
+  args <- list(data = data, constraint = constraint, estimand = estimand, method = method, ...)
+  args <- args[!duplicated(names(args))]
+  argn <- lapply(names(args), as.name)
+  names(argn) <- names(args)
   
-  output <- if(method == "SBW" & grid.search) {
-    do.call("sbw_grid_search", list(data, estimate = estimate, ...))
+  output <- if (method == "SBW" & grid.search) {
+    args$method <- NULL
+    # if(is.null(args$grid)) 
+    if(!is.null(constraint)) args$grid <- constraint
+    f.call <- as.call(c(list(as.name("sbw_grid_search")), argn))
+    
+    
+    eval(f.call, envir = args) #do.call("sbw_grid_search", args)
   } else if (method == "RKHS" | method == "RKHS.dose") {
     if (grid.search & method == "RKHS.dose") {
-      do.call("RKHS_grid_search", list(data = data, estimate = estimate, 
-                                       method = method,
-                                       ...))
+      f.call <- as.call(c(list(as.name("RKHS_grid_search")), argn))
+      eval(f.call, envir = args)
+      # do.call("RKHS_grid_search", list(data = data, estimand = estimand, 
+      #                                  method = method,
+      #                                  ...))
     } else {
-      do.call("calc_weight_RKHS", list(data = data, estimate = estimate, 
-                                       method = method,
-                                       ...))
+      f.call <- as.call(c(list(as.name("calc_weight_RKHS")), argn))
+      eval(f.call, envir = args)
+      # do.call("calc_weight_RKHS", list(data = data, estimand = estimand, 
+      #                                  method = method,
+      #                                  ...))
       
     }
   } else if( method != "Logistic") {
-    do.call("calc_weight_bal", list(data, constraint,  estimate = estimate, 
-                                    method = method,
-                                    ...))
+    f.call <- as.call(c(list(as.name("calc_weight_bal")), argn))
+    eval(f.call, envir = args)
+    # do.call("calc_weight_bal", list(data, constraint,  estimand = estimand, 
+    #                                 method = method,
+    #                                 ...))
   } else {
-    calc_weight_glm (data, constraint, estimate,...)
+    if(method == "cATE") method <- "ATE"
+    calc_weight_glm (data, constraint, estimand, ...)
   }
   
   if (isTRUE(transport.matrix)) {
     output$gamma <- calc_gamma(output, ...)
   }
-  output$estimate <- estimate
+  output$estimand <- estimand
   class(output) <- "causalWeights"
   return(output)
 }
 
-calc_weight_glm <- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
+calc_weight_glm <- function(data, constraint,  estimand = c("ATT", "ATC","ATE"),
                             ...) {
   dots <- list(...)
   pd <- prep_data(data,...)
@@ -66,90 +83,111 @@ calc_weight_glm <- function(data, constraint,  estimate = c("ATT", "ATC","ATE"),
     pred[pred < low]<- low
   }
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
-  if (estimate == "ATT") {
+  if (estimand == "ATT") {
     output$w1 <- rep(1/n1,n1)
     output$w0 <- pred[z==0]/(1 - pred[z==0]) * 1/n1
-  } else if (estimate == "ATC") {
+  } else if (estimand == "ATC") {
     output$w1 <- (1 - pred[z==1])/pred[z==1] * 1/n0
     output$w0 <- rep(1/n0,n0)
-  } else if (estimate == "ATE") {
+  } else if (estimand == "ATE") {
     output$w1 <- 1/pred[z==1] * 1/n
     output$w0 <- 1/(1-pred[z==0]) * 1/n
   }
   return(output)
 }
 
-calc_weight_bal <- function(data, constraint,  estimate = c("ATT", "ATC","feasible"), 
-                                method = c("SBW","Wasserstein", "Constrained Wasserstein"),
-                            solver = c("cplex","gurobi"),
-                                ...) {
+calc_weight_bal <- function(data, constraint,  estimand = c("ATT", "ATC","ATE", "cATE", "feasible"), 
+                            method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+                            solver = c("cplex","gurobi", "mosek"),
+                            ...) {
   method <- match.arg(method)
-  estimate <- match.arg(estimate)
-  qp <- quadprog(data, constraint,  estimate, 
+  estimand <- match.arg(estimand)
+  qp <- quadprog(data, constraint,  estimand, 
                  method,
                  ...)
   dots <- list(...)
   
-  sol <- QPsolver(qp, solver = solver,...) # normalize to have closer to sum 1
+  sol <- lapply(qp, function(q) QPsolver(q, solver = solver, ...))
   
-  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
-  gamma <- NULL
+  # sol <- switch(estimand,
+  #               "ATT"  = QPsolver(qp, solver = solver,...),
+  #               "ATC"  = QPsolver(qp, solver = solver,...),
+  #               "cATE" = lapply(qp, function(q) QPsolver(q, solver = solver, ...)),
+  #               "ATE"  = lapply(qp, function(q) QPsolver(q, solver = solver, ...)))
+  
+  # sol <- if( estimand == "ATE" & (method == "Wasserstein" | method == "Constrained Wasserstein") ) {
+  #   lapply(1:2, function(i) QPsolver(qp[[i]], solver = solver, ...))
+  # } else {
+  #   QPsolver(qp, solver = solver,...) # normalize to have closer to sum 1
+  # }
   ns <- get_n(data, ...)
   
-  if(method == "Wasserstein" | method == "Constrained Wasserstein") {
-    gamma <- matrix(sol, ns["n0"], ns["n1"])
-    if(estimate == "ATT") {
-      sol <- rowSums(gamma)
-    } else if (estimate == "ATC") {
-      sol <- colSums(gamma)
-    } else if (estimate == "feasible") {
-      sol <- gamma
-    }
-    output$gamma <- gamma
-  }
-  if(estimate == "ATT") {
-    output$w0 <- sol
-    output$w1 <- rep.int(1/ns["n1"],ns["n1"])
-  } else if (estimate == "ATC") {
-    output$w0 <- rep.int(1/ns["n0"],ns["n0"])
-    output$w1 <- sol
-  } else if (estimate == "feasible") {
-    if(method == "Wasserstein" | method == "Constrained Wasserstein"){
-      output$w0 <- rowSums(gamma)
-      output$w1 <- colSums(gamma)
-    } else if (method == "SBW") {
-      output$w0 <- renormalize(sol[1:ns["n0"]])
-      output$w1 <- renormalize(sol[ns["n0"] + 1:ns["n1"]])
-    }
-  }
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
+  output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
+  
   return(output)
 }
 
-calc_weight_RKHS <- function(data, estimate = c("ATE", "feasible"), method = c("RKHS", "RKHS.dose"),
-                             solver = c("cplex","gurobi"), opt.hyperparam = TRUE,
+calc_weight_RKHS <- function(data, estimand = c("ATC", "ATT", "cATE", "ATE"), method = c("RKHS", "RKHS.dose"),
+                             solver = c("gurobi","cplex","mosek"), opt.hyperparam = TRUE,
                              ...) {
-  estimate <- match.arg(estimate)
+  estimand <- match.arg(estimand)
   method <- match.arg(method)
   opt.hyperparam <- isTRUE(opt.hyperparam)
+  solver <- match.arg(solver)
+  pd <- prep_data(data,...)
+  
+  if(estimand == "cATE") {
+    stopifnot(method == "RKHS")
+    args <- list(data = data, estimand = estimand, 
+                 solver = solver, opt.hyperparam = opt.hyperparam,
+                 ...)
+    this.call <- match.call(expand.dots = TRUE)
+    args$estimand <- "ATC"
+    atc.call <- eval(this.call, envir = args)
+    
+    args$estimand <- "ATT"
+    att.call <- eval(this.call, envir = args)
+    
+    output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
+    output$w0 <- att.call$w0
+    output$w1 <- atc.call$w1
+    
+    output$addl.args <- list("control" = list(theta = atc.call$addl.args$theta, 
+                                              gamma = atc.call$addl.args$gamma,
+                                              p = atc.call$addl.args$p,
+                                              sigma_2 = atc.call$addl.args$sigma_2),
+                             "treated" = list(theta = att.call$addl.args$theta, 
+                                              gamma = att.call$addl.args$gamma,
+                                              p = att.call$addl.args$p,
+                                              sigma_2 = att.call$addl.args$sigma_2)
+                             )
+    
+    return(output)
+    
+  }
   
   if(opt.hyperparam) {
-    pd <- prep_data(data,...)
-    opt_args <- list(x=pd$df[,-1], y = pd$df$y, z = pd$z, power = 2:3, ...)
+    # pd <- prep_data(data,...)
+    opt_args <- list(x=pd$df[,-1, drop = FALSE], y = pd$df$y, z = pd$z, power = 2:3, 
+                     estimand = estimand, ...)
     opt_args <- opt_args[!duplicated(names(opt_args))]
-    param <- do.call("RKHS_param_opt", opt_args)
+    opt_argn <- lapply(names(opt_args), as.name)
+    names(opt_argn) <- names(opt_args)
+    f.call <- as.call(c(list(as.name("RKHS_param_opt")), opt_argn))
+    param <- eval(f.call, envir = opt_args)
     rm(opt_args)
-    rm(pd)
     
     args <- c(list(data = data,
-                 constraint = NULL,
-                 estimate = estimate,
-                 method = method),
-                 param,
-                 list(...))
+                   constraint = NULL,
+                   estimand = estimand,
+                   method = method),
+              param,
+              list(...))
   } else {
     args <- list(data = data,
                  constraint = NULL,
-                 estimate = estimate,
+                 estimand = estimand,
                  method = method,
                  ...)
   }
@@ -157,30 +195,87 @@ calc_weight_RKHS <- function(data, estimate = c("ATE", "feasible"), method = c("
   qp <- do.call("quadprog",args)
   dots <- list(...)
   
-  sol <- QPsolver(qp, solver = solver, ...) # normalize to have closer to sum 1
+  sol <- lapply(qp, function(q) QPsolver(q, solver = solver, ...)) # normalize to have closer to sum 1
   
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
-  gamma <- NULL
-  ns <- get_n(data, ...)
-  z <- get_z(data, ...)
   
-  output$w0 <- renormalize(sol[z == 0])
-  output$w1 <- renormalize(sol[z == 1])
+  ns <- get_n(data, ...)
+  
+  if(estimand == "ATC") {
+    output$w0 <- rep(1/ns["n0"], ns["n0"])
+    output$w1 <- renormalize(sol[[1]][pd$z == 1])
+  } else if (estimand == "ATT") {
+    output$w0 <- renormalize(sol[[1]][pd$z == 0])
+    output$w1 <- rep(1/ns["n1"], ns["n1"])
+  } else if (estimand == "cATE") {
+    output$w0 <- renormalize(sol[[1]][pd$z == 0])
+    output$w1 <- renormalize(sol[[2]][pd$z == 1])
+  } else if (estimand == "ATE") {
+    output$w0 <- renormalize(sol[[1]][pd$z == 0])
+    output$w1 <- renormalize(sol[[1]][pd$z == 1])
+  }
+  output$addl.args <- list(theta = args$theta, 
+                           gamma = args$gamma,
+                           p = args$p,
+                           sigma_2 = args$sigma_2)
+  return(output)
+}
+
+convert_sol <- function(sol, estimand, method, n0, n1) {
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
+  stopifnot(is.list(sol))
+  
+  if ( method %in% c("Wasserstein", "Constrained Wasserstein") ) {
+    if (estimand == "ATC") {
+      output$gamma <- matrix(sol[[1]], n0, n1)
+      output$w0 <- rep.int(1/n0, n0)
+      output$w1 <- colSums(output$gamma)
+    } else if (estimand == "ATT") {
+      output$gamma <- matrix(sol[[1]], n0, n1)
+      output$w0 <- rowSums(output$gamma)
+      output$w1 <- rep.int(1/n1, n1)
+    } else if (estimand == "cATE") {
+      output$w0 <- rowSums(matrix(sol[[2]], n0, n1))
+      output$w1 <- colSums(matrix(sol[[1]], n0, n1))
+    } else if (estimand == "ATE") {
+      N <- n0 + n1
+      output$w0 <-  rowSums(matrix(sol[[1]], n0, N))
+      output$w1 <-  rowSums(matrix(sol[[2]], n1, N)) #note both are rowSums here
+    }
+  } else {
+    if(estimand == "ATT") {
+      output$w0 <- sol[[1]]
+      output$w1 <- rep.int(1/n1,n1)
+    } else if (estimand == "ATC") {
+      output$w0 <- rep.int(1/n0,n0)
+      output$w1 <- sol[[1]]
+    } else if (estimand == "feasible") {
+      output$w0 <- renormalize(sol[[1]][1:n0])
+      output$w1 <- renormalize(sol[[1]][n0 + 1:n1])
+    } else if (estimand == "cATE") {
+      output$w0 <- renormalize(sol[[1]])
+      output$w1 <- renormalize(sol[[2]])
+    } else if (estimand == "ATE") {
+      output$w0 <- renormalize(sol[[1]][1:n0])
+      output$w1 <- renormalize(sol[[1]][n0 + 1:n1])
+    }
+  }
+  
   return(output)
 }
 
 convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
   list_weight <- list(weight1, weight2)
-  check.vals <- sapply(list_weight, function(w) w$estimate)
+  check.vals <- sapply(list_weight, function(w) w$estimand)
   ATT.pres <- check.vals %in% "ATT"
   ATC.pres <- check.vals %in% "ATC"
   both <- (sum(c(ATT.pres, ATC.pres)) == 2)
-  if(!both) stop("One set of weights must be from an ATT estimate and one must be from an ATC to combine")
+  if(!both) stop("One set of weights must be from an ATT estimand and one must be from an ATC to combine")
   
   ATC.weight <- list_weight[[which(ATC.pres)]]
   ATT.weight <- list_weight[[which(ATT.pres)]]
   
-  output <- list(w0 = NULL, w1 = NULL, gamma= NULL, estimate = NULL)
+  output <- list(w0 = NULL, w1 = NULL, gamma= NULL, estimand = NULL)
   class(output) <- "causalWeights"
   
   output$w0 <- ATT.weight$w0
@@ -204,7 +299,7 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
     # output$gamma[nzero_row, nzero_col] <- gamma
     output$gamma <- calc_gamma(weights = output, cost = cost, p = p)
   }
-  output$estimate <- "ATE"
+  output$estimand <- "ATE"
   return(output)
 }
 
@@ -239,7 +334,7 @@ calc_gamma <- function(weights, ...) {
                                     b = b,
                                     p = dots$p,
                                     costm = cost)
-     
+      
       temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
       
     }

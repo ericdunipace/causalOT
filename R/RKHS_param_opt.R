@@ -1,15 +1,17 @@
 RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp"), is.dose = FALSE, 
-                           opt.method = c("stan", "optim","bayesian.optimization"), ...) {
+                           opt.method = c("stan", "optim","bayesian.optimization"), 
+                           estimand = c("ATC","ATT","ATE"), ...) {
   
   opt.method <- match.arg(opt.method)
   metric <- match.arg(metric)
-  opt.method <- match.arg(opt.method)
+  estimand <- match.arg(estimand)
+  
   is.dose <- isTRUE(is.dose)
   power <- as.integer(power)
   
   y_std <- scale(y, scale = FALSE)
   
-  similarity_mats <- calc_similarity(x,z, metric = metric, is.dose)
+  similarity_mats <- calc_similarity(x, z, metric = metric, is.dose, estimand)
   
   kern_dose <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
     K <- gamma_0*(1.0 + theta_0 * similarity_mats[["Z"]])^p *  gamma_1*(1.0 + theta_1 * similarity_mats[["X"]])^p
@@ -122,9 +124,14 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     arguments <- arguments[names(arguments) %in% formals.stan]
     if(is.null(arguments$object)) arguments$object <- stanmodels$gp_hyper
     res <- vector("list", length(power))
+    argn <- lapply(names(arguments), as.name)
+    names(argn) <- names(arguments)
+    f.call <- as.call(c(list(call("::", as.name("rstan"), 
+                                  as.name("optimizing"))), argn))
+    
     for(i in seq_along(power) ) {
       arguments$data$p <-  as.double(power[i])
-      res[[i]] <- do.call(rstan::optimizing, arguments)
+      res[[i]] <- eval(f.call, envir = arguments)
       # samp <- rstan::vb(stan_mod, data = data_stan)
     }
     idx <- which.max(sapply(res, function(r) r$par$marg_lik))

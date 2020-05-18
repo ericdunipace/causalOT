@@ -1,4 +1,4 @@
-outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate) {
+outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand) {
   
   w0 <- weights$w0
   w1 <- weights$w1
@@ -28,21 +28,21 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate
     
     tau_t <- 0
     tau_c <- 0
-    if(estimate == "ATT" | estimate == "ATE" | estimate == "feasible") {
+    if(estimand == "ATT" | estimand == "ATE" | estimand == "feasible") {
       tau_t <- c(mean(e_0_t) - sum(e_0_c*w0))
     }
-    if(estimate == "ATC" | estimate == "ATE" | estimate == "feasible") {
+    if(estimand == "ATC" | estimand == "ATE" | estimand == "feasible") {
       tau_c <- c(sum(e_1_t*w1) - mean(e_1_c))
     }
-    if(estimate == "ATT"){
+    if(estimand == "ATT"){
       tx_effect <- tau_t
-    } else if (estimate == "ATC") {
+    } else if (estimand == "ATC") {
       tx_effect <- tau_c
-    } else if(estimate == "ATE" | estimate == "feasible") {
-      if(estimate == "ATE") {
+    } else if(estimand == "ATE" | estimand == "feasible") {
+      if(estimand == "ATE") {
         t_w   <- sum(t_ind) #1/(sum(w1^2))
         c_w   <- sum(c_ind) #1/(sum(w0^2))
-      } else if (estimate == "feasible") {
+      } else if (estimand == "feasible") {
         t_w   <- 1/(sum(w1^2))
         c_w   <- 1/(sum(w0^2))
       }
@@ -68,7 +68,7 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimate
 
 calc_form <- function(formula, doubly.robust, target) {
   if(!is.null(formula)){
-    stopifnot(names(formula) %in% c("treated","control"))
+    stopifnot(isTRUE(names(formula) %in% c("treated","control")))
     formula$treated <- as.formula(formula$treated)
     formula$control <- as.formula(formula$control)
     return(formula)
@@ -107,8 +107,15 @@ calc_hajek <- function(weights, target, hajek) {
     weights$w0 <- renormalize(weights$w0)
     weights$w1 <- renormalize(weights$w1)
   }
+  
   if(inherits(weights, "causalWeights")) {
-    if(weights$estimate != target) stop("Weights not estimating the target")
+    estimand <- switch(weights$estimand,
+                       "ATT" = "ATT",
+                       "ATC" = "ATC",
+                       "ATE" = "ATE",
+                       "cATE" = "ATE",
+                       "feasible" = "feasible")
+    if(estimand != target) stop("Weights not estimating the target")
   }
   return(weights)
 }
@@ -127,7 +134,12 @@ outcome_model <- function(data, formula = NULL, weights,
   matched <- isTRUE(matched[1])
   if(is.null(target)){
     if(inherits(weights, "causalWeights")){
-      target <- weights$estimate
+      target <- switch(weights$estimand,
+                       "ATT" = "ATT",
+                       "ATC" = "ATC",
+                       "ATE" = "ATE",
+                       "cATE" = "ATE",
+                       "feasible" = "feasible")
     }
   }
   targ <- match.arg(target)

@@ -5,3 +5,11 @@
 src/*.o
 src/*.so
 src/*.dll
+inst/Reports
+inst/sims
+inst/images
+inst/output
+inst/.DS_Store
+Output
+archive
+tables

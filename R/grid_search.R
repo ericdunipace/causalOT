@@ -1,13 +1,26 @@
 sbw_grid_search <- function(data, grid = NULL, 
-                            estimate = c("ATT", "ATC","ATE","feasible"),
+                            estimand = c("ATT", "ATC","cATE","ATE","feasible"),
                             n.boot = 100,
                             ...) 
 {
+  # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
   if(all(is.null(grid)) | all(is.na(grid))) grid <- seq(0, 0.5, length.out = 100)
+  estimand <- match.arg(estimand)
+  
+  args <- list(data = data, constraint = grid[1],  estimand = estimand, 
+       method = "SBW",
+       ...)
+  args <- args[!duplicated(names(args))]
+  argn <- lapply(names(args), as.name)
+  names(argn) <- names(args)
+  
+  f.call <- as.call(c(as.name("calc_weight_bal"), argn))
+  
   weight.list <- lapply(grid, function(delta) {
-    out <- do.call("calc_weight_bal", list(data = data, constraint = delta,  estimate = estimate, 
-                                             method = "SBW",
-                                             ...))
+    args$constraint <- delta
+    out <- eval(f.call, envir = args)
+    # out <- do.call("calc_weight_bal", args)
+    if(list(...)$solver == "gurobi") Sys.sleep(0.1)
     return(out)
   })
   pd <- prep_data(data, ...)
@@ -33,20 +46,23 @@ sbw_grid_search <- function(data, grid = NULL,
 
 RKHS_grid_search <- function(data, grid = NULL, 
                              method = c("RKHS.dose"),
-                            n.boot = 100, opt.hyperparam = TRUE,
-                            ...) 
+                             estimand = c("ATT", "ATC","ATE"),
+                             n.boot = 100, opt.hyperparam = TRUE,
+                             ...) 
 {
   meth <- match.arg(method)
+  estimand <- match.arg(estimand)
   pd <- prep_data(data, ...)
   if(opt.hyperparam) {
-    opt_args <- list(x=pd$df[,-1], y = pd$df$y, z = pd$z, power = 2:3, ...)
+    opt_args <- list(x=pd$df[,-1], y = pd$df$y, z = pd$z, power = 2:3, estimand = estimand, ...)
     opt_args <- opt_args[!duplicated(names(opt_args))]
     param <- do.call("RKHS_param_opt", opt_args)
     rm(opt_args)
     
     args <- c(list(data = data,
                  lambda = 0,
-                 method = meth),
+                 method = meth,
+                 estimand = estimand),
                  param,
                  opt.hyperparam = FALSE,
                  list(...))
@@ -54,6 +70,7 @@ RKHS_grid_search <- function(data, grid = NULL,
     args <- list(data = data,
                  lambda = 0,
                  method = meth,
+                 estimand = estimand,
                  opt.hyperparam = FALSE,
                  ...)
   }
@@ -80,7 +97,7 @@ RKHS_grid_search <- function(data, grid = NULL,
                              data = mean.bal.dat, tx_ind = "z", balance.covariates = colnames(x)))
   }
   min.idx <- which(output == min(output, na.rm=TRUE))[1]
-  weight.list[[min.idx]]$estimate <- "ATE"
+  weight.list[[min.idx]]$estimand <- "ATE"
   weight.list[[min.idx]]$lambda <- grid[min.idx]
   return(weight.list[[min.idx]])
 }

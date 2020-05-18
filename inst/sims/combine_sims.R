@@ -1,7 +1,7 @@
 library(causalOT)
 
 #### Output settings ####
-jobids      <- as.character(49502973) #-Ahi : 49541987, -Alo: 49575736, -Bhi:49536144, -Blo:49502973
+jobids      <- as.character(49712566) #-Ahi : 49541987, -Alo: 49575736, -Bhi:49536144, -Blo:49502973
 n           <- "512"
 p           <- "6"
 design      <- "B"

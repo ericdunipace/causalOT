@@ -8,7 +8,7 @@ testthat::test_that("check RKHS kernel works", {
   distance <- c("Lp")
   power <- c(1,2)
   solver <- "gurobi"
-  estimates <- c("ATT", "ATC","feasible")
+  estimates <- c("ATT", "ATC", "cATE","ATE")
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -23,6 +23,13 @@ testthat::test_that("check RKHS kernel works", {
                    solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
                    p = power[1], metric = "mahalanobis"))
   
+  testthat::expect_silent(out <- calc_weight_RKHS(data, estimate = "ATT",  opt.hyperparam = FALSE,
+                                                  solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
+                                                  p = power[1], metric = "mahalanobis"))
+  
+  testthat::expect_silent(out <- calc_weight_RKHS(data, estimate = "ATC",  opt.hyperparam = FALSE,
+                                                  solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
+                                                  p = power[1], metric = "mahalanobis"))
 })
 
 
@@ -36,7 +43,7 @@ testthat::test_that("check RKHS kernel works with hyper param opt", {
   distance <- c("Lp")
   power <- c(1,2)
   solver <- "gurobi"
-  estimates <- c("ATT", "ATC","feasible")
+  estimates <- c("ATT", "ATC", "cATE","ATE")
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -47,8 +54,10 @@ testthat::test_that("check RKHS kernel works with hyper param opt", {
   #### run sims  ####
   # debugonce(calc_weight_RKHS)
   # debugonce(quadprog.DataSim)
-  testthat::expect_silent(out <- calc_weight_RKHS(data, estimate = "ATE", opt.hyperparam = TRUE,
+  for(e in estimates) {
+    testthat::expect_silent(out <- calc_weight_RKHS(data, estimate = e, opt.hyperparam = TRUE,
                                                   solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
                                                   p = power[1], metric = "mahalanobis", iter = 10))
+  }
   
 })

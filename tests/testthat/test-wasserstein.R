@@ -1,0 +1,43 @@
+test_that("runs for current causal weights", {
+  set.seed(23483)
+  n <- 2^7
+  p <- 6
+  power <- 2
+  nsims <- 1
+  overlap <- "low"
+  design <- "A"
+  distance <- c("Lp")
+  power <- c(2)
+  solver <- "gurobi"
+  estimates <- c("ATT", "ATC", "cATE", "ATE")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  
+  cost <- causalOT::cost_mahalanobis(data$get_x0(), data$get_x1(), power)
+  
+  weights <- lapply(estimates, function(e) calc_weight(data = data, 
+                                                       constraint = 3, 
+                                                       estimand = e, 
+                                                       method = "Constrained Wasserstein",
+                                                       solver = "gurobi",
+                                                       p = power,
+                                                       cost = cost))
+  
+  b <- rep(1/n0,n0)
+  
+  testthat::expect_silent(dists <- sapply(weights, function(w) wasserstein_p(a = w, p = power, cost = cost, estimand = w$estimand)))
+  for(i in seq_along(dists)) {
+    testthat::expect_equal(dists[i], transport::wasserstein(a = weights[[i]]$w0,
+                                                            b = weights[[i]]$w1,
+                                                            p = power,
+                                                            costm = cost))
+  }
+  
+  
+})

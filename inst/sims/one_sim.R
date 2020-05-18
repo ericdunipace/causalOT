@@ -14,7 +14,7 @@ distance <- c("Lp", "mahalanobis")
 power <- c(1,2)
 ground_power <- 2
 std_mean_diff <- c(0.001, 0.01, 0.1)
-solver <- "cplex" # "gurobi"
+solver <- "gurobi" # "gurobi"
 
 #### get simulation functions ####
 original <- Hainmueller$new(n = n, p = p, 

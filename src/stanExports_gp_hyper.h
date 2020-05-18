@@ -153,12 +153,6 @@ kern_dose(const Eigen::Matrix<T0__, Eigen::Dynamic, Eigen::Dynamic>& cost_0,
         Eigen::Matrix<local_scalar_t__, Eigen::Dynamic, Eigen::Dynamic> K(N, N);
         stan::math::initialize(K, DUMMY_VAR__);
         stan::math::fill(K, DUMMY_VAR__);
-        current_statement_begin__ = 42;
-        local_scalar_t__ sigma_2(DUMMY_VAR__);
-        (void) sigma_2;  // dummy to suppress unused var warning
-        stan::math::initialize(sigma_2, DUMMY_VAR__);
-        stan::math::fill(sigma_2, DUMMY_VAR__);
-        stan::math::assign(sigma_2,(sigma * sigma));
         current_statement_begin__ = 44;
         for (int i = 1; i <= N; ++i) {
             current_statement_begin__ = 45;

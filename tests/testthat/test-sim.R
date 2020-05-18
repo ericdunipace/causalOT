@@ -36,6 +36,9 @@ testthat::test_that("sim.function works", {
                           distance = distance, 
                           calculate.feasible = FALSE,
                           solver = solver), "simOutput")
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1))
+  testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
   
   # testthat::expect_silent
   (testthat::expect_s3_class(output <- sim.function(dataGen = original, 
@@ -51,6 +54,6 @@ testthat::test_that("sim.function works", {
                          calculate.feasible = TRUE,
                          solver = solver), "simOutput"))
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
-  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.03))
   testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
 })

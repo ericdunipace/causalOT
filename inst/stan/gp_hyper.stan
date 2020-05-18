@@ -39,7 +39,7 @@ matrix kern( matrix cost,
 
     matrix[N, N] K;
 
-    real sigma_2 = sigma * sigma;
+    // real sigma_2 = sigma;
 
     for(i in 1:N) {
       for(j in 1:N) {

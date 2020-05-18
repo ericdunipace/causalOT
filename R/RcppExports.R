@@ -17,16 +17,16 @@ similarity_calc_dose_ <- function(X_, z_, calc_covariance) {
     .Call(`_causalOT_similarity_calc_dose_`, X_, z_, calc_covariance)
 }
 
-kernel_calc_ <- function(X_, z, p, theta_, gamma_, sigma_2_, calc_covariance) {
-    .Call(`_causalOT_kernel_calc_`, X_, z, p, theta_, gamma_, sigma_2_, calc_covariance)
+kernel_calc_ <- function(X_, z, p, theta_, gamma_, sigma_2_, calc_covariance, estimand) {
+    .Call(`_causalOT_kernel_calc_`, X_, z, p, theta_, gamma_, sigma_2_, calc_covariance, estimand)
 }
 
 kernel_update_ <- function(sim_, z_, p, theta_, gamma_, sigma_2_) {
     .Call(`_causalOT_kernel_update_`, sim_, z_, p, theta_, gamma_, sigma_2_)
 }
 
-similarity_calc_ <- function(X_, calc_covariance) {
-    .Call(`_causalOT_similarity_calc_`, X_, calc_covariance)
+similarity_calc_ <- function(X_, z, calc_covariance, estimand) {
+    .Call(`_causalOT_similarity_calc_`, X_, z, calc_covariance, estimand)
 }
 
 marginal_lik_gp_ <- function(y_, K_) {

@@ -30,7 +30,7 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
 wasserstein_p.causalWeights <- function(a, b = NULL, p = 1, tplan = NULL, cost = NULL,...) {
   mass_a <- as.numeric(a$w0)
   mass_b <- as.numeric(a$w1)
-  if((a$estimate == "feasible") & !is.null(a$gamma)){
+  if((a$estimand == "feasible") & !is.null(a$gamma)){
     idx <- which(a$gamma != 0, arr.ind = TRUE)
     tplan <- data.frame(from = idx[,1], to = idx[,2], mass = a$gamma[idx])
   }
@@ -50,11 +50,11 @@ wasserstein_p.matrix <- function(a, b, p = 1, tplan = NULL, cost = NULL, dist = 
     mass_a <- rep(1/nrow(a), nrow(a))
     mass_b <- rep(1/nrow(b), nrow(b))
   }
-  return(wasserstein_p.default(a = a, b = b, p = p, tplan = tplan, cost = cost, ...))
+  return(wasserstein_p.default(a = mass_a, b = mass_b, p = p, tplan = tplan, cost = cost, ...))
 }
 
 setGeneric("wasserstein_p", function(a, b, ...) UseMethod("wasserstein_p"))  
-setMethod("wasserstein_p", signature(a = "numeric", b= "numeric"), wasserstein_p.default)
+setMethod("wasserstein_p", signature(a = "vector", b= "vector"), wasserstein_p.default)
 setMethod("wasserstein_p", signature(a = "causalWeights", b= "NULL"), wasserstein_p.causalWeights)
 setMethod("wasserstein_p", signature(a = "causalWeights", b= "numeric"), wasserstein_p.causalWeights)
 setMethod("wasserstein_p", signature(a = "causalWeights", b= "matrix"), wasserstein_p.causalWeights)
