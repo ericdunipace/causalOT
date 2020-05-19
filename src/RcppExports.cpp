@@ -122,6 +122,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// kernel_calc_ot_
+Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const bool calc_covariance, const std::string& estimand);
+RcppExport SEXP _causalOT_kernel_calc_ot_(SEXP X_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z(zSEXP);
+    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
+    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_calc_ot_(X_, z, p, theta_, gamma_, calc_covariance, estimand));
+    return rcpp_result_gen;
+END_RCPP
+}
 // entry
 void entry(SEXP& xx, Rcpp::NumericMatrix& y, int colX_);
 RcppExport SEXP _causalOT_entry(SEXP xxSEXP, SEXP ySEXP, SEXP colX_SEXP) {
@@ -146,6 +163,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_kernel_update_", (DL_FUNC) &_causalOT_kernel_update_, 6},
     {"_causalOT_similarity_calc_", (DL_FUNC) &_causalOT_similarity_calc_, 4},
     {"_causalOT_marginal_lik_gp_", (DL_FUNC) &_causalOT_marginal_lik_gp_, 2},
+    {"_causalOT_kernel_calc_ot_", (DL_FUNC) &_causalOT_kernel_calc_ot_, 7},
     {"_causalOT_entry", (DL_FUNC) &_causalOT_entry, 3},
     {"_rcpp_module_boot_stan_fit4gp_hyper_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4gp_hyper_mod, 0},
     {NULL, NULL, 0}

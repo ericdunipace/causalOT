@@ -142,6 +142,12 @@ outcome_model <- function(data, formula = NULL, weights,
                        "feasible" = "feasible")
     }
   }
+  target <- switch(target,
+                   "ATT" = "ATT",
+                   "ATC" = "ATC",
+                   "ATE" = "ATE",
+                   "cATE" = "ATE",
+                   "feasible" = "feasible")
   targ <- match.arg(target)
   
   #set up model structures

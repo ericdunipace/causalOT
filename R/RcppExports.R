@@ -33,6 +33,10 @@ marginal_lik_gp_ <- function(y_, K_) {
     .Call(`_causalOT_marginal_lik_gp_`, y_, K_)
 }
 
+kernel_calc_ot_ <- function(X_, z, p, theta_, gamma_, calc_covariance, estimand) {
+    .Call(`_causalOT_kernel_calc_ot_`, X_, z, p, theta_, gamma_, calc_covariance, estimand)
+}
+
 entry <- function(xx, y, colX_) {
     invisible(.Call(`_causalOT_entry`, xx, y, colX_))
 }

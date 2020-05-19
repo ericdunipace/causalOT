@@ -5,7 +5,7 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
                           augmentation = c("both", "yes", "no"),
                           standardized.mean.difference = 0.1,
                           truncations = 0.1,
-                          distance = c("Lp", "mahalanobis"),
+                          distance = c("Lp", "mahalanobis","RKHS"),
                           solver = c("cplex","gurobi", "mosek"),
                           calculate.feasible = FALSE,
                           seed = NULL, ...) 

@@ -38,6 +38,7 @@ sbw_grid_search <- function(data, grid = NULL,
     output[g] <- mean(sapply(bootIdx, mean_bal_grid, weight = weight.list[[g]], 
                           data = mean.bal.dat, tx_ind = "z", balance.covariates = colnames(x)))
   }
+  if(all(is.na(output))) stop("All weights generated errors")
   
   min.idx <- which(output == min(output, na.rm=TRUE))
   weight.list[[min.idx]]$standardized.mean.difference <- grid[min.idx]

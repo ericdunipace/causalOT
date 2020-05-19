@@ -8,9 +8,9 @@ testthat::test_that("SimHolder generates object", {
   n <- 2^7
   p <- 6
   nsims <- 1
-  overlap <- "low"
-  design <- "B"
-  distance <- c("Lp", "mahalanobis")
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
@@ -47,9 +47,9 @@ testthat::test_that("SimHolder runs", {
   n <- 2^7
   p <- 6
   nsims <- 2
-  overlap <- "low"
-  design <- "B"
-  distance <- c("Lp", "mahalanobis")
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis","RKHS")
   power <- c(1,2)
   ground_power <- 1:2
   std_mean_diff <- c(0.001, 0.01, 0.1)
@@ -79,7 +79,9 @@ testthat::test_that("SimHolder runs", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_warning(sh$run())
+  # the cost of one was all NA and the weights too...
+  # sh$run()
+  testthat::expect_silent(sh$run())
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -100,9 +102,9 @@ testthat::test_that("SimHolder with grid works", {
   n <- 2^7
   p <- 6
   nsims <- 2
-  overlap <- "low"
-  design <- "B"
-  distance <- c("Lp", "mahalanobis")
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
   power <- c(1,2)
   ground_power <- 1:2
   std_mean_diff <- c(0, 0.1, 1)
@@ -148,7 +150,7 @@ testthat::test_that("SimHolder with grid works", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_warning(sh2$run())
+  testthat::expect_silent(sh2$run())
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -166,9 +168,9 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   n <- 2^7
   p <- 6
   nsims <- 2
-  overlap <- "low"
-  design <- "B"
-  distance <- c("Lp", "mahalanobis")
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
   power <- c(1,2)
   ground_power <- 1:2
   std_mean_diff <- c(0, 0.1, 1)
@@ -216,10 +218,12 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
                        wass_powers = power,
                        ground_powers = ground_power,
                        metrics = distance)
-  testthat::expect_warning(sh2$run())
+  testthat::expect_silent(sh2$run())
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
   testthat::expect_type(original$get_z(), "double")
   testthat::expect_type(original$get_y(), "double")
 })
+
+

@@ -104,29 +104,43 @@ calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FAL
 }
 
 
-ot_calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FALSE,
-                             estimand = c("ATE","ATT","ATC")) {
-  met <- match.arg(metric)
-  estimand <- match.arg(estimand)
+ot_kernel_calculation <- function(X, z, p = 1.0, 
+                                  theta = NULL, gamma = NULL, 
+                                  # sigma_2 = NULL, 
+                                  metric = c("mahalanobis","Lp"),
+                                  is.dose = FALSE, 
+                                  estimand = c("ATE","ATT","ATC")) {
   
   if(!is.matrix(X)) X <- as.matrix(X)
+  if(!is.matrix(z)) z <- as.matrix(z)
   
   if(!is.logical(is.dose)) is.dose <- isTRUE(is.dose)
   
+  estimand <- match.arg(estimand)
+  
+  if(nrow(X) != nrow(z)) stop("Observations of X and z must be equal")
+  
+  met <- match.arg(metric)
   calc_covariance <- isTRUE(met == "mahalanobis")
   
+  theta <- kernel_param_check(theta)
+  gamma <- kernel_param_check(gamma)
+  # sigma_2 <- kernel_sigma_check(sigma_2, nrow(X), is.dose)
+  p <- kernel_power_check(p)
+  
   if(is.dose) {
-    if(!is.matrix(z)) z <- as.matrix(z)
-    
-    if(nrow(X) != length(z)) stop("Observations of X and z must be equal")
-    if(estimand != "ATE") warning("RKHS dose method can only do ATE. ATE will be returned.")
-    return( similarity_calc_dose_(X_ = X, z_ = z,
-                                  calc_covariance = calc_covariance) )
+    return(kernel_calc_dose_(X_ = X, z_ = z, p = p, 
+                             theta_ = theta, gamma_ = gamma,
+                             calc_covariance = calc_covariance))
   } else {
-    if(!is.integer(z)) z <- as.integer(z)
-    
-    return( similarity_calc_(X_ = X, z = z,
-                             calc_covariance = calc_covariance,
-                             estimand = estimand) )
+    orders <- order(z)
+    X <- X[orders,,drop=FALSE]
+    z <- z[orders,,drop=FALSE]
+    return(kernel_calc_ot_(X_ = X, z = z, p = p, 
+                        theta_ = theta, gamma_ = gamma,
+                        # sigma_2 = sigma_2,
+                        calc_covariance = calc_covariance,
+                        estimand = estimand))
   }
+  
 }

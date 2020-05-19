@@ -43,7 +43,9 @@ SimHolder <- R6::R6Class("SimHolder",
                                        return(ESS.output)
                                      },
                                      get.wass = function(output) {
-                                       wass.dt <- data.table::rbindlist(lapply(output[,"wasserstein"], function(o) as.data.frame(o)), idcol = TRUE)
+                                       wass.dt <- data.table::rbindlist(lapply(output[,"wasserstein"], function(o) as.data.frame(o[1:3])), idcol = TRUE, fill = TRUE)
+                                       dist <- unlist(lapply(output[,"wasserstein"], function(o) as.data.frame(o[4])), recursive = FALSE)
+                                       wass.dt <- data.table::set(wass.dt, i = NULL, j = "dist", value = dist)
                                        check.rep <- table(wass.dt[,".id"])
                                        stopifnot(all(check.rep == check.rep[1]))
                                        nrep <- check.rep[1]
@@ -97,7 +99,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                          private$standardized.difference.means <- NULL
                                        }
                                        private$metric <- match.arg(metrics,
-                                                                   c("Lp", "mahalanobis"), several.ok = TRUE)
+                                                                   c("Lp", "mahalanobis", "RKHS"), several.ok = TRUE)
                                        if(!is.null(RKHS) & !missing(RKHS)) {
                                          if(!is.list(RKHS)) RKHS <- list(RKHS)
                                          private$RKHS <- list()
@@ -181,7 +183,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                        private$wass_df <- list(metric = rep(private$metric, each = n_g * n_w))
                                        private$wass_df$ground_p <- rep_len(rep(private$ground_powers, each = n_w), length.out = nrows)
                                        private$wass_df$wass_p <- rep_len(private$wass_powers, length.out = nrows)
-                                       private$wass_df$dist <- numeric(nrows)
+                                       private$wass_df$dist <- vector("list",nrows)
                                        private$method.setup()
                                        
                                        private$output.dt <- data.table::data.table(
@@ -220,6 +222,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                       nmethod = "integer",
                                       nsim = "integer",
                                       RKHS = "list",
+                                      RKHS.opt = "list",
                                       simulator = "DataSim",
                                       solver = "character",
                                       standardized.difference.means = "vector",
@@ -228,11 +231,11 @@ SimHolder <- R6::R6Class("SimHolder",
                                       wass_df = "list",
                                       wass_powers = "vector",
                                       weights = "list",
-                                      cost.fun = function(X, Y, ground_p, direction, metric) {
-                                        return(switch(metric,
-                                                "Lp" = causalOT::cost_calc_lp(X, Y, ground_p, direction),
-                                    "mahalanobis" = causalOT::cost_mahalanobis(X, Y, ground_p, direction)))
-                                        },
+                                    #   cost.fun = function(X, Y, ground_p, direction, metric) {
+                                    #     return(switch(metric,
+                                    #             "Lp" = causalOT::cost_calc_lp(X, Y, ground_p, direction),
+                                    # "mahalanobis" = causalOT::cost_mahalanobis(X, Y, ground_p, direction)))
+                                    #     },
                                       cost.setup = function() {
                                         n_g <- length(private$ground_powers)
                                         n_m <- length(private$metric)
@@ -248,20 +251,48 @@ SimHolder <- R6::R6Class("SimHolder",
                                         x0 <- private$simulator$get_x0()
                                         x1 <- private$simulator$get_x1()
                                         for(i in as.character(private$metric)) {
+                                          if(i == "RKHS") next
                                             for(j in as.character(private$ground_powers)) {
-                                              private$costs[[i]][[j]] <- private$cost.fun(x0, x1,
-                                                                                        ground_p = as.numeric(j), 
-                                                                                        "rowwise", 
-                                                                                        i)
+                                              # function(X, Y, ground_p, direction, metric)
+                                              private$costs[[i]][[j]] <- cost_fun(x=x0, y=x1,
+                                                                                        power = as.numeric(j), 
+                                                                                        metric = i)
                                             }
                                         }
+                                        private$RKHS.opt <- private$costs[["RKHS"]] <- vector("list", length(private$estimand))
+                                        
+                                        if("RKHS" %in% as.character(private$metric)) {
+                                          names(private$RKHS.opt) <- names(private$costs[["RKHS"]] ) <- as.character(private$estimand)
+                                          for(i in as.character(private$estimand)) {
+                                            if(i == "feasible" | i == "cATE") {
+                                              est <- "ATE"
+                                            } else {
+                                              est <- i
+                                            }
+                                            private$RKHS.opt[[i]] <- RKHS_param_opt(x = private$simulator$get_x(),
+                                                                               z = private$simulator$get_z(),
+                                                                               y = private$simulator$get_y(),
+                                                                               power = 2:3,
+                                                                               metric = "mahalanobis",
+                                                                               is.dose = FALSE,
+                                                                               opt.method = private$RKHS$opt.method,
+                                                                               estimand = est)
+                                            private$costs[["RKHS"]][[i]] <- cost_fun(x=x0, y=x1,
+                                                                                   power = 2, 
+                                                                                   metric = "RKHS",
+                                                                                   rkhs.args = private$RKHS.opt[[i]],
+                                                                                   estimand = est
+                                                                                   )
+                                          }
+                                        }
+                                        
                                       },
                                       check.skip = function(weights) {
                                         skip <- FALSE
-                                        if(isTRUE(is.na(weights$w0)) | isTRUE(length(weights$w0) == 0) | isTRUE(is.null(weights$w0))) {
+                                        if(isTRUE(all(is.na(weights$w0))) | isTRUE(length(weights$w0) == 0) | isTRUE(is.null(weights$w0))) {
                                           skip <- TRUE
                                         }
-                                        if(isTRUE(is.na(weights$w1)) | isTRUE(length(weights$w1) == 0) | isTRUE(is.null(weights$w1))) {
+                                        if(isTRUE(all(is.na(weights$w1))) | isTRUE(length(weights$w1) == 0) | isTRUE(is.null(weights$w1))) {
                                           skip <- TRUE
                                         }
                                         return(skip)
@@ -279,14 +310,16 @@ SimHolder <- R6::R6Class("SimHolder",
                                             for (est in cur$estimand[[1]]) {
                                               delta <- private$get_delta(o, est, method)
                                               if ( isTRUE(is.null(delta)) ) next
-                                              if ( isTRUE(method == "RKHS" | method == "RKHS.dose") & isTRUE(est == "feasible") ) next
+                                              if ( isTRUE(method == "RKHS" | method == "RKHS.dose" | method == "Wasserstein") & isTRUE(est == "feasible") ) next
                                               if ( isTRUE(method == "RKHS.dose") & isFALSE(est == "ATE") ) next
-                                              
+                                              if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(est == "feasible")) {
+                                                if(o$metric == "RKHS") next
+                                              }
                                               private$weight.calc(cur = cur, 
                                                                   estimand = est, 
                                                                   solver = solver,
                                                                   delta = delta,
-                                                                  cost = private$get_cost(o), 
+                                                                  cost = private$get_cost(o, est), 
                                                                   p = private$get_power(o),
                                                                   grid.search = isTRUE(o$grid.search),
                                                                   opt.hyperparam = isTRUE(o$opt),
@@ -294,6 +327,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                   )
                                               if(private$check.skip(private$weights[[est]])) next
                                               ess.frac <- list(ESS(private$weights[[est]])/ns)
+                                              # if(method == "Constrained Wasserstein" & est == "ATE") if(o$metric=="RKHS") browser()
                                               for (mods in cur$outcome.model[[1]]) {
                                                 for (aug in cur$model.aug[[1]]) {
                                                   for (match in cur$match[[1]]) {
@@ -327,13 +361,13 @@ SimHolder <- R6::R6Class("SimHolder",
                                         if(method == "Constrained Wasserstein") {
                                           tf.est <- private$temp.output[["SBW"]]$estimand == estimand
                                           tf.delta <- private$temp.output[["SBW"]]$delta == opts$delta
-                                          tf.delta <- if(all(is.na(tf.delta)) & isTRUE(private$grid.search)) rep(TRUE, length(tf.delta))
+                                          if(all(is.na(tf.delta)) & isTRUE(private$grid.search)) tf.delta <- rep(TRUE, length(tf.delta))
                                           select.rows <- which(tf.delta & tf.est)[1]
                                           temp.wass <- private$temp.output[["SBW"]][select.rows, "wasserstein"][[1]]
                                           idx <- which(temp.wass$metric == opts$metric & 
                                                          temp.wass$ground_p == opts$ground_p &
                                                          temp.wass$wass_p == opts$wass_p )
-                                          delta <- temp.wass$dist[idx]
+                                          delta <- temp.wass$dist[[idx]]
                                           # if(is.null(delta)) delta <- NA
                                           return(delta)
                                         } else if (method == "Wasserstein") {
@@ -342,14 +376,19 @@ SimHolder <- R6::R6Class("SimHolder",
                                           return(opts$delta)
                                         }
                                       },
-                                      get_cost = function(opt) {
+                                      get_cost = function(opt, estimand) {
                                         cost <- if(is.null(opt$metric) | is.null(opt$ground_p)){
                                           NULL
                                         # } else if (!is.null(opt$theta) & !is.null(opt$gamma)) {
                                         #   private$kernel
                                         } else {
-                                          private$costs[[opt$metric]][[as.character(opt$ground_p)]] 
+                                          if(opt$metric != "RKHS") {
+                                            private$costs[[opt$metric]][[as.character(opt$ground_p)]] 
+                                          } else {
+                                            private$costs[["RKHS"]][[estimand]]
+                                          }
                                         }
+                                        return(cost)
                                       },
                                       get_power = function(opt) {
                                         if (is.null(opt$wass_p)) {
@@ -483,6 +522,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                         wass.df <- private$wass_df
                                         wass_iter <- 1L
                                         for(metric in private$metric) {
+                                          if(metric == "RKHS") next
                                           for(ground_p in private$ground_powers) {
                                             for(wass_p in private$wass_powers) {
                                               wass.df[["dist"]][[wass_iter]] <- causalOT::wasserstein_p(private$weights[[estimand]], 
@@ -491,6 +531,40 @@ SimHolder <- R6::R6Class("SimHolder",
                                               # names(wass.df[["dist"]][[wass_iter]]) <-
                                               wass_iter <- wass_iter + 1L
                                             }
+                                          }
+                                        }
+                                        if("RKHS" %in% private$metric) {
+                                          temp.cost <- temp.wass <- cost.list <- cost.0 <- cost.1 <- NULL
+                                            for(wass_p in private$wass_powers) {
+                                              if(estimand == "cATE"|estimand == "ATE" | estimand == "feasible") {
+                                                cost.list <- private$costs[["RKHS"]][[estimand]]
+                                                # cost.0 <- cost.list[[1]][,private$simulator$get_z() == 1]
+                                                # cost.1 <- cost.list[[2]][,private$simulator$get_z() == 0]
+                                                # temp.cost <- cost.0/2 + t(cost.1)/2
+                                                w0 <- list(w0 = private$weights[[estimand]]$w0, w1 = renormalize(rep(1,ncol(cost.list[[1]]))),
+                                                           gamma = NULL,
+                                                           estimand = "ATE")
+                                                w1 <- list(w0 = private$weights[[estimand]]$w1, w1 = renormalize(rep(1,ncol(cost.list[[2]]))),
+                                                           gamma = NULL,
+                                                           estimand = "ATE")
+                                                class(w1) <- class(w0) <- "causalWeights"
+                                                temp.wass <- c(causalOT::wasserstein_p(w0, 
+                                                                                     p = wass_p, 
+                                                                                     cost = cost.list[[1]]),
+                                                               causalOT::wasserstein_p(w1, 
+                                                                                       p = wass_p, 
+                                                                                       cost = cost.list[[2]]))
+                                              } else {
+                                                temp.wass <- causalOT::wasserstein_p(private$weights[[estimand]], 
+                                                                                     p = wass_p, 
+                                                                                     cost = private$costs[["RKHS"]][[estimand]])
+                                              }
+                                              
+                                              
+                                              for(ground_p in private$ground_powers) {
+                                                wass.df[["dist"]][[wass_iter]] <- temp.wass
+                                                wass_iter <- wass_iter + 1L
+                                              }
                                           }
                                         }
                                         data.table::set(private$output.dt, i = iter, j = "wasserstein" , value = list(wass.df))
@@ -507,8 +581,10 @@ SimHolder <- R6::R6Class("SimHolder",
                                         if(grid.search & method == "RKHS") delta <- private$RKHS$lambdas
                                         if (estimand != "cATE") {
                                           private$weights[[estimand]]<- 
-                                            calc_weight(private$simulator,  constraint = delta,
-                                                        estimand = estimand, method = method,
+                                            calc_weight(private$simulator,  
+                                                        constraint = delta,
+                                                        estimand = estimand, 
+                                                        method = method,
                                                         cost = cost, p = p[[1]],
                                                         transport.matrix = FALSE,
                                                         solver = solver,
@@ -516,6 +592,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                         opt.method = opt.method,
                                                         grid.search = grid.search,
                                                         grid = delta,
+                                                        rkhs.args = private$RKHS.opt[[estimand]],
                                                         theta = private$RKHS$theta,
                                                         gamma = private$RKHS$gamma,
                                                         iter = if(is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,

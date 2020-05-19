@@ -83,8 +83,10 @@ void covariance_kern(matrix & A,
   
   matrix temp_A = covX.llt().matrixL().solve(A.transpose());
   A = temp_A.transpose(); 
+  // Rcpp::Rcout << A(0,0) << ", ";
   
 }
+
 
 matrix covariance_centered(matrix & A) {
   int N = A.rows();
@@ -316,6 +318,84 @@ double marginal_lik_gp_(const Rcpp::NumericVector & y_,
   
   return(log_prob);
 }
+
+
+//[[Rcpp::export]]
+Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
+                                 const Rcpp::IntegerVector & z,  //tx, a vector but easier if matrix
+                                 const double p,
+                                 const Rcpp::NumericVector  & theta_,
+                                 const Rcpp::NumericVector & gamma_,
+                                 const bool calc_covariance,
+                                 const std::string & estimand) {
+  
+  int N = X_.rows();
+  int d = X_.cols();
+
+  if(N != z.size() ) Rcpp::stop("Observations for X and treatement indicator must be equal!");
+  // if(N != sigma_2_.size() ) Rcpp::stop("Observations for X and variances must be equal!");
+  int N_t = Rcpp::sum(z);
+  int N_c = N - N_t;
+  
+  const matMap X(Rcpp::as<matMap >(X_));
+  // const vecMap sigma_2(Rcpp::as<vecMap>(sigma_2_));
+  // const matMap z(Rcpp::as<matMap >(z_));
+  const double theta_0 = theta_(0);
+  const double theta_1 = theta_(1);
+  const double gamma_0 = gamma_(0);
+  const double gamma_1 = gamma_(1);
+  // matrix theta = matrix::Zero(N,N);
+  // matrix gamma = matrix::Zero(N,N);
+  Rcpp::List output(2);
+  
+  rowVector mean_x = mean_kern(X, z, estimand);
+  
+  matrix A = X.rowwise() - mean_x;
+  
+  
+  if(calc_covariance) {
+    covariance_kern(A, z, estimand);
+  }
+  
+  
+  matrix kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
+  
+  // Block of size (p,q), starting at (i,j)	
+  // matrix.block(i,j,p,q);
+  // matrix.block<p,q>(i,j);
+  
+  if(estimand == "ATT") {
+    matrix temp_sim_t = kernel_matrix_X.block(0,N_c,N_c,N_t);
+    matrix kernel_matrix_t = (temp_sim_t.array() * theta_1 + 1.0).pow(p) * gamma_1;
+    
+    output[0] = Rcpp::wrap(kernel_matrix_t);
+    output[1] = R_NilValue;
+  } else if (estimand == "ATC") {
+    matrix temp_sim_c = kernel_matrix_X.block(0,N_c,N_c,N_t);
+    matrix kernel_matrix_c = (temp_sim_c.array() * theta_0 + 1.0).pow(p) * gamma_0;
+    
+    output[0] = Rcpp::wrap(kernel_matrix_c);
+    output[1] = R_NilValue;
+  } else if (estimand == "ATE") {
+    matrix temp_sim_c = kernel_matrix_X.block(0,0,N_c,N);
+    matrix temp_sim_t = kernel_matrix_X.block(N_c,0,N_t,N);
+    // Rcpp::Rcout << temp_sim_c(0,0) << ", ";
+    matrix kernel_matrix_c = (temp_sim_c.array() * theta_0 + 1.0).pow(p) * gamma_0;
+    matrix kernel_matrix_t = (temp_sim_t.array() * theta_1 + 1.0).pow(p) * gamma_1;
+    // matrix kernel_matrix_c = temp_sim_c;
+    // matrix kernel_matrix_t = temp_sim_t;
+    // Rcpp::Rcout << kernel_matrix_c(0,0);
+    output[0] = Rcpp::wrap(kernel_matrix_c);
+    output[1] = Rcpp::wrap(kernel_matrix_t);
+    
+  }
+  
+  
+  
+  
+  return Rcpp::wrap(output);
+}
+
 
 
 // double marginal_lik_gp_grad_(const Rcpp::NumericVector & y_,
