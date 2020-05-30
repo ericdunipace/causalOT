@@ -521,17 +521,17 @@ testthat::test_that("works for SBW", {
 # 
 # # debugonce(calc_weight_bal)
 # # debugonce(qp_wass)
-# test1 <- calc_weight_bal(data = data,
+# test1 <- calc_weight(data = data,
 #                          dist = "mahalanobis",
-#                          p = 1,
-#                         constraint = 0.01,
+#                          p = 2,
+#                         constraint = .2,
 #                         estimand = "ATE",
 #                         method = "Wasserstein",
 #                         solver = "mosek")
 # 
 # # debugonce(mosek_solver)
 # # debugonce(calc_weight_bal)
-# test2 <- calc_weight_bal(data = data,
+# test2 <- calc_weight(data = data,
 #                          p =1,
 #                         constraint = c(1),
 #                         estimand = "ATE",
@@ -584,14 +584,14 @@ testthat::test_that("works for SBW", {
 # #                                    dist = "mahalanobis",
 # #                                    solver = "mosek")
 # #                     )
-# test6 <- calc_weight_bal(data = data,
+# test6 <- calc_weight(data = data,
 #                          p =1,
 #                          constraint = c(2.2),
 #                          estimand = "cATE",
 #                          method = "Constrained Wasserstein",
 #                          dist = "mahalanobis",
 #                          solver = "mosek")
-# test7 <- calc_weight_bal(data = data,
+# test7 <- calc_weight(data = data,
 #                          p =1,
 #                          constraint = c(2.2),
 #                          estimand = "cATE",
@@ -599,7 +599,7 @@ testthat::test_that("works for SBW", {
 #                          dist = "mahalanobis",
 #                          solver = "mosek")
 # 
-# test8 <- calc_weight_bal(data = data,
+# test8 <- calc_weight(data = data,
 #                          p = 1,
 #                          constraint = .1,
 #                          estimand = "ATE",
@@ -619,4 +619,21 @@ testthat::test_that("works for SBW", {
 # outcome_model(data, weights = test6, target = "ATE", matched = TRUE, doubly.robust = TRUE)
 # outcome_model(data, weights = test7, target = "ATE", matched = TRUE, doubly.robust = TRUE)
 # outcome_model(data, weights = test8, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# 
+# library(causalOT)
+# options(mc.cores = 3)
+# weights <- list(CW = test1,W = test2, SBW=test3, IPW = test4, RKHS = test5,
+#                 cRKHS = test5b, cCW = test6, cW = test7, rCW = test8)
+# ps <- lapply(weights, PSIS)
+# ps.check <- PSIS(weights)
+# testthat::expect_equivalent(ps, ps.check)
+# 
+# diag.check <- lapply(ps, PSIS_diag)
+# diag <- PSIS_diag(ps)
+# diag.check2 <- PSIS_diag(weights)
+# 
+# sapply(weights, ESS)
+# sapply(diag.check2, function(d) c(d$w0$n_eff, d$w1$n_eff))
+# sapply(diag.check2, function(d) c(d$w0$pareto_k, d$w1$pareto_k))
+
 

@@ -16,7 +16,8 @@ Imports:
     Rcpp (>= 1.0.3),
     rstan (>= 2.19.3),
     rstantools (>= 2.0.0),
-    transport (>= 0.12-2)
+    transport (>= 0.12-2),
+    loo
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
