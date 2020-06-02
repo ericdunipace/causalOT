@@ -22,7 +22,10 @@ DataSim <- R6::R6Class("DataSim",
                       get_p = function() {
                         return(private$p)
                       },
-                      gen_data = function(){NULL}),
+                      gen_data = function(){NULL},
+                      opt_weight_dist = function(...){
+                        return(list(NA,NA))
+                      }),
          private = list(n = "numeric",
                        p = "numeric",
                        x = "matrix",
