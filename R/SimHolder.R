@@ -25,7 +25,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                       return(output)
                                     },
                                      get.outcome = function(output) {
-                                       exclude <- c("wasserstein", "ess.frac")
+                                       exclude <- c("wasserstein", "ess.frac", "psis.k", "psis.ess.frac")
                                        exclude.cn <- (-which(colnames(output) %in% exclude))
                                        return(output[,exclude.cn])
                                      },
@@ -42,6 +42,45 @@ SimHolder <- R6::R6Class("SimHolder",
                                        
                                        return(ESS.output)
                                      },
+                                     get.diagnostics = function(output) {
+                                       exclude <- c("wasserstein", "estimate", "ess.frac", "psis.k", "psis.ess.frac")
+                                       exclude.cn <- (-which(colnames(output) %in% exclude))
+                                       ESS.output <- output[,exclude.cn]
+                                       data.table::setDT(ESS.output)
+                                       
+                                       ESS <- data.table::rbindlist(lapply(output[,"ess.frac"], function(o) as.data.frame(t(o))))
+                                       colnames(ESS) <- c("ESS.frac.control", "ESS.frac.treated")
+                                       
+                                       psis.ess <- data.table::rbindlist(lapply(output[,"psis.ess.frac"], function(o) as.data.frame(t(o))))
+                                       colnames(psis.ess) <- c("psis.ESS.frac.control", "psis.ESS.frac.treated")
+                                       
+                                       psis.k <- data.table::rbindlist(lapply(output[,"psis.k"], function(o) as.data.frame(t(o))))
+                                       colnames(psis.k) <- c("psis.k.control", "psis.k.treated")
+                                       
+                                       for(j in colnames(ESS)) data.table::set(ESS.output, i = NULL, j = j, value = ESS[,j])
+                                       for(j in colnames(psis.ess)) data.table::set(ESS.output, i = NULL, j = j, value = psis.ess[,j])
+                                       for(j in colnames(psis.k)) data.table::set(ESS.output, i = NULL, j = j, value = psis.k[,j])
+                                       
+                                       return(ESS.output)
+                                     },
+                                     get.psis = function(output) {
+                                       exclude <- c("wasserstein", "estimate", "ess.frac", "psis.k", "psis.ess.frac")
+                                       exclude.cn <- (-which(colnames(output) %in% exclude))
+                                       psis.output <- output[,exclude.cn]
+                                       data.table::setDT(psis.output)
+                                       
+                                       
+                                       psis.ess <- data.table::rbindlist(lapply(output[,"psis.ess.frac"], function(o) as.data.frame(t(o))))
+                                       colnames(psis.ess) <- c("psis.ESS.frac.control", "psis.ESS.frac.treated")
+                                       
+                                       psis.k <- data.table::rbindlist(lapply(output[,"psis.k"], function(o) as.data.frame(t(o))))
+                                       colnames(psis.k) <- c("psis.k.control", "psis.k.treated")
+                                       
+                                       for(j in colnames(psis.ess)) data.table::set(psis.output, i = NULL, j = j, value = psis.ess[,j])
+                                       for(j in colnames(psis.k)) data.table::set(psis.output, i = NULL, j = j, value = psis.k[,j])
+                                       
+                                       return(psis.output)
+                                     },
                                      get.wass = function(output) {
                                        wass.dt <- data.table::rbindlist(lapply(output[,"wasserstein"], function(o) as.data.frame(o[1:3])), idcol = TRUE, fill = TRUE)
                                        dist <- unlist(lapply(output[,"wasserstein"], function(o) as.data.frame(o[4])), recursive = FALSE)
@@ -50,7 +89,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                        stopifnot(all(check.rep == check.rep[1]))
                                        nrep <- check.rep[1]
                                        
-                                       exclude <- c("wasserstein", "estimate", "ESS.frac")
+                                       exclude <- c("wasserstein", "estimate", "ESS.frac","psis.k","psis.ess.frac")
                                        exclude.cn <- (-which(colnames(output) %in% exclude))
                                        wass.output <- output[rep(1:nrow(output), each = nrep), exclude.cn]
                                        data.table::setDT(wass.output)
@@ -197,6 +236,8 @@ SimHolder <- R6::R6Class("SimHolder",
                                                             options = lapply(1:private$max.conditions, function(i) list(NA)), #vector("list", private$max.conditions),
                                                             wasserstein = lapply(1:private$max.conditions, function(i) private$wass_df),
                                                             ess.frac = lapply(1:private$max.conditions, function(i) private$wass_df),
+                                                            psis.ess.frac = lapply(1:private$max.conditions, function(i) private$wass_df),
+                                                            psis.k = lapply(1:private$max.conditions, function(i) private$wass_df),
                                                             estimate = rep(NA_real_, private$max.conditions)
                                                             )
                                        private$weights <- sapply(private$estimand, function(i) {NULL}, simplify = NULL)
@@ -300,6 +341,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                       estimate = function(method) {
                                         cur <- private$method.lookup[private$method.lookup$method == method,]
                                         ess.frac <- list()
+                                        psis.output <- list()
                                         ns <- private$simulator$get_n()
                                         # if(method == "Constrained Wasserstein") cur$options <- private$get_delta(cur$options[[1]])
                                         iter <- 1L
@@ -327,9 +369,15 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                   )
                                               if(private$check.skip(private$weights[[est]])) next
                                               ess.frac <- list(ESS(private$weights[[est]])/ns)
+                                              psis.output <- PSIS_diag(private$weights[[est]])
+                                              psis.ess.frac <- list(sapply(psis.output, function(w) w$n_eff)/ns)
+                                              psis.k <- list(lapply(psis.output, function(w) w$pareto_k))
                                               # if(method == "Constrained Wasserstein" & est == "ATE") if(o$metric=="RKHS") browser()
                                               for (mods in cur$outcome.model[[1]]) {
                                                 for (aug in cur$model.aug[[1]]) {
+                                                  opt.dist <- list(private$simulator$opt_weight_dist(weight = private$weights[[est]], 
+                                                                                                     estimand = est, augment = aug, 
+                                                                                                     solver = private$solver[1]))
                                                   for (match in cur$match[[1]]) {
                                                       data.table::set(private$output.dt, i = iter, j = "estimand" , value = est)
                                                       data.table::set(private$output.dt, i = iter, j = "model" , value = mods)
@@ -340,6 +388,11 @@ SimHolder <- R6::R6Class("SimHolder",
                                                       data.table::set(private$output.dt, i = iter, j = "options" , value = list(list(o)))
                                                       private$wass.calc(iter, est)
                                                       data.table::set(private$output.dt, i = iter, j = "ess.frac", value = ess.frac)
+                                                      #PSIS
+                                                      data.table::set(private$output.dt, i = iter, j = "psis.ess.frac", value = psis.ess.frac)
+                                                      data.table::set(private$output.dt, i = iter, j = "psis.k", value = psis.k)
+                                                      #opt wt dist
+                                                      data.table::set(private$output.dt, i = iter, j = "opt.dist", value = opt.dist)
                                                       data.table::set(private$output.dt, i = iter, j = "estimate", 
                                                                       value = outcome_model(private$simulator, 
                                                                                             formula = cur$outcome.formula[[1]][[aug + 1]],

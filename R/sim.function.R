@@ -60,13 +60,16 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
   outcome <- sh$get.outcome(sh.output)
   wasserstein <- sh$get.wass(sh.output)
   ESS.frac <- sh$get.ESS.frac(sh.output)
+  psis <- sh$get.psis(sh.output)
   
   #### create output list ####
   output <- list(outcome,
                  ESS.frac,
+                 psis,
                  wasserstein)
   names(output) <- c("outcome",
                      "ESS/N",
+                     "PSIS",
                      "Wasserstein")
   class(output) <- "simOutput"
   

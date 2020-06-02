@@ -5,7 +5,7 @@ testthat::test_that("SimHolder generates object", {
   library(causalOT)
 
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 1
   overlap <- "high"
@@ -44,7 +44,7 @@ testthat::test_that("SimHolder runs", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 2
   overlap <- "high"
@@ -81,7 +81,14 @@ testthat::test_that("SimHolder runs", {
                       metrics = distance)
   # the cost of one was all NA and the weights too...
   # sh$run()
-  testthat::expect_silent(sh$run())
+  testthat::expect_warning(
+      {
+        
+        sh$run()
+        warn <- warnings()
+      }
+    )
+  if(!is.null(warn)) print(warn)
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -90,6 +97,9 @@ testthat::test_that("SimHolder runs", {
   
   out <- sh$get.output()
   outcome <- sh$get.outcome(out)
+  ess <- sh$get.ESS.frac(out)
+  diag <- sh$get.diagnostics(out)
+  psis <- sh$get.psis(out)
 })
 
 testthat::test_that("SimHolder with grid works", {
@@ -99,7 +109,7 @@ testthat::test_that("SimHolder with grid works", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 2
   overlap <- "high"
@@ -135,7 +145,12 @@ testthat::test_that("SimHolder with grid works", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_silent(sh$run())
+  testthat::expect_warning(
+    {
+      sh$run()
+      warn <- warnings()
+    })
+  if(!is.null(warn)) print(warn)
   sh2 <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
@@ -150,7 +165,12 @@ testthat::test_that("SimHolder with grid works", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_silent(sh2$run())
+  testthat::expect_warning(
+    {
+      sh2$run()
+      warn <- warnings()
+    })
+  if(!is.null(warn)) print(warn)
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -165,7 +185,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 2
   overlap <- "high"
@@ -202,7 +222,12 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
                       wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance)
-  testthat::expect_silent(sh$run())
+  testthat::expect_warning(
+    {
+      sh$run()
+      warn <- warnings()
+    })
+  if(!is.null(warn)) print(warn)
   sh2 <- SimHolder$new(nsim = nsims,
                        dataSim = original,
                        grid.search = TRUE,
@@ -218,7 +243,12 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
                        wass_powers = power,
                        ground_powers = ground_power,
                        metrics = distance)
-  testthat::expect_silent(sh2$run())
+  testthat::expect_warning(
+    {
+      sh2$run()
+      warn <- warnings()
+    })
+  if(!is.null(warn)) print(warn)
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
