@@ -14,6 +14,7 @@ Imports:
     methods,
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
+    RcppParallel,
     rstan (>= 2.19.3),
     rstantools (>= 2.0.0),
     transport (>= 0.12-2),
