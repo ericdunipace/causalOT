@@ -43,7 +43,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATT", "ATC","ATE",
     #                                 method = method,
     #                                 ...))
   } else {
-    if(method == "cATE") method <- "ATE"
+    if(estimand == "cATE") estimand <- "ATE"
     calc_weight_glm (data, constraint, estimand, ...)
   }
   

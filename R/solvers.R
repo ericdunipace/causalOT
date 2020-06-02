@@ -15,7 +15,7 @@ cplex_solver <- function(qp, ...) {
   fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
   invisible(capture.output( res <-
                               Rcplex::Rcplex(cvec = c(qp$obj$L), Amat = qp$LC$A, 
-                                             bvec = qp$LC$vals, Qmat = qp$obj$Q,
+                                             bvec = qp$LC$vals, Qmat = qp$obj$Q * 2,
                                              lb = 0, ub = Inf, control=control,
                                              objsense = "min", sense = qp$LC$dir,
                                              vtype = "C", n = 1) , type = "message", file = fn.capt))
@@ -89,11 +89,13 @@ mosek_solver <- function(qp, ...) {
       } else {
         vals <- mean(qp$obj$Q@x)
       }
-      model$qobj <- list(i = 1:num_param, j =  1:num_param, v = rep(vals,num_param))
+      model$qobj <- list(i = 1:num_param, j =  1:num_param, v = rep(2*vals,num_param))
     } else {
-      if(!inherits(qp$obj$Q,"dgTMatrix")) qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
+      if(!inherits(qp$obj$Q,"dgTMatrix")) {
+        qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
+      }
       trimat <- Matrix::tril(qp$obj$Q)
-      model$qobj <- list(i = trimat@i+1, j = trimat@j+1, v = trimat@x)
+      model$qobj <- list(i = trimat@i+1, j = trimat@j+1, v = trimat@x * 2)
     }
   }
   model$c <- c(qp$obj$L)
@@ -102,14 +104,16 @@ mosek_solver <- function(qp, ...) {
   
   #constraint bounds
   num_bounds <- sum(qp$LC$dir == "E") + sum(qp$LC$dir == "L") + sum(qp$LC$dir == "G")
-  blc <- rep(-Inf, num_bounds)
-  buc <- rep(Inf, num_bounds)
-  blc[qp$LC$dir=="E"] <- buc[qp$LC$dir=="E"] <- qp$LC$vals[qp$LC$dir=="E"]
-  buc[qp$LC$dir=="L"] <- qp$LC$vals[qp$LC$dir=="L"]
-  blc[qp$LC$dir=="G"] <- qp$LC$vals[qp$LC$dir=="G"]
-  
-  model$bc <- rbind(blc = blc,
-                    buc = buc)
+  if(num_bounds > 0) {
+    blc <- rep(-Inf, num_bounds)
+    buc <- rep(Inf, num_bounds)
+    blc[qp$LC$dir=="E"] <- buc[qp$LC$dir=="E"] <- qp$LC$vals[qp$LC$dir=="E"]
+    buc[qp$LC$dir=="L"] <- qp$LC$vals[qp$LC$dir=="L"]
+    blc[qp$LC$dir=="G"] <- qp$LC$vals[qp$LC$dir=="G"]
+    
+    model$bc <- rbind(blc = blc,
+                      buc = buc)
+  }
   
   opts <- list(verbose = 0L)
   

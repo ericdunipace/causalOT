@@ -64,7 +64,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                         ncol = 3) %*% chol(private$param$param_x$x_13$covar)
                                x4 <- runif(private$n, private$param$param_x$x4$lower, private$param$param_x$x4$upper)
                                x5 <- rchisq(private$n, df = private$param$param_x$x5$df)
-                               x6 <- rbinom(private$n, size = 1, prob =private$param$param_x$x6$p)
+                               x6 <- rbinom(private$n, size = 1, prob = private$param$param_x$x6$p)
                                
                                private$x <- cbind(x13, x4, x5, x6)
                                colnames(private$x) <- paste0("X",1:6)
@@ -120,6 +120,145 @@ Hainmueller <- R6::R6Class("Hainmueller",
                              },
                              get_design = function() {
                                return(c(design = private$design, overlap = private$overlap))
+                             },
+                             opt_weight = function(estimand = "ATE", augment = FALSE, solver = "mosek") {
+                               if(estimand == "cATE") estimand <- "ATE"
+                               estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
+                               aug <- isTRUE(augment)
+                               solver <- match.arg(solver, choices = c("mosek", "gurobi", "cplex"))
+                               
+                               # f = switch(as.character(aug),
+                               #            "FALSE" = private$y,
+                               #            "TRUE" = switch(as.character(private$design),
+                               #                       "A" = private$x %*% private$param$beta_y,
+                               #                       "1" = private$x %*% private$param$beta_y,
+                               #                       "B" = (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2,
+                               #                       "2" = (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2,
+                               #                       stop("design must be one of 'A' or 'B'")))
+                               m0 <- .lm.fit(private$x[private$z==0,,drop = FALSE], private$y[private$z==0,drop=FALSE])
+                               m1 <- .lm.fit(private$x[private$z==1,,drop = FALSE], private$y[private$z==1,drop=FALSE])
+                               f = switch(as.character(aug),
+                                          "FALSE" =switch(estimand,
+                                                          "ATT" = private$y[private$z==0,drop=FALSE],
+                                                          "ATC" = private$y[private$z==1,drop=FALSE],
+                                                          "ATE" = list(private$y[private$z==0,drop=FALSE],
+                                                                       private$y[private$z==1,drop=FALSE])),
+                                          "TRUE" = switch(estimand,
+                                                          "ATT" = m0$residuals,
+                                                          "ATC" = m1$residuals,
+                                                          "ATE" = list(m0$residuals,
+                                                                    m1$residuals)))
+                               const <- switch(as.character(aug),
+                                               "FALSE" = switch(estimand,
+                                                                "ATT" = 0,
+                                                                "ATC" = 0,
+                                                                "ATE" = c(0,
+                                                                          0)),
+                                               "TRUE" = switch(estimand,
+                                                               "ATT" = mean(private$x[private$z==1,,drop= FALSE] %*% m0$coefficients),
+                                                               "ATC" = mean(private$x[private$z==0,,drop= FALSE] %*% m1$coefficients),
+                                                               "ATE" = c(mean(private$x[private$z==1,,drop= FALSE] %*% m0$coefficients),
+                                                                         mean(private$x[private$z==0,,drop= FALSE] %*% m1$coefficients))))
+                               
+                               mu_1 = switch(paste0(c(private$design, private$overlap), collapse =", "),
+                                             "A, high" = 2.0944332,
+                                             "A, low" = 2.3886758,
+                                             "B, high" = 9.003046,
+                                             "B, low" = 9.497603 )
+                               mu_0 = switch(paste0(c(private$design, private$overlap), collapse =", "),
+                                             "A, high" = 0.9165373,
+                                             "A, low" = 0.6069783,
+                                             "B, high" = 7.011926,
+                                             "B, low" = 6.528442)
+                               
+                               mu = switch(as.character(private$design),
+                                           "A" = 1.5,
+                                           "1" = 1.5,
+                                           "B" = 8,
+                                           "2" = 8,
+                                           stop("design must be one of 'A' or 'B'"))
+                               
+                               mu_var <- switch(estimand,
+                                      "ATE" = mu,
+                                      "ATT" = mu_1,
+                                      "ATC" = mu_0)
+                               
+                               # f <- switch(estimand,
+                               #             "ATE" = f,
+                               #             "ATT" = f[private$z == 0],
+                               #             "ATC" = f[private$z == 1])
+                               if(estimand != "ATE" ) {
+                                 Q <-Matrix::Matrix(tcrossprod(f), sparse = TRUE)
+                                 L <- -2 * (mu_var - const) * t(f)
+                                 A <- Matrix::sparseMatrix(i = rep(1, length(f)),
+                                                           j = 1:length(f),
+                                                           x = 1)
+                                 problem <- list(obj = list(Q = Q, L = L),
+                                                 LC = list(dir = "E",
+                                                           vals = 1,
+                                                           A = A))
+                                 
+                                 weights <- switch(solver,
+                                                   "mosek" =  mosek_solver(problem),
+                                                   "gurobi" = gurobi_solver(problem),
+                                                   "cplex"  = cplex_solver(problem)
+                                 )
+                                 weights <- renormalize(weights)
+                               } else {
+                                 f1 <- f[[2]]
+                                 f0 <- f[[1]]
+                                 
+                                 Q0 <- Matrix::Matrix(tcrossprod(f0), sparse = TRUE)
+                                 L0 <- -2 * (mu_var - const[1]) * t(f0)
+                                 A0 <- Matrix::sparseMatrix(i = rep(1, length(f0)),
+                                                           j = 1:length(f0),
+                                                           x = 1)
+                                 problem0 <- list(obj = list(Q = Q0, L = L0),
+                                                 LC = list(dir = "E",
+                                                           vals = 1,
+                                                           A = A0))
+                                 
+                                 Q1 <- Matrix::Matrix(tcrossprod(f1), sparse = TRUE)
+                                 L1 <- -2 * (mu_var - const[2]) * t(f1)
+                                 A1 <- Matrix::sparseMatrix(i = rep(1, length(f1)),
+                                                            j = 1:length(f1),
+                                                            x = 1)
+                                 problem1 <- list(obj = list(Q = Q1, L = L1),
+                                                 LC = list(dir = "E",
+                                                           vals = 1,
+                                                           A = A1))
+                                 
+                                 weights <- list(w0 = switch(solver,
+                                                   "mosek" =  mosek_solver(problem0),
+                                                   "gurobi" = gurobi_solver(problem0),
+                                                   "cplex"  = cplex_solver(problem0)
+                                 ),
+                                             w1 = switch(solver,
+                                                    "mosek" =  mosek_solver(problem1),
+                                                    "gurobi" = gurobi_solver(problem1),
+                                                    "cplex"  = cplex_solver(problem1)
+                                 ) )
+                                 weights <- lapply(weights, renormalize)
+                               }
+                               return(weights)
+                               
+                             },
+                             opt_weight_dist = function(weight, estimand = "ATE", augment = FALSE, solver = "mosek") {
+                               if(estimand == "cATE") estimand <- "ATE"
+                               estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
+                               
+                               w_star <- self$opt_weight(estimand = estimand, augment = augment, solver = solver)
+                               # norm_weight <- list(w0 = renormalize(weight$w0),
+                               #                     w1 = renormalize(weight$w1))
+                               if(estimand == "ATE") {
+                                 dist <- sqrt(sum((unlist(w_star) - c(weight$w0, weight$w1))^2))
+                                 
+                               } else if (estimand == "ATT") {
+                                 dist <- sqrt(sum((w_star - c(weight$w0))^2))
+                               } else if (estimand == "ATC") {
+                                 dist <- sqrt(sum((w_star - c(weight$w1))^2))
+                               }
+                               return(dist)
                              }
                            ),
                            private = list(design = "character",
