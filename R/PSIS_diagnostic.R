@@ -21,10 +21,22 @@ PSIS.causalWeights <- function(x, r_eff = NULL, ...) {
   } else {
     r_eff <- c(1,1)
   }
+  res <- list(w0 = NULL,
+              w1 = NULL)
   
-  
-  res <- list(w0 = PSIS.default(x$w0, r_eff = r_eff[1],...),
-              w1 = PSIS.default(x$w1, r_eff = r_eff[2],...))
+  if(is.null(x$estimand)) {
+    res$w0 = PSIS.default(x$w0, r_eff = r_eff[1],...)
+    res$w1 = PSIS.default(x$w1, r_eff = r_eff[2],...)
+  } else if(x$estimand == "ATT") {
+    res$w0 <- PSIS.default(x$w0, r_eff = r_eff[1],...)
+    res$w1 <- list(diagnostics = list(pareto_k = NA, n_eff = length(x$w1)))
+  } else if (x$estimand == "ATC") {
+    res$w0 <- list(diagnostics = list(pareto_k = NA, n_eff = length(x$w0)))
+    res$w1 = PSIS.default(x$w1, r_eff = r_eff[2],...)
+  } else if (x$estimand == "ATE" | x$estimand == "feasible") {
+    res$w0 = PSIS.default(x$w0, r_eff = r_eff[1],...)
+    res$w1 = PSIS.default(x$w1, r_eff = r_eff[2],...)
+  }
   
   class(res) <- "causalPSIS"
                    

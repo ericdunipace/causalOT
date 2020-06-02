@@ -1,4 +1,4 @@
-test_that("multiplication works", {
+testthat::test_that("multiplication works", {
   n0 <- 100
   n1 <- 55
   d <- 5

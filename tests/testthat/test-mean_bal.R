@@ -1,4 +1,4 @@
-test_that("mean_bal works", {
+testthat::test_that("mean_bal works", {
   set.seed(23324)
   library(causalOT)
   n <- 100

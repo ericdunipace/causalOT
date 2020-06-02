@@ -1,4 +1,4 @@
-test_that("PSIS diagnostics work", {
+testthat::test_that("PSIS diagnostics work", {
   library(causalOT)
   set.seed(23483)
   n <- 2^7
@@ -90,3 +90,44 @@ test_that("PSIS diagnostics work", {
   testthat::expect_equal(diag, diag.check)
   testthat::expect_equal(diag, diag.check2)
 })
+
+testthat::test_that("PSIS diagnostics work, feasible", {
+  library(causalOT)
+  set.seed(23483)
+  n <- 2^7
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp")
+  power <- c(1,2)
+  solver <- "gurobi"
+  # estimates <- c("ATT", "ATC","ATE", "feasible")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p,
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  
+  
+  cost  <- cost_mahalanobis(data$get_x0(), data$get_x1(), 1)
+  cost0 <- cost_mahalanobis(data$get_x(), data$get_x0(), 1)
+  cost1 <- cost_mahalanobis(data$get_x(), data$get_x1(), 1)
+  
+  # debugonce(calc_weight_bal)
+  # debugonce(qp_wass)
+  test1 <- calc_weight(data = data,
+                       dist = "mahalanobis",
+                       p = 1,
+                       constraint = 0.01,
+                       estimand = "feasible",
+                       method = "SBW",
+                       solver = "mosek")
+  
+  
+  testthat::expect_silent(diag.check <- PSIS_diag(test1))
+})
+

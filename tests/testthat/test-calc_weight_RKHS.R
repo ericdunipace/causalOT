@@ -32,7 +32,6 @@ testthat::test_that("check RKHS kernel works", {
                                                   p = power[1], metric = "mahalanobis"))
 })
 
-
 testthat::test_that("check RKHS kernel works with hyper param opt", {
   set.seed(23483)
   n <- 2^9

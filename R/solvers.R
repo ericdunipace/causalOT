@@ -10,12 +10,13 @@ cplex_solver <- function(qp, ...) {
   if(!is.null(qp$obj$Q)) {
     if(inherits(qp$obj$Q, "ddiMatrix")) qp$obj$Q <- as(as(qp$obj$Q, "dsparseMatrix"), "dtCMatrix")
     if(!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "dsCMatrix")
+    qp$obj$Q <-qp$obj$Q * 2
   }
   
   fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
   invisible(capture.output( res <-
                               Rcplex::Rcplex(cvec = c(qp$obj$L), Amat = qp$LC$A, 
-                                             bvec = qp$LC$vals, Qmat = qp$obj$Q * 2,
+                                             bvec = qp$LC$vals, Qmat = qp$obj$Q,
                                              lb = 0, ub = Inf, control=control,
                                              objsense = "min", sense = qp$LC$dir,
                                              vtype = "C", n = 1) , type = "message", file = fn.capt))

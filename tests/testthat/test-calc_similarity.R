@@ -29,7 +29,6 @@ testthat::test_that("similarity calcs work, non dose, ATE", {
                                                         estimand = "ATE"))
 })
 
-
 testthat::test_that("similarity calcs work, non dose, ATC", {
   set.seed(989080)
   library(causalOT)
@@ -97,7 +96,6 @@ testthat::test_that("similarity calcs work, non dose, ATT", {
   testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", is.dose = FALSE,
                                                         estimand = "ATT"))
 })
-
 
 testthat::test_that("similarity calcs work, dose", {
   set.seed(979797)

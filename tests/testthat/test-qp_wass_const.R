@@ -43,7 +43,6 @@ testthat::test_that("qp_wass_const correct", {
   
 })
 
-
 testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   set.seed(23483)
   n <- 2^7

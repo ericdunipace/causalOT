@@ -244,19 +244,18 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                
                              },
                              opt_weight_dist = function(weight, estimand = "ATE", augment = FALSE, solver = "mosek") {
-                               if(estimand == "cATE") estimand <- "ATE"
+                               if(estimand == "cATE" | estimand == "feasible") estimand <- "ATE"
                                estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
                                
                                w_star <- self$opt_weight(estimand = estimand, augment = augment, solver = solver)
                                # norm_weight <- list(w0 = renormalize(weight$w0),
                                #                     w1 = renormalize(weight$w1))
                                if(estimand == "ATE") {
-                                 dist <- sqrt(sum((unlist(w_star) - c(weight$w0, weight$w1))^2))
-                                 
+                                 dist <- mean(abs(unlist(w_star) - c(weight$w0, weight$w1)))
                                } else if (estimand == "ATT") {
-                                 dist <- sqrt(sum((w_star - c(weight$w0))^2))
+                                 dist <- mean(abs((w_star - c(weight$w0))))
                                } else if (estimand == "ATC") {
-                                 dist <- sqrt(sum((w_star - c(weight$w1))^2))
+                                 dist <- mean(abs((w_star - c(weight$w1))))
                                }
                                return(dist)
                              }

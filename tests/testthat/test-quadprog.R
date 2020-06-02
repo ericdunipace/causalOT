@@ -46,7 +46,6 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp", {
   
 })
 
-
 testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
   set.seed(23483)
   n <- 2^7
