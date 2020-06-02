@@ -6,6 +6,12 @@ PKG_CPPFLAGS = -I"../inst/include" -I"$(STANHEADERS_SRC)" -DBOOST_DISABLE_ASSERT
 
 CXX_STD = CXX14
 
+PKG_CXXFLAGS += -DRCPP_PARALLEL_USE_TBB=1
+
+PKG_LIBS += $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" \
+              -e "RcppParallel::RcppParallelLibs()")
+
+
 all: $(SHLIB)
 
 clean:
