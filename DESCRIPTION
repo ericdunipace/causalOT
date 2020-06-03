@@ -14,6 +14,7 @@ Imports:
     methods,
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
+    RcppParallel,
     rstan (>= 2.19.3),
     rstantools (>= 2.0.0),
     transport (>= 0.12-2),
@@ -22,6 +23,7 @@ LinkingTo:
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
     RcppEigen (>= 0.3.3.3.0),
+    RcppParallel,
     rstan (>= 2.18.1),
     StanHeaders (>= 2.19.2)
 Suggests: 
