@@ -34,7 +34,7 @@ testthat::test_that("parameter optimization for RKHS", {
   
   # debugonce("RKHS_param_opt")
   
-  testthat::expect_silent(opt2 <- RKHS_param_opt(x, y, z, power = 2:3,
+  testthat::expect_warning(opt2 <- RKHS_param_opt(x, y, z, power = 2:3,
                         metric = c("mahalanobis"), is.dose = FALSE, 
                         opt.method = c("optim"), control = list(maxit = 10)))
                         

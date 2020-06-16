@@ -78,7 +78,8 @@ testthat::test_that("SimHolder runs", {
                       solver = "gurobi",
                       wass_powers = power,
                       ground_powers = ground_power,
-                      metrics = distance)
+                      metrics = distance,
+                      constrained.wasserstein.target = c("SBW"))
   # the cost of one was all NA and the weights too...
   # sh$run()
   testthat::expect_warning(
@@ -88,6 +89,72 @@ testthat::test_that("SimHolder runs", {
         warn <- warnings()
       }
     )
+  if(!is.null(warn)) print(warn)
+  testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
+  testthat::expect_type(original$get_x0(), "double")
+  testthat::expect_type(original$get_x1(), "double")
+  testthat::expect_type(original$get_z(), "double")
+  testthat::expect_type(original$get_y(), "double")
+  
+  out <- sh$get.output()
+  outcome <- sh$get.outcome(out)
+  ess <- sh$get.ESS.frac(out)
+  diag <- sh$get.diagnostics(out)
+  psis <- sh$get.psis(out)
+})
+
+testthat::test_that("SimHolder runs while targeting RKHS", {
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 2
+  overlap <- "high"
+  design <- "A"
+  distance <- c("RKHS")
+  power <- c(1,2)
+  ground_power <- 1:2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  # SimHolder$debug("initialize")
+  # SimHolder$debug("update")
+  # SimHolder$debug("estimate")
+  # SimHolder$debug("get_delta")
+  # SimHolder$debug("method.setup")
+  # SimHolder$debug("cost.setup")
+  # SimHolder$debug("max.cond.calc")
+  sh <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = FALSE,
+                      truncations = std_mean_diff,
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      match = "both",
+                      solver = "gurobi",
+                      wass_powers = power,
+                      ground_powers = ground_power,
+                      metrics = distance,
+                      constrained.wasserstein.target = c("RKHS"))
+  # the cost of one was all NA and the weights too...
+  # sh$run()
+  testthat::expect_warning(
+    {
+      
+      sh$run()
+      warn <- warnings()
+    }
+  )
   if(!is.null(warn)) print(warn)
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")

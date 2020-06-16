@@ -812,7 +812,7 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
   
   if(is.null(cost)) { 
     cost <- kernel_calculation(x, z, p = p, theta = theta, 
-                               gamma = gamma, sigma_2 = 0, 
+                               gamma = gamma, sigma_2 = sigma_2, 
                                metric = dist, is.dose = is.dose,
                                estimand = estimand)
   } else {

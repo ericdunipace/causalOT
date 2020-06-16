@@ -1,90 +1,74 @@
-setup_data_for_table <- function(data) {
-  logistic <- data$outcome %>% 
-    filter(estimate == "ATE" & metric == "mahalanobis" &
-             weighting.method == "Logistic" & wasserstein.power == 2)
+setup_data_for_table <- function(high, low, metrics = "mahalanobis", 
+                                 estimands = "ATE",
+                                 p = 2) {
   
-  notlog <- data$outcome %>% 
-    filter(estimate == "ATE" & metric == "mahalanobis" &
-             weighting.method != "Logistic" & wasserstein.power == 2)
+  high_out <- setup_data_work(high, metrics = metrics,
+                  estimands = estimands, p = p)
+  
+  low_out <- setup_data_work(low, metrics = metrics,
+                             estimands = estimands, p = p)
+  
+  
+  
+  return(list(unmatched = grp_tibble %>% filter(Matched == FALSE),
+              matched = grp_tibble %>% filter(Matched == TRUE)))
+}
+
+setup_data_work <- function(data, metrics = "mahalanobis", 
+                                 estimands = "ATE",
+                                 p = 2) {
+  
+  drop.single <- function(dat, col) {
+    xx <- dat[[col]]
+    if(length(unique(xx)) == 2) {
+      if(any(unique(xx) == "(Missing)")) {
+        return(NULL)
+      }
+    }
+    return(xx)
+  }
+  
+  data$outcome$delta <- forcats::fct_explicit_na(data$outcome$delta)
+  data$outcome$metric <- forcats::fct_explicit_na(data$outcome$metric)
+  data$outcome$method <- factor(data$outcome$method, levels = unique(data$outcome$method))
+  data$outcome$estimand <- factor(data$outcome$estimand, levels = unique(data$outcome$estimand))
+  
+  logistic <- data$outcome %>% 
+    filter(estimand %in% estimands & method == "Logistic" )
+  
+  wass <- data$outcome %>% 
+    filter(estimand %in% estimands & metric %in% metrics &
+             grepl("Wasserstein", method) & wass_p == p)
+  other <- data$outcome %>% 
+    filter(estimand %in% estimands & 
+             metric %in% c("(Missing)", metrics[1]) &
+             (method %in% c("SBW","RKHS","RKHS.dose") ))
+  
+  combine <- rbind(logistic, other, wass)
   
   #### Gen tibbles ####
-  
-  ltibble <- logistic %>% 
-    filter (matched == FALSE) %>%
-    group_by(doubly.robust
-             # , matched
-             , standardized.mean.difference
+  grp_tibble <- combine %>% 
+    # filter (match %in% matched) %>%
+    group_by(estimand
+             , model.augmentation
+             , match
+             , method
+             , delta
+             , metric
     ) %>%
-    summarize(Bias = mean(values),
+    summarize(Bias = mean(estimate)*100,
               # Variance = var(values),
-              RMSE = sqrt(mean(values^2)))
+              RMSE = sqrt(mean(estimate^2))*100)
   
-  colnames(ltibble)[1:2] <- c("Estimator", "$\\alpha$ truncation level")
-  ltibble$Estimator <- ifelse(ltibble$Estimator, "DR Hajek", "Hajek")
+  new.lab <- c("Estimand", "Estimator", "Matched", "Method", "$\\alpha$ truncation level", "Metric")
+  colnames(grp_tibble)[1:length(new.lab)] <- new.lab
+  grp_tibble$Estimator <- ifelse(grp_tibble$Estimator, "DR Hajek", "Hajek")
   
-  nl.tibbleDR <- notlog %>% 
-    filter (matched == FALSE & weighting.method != "Wasserstein") %>%
-    group_by(doubly.robust
-             , weighting.method
-             , standardized.mean.difference
-    ) %>%
-    summarize(Bias = mean(values),
-              # Variance = var(values),
-              RMSE = sqrt(mean(values^2)))
   
-  nl.tibbleDRW <- notlog %>% 
-    filter (matched == FALSE & weighting.method == "Wasserstein" & standardized.mean.difference== 0.1) %>%
-    group_by(doubly.robust
-             , weighting.method
-             , standardized.mean.difference
-    ) %>%
-    summarize(Bias = mean(values),
-              # Variance = var(values),
-              RMSE = sqrt(mean(values^2)))
-  nl.tibbleDRW$standardized.mean.difference[nl.tibbleDRW$weighting.method == "Wasserstein"] <- NA
-  nl.tibbleDR <- rbind(nl.tibbleDR, nl.tibbleDRW)
-  nl.tibbleDR <- nl.tibbleDR %>% arrange(desc(-doubly.robust))
-  colnames(nl.tibbleDR)[1:3] <- c("Estimator", "Weights", "Std. Mean Difference")
-  nl.tibbleDR$Estimator <- ifelse(nl.tibbleDR$Estimator, "DR Hajek", "Hajek")
+  grp_tibble$Metric <- drop.single(grp_tibble, "Metric")
+  grp_tibble$"$\\alpha$ truncation level" <- drop.single(grp_tibble, "$\\alpha$ truncation level")
   
-  ltibbleM <- logistic %>% 
-    filter (matched == TRUE) %>%
-    group_by(doubly.robust
-             # , matched
-             , standardized.mean.difference
-    ) %>%
-    summarize(Bias = mean(values),
-              # Variance = var(values),
-              RMSE = sqrt(mean(values^2)))
   
-  colnames(ltibbleM)[1:2] <- c("Estimator", "$\\alpha$ truncation level")
-  ltibbleM$Estimator <- ifelse(ltibbleM$Estimator, "Bias Adj. Matched", "Matched" )
-  
-  nl.tibbleDRM <- notlog %>% 
-    filter (matched == TRUE & weighting.method != "Wasserstein") %>%
-    group_by(doubly.robust
-             , weighting.method
-             , standardized.mean.difference
-    ) %>%
-    summarize(Bias = mean(values),
-              # Variance = var(values),
-              RMSE = sqrt(mean(values^2)))
-  
-  nl.tibbleDRWM <- notlog %>% 
-    filter (matched == TRUE & weighting.method == "Wasserstein" & standardized.mean.difference== 0.1) %>%
-    group_by(doubly.robust
-             , weighting.method
-             , standardized.mean.difference
-    ) %>%
-    summarize(Bias = mean(values),
-              # Variance = var(values),
-              RMSE = sqrt(mean(values^2)))
-  nl.tibbleDRWM$standardized.mean.difference[nl.tibbleDRWM$weighting.method == "Wasserstein"] <- NA
-  nl.tibbleDRM <- rbind(nl.tibbleDRM, nl.tibbleDRWM)
-  nl.tibbleDRM <- nl.tibbleDRM %>% arrange(desc(-doubly.robust))
-  colnames(nl.tibbleDRM)[1:3] <- c("Estimator", "Weights", "Std. Mean Difference")
-  nl.tibbleDRM$Estimator <- ifelse(nl.tibbleDRM$Estimator, "Bias Adj. Matched", "Matched")
-  
-  return(list(unmatched = list(IPW = ltibble, other = nl.tibbleDR),
-         matched = list(IPW = ltibbleM, other = nl.tibbleDRM)))
+  return(list(unmatched = grp_tibble %>% filter(Matched == FALSE),
+         matched = grp_tibble %>% filter(Matched == TRUE)))
 }

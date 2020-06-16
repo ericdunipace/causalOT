@@ -87,9 +87,10 @@ cost_RKHS <- function(X, Y,
                                gamma = rkhs.args$gamma,
                                metric = "mahalanobis",
                                is.dose = rkhs.args$is.dose, 
-                               estimand = rkhs.args$estimand)
+                               estimand = estimand)
   if(estimand != "ATE") {
-    dist <- dist[[1]][1:nrow(X), (nrow(X) + 1):nrow(covars)]
+    dist <- dist[[1]]
+  #   dist <- dist[[1]][1:nrow(X), (nrow(X) + 1):nrow(covars)]
   }
   return( dist )
 }

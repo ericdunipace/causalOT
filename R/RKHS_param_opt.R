@@ -87,6 +87,11 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     for(i in seq_along(power) ) {
       p <-  power[i]
       res[[i]] <- do.call("optim", args)
+      if(res[[i]]$convergence !=0) {
+        if(res[[i]]$convergence ==1) {
+          warning("max iter hit")
+        }
+      }
       # samp <- rstan::vb(stan_mod, data = data_stan)
     }
     # res <- do.call("optim", list(par = c(theta_0 = 0, theta_1 = 0, 
