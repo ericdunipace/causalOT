@@ -318,7 +318,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                         x1 <- private$simulator$get_x1()
                                         for(i in as.character(private$metric)) {
                                           if(i == "RKHS") next
-                                            for(j in as.character(private$ground_powers)) {
+                                            for (j in as.character(private$ground_powers)) {
                                               # function(X, Y, ground_p, direction, metric)
                                               private$costs[[i]][[j]] <- cost_fun(x=x0, y=x1,
                                                                                         power = as.numeric(j), 
@@ -332,7 +332,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                           for(i in as.character(private$estimand)) {
                                             # private$RKHS.opt[[i]] <- list()
                                             if(i == "feasible" | i == "cATE") {
-                                              est <- "ATE"
+                                              next
                                             } else {
                                               est <- i
                                             }
@@ -363,6 +363,12 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                      )
                                             }
                                           # }
+                                          if("feasible" %in% private$estimand) {
+                                            private$RKHS.opt[["feasible"]] <- private$RKHS.opt[["ATE"]]
+                                            private$costs[["RKHS"]][["feasible"]] <- private$costs[["RKHS"]][["ATE"]]
+                                          }
+                                          private$RKHS.opt[["cATE"]] <- private$RKHS.opt[["ATE"]] # not correct parameters but functions don't need these parameters
+                                          private$costs[["RKHS"]][["cATE"]] <- private$costs[["RKHS"]][["ATE"]]
                                         }
                                         
                                       },
@@ -717,13 +723,13 @@ SimHolder <- R6::R6Class("SimHolder",
                                         if(grid.search & method == "SBW") delta <- private$standardized.difference.means
                                         if(grid.search & method == "RKHS.dose") delta <- private$RKHS$lambdas
                                         if(method == "RKHS"){
-                                          if(opt.hyperparam & !is.null(private$RKHS.opt[[estimand]][[metric]]) ) {
+                                          if(opt.hyperparam & !is.null(private$RKHS.opt[[estimand]]) ) {
                                             opt.hyperparam <- FALSE
-                                            theta <- private$RKHS.opt[[estimand]][[metric]]$theta
-                                            gamma <- private$RKHS.opt[[estimand]][[metric]]$gamma
-                                            sigma_2 <- private$RKHS.opt[[estimand]][[metric]]$sigma_2
+                                            theta <- private$RKHS.opt[[estimand]]$theta
+                                            gamma <- private$RKHS.opt[[estimand]]$gamma
+                                            sigma_2 <- private$RKHS.opt[[estimand]]$sigma_2
                                             lambda <- 0
-                                            power <- private$RKHS.opt[[estimand]][[metric]]$p
+                                            power <- private$RKHS.opt[[estimand]]$p
                                           } else {
                                             theta <- private$RKHS$theta
                                             gamma <- private$RKHS$gamma

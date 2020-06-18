@@ -39,10 +39,10 @@ testthat::test_that("SimHolder generates object", {
 
 testthat::test_that("SimHolder runs", {
   set.seed(9867)
-  
+
   #### Load Packages ####
   library(causalOT)
-  
+
   #### Sim param ####
   n <- 2^6
   p <- 6
@@ -54,9 +54,9 @@ testthat::test_that("SimHolder runs", {
   ground_power <- 1:2
   std_mean_diff <- c(0.001, 0.01, 0.1)
   solver <- "gurobi"
-  
+
   #### get simulation functions ####
-  original <- Hainmueller$new(n = n, p = p, 
+  original <- Hainmueller$new(n = n, p = p,
                               design = design, overlap = overlap)
   # SimHolder$debug("initialize")
   # SimHolder$debug("update")
@@ -64,6 +64,7 @@ testthat::test_that("SimHolder runs", {
   # SimHolder$debug("get_delta")
   # SimHolder$debug("method.setup")
   # SimHolder$debug("cost.setup")
+  # SimHolder$debug("get_cost")
   # SimHolder$debug("max.cond.calc")
   sh <- SimHolder$new(nsim = nsims,
                       dataSim = original,
