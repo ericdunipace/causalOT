@@ -22,7 +22,7 @@ void cost_mahal_Lp(const refMatConst & A, const refMatConst & B,
   for (int j = 0; j < B.cols(); j++) { 
     vector bvec = B.col(j);
     for (int i = 0; i < A.cols(); i++) {
-      double cost_p = (L.triangularView<Eigen::Lower>().solve(A.col(i)-bvec)).array().pow(p).sum();
+      double cost_p = (L.triangularView<Eigen::Lower>()*(A.col(i)-bvec)).array().pow(p).sum();
       cost_matrix(i,j) = std::pow(cost_p, p_inv);
     }
   }
@@ -33,7 +33,7 @@ void cost_mahal_L2(const refMatConst & A, const refMatConst & B,
   for (int j = 0; j < B.cols(); j++) { 
     vector bvec = B.col(j);
     for (int i = 0; i < A.cols(); i++) {
-      cost_matrix(i,j) = (L.triangularView<Eigen::Lower>().solve(A.col(i)-bvec)).norm();
+      cost_matrix(i,j) = (L.triangularView<Eigen::Lower>()*(A.col(i)-bvec)).norm();
     }
   }
 }
@@ -53,7 +53,7 @@ void cost_mahal_L1(const refMatConst & A, const refMatConst & B,
   for (int j = 0; j < B.cols(); j++) { 
     vector bvec = B.col(j);
     for (int i = 0; i < A.cols(); i++) {
-      cost_matrix(i,j) = (L.triangularView<Eigen::Lower>().solve(A.col(i)-bvec)).cwiseAbs().sum();
+      cost_matrix(i,j) = (L.triangularView<Eigen::Lower>() * (A.col(i)-bvec)).cwiseAbs().sum();
     }
   }
 }
@@ -71,18 +71,19 @@ Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix & A_,
   const matrix covA = covariance(A);
   const matrix covB = covariance(B);
   const matrix cov = 0.5 * covA + 0.5 * covB;
-  const matrix L = cov.llt().matrixL();
+  const matrix L = cov.selfadjointView<Eigen::Lower>().llt().matrixL();
+  const matrix L_inv = L.inverse();
   // Rcpp::Rcout << covA(0,0)<<std::endl;
   // Rcpp::Rcout << cov(0,0);
   
   matrix cost_matrix(N,M);
   
   if(p == 2.0) {
-    cost_mahal_L2(A, B, L, cost_matrix);
+    cost_mahal_L2(A, B, L_inv, cost_matrix);
   } else if (p == 1.0){
-    cost_mahal_L1(A, B, L, cost_matrix);
+    cost_mahal_L1(A, B, L_inv, cost_matrix);
   } else {
-    cost_mahal_Lp(A, B, L, cost_matrix, p);
+    cost_mahal_Lp(A, B, L_inv, cost_matrix, p);
   }
   
   return Rcpp::wrap(cost_matrix);
