@@ -54,7 +54,7 @@ gurobi_solver <- function(qp, ...) {
   }
   sol <- (res$x)[1:num_param]
   sol[sol<0] <- 0
-  
+  if(all(sol == 0)) stop("All weights are 0!")
   # obj_total <- out$obj
   # 
   # status <- out$status
