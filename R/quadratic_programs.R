@@ -642,9 +642,10 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       
     }
     
-  } else {
-    stopifnot(all(sapply(cost, dim) %in% c(nrow(x1),nrow(x0))))
-  }
+  } 
+  # else {
+  #   stopifnot(all(sapply(unlist(cost), dim) %in% c(nrow(x1),nrow(x0))))
+  # }
   # cost <- as.matrix(dist(rbind(x0,x1), method = "minkowski", p = p))[1:n0, (n0+1):n]
   
   if(estimand != "ATE") {
