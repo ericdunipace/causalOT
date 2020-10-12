@@ -33,7 +33,7 @@ PSIS.causalWeights <- function(x, r_eff = NULL, ...) {
   } else if (x$estimand == "ATC") {
     res$w0 <- list(diagnostics = list(pareto_k = NA, n_eff = length(x$w0)))
     res$w1 = PSIS.default(x$w1, r_eff = r_eff[2],...)
-  } else if (x$estimand == "ATE" | x$estimand == "feasible") {
+  } else if (x$estimand == "ATE" | x$estimand == "feasible" | x$estimand == "cATE") {
     res$w0 = PSIS.default(x$w0, r_eff = r_eff[1],...)
     res$w1 = PSIS.default(x$w1, r_eff = r_eff[2],...)
   }
@@ -79,9 +79,9 @@ PSIS_diag.numeric <- function(x) {
   return(res)
 }
 
-PSIS_diag.causalWeights <- function(x, ...) {
+PSIS_diag.causalWeights <- function(x, r_eff = NULL, ...) {
   
-  y   <- PSIS.causalWeights(x, ...)
+  y   <- PSIS.causalWeights(x, r_eff = r_eff, ...)
   res <- list(w0 = y$w0$diagnostics,
               w1 = y$w1$diagnostics)
   
@@ -98,9 +98,18 @@ PSIS_diag.causalPSIS <- function(x) {
 }
 
 PSIS_diag.list <- function(x, r_eff = NULL) {
+  
+  if(!is.null(r_eff)) {
+    if(length(r_eff) == 1) r_eff <- rep(r_eff, length(x))
+    stopifnot(length(r_eff) == length(x))
+  } else {
+    r_eff <- lapply(1:length(x), function(r) 1)
+  }
+  
+  res <- mapply(function(w, r) {PSIS_diag(x=w, r_eff = r, ...)}, w = x, r = r_eff,
+                SIMPLIFY = FALSE)
 
-
-  res <- lapply(x, function(w) PSIS_diag(w))
+  # res <- lapply(x, function(w) PSIS_diag(w))
 
   return(res)
 

@@ -215,7 +215,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                       constraint = .1, 
+                                                       constraint = .8, 
                                                        estimand = e, 
                                                        p = power,
                                                        method = "Wasserstein",
@@ -254,7 +254,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                       constraint = .1, 
+                                                       constraint = .8, 
                                                        estimand = e, 
                                                        p = power,
                                                        method = "Wasserstein",

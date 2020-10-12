@@ -29,7 +29,7 @@ testthat::test_that("PSIS diagnostics work", {
   test1 <- calc_weight(data = data,
                        dist = "mahalanobis",
                        p = 1,
-                       constraint = 0.01,
+                       constraint = 0.5,
                        estimand = "ATE",
                        method = "Wasserstein",
                        solver = "mosek")

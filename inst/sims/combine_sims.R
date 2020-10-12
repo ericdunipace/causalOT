@@ -1,11 +1,11 @@
 library(causalOT)
 
 #### Output settings ####
-jobids      <- as.character(59407198,59680922) #-Ahi : 59681680, -Alo: 59407198,59680922, -Bhi:59158432, -Blo:59134039
+jobids      <- as.character(62255860) #-Ahi : 59681680, -Alo: 59407198,59680922, -Bhi:59158432, -Blo:59134039, Blo update 62255860
 n           <- "512"
 p           <- "6"
-design      <- "A"
-overlap     <- "low"
+design      <- "B"
+overlap     <- "lown"
 simsett     <- "hainmueller"
 curdate     <- as.character(Sys.Date())
 

@@ -34,7 +34,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // kernel_calc_dose_
-Rcpp::NumericMatrix kernel_calc_dose_(const Rcpp::NumericMatrix& X_, const Rcpp::NumericMatrix& z_, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const bool calc_covariance);
+Rcpp::List kernel_calc_dose_(const Rcpp::NumericMatrix& X_, const Rcpp::NumericMatrix& z_, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const bool calc_covariance);
 RcppExport SEXP _causalOT_kernel_calc_dose_(SEXP X_SEXP, SEXP z_SEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP calc_covarianceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -63,7 +63,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // kernel_calc_
-Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const bool calc_covariance, const std::string& estimand);
+Rcpp::List kernel_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const bool calc_covariance, const std::string& estimand);
 RcppExport SEXP _causalOT_kernel_calc_(SEXP X_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

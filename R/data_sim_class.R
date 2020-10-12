@@ -138,8 +138,10 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                #                       "B" = (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2,
                                #                       "2" = (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2,
                                #                       stop("design must be one of 'A' or 'B'")))
+                               # the fitted model
                                m0 <- .lm.fit(private$x[private$z==0,,drop = FALSE], private$y[private$z==0,drop=FALSE])
                                m1 <- .lm.fit(private$x[private$z==1,,drop = FALSE], private$y[private$z==1,drop=FALSE])
+                               # the values of y or the residuals
                                f = switch(as.character(aug),
                                           "FALSE" =switch(estimand,
                                                           "ATT" = private$y[private$z==0,drop=FALSE],

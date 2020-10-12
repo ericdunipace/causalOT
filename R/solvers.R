@@ -100,6 +100,7 @@ mosek_solver <- function(qp, ...) {
     }
   }
   model$c <- c(qp$obj$L)
+  if(is.null(model$c)) model$c <- rep(0, num_param)
   model$A <- qp$LC$A
   model$bx <- rbind(blx = rep(0, num_param), bux = rep(Inf, num_param))
   

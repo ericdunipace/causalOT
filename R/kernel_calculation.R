@@ -18,7 +18,7 @@ kernel_calculation <- function(X, z, p = 1.0,
   
   theta <- kernel_param_check(theta)
   gamma <- kernel_param_check(gamma)
-  sigma_2 <- kernel_sigma_check(sigma_2, nrow(X), is.dose)
+  sigma_2 <- kernel_sigma_check(sigma_2, nrow(X), z, is.dose)
   p <- kernel_power_check(p)
   
   if(is.dose) {
@@ -65,9 +65,15 @@ kernel_power_check <- function(p) {
   return(p)
 }
 
-kernel_sigma_check <- function(s, n, is.dose) {
+kernel_sigma_check <- function(s, n, z, is.dose) {
   if(!is.null(s)) {
     if(length(s) == 1) s <- rep(s, n)
+    if(length(s) == 2) {
+      s_temp <- s
+      s <- rep(0, n)
+      s[z==1] <- s_temp[[2]]
+      s[z==0] <- s_temp[[1]]
+    }
     return(as.double(s))
   } else if (!is.dose) {
     stop("sigma^2 must be specified if using binary treatment kernel")

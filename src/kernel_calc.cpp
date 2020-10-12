@@ -58,7 +58,7 @@ void covariance_kern(matrix & A,
     matrix At(nt,d);
     int idx = 0;
     
-    for(int i = 0; i < N; i ++) {
+    for (int i = 0; i < N; i ++) {
       if(z(i) == 1) {
         At.row(idx) = A.row(i);
         idx++;
@@ -100,7 +100,7 @@ matrix covariance_centered(matrix & A) {
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericMatrix kernel_calc_dose_(const Rcpp::NumericMatrix & X_,  //confounders
+Rcpp::List kernel_calc_dose_(const Rcpp::NumericMatrix & X_,  //confounders
                                  const Rcpp::NumericMatrix & z_,  //tx, a vector but easier if matrix
                                  const double p,
                                  const Rcpp::NumericVector  & theta_,
@@ -141,7 +141,8 @@ Rcpp::NumericMatrix kernel_calc_dose_(const Rcpp::NumericMatrix & X_,  //confoun
   
   matrix kernel_matrix = kernel_matrix_X.array() * kernel_matrix_Z.array();
   
-  return Rcpp::wrap(kernel_matrix);
+  return Rcpp::List::create(Rcpp::Named("cov_kernel") = kernel_matrix, 
+                            Rcpp::Named("mean_kernel") = kernel_matrix.colwise().mean());
 }
 
 //[[Rcpp::export]]
@@ -179,7 +180,7 @@ Rcpp::List similarity_calc_dose_(const Rcpp::NumericMatrix & X_,  //confounders
   
   
 //[[Rcpp::export]]
-Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
+Rcpp::List kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
                                       const Rcpp::IntegerVector & z,  //tx, a vector but easier if matrix
                                       const double p,
                                       const Rcpp::NumericVector  & theta_,
@@ -212,6 +213,7 @@ Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
     covariance_kern(A, z, estimand);
   }
   
+  
   for(int i = 0; i < N; i ++) {
     for(int j = 0; j < N; j ++) {
       if( z(i) ==1 & z(j) == 1 ) {
@@ -227,11 +229,28 @@ Rcpp::NumericMatrix kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
   
   
   matrix kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
- 
+  // Rcpp::Rcout << kernel_matrix_X(0,0) << ", " << sigma_2(0) << "\n";
+  // Rcpp::Rcout << "theta" << theta(0,0) << ", gamma " << gamma(0,0) << "\n";
   matrix kernel_matrix = sigma_2.asDiagonal();
   kernel_matrix.array() += (kernel_matrix_X.array() *theta.array() + 1.0).pow(p) * gamma.array();
+  // Rcpp::Rcout << (kernel_matrix_X.array() *theta.array() + 1.0)(0,0) << " \n";
+  // Rcpp::Rcout << (kernel_matrix_X.array() *theta.array() + 1.0).pow(p)(0,0) << " \n";
+  // Rcpp::Rcout << kernel_matrix(0,0) << "\n";
+  vector mean_kernel(N);
+  for (int n = 0; n < N; n ++) {
+    if (z(n) == 0) {
+      mean_kernel(n) = ((theta_0 * kernel_matrix_X.col(n).array() + 1.0).pow(p) * gamma_0).mean();
+    } else if ( z(n) == 1) {
+      mean_kernel(n) = ((theta_1 * kernel_matrix_X.col(n).array() + 1.0).pow(p) * gamma_1).mean();
+    } else {
+      Rcpp::stop("Invalid value in z!");
+    }
+  }
   
-  return Rcpp::wrap(kernel_matrix);
+  return (
+      Rcpp::List::create(Rcpp::Named("cov_kernel") = kernel_matrix, 
+                            Rcpp::Named("mean_kernel") = mean_kernel)
+            );
 }
 
 //[[Rcpp::export]]
@@ -366,13 +385,13 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
   
   if(estimand == "ATT") {
     matrix temp_sim_t = kernel_matrix_X.block(0,N_c,N_c,N_t);
-    matrix kernel_matrix_t = (temp_sim_t.array() * theta_1 + 1.0).pow(p) * gamma_1;
+    matrix kernel_matrix_t = (temp_sim_t.array() * theta_0 + 1.0).pow(p) * gamma_0;
     
     output[0] = Rcpp::wrap(kernel_matrix_t);
     output[1] = R_NilValue;
   } else if (estimand == "ATC") {
     matrix temp_sim_c = kernel_matrix_X.block(0,N_c,N_c,N_t);
-    matrix kernel_matrix_c = (temp_sim_c.array() * theta_0 + 1.0).pow(p) * gamma_0;
+    matrix kernel_matrix_c = (temp_sim_c.array() * theta_1 + 1.0).pow(p) * gamma_1;
     
     output[0] = Rcpp::wrap(kernel_matrix_c);
     output[1] = R_NilValue;

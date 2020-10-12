@@ -37,7 +37,8 @@ Suggests:
     foreach,
     doRNG,
     parallel,
-    doParallel
+    doParallel,
+    ggplot2
 Biarch: true
 Depends: 
     R (>= 3.4.0)

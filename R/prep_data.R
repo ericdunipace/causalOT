@@ -14,9 +14,9 @@ prep_data.data.frame <- function(data,...) {
     stop("must specify treatment indicator 'treatment.indicator' either by name or column number")
   }
   
-  if(is.null(outcome)) {
-    stop("must specify outcome 'outcome' either by name or column number")
-  }
+  # if(is.null(outcome)) {
+  #   stop("must specify outcome 'outcome' either by name or column number")
+  # }
   
   tx.var <- if(is.character(tx_ind)) {
     match(tx_ind, colnames(data))
@@ -28,12 +28,18 @@ prep_data.data.frame <- function(data,...) {
   } else {
     cov_bal
   }
-  y.var <- if(is.character(outcome)) {
-    match(outcome, colnames(data))
+  if(!is.null(outcome)) {
+    y.var <- if(is.character(outcome)) {
+      match(outcome, colnames(data))
+    } else {
+      outcome
+    }
+    df <- data.frame(y = data[y.var], data[x.vars])
   } else {
-    outcome
+    df <- data.frame(data[x.vars])
   }
-  df <- data.frame(y = data[y.var], data[x.vars])
+  
+  
   # df <- data[c(y.var, x.vars)]
   z <- as.integer(data[[tx.var]])
   

@@ -68,7 +68,7 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
 
 calc_form <- function(formula, doubly.robust, target) {
   if(!is.null(formula)){
-    stopifnot(isTRUE(names(formula) %in% c("treated","control")))
+    stopifnot(isTRUE(all(names(formula) %in% c("treated","control"))))
     formula$treated <- as.formula(formula$treated)
     formula$control <- as.formula(formula$control)
     return(formula)

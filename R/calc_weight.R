@@ -2,6 +2,7 @@ setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL"
 
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATT", "ATC","ATE", "cATE", "feasible"), 
                         method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
+                                   "NNM",
                                    "Logistic"),
                         transport.matrix = FALSE, grid.search = FALSE,
                         ...) {
@@ -36,6 +37,9 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATT", "ATC","ATE",
       #                                  ...))
       
     }
+  } else if (method == "NNM" ) {
+    f.call <- as.call(c(list(as.name("calc_weight_NNM")), argn))
+    eval(f.call, envir = args)
   } else if( method != "Logistic") {
     f.call <- as.call(c(list(as.name("calc_weight_bal")), argn))
     eval(f.call, envir = args)
@@ -52,6 +56,119 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATT", "ATC","ATE",
   }
   output$estimand <- estimand
   class(output) <- "causalWeights"
+  return(output)
+}
+
+calc_weight_NNM <- function(data, estimand = c("ATT", "ATC","ATE", "cATE"),
+                            ...) {
+  
+  est <- match.arg(estimand)
+  pd <- prep_data(data,...)
+  z <- pd$z
+  df <- pd$df
+  
+  if(any(colnames(df) == "y")) {
+    df$y <- NULL
+  }
+  x1 <- as.matrix(df[z==1,,drop=FALSE])
+  x0 <- as.matrix(df[z==0,,drop=FALSE])
+  ns <- get_n(data, ...)
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  n  <- n0 + n1
+  
+  dots <- list(...)
+  cost <- dots$cost
+  if(is.null(dots$p)) dots$p <- 2
+  if(is.null(dots$dist)) dots$dist <- "Lp"
+  if(dots$dist == "RKHS" & is.null(dots$rkhs.args) & is.null(dots$cost)) {
+    if(is.null(dots$opt.method)) dots$opt.method <- "stan"
+    temp.est <- switch(estimand,
+                       "ATT" = "ATT",
+                       "ATC" = "ATC",
+                       "ATE"
+    )
+    dots$rkhs.args <- RKHS_param_opt(x=data$get_x(), 
+                                     z=data$get_z(), 
+                                     y = data$get_y(),
+                                     metric = "mahalanobis",
+                                     is.dose = dots$is.dose,
+                                     opt.method = dots$opt.method,
+                                     estimand = temp.est,
+                                     ...)
+  }
+  if(est == "cATE") {
+    if(is.null(cost)) {
+      cost <- cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                      estimand = "ATC")
+      if(dots$dist == "RKHS") {
+        cost <- list(cost,
+                     cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                              estimand = "ATT"))
+      }
+    }
+    if(dots$dist == "RKHS") {
+      w0.tab <- table(apply(cost[[1]], 2, which.min))
+      w1.tab <- table(apply(cost[[2]], 1, which.min))
+      w0 <- w0.tab/n1
+      w1 <- w1.tab/n0
+    } else {
+      w0.tab <- table(apply(cost, 2, which.min))
+      w1.tab <- table(apply(cost, 1, which.min))
+      w0 <- w0.tab/n1
+      w1 <- w1.tab/n0
+    }
+    
+  } else if (est == "ATE") {
+    x <- as.matrix(df)
+    if(is.null(cost)) {
+      cost <- list(cost_fun(x0, x, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                            estimand = "ATE"),
+                   cost_fun(x1, x, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                            estimand = "ATE")
+      )
+    }
+    
+    w0.tab <- tabulate(apply(cost[[1]], 2, which.min), nbins = n0)
+    w1.tab <- tabulate(apply(cost[[2]], 2, which.min), nbins = n1)
+    w0 <- w0.tab/n
+    w1 <- w1.tab/n
+  } else if (est == "ATT") {
+    if(is.null(cost)) {
+      cost <- cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                       estimand = "ATT")
+    }
+    
+    if(dots$dist == "RKHS") {
+      w0.tab <- tabulate(apply(cost[[1]], 2, which.min), nbins = n0)
+      # w1.tab <- table(apply(cost[[2]], 1, which.min))
+    } else {
+      w0.tab <- tabulate(apply(cost, 2, which.min), nbins = n0)
+      # w1.tab <- table(apply(cost, 1, which.min))
+    }
+    w0 <- w0.tab/n1
+    w1 <- rep(1/n1,n1)
+   
+  } else if (est == "ATC") {
+    if(is.null(cost)) {
+      cost <- cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                     estimand = "ATC")
+    }
+    if(dots$dist == "RKHS") {
+      # w0.tab <- table(apply(cost[[1]], 2, which.min))
+      w1.tab <- tabulate(apply(cost[[2]], 1, which.min), nbins = n1)
+    } else {
+      # w0.tab <- table(apply(cost, 2, which.min))
+      w1.tab <- tabulate(apply(cost, 1, which.min), nbins = n1)
+    }
+    w0 <- rep(1/n0, n0)
+    w1 <- w1.tab/n1
+  }
+  
+  
+  output <- list(w0 = w0, w1 = w1, gamma = NULL)
+  # output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
+  
   return(output)
 }
 
@@ -362,7 +479,7 @@ get_n.DataSim <- function(data,...) {
 
 get_n.data.frame <- function(data,...) {
   df <- prep_data(data,...)
-  ns <- c(n0 = sum(df$z==1), n1 = sum(df$z==0))
+  ns <- c(n0 = sum(df$z==0), n1 = sum(df$z==1))
   return(ns)
 }
 

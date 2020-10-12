@@ -9,7 +9,9 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
   is.dose <- isTRUE(is.dose)
   power <- as.integer(power)
   
-  y_std <- scale(y, scale = FALSE)
+  y_std <- rep(NA, length(y))
+  y_std[z==0] <- scale(y[z==0])
+  y_std[z==1] <- scale(y[z==1])
   
   similarity_mats <- calc_similarity(x, z, metric = metric, is.dose, estimand)
   
@@ -119,6 +121,7 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
       ...,
       as_vector = FALSE
     )
+    if(is.null(arguments$data$kernel)) arguments$data$kernel <- 1L
     formals.stan <- c("iter", "save_iterations", 
                       "refresh", "init_alpha", "tol_obj", "tol_grad", "tol_param", 
                       "tol_rel_obj", "tol_rel_grad", "history_size",
@@ -141,7 +144,7 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     }
     idx <- which.max(sapply(res, function(r) r$par$marg_lik))
     param <- res[[idx]]$par
-    param$sigma2 <- param$sigma
+    param$sigma2 <- c(param$sigma_0, param$sigma_1)
     param$p <- power[idx]
   }
   out <- list(theta = c(param$theta_0, param$theta_1),
