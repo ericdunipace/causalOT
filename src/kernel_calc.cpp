@@ -12,33 +12,38 @@ void kernel_calculation(const matrix & A, matrix & kernel_matrix, double p,
   kernel_matrix.array() = gamma * kernel_matrix.array().pow(p);
 }
 
-matrix mean_kern(const refMatConst & X, const Rcpp::IntegerVector & z,
+rowVector mean_kern(const refMatConst & X, const Rcpp::IntegerVector & z,
                  const std::string & estimand) {
   
   int d = X.cols();
   int N = X.rows();
-  
   rowVector mean_x = rowVector::Zero(d);
   
-  if(estimand == "ATE") {
-    mean_x = X.colwise().mean();
-  } else if (estimand == "ATT") {
-    int nt = Rcpp::sum(z);
+  // if(kernel_type == "exponential") {
+  //   
+  // } else if (kernel_type == "polynomial") {
     
-    for(int i = 0; i < N; i ++) {
-      if(z(i) == 1) {
-        mean_x += X.row(i) / double(nt);
+    if(estimand == "ATE") {
+      mean_x = X.colwise().mean();
+    } else if (estimand == "ATT") {
+      int nt = Rcpp::sum(z);
+      
+      for(int i = 0; i < N; i ++) {
+        if(z(i) == 1) {
+          mean_x += X.row(i) / double(nt);
+        }
+      }
+    } else if (estimand == "ATC") {
+      int nc = N - Rcpp::sum(z);
+      
+      for(int i = 0; i < N; i ++) {
+        if(z(i) == 0) {
+          mean_x += X.row(i) / double(nc);
+        }
       }
     }
-  } else if (estimand == "ATC") {
-    int nc = N - Rcpp::sum(z);
-    
-    for(int i = 0; i < N; i ++) {
-      if(z(i) == 0) {
-        mean_x += X.row(i) / double(nc);
-      }
-    }
-  }
+  // }
+  
   return(mean_x);
 }
 
@@ -346,7 +351,7 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
                                  const Rcpp::NumericVector  & theta_,
                                  const Rcpp::NumericVector & gamma_,
                                  const bool calc_covariance,
-                                 const std::string & estimand) {
+                                 const std::string & estimand                             ) {
   
   int N = X_.rows();
   int d = X_.cols();
@@ -367,7 +372,7 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
   // matrix gamma = matrix::Zero(N,N);
   Rcpp::List output(2);
   
-  rowVector mean_x = mean_kern(X, z, estimand);
+  rowVector mean_x = mean_kern(X, z, estimand);//, kernel_type);
   
   matrix A = X.rowwise() - mean_x;
   

@@ -790,12 +790,12 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       max0 <- sapply(1:d, function(i) transport::wasserstein1d(a = x0[,i], b = x[,i],p = p))
       max1 <- sapply(1:d, function(i) transport::wasserstein1d(a = x1[,i], b = x[,i],p = p))
       max0 <- c(max0, transport::wasserstein(a = rep(1/n0,n0), b = rep(1/n,n), 
-                                             p = p, costm = cost$z0[[d_plus]]))^p
+                                             p = p, costm = cost$z0[[d_plus]]))
       max1 <- c(max1, transport::wasserstein(a = rep(1/n1,n1), b = rep(1/n,n),
-                                             p = p, costm = cost$z1[[d_plus]]))^p
+                                             p = p, costm = cost$z1[[d_plus]]))
       
-      min0 <- sapply(1:d_plus, function(i) mean(apply(cost$z0[[i]]^p, 2, min)))
-      min1 <- sapply(1:d_plus, function(i) mean(apply(cost$z1[[i]]^p, 2, min)))
+      min0 <- sapply(1:d_plus, function(i) mean(apply(cost$z0[[i]]^p, 2, min)))^(1/p)
+      min1 <- sapply(1:d_plus, function(i) mean(apply(cost$z1[[i]]^p, 2, min)))^(1/p)
       
       # w1 <-  tabulate(apply(cost$z1[[d_plus]]^p, 2, which.min), nbins = n1)/n
       # w0 <-  tabulate(apply(cost$z0[[d_plus]]^p, 2, which.min), nbins = n0)/n
@@ -809,19 +809,19 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
              sqrt(0.2^2 * shared_var0  + v + v0 - 2 * sqrt(sqrt(v) *v0 * sqrt(v))),
              sqrt(sum(0.2^2 * shared_var0) + sum(v) + sum(v0) - 
                2 * sum(diag(sqrt_mat(sqrt_mat(sigma) %*% sqrt_mat(sigma0)))))
-      )^p
+      )
       K_vals_1 <- c(
         sqrt(abs(0.2^2 * shared_var1   + v + v0 - 2 * sqrt(sqrt(v) *v1 * sqrt(v)))),
         sqrt(abs(sum(0.2^2 * shared_var1 ) + sum(v) + sum(v1) -
           2 * sum(diag(sqrt_mat(sqrt_mat(sigma) %*% sigma1 %*% sqrt_mat(sigma))))))
-      )^p
+      )
       increase.factor.0 <- ifelse(max0/min0 < 2, max0/min0, 2)
       increase.factor.1 <- ifelse(max1/min1 < 2, max1/min1, 2)
       K_vals_0 <- ifelse(K_vals_0 < min0, min0 * increase.factor.0, K_vals_0)
       K_vals_1 <- ifelse(K_vals_1 < min1, min1 * increase.factor.1, K_vals_1)
     } else if(length(K) == 2 ) {
       if(is.numeric(K)) {
-        K <- K^p
+        K <- K
         K_vals_0 <- rep(K[1], d_plus)
         K_vals_1 <- rep(K[2], d_plus)
         
@@ -832,13 +832,13 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
         K1 <- K[[2]]
         
         if(length(K1) != d_plus ){
-          K1 <- K1^p
+          K1 <- K1
           K_vals_1 <- rep(K1, d_plus)[1:d_plus]
         } else if (length(K1) == d_plus) {
           K_vals_1 <- K1
         }
         if(length(K0) == 1 ){
-          K0 <- K1^p
+          K0 <- K1
           K_vals_2 <- rep(K0, d_plus)[1:d_plus]
         } else if (length(K0) == d_plus) {
           K_vals_0 <- K0
@@ -847,7 +847,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       
       
     } else if(length(K) == 1 & is.numeric(K)) {
-      K <- K^p
+      K <- K
       K_vals_0 <- K_vals_1 <-  rep(K, d_plus)[1:d_plus]
       
       K_vals_0[d_plus] <- K * d
@@ -872,7 +872,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                     LC = list(A = rbind(sum_const_n0, marg_const_mat_n0,
                                         cost_vec_n0),
                               vals = c(1, marg_const,
-                                       K_vals_0),
+                                       K_vals_0^p),
                               dir = c(rep("E", 1 + marg_n),
                                       rep("L", d_plus)
                                       )))
@@ -883,7 +883,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                     LC = list(A = rbind(sum_const_n1, marg_const_mat_n1,
                                         cost_vec_n1),
                               vals = c(1, marg_const,
-                                       K_vals_1),
+                                       K_vals_1^p),
                               dir = c(rep("E", 1 + marg_n),
                                       rep("L", d_plus))))
     # rm(q_t)
@@ -917,7 +917,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   if(length(K) == 1) {
     K_vals <- rep(K, d_plus)
   } else if (length(K) == d_plus) {
-    K_vals <- K^p
+    K_vals <- K
   } else {
     stop("K must be length 1 or ncol covariates +1 for ATC/ATT")
   }
@@ -930,7 +930,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   
   LC <- list()
   LC$A <- rbind(sum_const, marg_const_mat, cost_vec)
-  LC$vals <- c(1, marg_const, K_vals)
+  LC$vals <- c(1, marg_const, K_vals^p)
   LC$dir <- c(rep("E", 1 + marg_const_n),
               rep("L", d_plus))
   
