@@ -141,7 +141,7 @@ mosek_solver <- function(qp, ...) {
   return(sol)
 }
 
-QPsolver <- function(qp, solver = c("cplex","gurobi","mosek"), ...) {
+QPsolver <- function(qp, solver = c("gurobi","mosek","cplex"), ...) {
   solver <- match.arg(solver)
   
   # solve.fun <- switch(solver,

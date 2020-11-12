@@ -1,3 +1,5 @@
+# parent class
+{
 DataSim <- R6::R6Class("DataSim",
         public = list(get_x = function() { return( private$x)},
                       get_y = function() { return( private$y)},
@@ -47,7 +49,10 @@ DataSim <- R6::R6Class("DataSim",
                        }#,
                        )
 )
-
+}
+# Hainmueller: 0 tx effect and mix of covariates 
+# (normal, binary, etc.)
+{
 Hainmueller <- R6::R6Class("Hainmueller", 
                            inherit = DataSim,
                            public = list(
@@ -55,7 +60,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                self$gen_x()
                                self$gen_z()
                                self$gen_y()
-                               # private$check_data()
+                               # private$\check_data()
                                invisible(self)
                              },
                              gen_x = function() {
@@ -352,7 +357,9 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                           }
                            )
 )
-
+}
+# Kallus2019: continuous tx
+{
 Kallus2019 <- R6::R6Class("Kallus2019", 
                            inherit = DataSim,
                            public = list(
@@ -482,3 +489,290 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                           }
                            )
 )
+}
+# Kallus2019: binary tx
+{
+  Kallus2018 <- R6::R6Class("Kallus2018", 
+                            inherit = DataSim,
+                            public = list(
+                              gen_data = function() {
+                                self$gen_x()
+                                self$gen_z()
+                                self$gen_y()
+                                invisible(self)
+                              },
+                              gen_x = function() {
+                                stopifnot(length(private$n) >0 )
+                                private$x <- matrix(rnorm(private$n * private$p, 
+                                                          mean = private$param$param_x$mean, 
+                                                          sd =  private$param$param_x$sd), 
+                                                    nrow = private$n, ncol = private$p)
+                                colnames(private$x) <- paste0("X",1:4)
+                                private$check_data()
+                                invisible(self)
+                              },
+                              gen_y = function() {
+                                if(all(dim(private$x) == 0)) gen_x()
+                                if(all(dim(private$z) == 0)) gen_z()
+                                mean_y <- if(private$design == "A"){ 
+                                  -mean(private$pi) + private$z + rowSums(private$x[,1:2])
+                                } else if(private$design == "B"){
+                                  -mean(private$pi) + private$z + rowSums(private$x[,1:2]) + 
+                                  rowSums(private$x[,1:2]^2) + apply(private$x[,1:2],1,prod)
+                                }
+                                private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
+                                private$check_data()
+                                invisible(self)
+                              },
+                              gen_z = function() {
+                                if(all(dim(private$x) == 0)) gen_x()
+                                if(private$design == "A") {
+                                  design.z <- rowSums(private$x[,1:2])
+                                } else if (private$design == "B") {
+                                  design.z <- rowSums(private$x[,1:2]) + 
+                                    rowSums(private$x[,1:2]^2) + apply(private$x[,1:2],1,prod)
+                                }
+                                if(private$overlap == "low") {
+                                  private$pi <- plogis(3 * design.z)
+                                } else if (private$overlap == "high") {
+                                  private$pi <- plogis(0.1 * design.z)
+                                }
+                                private$z <- rbinom(private$n, size = 1, prob = private$pi)
+                                invisible(self)
+                              },
+                              initialize = function(n = 1024, p = 4, param = list(), design = "A", overlap = "high", ...) {
+                                
+                                if(p != 4) warning("'p' set to 4 automatically")
+                                private$p <- 4 # p is always 6 for this guy
+                                
+                                if(missing(n) | is.null(n)) {
+                                  private$n <- 1024
+                                } else {
+                                  private$n <- n
+                                }
+                                if(missing(design ) | is.null(design) ) {
+                                  private$design <- "A"
+                                } else {
+                                  private$design <- match.arg(design, c("A","B"))
+                                }
+                                if(missing(overlap ) | is.null(overlap) ) {
+                                  private$overlap <- "high"
+                                } else {
+                                  private$overlap <- match.arg(overlap, c("high","low"))
+                                }
+                                # private$
+                                #   set_param(
+                                #     beta_z = param$beta_z, #beta_y = param$beta_y,
+                                #     sigma_y = param$sigma_y,
+                                #     param_x = param$param_x)
+                                
+                              },
+                              get_design = function() {
+                                return(paste0(switch(private$design,
+                                              A = "A: linear",
+                                              B = "B: quadratic"),
+                                              ", overlap: ",
+                                              switch(private$overlap,
+                                                     high = "high",
+                                                     low = "low"))
+                                )
+                              }
+                            ),
+                            private = list(d = "numeric",
+                                           design = "character",
+                                           overlap = "character",
+                                           pi = "numeric",
+                                           n = "numeric",
+                                           p = "numeric",
+                                           x = "matrix",
+                                           y = "numeric",
+                                           z = "numeric"
+                                           # set_param = function(beta_z, sigma_z, sigma_y, param_x) {
+                                           #   miss.null <- function(xx) {
+                                           #     return(missing(xx) | is.null(xx))
+                                           #   }
+                                           #   if(is.null(private$design) ) {
+                                           #     private$design <- "A"
+                                           #   }
+                                           #   private$d <- switch(private$design,
+                                           #                       A = 1, 
+                                           #                       B = 2,
+                                           #                       C = 3)
+                                           #   default_param <- list(
+                                           #     # beta_z = c(1,2,-2,-1,-0.5,1),
+                                           #     beta_z = switch(private$design,
+                                           #                     A = c(0,1),
+                                           #                     B = c(-3, 0.25),
+                                           #                     C = c(-2.5, 0.05)),
+                                           #     sigma_z= sqrt(5),
+                                           #     sigma_y = 0,
+                                           #     param_x = list(mean = 0,
+                                           #                    sd = sqrt(5))
+                                           #   )
+                                           #   temp_param <- list()
+                                           #   if(miss.null(beta_z)) {
+                                           #     temp_param$beta_z <- default_param$beta_z
+                                           #   } else {
+                                           #     stopifnot(is.vector(param$beta_z))
+                                           #     temp_param$beta_z <- param$beta_z
+                                           #   }
+                                           #   if(miss.null(sigma_z)) {
+                                           #     temp_param$sigma_z <- default_param$sigma_z[[private$overlap]]
+                                           #   } else {
+                                           #     stopifnot(is.numeric(sigma_z))
+                                           #     temp_param$sigma_z <- param$sigma_z
+                                           #   }
+                                           #   # if(miss.null(beta_y)) {
+                                           #   #   temp_param$beta_y <- default_param$beta_y[[private$design]]
+                                           #   # } else {
+                                           #   #   stopifnot(is.vector(beta_y))
+                                           #   #   temp_param$beta_y <- param$beta_y
+                                           #   # }
+                                           #   if(miss.null(sigma_y)) {
+                                           #     temp_param$sigma_y <- default_param$sigma_y
+                                           #   } else {
+                                           #     temp_param$sigma_y <-param$sigma_y
+                                           #   }
+                                           #   if(miss.null(param_x)) {
+                                           #     temp_param$param_x <- default_param$param_x
+                                           #   } else {
+                                           #     if(is.null(param$param_x$mean) | is.null(param$param_x$sd)) stop("Must specify parameters of x as list(mean = , sd = )")
+                                           #     temp_param$param_x$mean <- param$param_x$mean
+                                           #     temp_param$param_x$sd <- param$param_x$sd
+                                           #   }
+                                           #   private$param <- temp_param
+                                           # }
+                            )
+  )
+}
+# Sonabed2020: indicator function mean model. added
+# skew normal covariates to reduce overlap without specifying
+# propensity score function
+{
+  Sonabend2020 <- R6::R6Class("Sonabend2020", 
+                           inherit = DataSim,
+                           public = list(
+                             gen_data = function() {
+                               self$gen_x()
+                               self$gen_z()
+                               self$gen_y()
+                               invisible(self)
+                             },
+                             gen_x = function() {
+                               stopifnot(length(private$n) >0 )
+                               rskew <- function(n, alpha) {
+                                 x1 <- rnorm(n)
+                                 x2 <- rnorm(n)
+                                 a <- (alpha*abs(x1) + x2)/sqrt(1 + alpha^2)
+                                 b <- (1+alpha)/sqrt(2*(1+alpha^2)) * pmax(x1,x2) +
+                                   (1-alpha)/sqrt(2*(1+alpha^2)) * pmin(x1,x2)
+                                 return(cbind(a,b))
+                               }
+                               
+                               if(private$overlap == "high") {
+                                 alpha <- 0.1
+                               } else if (private$overlap == "low") {
+                                 alpha <- 1
+                               }
+                               n0 <- floor(private$n/2)
+                               n1 <- ceiling(private$n/2)
+                               pp <- private$p - 3
+                               v <- rskew(n0, alpha)
+                               w <- rskew(n1, -alpha)
+                               x0 <- cbind( 
+                                           rnorm(n0, mean = v[,1]^2),
+                                           v,
+                                           matrix(rnorm(n0 * pp), n0, pp))
+                               x1 <- cbind(
+                                           rnorm(n1, mean = (w[,1]^2)),
+                                           w, 
+                                           matrix(rnorm(n1 * pp), n1, pp))
+                               
+                               private$x <- rbind(x0,x1)
+                               colnames(private$x) <- paste0("X",1:private$p)
+                               invisible(self)
+                             },
+                             gen_y = function() {
+                               if(all(dim(private$x) == 0)) self$gen_x()
+                               if(is.character(private$z)) self$gen_z()
+                               private$mean_y1 <- if(private$design == "A"){
+                                 1 + (private$x[,3] > 0)
+                               } else if (private$design == "B") {
+                                 ytemp <- (1 + (private$x[,3] > 0))
+                                 # ytemp <- 0
+                                 10*sign(1/(.01*private$x[,2]+.05*private$x[,3]+ytemp/20)) + private$x[,1]
+                               } else if (private$design == "C") {
+                                 private$x[,1:3] %*% c(-1,1,-2) + 0.5 *private$x[,3]^2
+                               } else {
+                                 stop("Design must be one of A, B, or C")
+                               }
+                               private$mean_y0 <- if(private$design == "A"){
+                                 -1 - (1.5*abs(private$x[,3]) > 1)
+                               }else if (private$design == "B") {
+                                 ytemp <- -(1 + (1.5*abs(private$x[,3]) > 1))
+                                 # ytemp <- 0
+                                 10*sign(-1/(.01*private$x[,2]+.05*private$x[,3] + ytemp/20)) - private$x[,1]
+                               } else if (private$design == "C") {
+                                 private$x[,1:3] %*% c(-1,-1,-2) - 2
+                               }
+                               mean_y <- private$mean_y1 * private$z + 
+                                 (1 - private$z) * private$mean_y0
+                               private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = 1))
+                               private$check_data()
+                               invisible(self)
+                             },
+                             gen_z = function() {
+                               if(all(dim(private$x) == 0)) self$gen_x()
+                               private$z <- c(rep(0, floor(private$n/2)),
+                                                rep(1, ceiling(private$n/2)))
+                               private$check_data()
+                               invisible(self)
+                             },
+                             get_tau = function() {
+                               return(private$mean_y1 - private$mean_y0)
+                             },
+                             initialize = function(n = 1024, p = 3, design = "A", overlap = "high", ...) {
+                               
+                               if(p < 3) {
+                                 warning("'p' must be at least 3")
+                                 private$p <- 3
+                               } else {
+                                 private$p <- p
+                               }
+                               
+                               if(missing(n) | is.null(n)) {
+                                 private$n <- 1024
+                               } else {
+                                 private$n <- n
+                               }
+                               if(missing(design ) | is.null(design) ) {
+                                 private$design <- "A"
+                               } else {
+                                 private$design <- match.arg(design, c("A","B"))
+                               }
+                               if(missing(overlap ) | is.null(overlap) ) {
+                                 private$overlap <- "high"
+                               } else {
+                                 private$overlap <- match.arg(overlap, c("high","low"))
+                               }
+                               
+                             },
+                             get_design = function() {
+                               return(paste0(switch(private$design,
+                                                    A = "A: indicator",
+                                                    B = "B: sign function",
+                                                    C = "C: linear"),
+                                             ", overlap: ",
+                                             switch(private$overlap,
+                                                    high = "high",
+                                                    low = "low"))
+                               )
+                             }
+                           ),
+                           private = list(design = "character",
+                                          overlap = "character",
+                                          mean_y1 = "numeric",
+                                          mean_y0 = "numeric"
+                           )
+)
+  }

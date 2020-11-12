@@ -576,7 +576,7 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
 
 qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                                             "feasible"),
-                    dist=c("Lp", "mahalanobis"), cost = NULL,
+                    dist = c("Lp", "mahalanobis"), cost = NULL,
                     rkhs.args = NULL) {
   sqrt_mat <- function(X) {
     p <- ncol(X)
@@ -853,7 +853,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       K_vals_0[d_plus] <- K * d
       K_vals_1[d_plus] <- K * d
     } else {
-      K <- K^p
+      K <- K
       K_vals_0 <- K_vals_1 <- K
     }
     
