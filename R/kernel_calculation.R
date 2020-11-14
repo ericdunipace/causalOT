@@ -1,6 +1,7 @@
 kernel_calculation <- function(X, z, p = 1.0, 
                                theta = NULL, gamma = NULL, sigma_2 = NULL, 
                                metric = c("mahalanobis","Lp"),
+                               kernel = c("RBF","polynomial"),
                                is.dose = FALSE, 
                                estimand = c("ATE","ATT","ATC")) {
   
@@ -14,6 +15,7 @@ kernel_calculation <- function(X, z, p = 1.0,
   if(nrow(X) != nrow(z)) stop("Observations of X and z must be equal")
   
   met <- match.arg(metric)
+  kern <- match.arg(kernel)
   calc_covariance <- isTRUE(met == "mahalanobis")
   
   theta <- kernel_param_check(theta)
@@ -24,11 +26,13 @@ kernel_calculation <- function(X, z, p = 1.0,
   if(is.dose) {
     return(kernel_calc_dose_(X_ = X, z_ = z, p = p, 
                  theta_ = theta, gamma_ = gamma,
+                 kernel_ = kern,
                  calc_covariance = calc_covariance))
   } else {
     return(kernel_calc_(X_ = X, z = z, p = p, 
                       theta_ = theta, gamma_ = gamma,
                       sigma_2 = sigma_2,
+                      kernel_ = kern,
                       calc_covariance = calc_covariance,
                       estimand = estimand))
   }
@@ -82,10 +86,12 @@ kernel_sigma_check <- function(s, n, z, is.dose) {
   }
 }
 
-calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FALSE,
+calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), kernel = c("RBF","polynomial"),
+                             is.dose = FALSE,
                              estimand = c("ATE","ATT","ATC")) {
   met <- match.arg(metric)
   estimand <- match.arg(estimand)
+  kernel <- match.arg(kernel)
   
   if(!is.matrix(X)) X <- as.matrix(X)
   
@@ -103,16 +109,26 @@ calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), is.dose = FAL
   } else {
     if(!is.integer(z)) z <- as.integer(z)
     
-    return( similarity_calc_(X_ = X, z = z,
+    if(kernel == "polynomial") {
+      return( similarity_calc_(X_ = X, z = z,
                              calc_covariance = calc_covariance,
                              estimand = estimand) )
+    } else if (kernel == "RBF") {
+      if(calc_covariance) {
+        return(cost_mahalanobis(X,X, ground_p = 2, direction = "rowwise"))
+      } else {
+        return(cost_calc_lp(X,X, ground_p = 2, direction = "rowwise"))
+      }
+    }
   }
 }
+
 
 
 ot_kernel_calculation <- function(X, z, p = 1.0, 
                                   theta = NULL, gamma = NULL, 
                                   # sigma_2 = NULL, 
+                                  kernel = c("RBF","polynomial"),
                                   metric = c("mahalanobis","Lp"),
                                   is.dose = FALSE, 
                                   estimand = c("ATE","ATT","ATC")) {
@@ -123,6 +139,7 @@ ot_kernel_calculation <- function(X, z, p = 1.0,
   if(!is.logical(is.dose)) is.dose <- isTRUE(is.dose)
   
   estimand <- match.arg(estimand)
+  kernel <- match.arg(kernel)
   
   if(nrow(X) != nrow(z)) stop("Observations of X and z must be equal")
   
@@ -137,7 +154,8 @@ ot_kernel_calculation <- function(X, z, p = 1.0,
   if(is.dose) {
     return(kernel_calc_dose_(X_ = X, z_ = z, p = p, 
                              theta_ = theta, gamma_ = gamma,
-                             calc_covariance = calc_covariance))
+                             kernel_ = kernel,
+                             calc_covariance = calc_covariance)$cov_kernel)
   } else {
     orders <- order(z)
     X <- X[orders,,drop=FALSE]
@@ -145,6 +163,7 @@ ot_kernel_calculation <- function(X, z, p = 1.0,
     return(kernel_calc_ot_(X_ = X, z = z, p = p, 
                         theta_ = theta, gamma_ = gamma,
                         # sigma_2 = sigma_2,
+                        kernel_ = kernel,
                         calc_covariance = calc_covariance,
                         estimand = estimand))
   }

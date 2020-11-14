@@ -159,7 +159,7 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   
   
   weights2 <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                            constraint = 120, 
+                                                            constraint = 40, 
                                                             estimand = e, 
                                                             distance = distance,
                                                             rkhs.args = rkhs.argz,
@@ -168,28 +168,28 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   sapply(weights2, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma")))
   
   
-  test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1), "Mean relative difference")}
+  test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1, check.attributes = FALSE), "Mean relative difference")}
   mapply(test_fun, w1 = weights[2:4], w2 = weights2[2:4])
   
-  test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0), "Mean relative difference")}
+  test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0, check.attributes = FALSE), "Mean relative difference")}
   # test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
   mapply(test_fun2, w1 = weights[c(4)], w2 = weights2[c(4)])
   test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
   mapply(test_fun2, w1 = weights[c(1,3)], w2 = weights2[c(1,3)])
   
-  testthat::expect_true(all.equal(rep(1/n0,n0), 
-                                   weights2[[1]]$w0, check.attributes = FALSE))
-  testthat::expect_true(all.equal(rep(1/n0,n0), 
-                                   weights2[[3]]$w0, check.attributes = FALSE))
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights2[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  test_fun2(list(w0 = rep(1/n0,n0)), 
+                                   weights2[[1]])
+  test_fun2(list(w0 = rep(1/n0,n0)), 
+            weights2[[3]])
+  test_fun2(list(w0 = rep(1/n0,n0)), 
+            weights2[[4]])
   
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights2[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights2[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights2[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  test_fun(list(w1 = rep(1/n1,n1)), 
+            weights2[[2]])
+  test_fun(list(w1 = rep(1/n1,n1)), 
+           weights2[[3]])
+  test_fun(list(w1 = rep(1/n1,n1)), 
+           weights2[[4]])
   
 })
 
@@ -214,7 +214,7 @@ testthat::test_that("works for Wass", {
   n1 <- ns["n1"]
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = 3, 
+                                                           constraint = 2.5, 
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            solver = "gurobi"))
@@ -388,7 +388,7 @@ testthat::test_that("works for Wass RKHS, opt", {
   n1 <- ns["n1"]
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = 1000, 
+                                                           constraint = 10, 
                                                            estimand = e, 
                                                            rkhs.args = rkhs.argz,
                                                            distance = distance,
@@ -410,7 +410,7 @@ testthat::test_that("works for Wass RKHS, opt", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = 1000, 
+                                                           constraint = 10, 
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            rkhs.args = rkhs.argz,
@@ -432,7 +432,7 @@ testthat::test_that("works for Wass RKHS, opt", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = 1000, 
+                                                           constraint = 10, 
                                                            estimand = e, 
                                                            rkhs.args = rkhs.argz,
                                                            distance = distance,

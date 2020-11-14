@@ -19,7 +19,7 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
   } else if (meth == "Wasserstein") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "Lp"
+    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
     if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
@@ -27,12 +27,15 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
                          "ATC" = "ATC",
                          "ATE"
                          )
+      if(is.null(dots$kernel)) dots$kernel <- "RBF"
+      
       dots$rkhs.args <- RKHS_param_opt(x=data$get_x(), 
                                        z=data$get_z(), 
                                        y = data$get_y(),
                                        metric = "mahalanobis",
                                        is.dose = dots$is.dose,
                                        opt.method = dots$opt.method,
+                                       kernel = dots$kernel,
                                        estimand = temp.est,
                                        ...)
     }
@@ -56,7 +59,7 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
   } else if (meth == "Constrained Wasserstein") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "Lp"
+    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
     if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
@@ -64,10 +67,15 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
                          "ATC" = "ATC",
                          "ATE"
       )
+      if(is.null(dots$kernel)) dots$kernel <- "RBF"
       dots$rkhs.args <- RKHS_param_opt(x=data$get_x(), 
                                        z=data$get_z(), 
                                        y = data$get_y(),
-                                       metric = "mahalanobis",
+                                       metric = switch(dots$dist,
+                                                       "RKHS" = "mahalanobis",
+                                                       "mahalanobis" = "mahalanobis",
+                                                       "Lp" = "Lp"),
+                                       kernel = dots$kernel,
                                        is.dose = dots$is.dose,
                                        opt.method = dots$opt.method,
                                        estimand = temp.est,
@@ -154,7 +162,7 @@ quadprog.data.frame <- function(data, constraint,
   } else if (meth == "Wasserstein") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "Lp"
+    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
     if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
@@ -162,10 +170,15 @@ quadprog.data.frame <- function(data, constraint,
                          "ATC" = "ATC",
                          "ATE"
       )
+      if(is.null(dots$kernel)) dots$kernel <- "RBF"
       dots$rkhs.args <- RKHS_param_opt(x=x, 
                                        z=z, 
                                        y = y,
-                                       metric = "mahalanobis",
+                                       metric = switch(dots$dist,
+                                                       "RKHS" = "mahalanobis",
+                                                       "mahalanobis" = "mahalanobis",
+                                                       "Lp" = "Lp"),
+                                       kernel = dots$kernel,
                                        is.dose = dots$is.dose,
                                        opt.method = dots$opt.method,
                                        estimand = temp.est,
@@ -187,7 +200,7 @@ quadprog.data.frame <- function(data, constraint,
   } else if (meth == "Constrained Wasserstein") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "Lp"
+    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
     if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
@@ -195,10 +208,13 @@ quadprog.data.frame <- function(data, constraint,
                          "ATC" = "ATC",
                          "ATE"
       )
+      if(is.null(dots$kernel)) dots$kernel <- "RBF"
+      
       dots$rkhs.args <- RKHS_param_opt(x=x, 
                                        z=z, 
                                        y = y,
-                                       metric = "mahalanobis",
+                                       metric = dots$dist,
+                                       kernel = dots$kernel,
                                        is.dose = dots$is.dose,
                                        opt.method = dots$opt.method,
                                        estimand = temp.est,
@@ -576,7 +592,7 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
 
 qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                                             "feasible"),
-                    dist = c("Lp", "mahalanobis"), cost = NULL,
+                    dist = c("Lp", "mahalanobis", "RKHS"), cost = NULL,
                     rkhs.args = NULL) {
   sqrt_mat <- function(X) {
     p <- ncol(X)
@@ -632,12 +648,21 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                                                          rkhs.args = rkhs.args, estimand = "ATE"))
         cost <- list(z0 = lapply(cost_temp, function(cc) cc[[1]]),
                      z1 = lapply(cost_temp, function(cc) cc[[2]]))
-        cost$z0[d+1] <- list(cost_fun(x0, x, 
-                                 ground_p = p, metric = dist,
-                                 rkhs.args = rkhs.args, estimand = "ATE"))
-        cost$z1[d+1] <- list(cost_fun(x1, x, 
-                                 ground_p = p, metric = dist,
-                                 rkhs.args = rkhs.args, estimand = "ATE"))
+        if(dist != "RKHS") {
+          cost$z0[d+1] <- list(cost_fun(x0, x, 
+                                        ground_p = p, metric = dist,
+                                        rkhs.args = rkhs.args, estimand = "ATE"))
+          cost$z1[d+1] <- list(cost_fun(x1, x, 
+                                        ground_p = p, metric = dist,
+                                        rkhs.args = rkhs.args, estimand = "ATE"))
+        } else {
+          cost.list <- cost_fun(x0, x1, 
+                                        ground_p = p, metric = dist,
+                                        rkhs.args = rkhs.args, estimand = "ATE")
+          cost$z0[d+1] <- cost.list[1]
+          cost$z1[d+1] <- cost.list[2]
+        }
+        
       }
       
     }
@@ -942,6 +967,7 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
                     theta = c(1,1),
                     gamma = c(1,1), lambda = 0, 
                     sigma_2 = c(1,1),
+                    kernel = c("RBF", "polynomial"),
                     dist = c("mahalanobis","Lp"), cost = NULL, 
                     is.dose = FALSE, ...) {
   # est <- match.arg(estimand)
@@ -949,7 +975,7 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
   #   z <- 1 - z
   # }
   n <- nrow(x)
-  
+  kernel <- match.arg(kernel)
   dist <- match.arg(dist)
   # cost.fun <- switch(isTRUE(is.dose),
   #                    "TRUE" = "kernel_calculation",
@@ -958,7 +984,8 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
   if(is.null(cost)) { 
     kernels <- kernel_calculation(x, z, p = p, theta = theta, 
                                gamma = gamma, sigma_2 = sigma_2, 
-                               metric = dist, is.dose = is.dose,
+                               metric = dist, kernel =  kernel,
+                               is.dose = is.dose,
                                estimand = estimand)
     cost <- list(kernels$cov_kernel, kernels$mean_kernel)
   } else {

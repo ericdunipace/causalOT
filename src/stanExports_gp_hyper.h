@@ -33,7 +33,7 @@ static int current_statement_begin__;
 stan::io::program_reader prog_reader__() {
     stan::io::program_reader reader;
     reader.add_event(0, 0, "start", "model_gp_hyper");
-    reader.add_event(169, 167, "end", "model_gp_hyper");
+    reader.add_event(173, 171, "end", "model_gp_hyper");
     return reader;
 }
 template <typename T0__, typename T2__, typename T3__, typename T4__, typename T5__, typename T6__, typename T7__, typename T8__>
@@ -307,6 +307,8 @@ private:
         int is_dose;
         int kernel;
         vector_d mu;
+        int poly;
+        int dose_var;
 public:
     model_gp_hyper(stan::io::var_context& context__,
         std::ostream* pstream__ = 0)
@@ -404,21 +406,43 @@ public:
             vals_i__ = context__.vals_i("is_dose");
             pos__ = 0;
             is_dose = vals_i__[pos__++];
+            check_greater_or_equal(function__, "is_dose", is_dose, 0);
+            check_less_or_equal(function__, "is_dose", is_dose, 1);
             current_statement_begin__ = 105;
             context__.validate_dims("data initialization", "kernel", "int", context__.to_vec());
             kernel = int(0);
             vals_i__ = context__.vals_i("kernel");
             pos__ = 0;
             kernel = vals_i__[pos__++];
+            check_greater_or_equal(function__, "kernel", kernel, 1);
+            check_less_or_equal(function__, "kernel", kernel, 2);
             // initialize transformed data variables
             current_statement_begin__ = 109;
             validate_non_negative_index("mu", "N", N);
             mu = Eigen::Matrix<double, Eigen::Dynamic, 1>(N);
             stan::math::fill(mu, DUMMY_VAR__);
-            // execute transformed data statements
+            current_statement_begin__ = 110;
+            poly = int(0);
+            stan::math::fill(poly, std::numeric_limits<int>::min());
+            stan::math::assign(poly,0);
             current_statement_begin__ = 111;
+            dose_var = int(0);
+            stan::math::fill(dose_var, std::numeric_limits<int>::min());
+            stan::math::assign(dose_var,2);
+            // execute transformed data statements
+            current_statement_begin__ = 113;
+            if (as_bool(logical_eq(kernel, 1))) {
+                current_statement_begin__ = 113;
+                stan::math::assign(poly, 1);
+            }
+            current_statement_begin__ = 114;
+            if (as_bool(logical_eq(is_dose, 1))) {
+                current_statement_begin__ = 114;
+                stan::math::assign(dose_var, 1);
+            }
+            current_statement_begin__ = 116;
             for (int n = 1; n <= N; ++n) {
-                current_statement_begin__ = 111;
+                current_statement_begin__ = 116;
                 stan::model::assign(mu, 
                             stan::model::cons_list(stan::model::index_uni(n), stan::model::nil_index_list()), 
                             0.0, 
@@ -428,18 +452,16 @@ public:
             // validate, set parameter ranges
             num_params_r__ = 0U;
             param_ranges_i__.clear();
-            current_statement_begin__ = 117;
-            num_params_r__ += 1;
-            current_statement_begin__ = 118;
-            validate_non_negative_index("sigma_1", "(1 - is_dose)", (1 - is_dose));
-            num_params_r__ += (1 * (1 - is_dose));
-            current_statement_begin__ = 119;
-            num_params_r__ += 1;
-            current_statement_begin__ = 120;
-            num_params_r__ += 1;
-            current_statement_begin__ = 121;
-            num_params_r__ += 1;
             current_statement_begin__ = 122;
+            validate_non_negative_index("sigma", "dose_var", dose_var);
+            num_params_r__ += (1 * dose_var);
+            current_statement_begin__ = 123;
+            num_params_r__ += 1;
+            current_statement_begin__ = 124;
+            num_params_r__ += 1;
+            current_statement_begin__ = 125;
+            num_params_r__ += 1;
+            current_statement_begin__ = 126;
             num_params_r__ += 1;
         } catch (const std::exception& e) {
             stan::lang::rethrow_located(e, current_statement_begin__, prog_reader__());
@@ -458,40 +480,27 @@ public:
         (void) pos__; // dummy call to supress warning
         std::vector<double> vals_r__;
         std::vector<int> vals_i__;
-        current_statement_begin__ = 117;
-        if (!(context__.contains_r("sigma_0")))
-            stan::lang::rethrow_located(std::runtime_error(std::string("Variable sigma_0 missing")), current_statement_begin__, prog_reader__());
-        vals_r__ = context__.vals_r("sigma_0");
+        current_statement_begin__ = 122;
+        if (!(context__.contains_r("sigma")))
+            stan::lang::rethrow_located(std::runtime_error(std::string("Variable sigma missing")), current_statement_begin__, prog_reader__());
+        vals_r__ = context__.vals_r("sigma");
         pos__ = 0U;
-        context__.validate_dims("parameter initialization", "sigma_0", "double", context__.to_vec());
-        double sigma_0(0);
-        sigma_0 = vals_r__[pos__++];
-        try {
-            writer__.scalar_lb_unconstrain(0, sigma_0);
-        } catch (const std::exception& e) {
-            stan::lang::rethrow_located(std::runtime_error(std::string("Error transforming variable sigma_0: ") + e.what()), current_statement_begin__, prog_reader__());
+        validate_non_negative_index("sigma", "dose_var", dose_var);
+        context__.validate_dims("parameter initialization", "sigma", "double", context__.to_vec(dose_var));
+        std::vector<double> sigma(dose_var, double(0));
+        size_t sigma_k_0_max__ = dose_var;
+        for (size_t k_0__ = 0; k_0__ < sigma_k_0_max__; ++k_0__) {
+            sigma[k_0__] = vals_r__[pos__++];
         }
-        current_statement_begin__ = 118;
-        if (!(context__.contains_r("sigma_1")))
-            stan::lang::rethrow_located(std::runtime_error(std::string("Variable sigma_1 missing")), current_statement_begin__, prog_reader__());
-        vals_r__ = context__.vals_r("sigma_1");
-        pos__ = 0U;
-        validate_non_negative_index("sigma_1", "(1 - is_dose)", (1 - is_dose));
-        context__.validate_dims("parameter initialization", "sigma_1", "double", context__.to_vec((1 - is_dose)));
-        std::vector<double> sigma_1((1 - is_dose), double(0));
-        size_t sigma_1_k_0_max__ = (1 - is_dose);
-        for (size_t k_0__ = 0; k_0__ < sigma_1_k_0_max__; ++k_0__) {
-            sigma_1[k_0__] = vals_r__[pos__++];
-        }
-        size_t sigma_1_i_0_max__ = (1 - is_dose);
-        for (size_t i_0__ = 0; i_0__ < sigma_1_i_0_max__; ++i_0__) {
+        size_t sigma_i_0_max__ = dose_var;
+        for (size_t i_0__ = 0; i_0__ < sigma_i_0_max__; ++i_0__) {
             try {
-                writer__.scalar_lb_unconstrain(0, sigma_1[i_0__]);
+                writer__.scalar_lb_unconstrain(0, sigma[i_0__]);
             } catch (const std::exception& e) {
-                stan::lang::rethrow_located(std::runtime_error(std::string("Error transforming variable sigma_1: ") + e.what()), current_statement_begin__, prog_reader__());
+                stan::lang::rethrow_located(std::runtime_error(std::string("Error transforming variable sigma: ") + e.what()), current_statement_begin__, prog_reader__());
             }
         }
-        current_statement_begin__ = 119;
+        current_statement_begin__ = 123;
         if (!(context__.contains_r("theta_0")))
             stan::lang::rethrow_located(std::runtime_error(std::string("Variable theta_0 missing")), current_statement_begin__, prog_reader__());
         vals_r__ = context__.vals_r("theta_0");
@@ -504,7 +513,7 @@ public:
         } catch (const std::exception& e) {
             stan::lang::rethrow_located(std::runtime_error(std::string("Error transforming variable theta_0: ") + e.what()), current_statement_begin__, prog_reader__());
         }
-        current_statement_begin__ = 120;
+        current_statement_begin__ = 124;
         if (!(context__.contains_r("theta_1")))
             stan::lang::rethrow_located(std::runtime_error(std::string("Variable theta_1 missing")), current_statement_begin__, prog_reader__());
         vals_r__ = context__.vals_r("theta_1");
@@ -517,7 +526,7 @@ public:
         } catch (const std::exception& e) {
             stan::lang::rethrow_located(std::runtime_error(std::string("Error transforming variable theta_1: ") + e.what()), current_statement_begin__, prog_reader__());
         }
-        current_statement_begin__ = 121;
+        current_statement_begin__ = 125;
         if (!(context__.contains_r("gamma_0")))
             stan::lang::rethrow_located(std::runtime_error(std::string("Variable gamma_0 missing")), current_statement_begin__, prog_reader__());
         vals_r__ = context__.vals_r("gamma_0");
@@ -530,7 +539,7 @@ public:
         } catch (const std::exception& e) {
             stan::lang::rethrow_located(std::runtime_error(std::string("Error transforming variable gamma_0: ") + e.what()), current_statement_begin__, prog_reader__());
         }
-        current_statement_begin__ = 122;
+        current_statement_begin__ = 126;
         if (!(context__.contains_r("gamma_1")))
             stan::lang::rethrow_located(std::runtime_error(std::string("Variable gamma_1 missing")), current_statement_begin__, prog_reader__());
         vals_r__ = context__.vals_r("gamma_1");
@@ -568,45 +577,38 @@ public:
         try {
             stan::io::reader<local_scalar_t__> in__(params_r__, params_i__);
             // model parameters
-            current_statement_begin__ = 117;
-            local_scalar_t__ sigma_0;
-            (void) sigma_0;  // dummy to suppress unused var warning
-            if (jacobian__)
-                sigma_0 = in__.scalar_lb_constrain(0, lp__);
-            else
-                sigma_0 = in__.scalar_lb_constrain(0);
-            current_statement_begin__ = 118;
-            std::vector<local_scalar_t__> sigma_1;
-            size_t sigma_1_d_0_max__ = (1 - is_dose);
-            sigma_1.reserve(sigma_1_d_0_max__);
-            for (size_t d_0__ = 0; d_0__ < sigma_1_d_0_max__; ++d_0__) {
+            current_statement_begin__ = 122;
+            std::vector<local_scalar_t__> sigma;
+            size_t sigma_d_0_max__ = dose_var;
+            sigma.reserve(sigma_d_0_max__);
+            for (size_t d_0__ = 0; d_0__ < sigma_d_0_max__; ++d_0__) {
                 if (jacobian__)
-                    sigma_1.push_back(in__.scalar_lb_constrain(0, lp__));
+                    sigma.push_back(in__.scalar_lb_constrain(0, lp__));
                 else
-                    sigma_1.push_back(in__.scalar_lb_constrain(0));
+                    sigma.push_back(in__.scalar_lb_constrain(0));
             }
-            current_statement_begin__ = 119;
+            current_statement_begin__ = 123;
             local_scalar_t__ theta_0;
             (void) theta_0;  // dummy to suppress unused var warning
             if (jacobian__)
                 theta_0 = in__.scalar_lb_constrain(0, lp__);
             else
                 theta_0 = in__.scalar_lb_constrain(0);
-            current_statement_begin__ = 120;
+            current_statement_begin__ = 124;
             local_scalar_t__ theta_1;
             (void) theta_1;  // dummy to suppress unused var warning
             if (jacobian__)
                 theta_1 = in__.scalar_lb_constrain(0, lp__);
             else
                 theta_1 = in__.scalar_lb_constrain(0);
-            current_statement_begin__ = 121;
+            current_statement_begin__ = 125;
             local_scalar_t__ gamma_0;
             (void) gamma_0;  // dummy to suppress unused var warning
             if (jacobian__)
                 gamma_0 = in__.scalar_lb_constrain(0, lp__);
             else
                 gamma_0 = in__.scalar_lb_constrain(0);
-            current_statement_begin__ = 122;
+            current_statement_begin__ = 126;
             local_scalar_t__ gamma_1;
             (void) gamma_1;  // dummy to suppress unused var warning
             if (jacobian__)
@@ -614,31 +616,31 @@ public:
             else
                 gamma_1 = in__.scalar_lb_constrain(0);
             // transformed parameters
-            current_statement_begin__ = 126;
+            current_statement_begin__ = 130;
             validate_non_negative_index("Sigma", "N", N);
             validate_non_negative_index("Sigma", "N", N);
             Eigen::Matrix<local_scalar_t__, Eigen::Dynamic, Eigen::Dynamic> Sigma(N, N);
             stan::math::initialize(Sigma, DUMMY_VAR__);
             stan::math::fill(Sigma, DUMMY_VAR__);
             // transformed parameters block statements
-            current_statement_begin__ = 128;
-            if (as_bool(logical_eq(is_dose, 1))) {
-                current_statement_begin__ = 129;
-                stan::math::assign(Sigma, pol_kern_dose(discrep_z, discrep, theta_0, theta_1, gamma_0, gamma_1, sigma_0, p, pstream__));
+            current_statement_begin__ = 132;
+            if (as_bool((primitive_value(logical_eq(is_dose, 1)) && primitive_value(logical_eq(kernel, 1))))) {
+                current_statement_begin__ = 133;
+                stan::math::assign(Sigma, pol_kern_dose(discrep_z, discrep, theta_0, theta_1, gamma_0, gamma_1, get_base1(sigma, 1, "sigma", 1), p, pstream__));
             } else {
-                current_statement_begin__ = 137;
+                current_statement_begin__ = 141;
                 if (as_bool(logical_eq(kernel, 1))) {
-                    current_statement_begin__ = 138;
-                    stan::math::assign(Sigma, pol_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, sigma_0, get_base1(sigma_1, 1, "sigma_1", 1), p, pstream__));
+                    current_statement_begin__ = 142;
+                    stan::math::assign(Sigma, pol_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, get_base1(sigma, 1, "sigma", 1), get_base1(sigma, 2, "sigma", 1), p, pstream__));
                 } else if (as_bool(logical_eq(kernel, 2))) {
-                    current_statement_begin__ = 147;
-                    stan::math::assign(Sigma, rbf_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, sigma_0, get_base1(sigma_1, 1, "sigma_1", 1), pstream__));
+                    current_statement_begin__ = 151;
+                    stan::math::assign(Sigma, rbf_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, get_base1(sigma, 1, "sigma", 1), get_base1(sigma, 2, "sigma", 1), pstream__));
                 }
             }
             // validate transformed parameters
             const char* function__ = "validate transformed params";
             (void) function__;  // dummy to suppress unused var warning
-            current_statement_begin__ = 126;
+            current_statement_begin__ = 130;
             size_t Sigma_j_1_max__ = N;
             size_t Sigma_j_2_max__ = N;
             for (size_t j_1__ = 0; j_1__ < Sigma_j_1_max__; ++j_1__) {
@@ -651,7 +653,7 @@ public:
                 }
             }
             // model body
-            current_statement_begin__ = 162;
+            current_statement_begin__ = 166;
             lp_accum__.add(multi_normal_log<propto__>(y, mu, Sigma));
         } catch (const std::exception& e) {
             stan::lang::rethrow_located(e, current_statement_begin__, prog_reader__());
@@ -673,8 +675,7 @@ public:
     }
     void get_param_names(std::vector<std::string>& names__) const {
         names__.resize(0);
-        names__.push_back("sigma_0");
-        names__.push_back("sigma_1");
+        names__.push_back("sigma");
         names__.push_back("theta_0");
         names__.push_back("theta_1");
         names__.push_back("gamma_0");
@@ -686,9 +687,7 @@ public:
         dimss__.resize(0);
         std::vector<size_t> dims__;
         dims__.resize(0);
-        dimss__.push_back(dims__);
-        dims__.resize(0);
-        dims__.push_back((1 - is_dose));
+        dims__.push_back(dose_var);
         dimss__.push_back(dims__);
         dims__.resize(0);
         dimss__.push_back(dims__);
@@ -719,17 +718,15 @@ public:
         static const char* function__ = "model_gp_hyper_namespace::write_array";
         (void) function__;  // dummy to suppress unused var warning
         // read-transform, write parameters
-        double sigma_0 = in__.scalar_lb_constrain(0);
-        vars__.push_back(sigma_0);
-        std::vector<double> sigma_1;
-        size_t sigma_1_d_0_max__ = (1 - is_dose);
-        sigma_1.reserve(sigma_1_d_0_max__);
-        for (size_t d_0__ = 0; d_0__ < sigma_1_d_0_max__; ++d_0__) {
-            sigma_1.push_back(in__.scalar_lb_constrain(0));
+        std::vector<double> sigma;
+        size_t sigma_d_0_max__ = dose_var;
+        sigma.reserve(sigma_d_0_max__);
+        for (size_t d_0__ = 0; d_0__ < sigma_d_0_max__; ++d_0__) {
+            sigma.push_back(in__.scalar_lb_constrain(0));
         }
-        size_t sigma_1_k_0_max__ = (1 - is_dose);
-        for (size_t k_0__ = 0; k_0__ < sigma_1_k_0_max__; ++k_0__) {
-            vars__.push_back(sigma_1[k_0__]);
+        size_t sigma_k_0_max__ = dose_var;
+        for (size_t k_0__ = 0; k_0__ < sigma_k_0_max__; ++k_0__) {
+            vars__.push_back(sigma[k_0__]);
         }
         double theta_0 = in__.scalar_lb_constrain(0);
         vars__.push_back(theta_0);
@@ -747,25 +744,25 @@ public:
         if (!include_tparams__ && !include_gqs__) return;
         try {
             // declare and define transformed parameters
-            current_statement_begin__ = 126;
+            current_statement_begin__ = 130;
             validate_non_negative_index("Sigma", "N", N);
             validate_non_negative_index("Sigma", "N", N);
             Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> Sigma(N, N);
             stan::math::initialize(Sigma, DUMMY_VAR__);
             stan::math::fill(Sigma, DUMMY_VAR__);
             // do transformed parameters statements
-            current_statement_begin__ = 128;
-            if (as_bool(logical_eq(is_dose, 1))) {
-                current_statement_begin__ = 129;
-                stan::math::assign(Sigma, pol_kern_dose(discrep_z, discrep, theta_0, theta_1, gamma_0, gamma_1, sigma_0, p, pstream__));
+            current_statement_begin__ = 132;
+            if (as_bool((primitive_value(logical_eq(is_dose, 1)) && primitive_value(logical_eq(kernel, 1))))) {
+                current_statement_begin__ = 133;
+                stan::math::assign(Sigma, pol_kern_dose(discrep_z, discrep, theta_0, theta_1, gamma_0, gamma_1, get_base1(sigma, 1, "sigma", 1), p, pstream__));
             } else {
-                current_statement_begin__ = 137;
+                current_statement_begin__ = 141;
                 if (as_bool(logical_eq(kernel, 1))) {
-                    current_statement_begin__ = 138;
-                    stan::math::assign(Sigma, pol_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, sigma_0, get_base1(sigma_1, 1, "sigma_1", 1), p, pstream__));
+                    current_statement_begin__ = 142;
+                    stan::math::assign(Sigma, pol_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, get_base1(sigma, 1, "sigma", 1), get_base1(sigma, 2, "sigma", 1), p, pstream__));
                 } else if (as_bool(logical_eq(kernel, 2))) {
-                    current_statement_begin__ = 147;
-                    stan::math::assign(Sigma, rbf_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, sigma_0, get_base1(sigma_1, 1, "sigma_1", 1), pstream__));
+                    current_statement_begin__ = 151;
+                    stan::math::assign(Sigma, rbf_kern(discrep, z, theta_0, theta_1, gamma_0, gamma_1, get_base1(sigma, 1, "sigma", 1), get_base1(sigma, 2, "sigma", 1), pstream__));
                 }
             }
             if (!include_gqs__ && !include_tparams__) return;
@@ -784,14 +781,14 @@ public:
             }
             if (!include_gqs__) return;
             // declare and define generated quantities
-            current_statement_begin__ = 166;
+            current_statement_begin__ = 170;
             double marg_lik;
             (void) marg_lik;  // dummy to suppress unused var warning
             stan::math::initialize(marg_lik, DUMMY_VAR__);
             stan::math::fill(marg_lik, DUMMY_VAR__);
             stan::math::assign(marg_lik,multi_normal_log(y, mu, Sigma));
             // validate, write generated quantities
-            current_statement_begin__ = 166;
+            current_statement_begin__ = 170;
             vars__.push_back(marg_lik);
         } catch (const std::exception& e) {
             stan::lang::rethrow_located(e, current_statement_begin__, prog_reader__());
@@ -823,13 +820,10 @@ public:
                                  bool include_tparams__ = true,
                                  bool include_gqs__ = true) const {
         std::stringstream param_name_stream__;
-        param_name_stream__.str(std::string());
-        param_name_stream__ << "sigma_0";
-        param_names__.push_back(param_name_stream__.str());
-        size_t sigma_1_k_0_max__ = (1 - is_dose);
-        for (size_t k_0__ = 0; k_0__ < sigma_1_k_0_max__; ++k_0__) {
+        size_t sigma_k_0_max__ = dose_var;
+        for (size_t k_0__ = 0; k_0__ < sigma_k_0_max__; ++k_0__) {
             param_name_stream__.str(std::string());
-            param_name_stream__ << "sigma_1" << '.' << k_0__ + 1;
+            param_name_stream__ << "sigma" << '.' << k_0__ + 1;
             param_names__.push_back(param_name_stream__.str());
         }
         param_name_stream__.str(std::string());
@@ -865,13 +859,10 @@ public:
                                    bool include_tparams__ = true,
                                    bool include_gqs__ = true) const {
         std::stringstream param_name_stream__;
-        param_name_stream__.str(std::string());
-        param_name_stream__ << "sigma_0";
-        param_names__.push_back(param_name_stream__.str());
-        size_t sigma_1_k_0_max__ = (1 - is_dose);
-        for (size_t k_0__ = 0; k_0__ < sigma_1_k_0_max__; ++k_0__) {
+        size_t sigma_k_0_max__ = dose_var;
+        for (size_t k_0__ = 0; k_0__ < sigma_k_0_max__; ++k_0__) {
             param_name_stream__.str(std::string());
-            param_name_stream__ << "sigma_1" << '.' << k_0__ + 1;
+            param_name_stream__ << "sigma" << '.' << k_0__ + 1;
             param_names__.push_back(param_name_stream__.str());
         }
         param_name_stream__.str(std::string());

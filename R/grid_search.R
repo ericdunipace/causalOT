@@ -18,7 +18,9 @@ sbw_grid_search <- function(data, grid = NULL,
   
   weight.list <- lapply(grid, function(delta) {
     args$constraint <- delta
-    out <- eval(f.call, envir = args)
+    out <- tryCatch(eval(f.call, envir = args),
+                    error = function(e) {return(list(w0 = rep(NA_real_, get_n(data)[1]),
+                                                    w1 = rep(NA_real_, get_n(data)[2])))})
     # out <- do.call("calc_weight_bal", args)
     if(list(...)$solver == "gurobi") Sys.sleep(0.1)
     return(out)
@@ -38,7 +40,7 @@ sbw_grid_search <- function(data, grid = NULL,
     output[g] <- mean(sapply(bootIdx, mean_bal_grid, weight = weight.list[[g]], 
                           data = mean.bal.dat, tx_ind = "z", balance.covariates = colnames(x)))
   }
-  if(all(is.na(output))) stop("All weights generated errors")
+  if(all(is.na(output))) stop("sbw_grid_search: All grid values generated errors")
   
   min.idx <- which(output == min(output, na.rm=TRUE))
   weight.list[[min.idx]]$standardized.mean.difference <- grid[min.idx]

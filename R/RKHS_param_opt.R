@@ -1,10 +1,12 @@
 RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp"), is.dose = FALSE, 
                            opt.method = c("stan", "optim","bayesian.optimization"), 
+                           kernel = c("RBF","polynomial"),
                            estimand = c("ATC","ATT","ATE"), ...) {
   
   opt.method <- match.arg(opt.method)
   metric <- match.arg(metric)
   estimand <- match.arg(estimand)
+  kernel <- match.arg(kernel)
   
   is.dose <- isTRUE(is.dose)
   power <- as.integer(power)
@@ -13,7 +15,7 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
   y_std[z==0] <- scale(y[z==0])
   y_std[z==1] <- scale(y[z==1])
   
-  similarity_mats <- calc_similarity(x, z, metric = metric, is.dose, estimand)
+  similarity_mats <- calc_similarity(x, z, metric = metric, kernel = kernel, is.dose, estimand)
   
   kern_dose <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
     K <- gamma_0*(1.0 + theta_0 * similarity_mats[["Z"]])^p *  gamma_1*(1.0 + theta_1 * similarity_mats[["X"]])^p
@@ -23,7 +25,8 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
   kern_ <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
     s2 <- as.double(rep(sigma2, length(z)))
     return(kernel_update_(sim_ = similarity_mats, z_ = z, theta_ = c(theta_0, theta_1),
-                          gamma_ =c(gamma_0, gamma_1), p = p, sigma_2_ = s2))
+                          gamma_ =c(gamma_0, gamma_1), p = p, sigma_2_ = s2,
+                          kernel_ = kernel))
     
   }
   cmb_kern <- switch(as.character(is.dose),
@@ -31,7 +34,10 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
                      "FALSE" = kern_)
   
   if(opt.method == "bayesian.optimization") {
-    
+    if(kernel == "RBF") {
+      kernel <- "polynomial"
+      warning("RBF kernel isn't supported for method optim. Switching to polynomial kernel")
+    }
     scoring_fun <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
       K <- cmb_kern(theta_0, theta_1, gamma_0, gamma_1, sigma2)
       score <- marginal_lik_gp_(y_std, K)
@@ -61,7 +67,12 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     idx <- which.max(unlist(vals))
     param <- ParBayesianOptimization::getBestPars(res[[idx]])
     param$p <- power[idx]
-  } else if(opt.method == "optim") {
+  } 
+  else if(opt.method == "optim") {
+    if(kernel == "RBF") {
+      kernel <- "polynomial"
+      warning("RBF kernel isn't supported for method optim. Switching to polynomial kernel")
+    }
     scoring_fun <- function(param) {
       exp.param <- exp(param)
       K <- cmb_kern(exp.param["theta_0"], 
@@ -102,7 +113,8 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     idx <- which.min(sapply(res, function(r) r$value[1]))
     param <- lapply(exp(res[[idx]]$par), function(r) r)
     param$p <- power[idx]
-  } else if (opt.method == "stan") {
+  } 
+  else if (opt.method == "stan") {
     if(is.list(similarity_mats)) {
       dis_x <- similarity_mats[["X"]]
       dis_z <- similarity_mats[["Z"]]
@@ -110,6 +122,7 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
       dis_x <- similarity_mats
       dis_z <- matrix(0, nrow(dis_x), ncol(dis_x))
     }
+    
     arguments <- list(
       data = list(N = as.integer(length(y)),
                   y = c(y_std),
@@ -117,7 +130,10 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
                   discrep_z = dis_z,
                   z = z,
                   p = power[1],
-                  is_dose = as.integer(is.dose)),
+                  is_dose = as.integer(is.dose),
+                  kernel = switch(kernel,
+                                  "RBF" = 2L,
+                                  "polynomial" = 1L)),
       ...,
       as_vector = FALSE
     )
@@ -131,25 +147,32 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     arguments <- arguments[!duplicated(names(arguments))]
     arguments <- arguments[names(arguments) %in% formals.stan]
     if(is.null(arguments$object)) arguments$object <- stanmodels$gp_hyper
-    res <- vector("list", length(power))
+    
     argn <- lapply(names(arguments), as.name)
     names(argn) <- names(arguments)
     f.call <- as.call(c(list(call("::", as.name("rstan"), 
                                   as.name("optimizing"))), argn))
-    
-    for(i in seq_along(power) ) {
-      arguments$data$p <-  as.double(power[i])
-      res[[i]] <- eval(f.call, envir = arguments)
-      # samp <- rstan::vb(stan_mod, data = data_stan)
+    # res <- eval(f.call, envir = arguments)
+    if (kernel == "polynomial") {
+      res <- vector("list", length(power))
+      for(i in seq_along(power) ) {
+        arguments$data$p <-  as.double(power[i])
+        res[[i]] <- eval(f.call, envir = arguments)
+        # samp <- rstan::vb(stan_mod, data = data_stan)
+      }
+      idx <- which.max(sapply(res, function(r) r$par$marg_lik))
+      param <- res[[idx]]$par
+      # param$sigma2 <- c(param$sigma_0, param$sigma_1)
+      param$p <- power[idx]
+    } else if (kernel == "RBF") {
+      res <- eval(f.call, envir = arguments)
+      param <- res$par
     }
-    idx <- which.max(sapply(res, function(r) r$par$marg_lik))
-    param <- res[[idx]]$par
-    param$sigma2 <- c(param$sigma_0, param$sigma_1)
-    param$p <- power[idx]
+    
   }
   out <- list(theta = c(param$theta_0, param$theta_1),
               gamma = c(param$gamma_0, param$gamma_1),
               p = param$p,
-              sigma_2 = param$sigma2)
+              sigma_2 = param$sigma)
   return(out)
 }

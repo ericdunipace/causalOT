@@ -54,7 +54,7 @@ matrix rbf_kern( matrix cost,
       if ( (z[i] == 1) && ( z[j] == 1) ) {
         K[i,j] = gamma_1 * exp(- 0.5 * theta_1 * cost[i,j]);
       } else if ( (z[i] == 0) && (z[j] == 0) ) {
-        K[i,j] = gamma_0 * exp(- 0.5 * theta_0 * cost[i,j]);;
+        K[i,j] = gamma_0 * exp(- 0.5 * theta_0 * cost[i,j]);
       } else {
         K[i,j] = 0.0;
       }
@@ -101,12 +101,17 @@ data {
   matrix[N,N] discrep_z;
   int z[N];
   real p;
-  int is_dose;
-  int kernel;
+  int<lower = 0, upper = 1> is_dose;
+  int<lower = 1, upper = 2> kernel;
 }
 
 transformed data {
   vector[N] mu;
+  int poly = 0;
+  int dose_var = 2;
+  
+  if(kernel == 1) poly = 1;
+  if(is_dose == 1) dose_var = 1;
   
   for(n in 1:N) mu[n] = 0.0;
 }
@@ -114,8 +119,7 @@ transformed data {
 // The parameters accepted by the model. Our model
 // accepts two parameters 'mu' and 'sigma'.
 parameters {
-  real<lower=0> sigma_0;
-  real<lower=0> sigma_1[1-is_dose]; //only defined in binary tx eg
+  real<lower=0> sigma[dose_var]; //2nd variance only defined in binary tx eg
   real<lower=0> theta_0;
   real<lower=0> theta_1;
   real<lower=0> gamma_0;
@@ -125,13 +129,13 @@ parameters {
 transformed parameters {
   matrix[N,N] Sigma;
   
-  if(is_dose == 1) { //dose kernel with one variance
+  if(is_dose == 1 && kernel == 1) { //dose kernel with one variance
     Sigma = pol_kern_dose(discrep_z, discrep,
                             theta_0,
                             theta_1,
                             gamma_0,
                             gamma_1,
-                            sigma_0,
+                            sigma[1],
                             p);
   } else { //non-dose with two variances
     if(kernel == 1 ) {
@@ -140,8 +144,8 @@ transformed parameters {
                             theta_1,
                             gamma_0,
                             gamma_1,
-                            sigma_0,
-                            sigma_1[1],
+                            sigma[1],
+                            sigma[2],
                             p);
     } else if (kernel == 2) {
       Sigma = rbf_kern(discrep, z,
@@ -149,8 +153,8 @@ transformed parameters {
                             theta_1,
                             gamma_0,
                             gamma_1,
-                            sigma_0,
-                            sigma_1[1]);
+                            sigma[1],
+                            sigma[2]);
     }
   }
 }

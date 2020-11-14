@@ -1,4 +1,5 @@
 testthat::test_that("optimal weighting works, augmentation", {
+  testthat::skip_on_cran()
   set.seed(6464546)
   n <- 2^7
   p <- 6
@@ -97,6 +98,8 @@ testthat::test_that("optimal weighting works, augmentation", {
 })
 
 testthat::test_that("optimal weighting works, no augmentation", {
+  testthat::skip_on_cran()
+  
   set.seed(6464546)
   n <- 2^7
   p <- 6
@@ -195,6 +198,8 @@ testthat::test_that("optimal weighting works, no augmentation", {
 })
 
 testthat::test_that("optimal weighting comparison works, no augmentation", {
+  testthat::skip_on_cran()
+  
   set.seed(9847)
   n <- 2^7
   p <- 6
@@ -215,7 +220,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                       constraint = .8, 
+                                                       constraint = 8, 
                                                        estimand = e, 
                                                        p = power,
                                                        method = "Wasserstein",
@@ -234,6 +239,8 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
 })
 
 testthat::test_that("optimal weighting comparison works. augmentation", {
+  testthat::skip_on_cran()
+  
   set.seed(9847)
   n <- 2^7
   p <- 6
@@ -254,7 +261,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                       constraint = .8, 
+                                                       constraint = 8, 
                                                        estimand = e, 
                                                        p = power,
                                                        method = "Wasserstein",

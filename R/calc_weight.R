@@ -1,6 +1,6 @@
 setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimand = "character"))
 
-calc_weight <- function(data, constraint=NULL,  estimand = c("ATT", "ATC","ATE", "cATE", "feasible"), 
+calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
                                    "NNM",
                                    "Logistic"),
@@ -59,7 +59,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATT", "ATC","ATE",
   return(output)
 }
 
-calc_weight_NNM <- function(data, estimand = c("ATT", "ATC","ATE", "cATE"),
+calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
                             ...) {
   
   est <- match.arg(estimand)
@@ -88,10 +88,13 @@ calc_weight_NNM <- function(data, estimand = c("ATT", "ATC","ATE", "cATE"),
                        "ATC" = "ATC",
                        "ATE"
     )
+    if(is.null(dots$kernel)) dots$kernel <- "RBF"
+    
     dots$rkhs.args <- RKHS_param_opt(x=data$get_x(), 
                                      z=data$get_z(), 
                                      y = data$get_y(),
-                                     metric = "mahalanobis",
+                                     metric = dots$dist,
+                                     kernel = dots$kernel,
                                      is.dose = dots$is.dose,
                                      opt.method = dots$opt.method,
                                      estimand = temp.est,
@@ -172,7 +175,7 @@ calc_weight_NNM <- function(data, estimand = c("ATT", "ATC","ATE", "cATE"),
   return(output)
 }
 
-calc_weight_glm <- function(data, constraint,  estimand = c("ATT", "ATC","ATE"),
+calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
                             ...) {
   dots <- list(...)
   pd <- prep_data(data,...)
@@ -213,9 +216,9 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATT", "ATC","ATE"),
   return(output)
 }
 
-calc_weight_bal <- function(data, constraint,  estimand = c("ATT", "ATC","ATE", "cATE", "feasible"), 
+calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
                             method = c("SBW","Wasserstein", "Constrained Wasserstein"),
-                            solver = c("cplex","gurobi", "mosek"),
+                            solver = c("gurobi","mosek","cplex"),
                             ...) {
   method <- match.arg(method)
   estimand <- match.arg(estimand)
@@ -245,13 +248,15 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATT", "ATC","ATE", 
   return(output)
 }
 
-calc_weight_RKHS <- function(data, estimand = c("ATC", "ATT", "cATE", "ATE"), method = c("RKHS", "RKHS.dose"),
+calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), method = c("RKHS", "RKHS.dose"),
+                             kernel = c("RBF", "polynomial"),
                              solver = c("gurobi","cplex","mosek"), opt.hyperparam = TRUE,
                              ...) {
   estimand <- match.arg(estimand)
   method <- match.arg(method)
   opt.hyperparam <- isTRUE(opt.hyperparam)
   solver <- match.arg(solver)
+  kernel <- match.arg(kernel)
   pd <- prep_data(data,...)
   
   if(estimand == "cATE") {
@@ -298,6 +303,7 @@ calc_weight_RKHS <- function(data, estimand = c("ATC", "ATT", "cATE", "ATE"), me
     args <- c(list(data = data,
                    constraint = NULL,
                    estimand = estimand,
+                   kernel =  kernel,
                    method = method),
               param,
               list(...))
@@ -305,6 +311,7 @@ calc_weight_RKHS <- function(data, estimand = c("ATC", "ATT", "cATE", "ATE"), me
     args <- list(data = data,
                  constraint = NULL,
                  estimand = estimand,
+                 kernel = kernel,
                  method = method,
                  ...)
   }

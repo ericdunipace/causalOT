@@ -9,20 +9,20 @@ cost_mahal_ <- function(A_, B_, p) {
     .Call(`_causalOT_cost_mahal_`, A_, B_, p)
 }
 
-kernel_calc_dose_ <- function(X_, z_, p, theta_, gamma_, calc_covariance) {
-    .Call(`_causalOT_kernel_calc_dose_`, X_, z_, p, theta_, gamma_, calc_covariance)
+kernel_calc_dose_ <- function(X_, z_, p, theta_, gamma_, kernel_, calc_covariance) {
+    .Call(`_causalOT_kernel_calc_dose_`, X_, z_, p, theta_, gamma_, kernel_, calc_covariance)
 }
 
 similarity_calc_dose_ <- function(X_, z_, calc_covariance) {
     .Call(`_causalOT_similarity_calc_dose_`, X_, z_, calc_covariance)
 }
 
-kernel_calc_ <- function(X_, z, p, theta_, gamma_, sigma_2_, calc_covariance, estimand) {
-    .Call(`_causalOT_kernel_calc_`, X_, z, p, theta_, gamma_, sigma_2_, calc_covariance, estimand)
+kernel_calc_ <- function(X_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand) {
+    .Call(`_causalOT_kernel_calc_`, X_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand)
 }
 
-kernel_update_ <- function(sim_, z_, p, theta_, gamma_, sigma_2_) {
-    .Call(`_causalOT_kernel_update_`, sim_, z_, p, theta_, gamma_, sigma_2_)
+kernel_update_ <- function(sim_, z_, p, theta_, gamma_, sigma_2_, kernel_) {
+    .Call(`_causalOT_kernel_update_`, sim_, z_, p, theta_, gamma_, sigma_2_, kernel_)
 }
 
 similarity_calc_ <- function(X_, z, calc_covariance, estimand) {
@@ -33,8 +33,8 @@ marginal_lik_gp_ <- function(y_, K_) {
     .Call(`_causalOT_marginal_lik_gp_`, y_, K_)
 }
 
-kernel_calc_ot_ <- function(X_, z, p, theta_, gamma_, calc_covariance, estimand) {
-    .Call(`_causalOT_kernel_calc_ot_`, X_, z, p, theta_, gamma_, calc_covariance, estimand)
+kernel_calc_ot_ <- function(X_, z, p, theta_, gamma_, kernel_, calc_covariance, estimand) {
+    .Call(`_causalOT_kernel_calc_ot_`, X_, z, p, theta_, gamma_, kernel_, calc_covariance, estimand)
 }
 
 entry <- function(xx, y, colX_) {

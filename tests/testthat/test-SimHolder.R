@@ -91,7 +91,7 @@ testthat::test_that("SimHolder runs", {
   distance <- c("Lp", "mahalanobis","RKHS")
   power <- c(1,2)
   ground_power <- 1:2
-  std_mean_diff <- c(0.001, 0.01, 0.1)
+  std_mean_diff <- c(0.2,0.3)
   solver <- "gurobi"
 
   #### get simulation functions ####
@@ -158,7 +158,7 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
   distance <- c("RKHS")
   power <- c(1,2)
   ground_power <- 1:2
-  std_mean_diff <- c(0.001, 0.01, 0.1)
+  std_mean_diff <- c(0.2, 0.3)
   solver <- "gurobi"
   
   #### get simulation functions ####

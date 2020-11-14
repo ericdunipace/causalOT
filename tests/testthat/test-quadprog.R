@@ -36,8 +36,8 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp", {
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATE", method = method)
   
-  cost_n0 <- causalOT::cost_calc_lp(x[z==0,], x)
-  cost_n1 <- causalOT::cost_calc_lp(x[z==1,], x)
+  cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
+  cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
                               c(mean(cost_n0^power), 1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
@@ -101,8 +101,8 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
                          treatment.indicator = "z",
                          outcome = "y")
   
-  cost_n0 <- causalOT::cost_calc_lp(x[z==0,], x)
-  cost_n1 <- causalOT::cost_calc_lp(x[z==1,], x)
+  cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
+  cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
                               c(mean(cost_n0^power), 1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,

@@ -21,11 +21,14 @@ testthat::test_that("similarity calcs work, non dose, ATE", {
   
   
   # debugonce("calc_similarity")
-  sim <- calc_similarity(X = x, z = z, metric = distance, is.dose = FALSE,
+  sim <- calc_similarity(X = x, z = z, metric = distance, kernel = "polynomial",
+                         is.dose = FALSE,
                          estimand = "ATE")
   testthat::expect_equal(sim, tcrossprod(a))
   
-  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", is.dose = FALSE,
+  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", 
+                                                        kernel = "polynomial",
+                                                        is.dose = FALSE,
                                                         estimand = "ATE"))
 })
 
@@ -55,11 +58,15 @@ testthat::test_that("similarity calcs work, non dose, ATC", {
   
   
   # debugonce("calc_similarity")
-  sim <- calc_similarity(X = x, z = z, metric = distance, is.dose = FALSE,
+  sim <- calc_similarity(X = x, z = z, metric = distance, 
+                         kernel = "polynomial", 
+                         is.dose = FALSE,
                          estimand = "ATC")
   testthat::expect_equal(sim, tcrossprod(a))
   
-  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", is.dose = FALSE,
+  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", 
+                                                        kernel = "polynomial",
+                                                        is.dose = FALSE,
                                                         estimand = "ATC"))
 })
 
@@ -89,11 +96,15 @@ testthat::test_that("similarity calcs work, non dose, ATT", {
   
   
   # debugonce("calc_similarity")
-  sim <- calc_similarity(X = x, z = z, metric = distance, is.dose = FALSE,
+  sim <- calc_similarity(X = x, z = z, metric = distance, 
+                         kernel = "polynomial",
+                         is.dose = FALSE,
                          estimand = "ATT")
   testthat::expect_equal(sim, tcrossprod(a))
   
-  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", is.dose = FALSE,
+  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, 
+                                                        kernel = "polynomial",
+                                                        metric = "Lp", is.dose = FALSE,
                                                         estimand = "ATT"))
 })
 
@@ -122,7 +133,8 @@ testthat::test_that("similarity calcs work, dose", {
   z_a <- scale(z)
   
   # debugonce("calc_similarity")
-  sims <- calc_similarity(X = x, z = z, metric = distance, is.dose = TRUE)
+  sims <- calc_similarity(X = x, z = z, kernel = "polynomial",
+                          metric = distance, is.dose = TRUE)
   testthat::expect_equal(sims[["X"]], tcrossprod(a))
   testthat::expect_equal(tcrossprod(z_a), sims[["Z"]])
   
@@ -131,5 +143,7 @@ testthat::test_that("similarity calcs work, dose", {
   testthat::expect_equal(tcrossprod(b), sims2[["X"]])
   testthat::expect_equal(tcrossprod(z_b), sims2[["Z"]])
   
-  testthat::expect_warning(calc_similarity(X = x, z = z, metric = "Lp", is.dose = TRUE, estimand = "ATT"))
+  testthat::expect_warning(calc_similarity(X = x, z = z, 
+                                           kernel = "polynomial",
+                                           metric = "Lp", is.dose = TRUE, estimand = "ATT"))
 })

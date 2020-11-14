@@ -65,30 +65,30 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 }
 
 
-# setGeneric("PSIS", function(x, r_eff = NULL, ...) UseMethod("PSIS"))
-# setMethod("PSIS", signature(x = "numeric"), PSIS.default)
-# setMethod("PSIS", signature(x = "causalWeights"), PSIS.causalWeights)
-# setMethod("PSIS", signature(x = "list"), PSIS.list)
+setGeneric("PSIS", function(x, r_eff = NULL, ...) UseMethod("PSIS"))
+setMethod("PSIS",  signature(x = "numeric"), PSIS.default)
+setMethod("PSIS",  signature(x = "causalWeights"), PSIS.causalWeights)
+setMethod("PSIS",  signature(x = "list"), PSIS.list)
+setClass("causalPSIS")
+# PSIS_diag <- function(x, ...) UseMethod("PSIS_diag")
 
-PSIS_diag <- function(x, ...) UseMethod("PSIS_diag")
+PSIS_diag.numeric <- function(x, r_eff = NULL) {
 
-PSIS_diag.numeric <- function(x) {
-
-  y   <- PSIS(x)
+  y   <- PSIS(x, r_eff = r_eff)
   res <- y$diagnostics
   return(res)
 }
 
-PSIS_diag.causalWeights <- function(x, r_eff = NULL, ...) {
+PSIS_diag.causalWeights <- function(x, r_eff = NULL) {
   
-  y   <- PSIS.causalWeights(x, r_eff = r_eff, ...)
+  y   <- PSIS.causalWeights(x, r_eff = r_eff)
   res <- list(w0 = y$w0$diagnostics,
               w1 = y$w1$diagnostics)
   
   return(res)
 }
 
-PSIS_diag.causalPSIS <- function(x) {
+PSIS_diag.causalPSIS <- function(x, ...) {
 
 
   res <- list(w0 = x$w0$diagnostics,
@@ -106,7 +106,7 @@ PSIS_diag.list <- function(x, r_eff = NULL) {
     r_eff <- lapply(1:length(x), function(r) 1)
   }
   
-  res <- mapply(function(w, r) {PSIS_diag(x=w, r_eff = r, ...)}, w = x, r = r_eff,
+  res <- mapply(function(w, r) {PSIS_diag(x=w, r_eff = r)}, w = x, r = r_eff,
                 SIMPLIFY = FALSE)
 
   # res <- lapply(x, function(w) PSIS_diag(w))
@@ -116,5 +116,9 @@ PSIS_diag.list <- function(x, r_eff = NULL) {
 }
 
 
-
+setGeneric("PSIS_diag", function(x, ...) UseMethod("PSIS_diag"))
+setMethod("PSIS_diag", signature(x = "numeric"), PSIS_diag.numeric)
+setMethod("PSIS_diag", signature(x = "causalWeights"), PSIS_diag.causalWeights)
+setMethod("PSIS_diag", signature(x = "causalPSIS"), PSIS_diag.causalPSIS)
+setMethod("PSIS_diag", signature(x = "list"), PSIS_diag.list)
 

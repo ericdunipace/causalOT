@@ -5,7 +5,7 @@ cost_fun <- function(x, y, power = 2, metric = c("mahalanobis","Lp","RKHS"), rkh
   dist <- switch(metric, 
          "Lp" = causalOT::cost_calc_lp(x,y,ground_p = power, direction = direction),
          "mahalanobis" = causalOT::cost_mahalanobis(x,y, ground_p = power, direction = direction),
-         "RKHS" = causalOT::cost_RKHS(X=x, Y=y, rkhs.args = rkhs.args, estimand = estimand))
+         "RKHS" = causalOT::cost_RKHS(X=x, Y=y, rkhs.args = rkhs.args, estimand = estimand, ...))
   
   return(dist)
   
@@ -57,11 +57,12 @@ cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwi
 }
 
 cost_RKHS <- function(X, Y, 
+                      kernel = c("RBF", "polynomial"),
                       rkhs.args = list(p = 1.0, 
                                         theta = c(1,1), 
                                         gamma = c(1,1), 
                                         is.dose = FALSE),
-                      estimand = "ATE"
+                      estimand = "ATE", ...
                       ){
   if(is.null(rkhs.args)) stop("rkhs args must be specified")
   # dir <- match.arg(direction)
@@ -85,6 +86,7 @@ cost_RKHS <- function(X, Y,
                                 p = rkhs.args$p, 
                                theta = rkhs.args$theta, 
                                gamma = rkhs.args$gamma,
+                               kernel = kernel,
                                metric = "mahalanobis",
                                is.dose = rkhs.args$is.dose, 
                                estimand = estimand)

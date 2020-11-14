@@ -150,7 +150,7 @@ testthat::test_that("works for Wass", {
   n1 <- ns["n1"]
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                           constraint = 1, 
+                                                           constraint = 2, 
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            solver = "gurobi"))
@@ -170,7 +170,7 @@ testthat::test_that("works for Wass", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                           constraint = 1, 
+                                                           constraint = 2, 
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            solver = "cplex"))
@@ -190,7 +190,7 @@ testthat::test_that("works for Wass", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                           constraint = 1, 
+                                                           constraint = 2, 
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            solver = "mosek"))

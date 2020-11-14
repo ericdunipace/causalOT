@@ -105,6 +105,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                            grid.search = TRUE,
                                                            truncations = NULL,
                                                            standardized.difference.means = NULL,
+                                                           estimands = c("ATT","ATC","cATE","ATE"),
                                                            RKHS = list(lambdas = NULL, theta = NULL, gamma = NULL, p = NULL,
                                                                        metric = "malahanobis",
                                                                        sigma_2 = NULL, opt = NULL, opt.method = NULL),
@@ -186,6 +187,8 @@ SimHolder <- R6::R6Class("SimHolder",
                                            # }
                                          }
                                          private$RKHS$metric <- RKHS$metric
+                                         if(is.null(RKHS$kernel)) RKHS$kernel <- "RBF"
+                                         private$RKHS$kernel <- RKHS$kernel
                                        } else {
                                          private$RKHS <- list()
                                          private$RKHS$lambdas <-  as.double(seq(0,100, length.out = 11))
@@ -202,6 +205,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                          private$RKHS$opt <- TRUE
                                          private$RKHS$sigma_2 <- as.double(1)
                                          private$RKHS$opt.method <- "stan"
+                                         private$RKHS$kernel <- "RBF"
                                        }
                                        if(is.null(grid.search) & (is.null(standardized.difference.means) | is.null(RKHS))) {
                                          private$grid.search <- TRUE
@@ -220,15 +224,20 @@ SimHolder <- R6::R6Class("SimHolder",
                                        } else {
                                          private$outcome.formula <- list(none = NULL, augmentation = NULL)
                                        }
+                                       if(!is.null(estimands)) {
+                                         estimands <- match.arg(estimands, several.ok = TRUE)
+                                       }
                                        private$solver <- match.arg(solver, c("gurobi","cplex","mosek"))
                                        private$wass_powers <- as.numeric(wass_powers)
                                        private$ground_powers <- as.numeric(ground_powers)
                                        
                                        private$calculate.feasible <- isTRUE(calculate.feasible)
                                        options <- get_holder_options()
-                                       private$estimand <- options$estimates
+                                       private$estimand <- options$estimates[options$estimates %in% estimands]
                                        if(!private$calculate.feasible) private$estimand <- private$estimand[private$estimand != "feasible"]
-                                       private$method <- options$weights
+                                       #removing "wasserstein"
+                                       private$method <- options$weights[options$weights != "Wasserstein" &
+                                                                           options$weights != "RKHS.dose"]
                                        private$nmethod <- length(private$method)
                                        private$model.augmentation <- match.arg(model.augmentation, c("both", "yes", "no"))
                                        private$match <- match.arg(match, c("both", "yes", "no"))
@@ -344,6 +353,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                                                  y = private$simulator$get_y(),
                                                                                  power = private$RKHS$p,
                                                                                  metric = private$RKHS$metric,
+                                                                                 kernel = private$RKHS$kernel,
                                                                                  is.dose = FALSE,
                                                                                  opt.method = private$RKHS$opt.method,
                                                                                  estimand = est)
@@ -358,6 +368,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                               private$costs[["RKHS"]][[i]] <- cost_fun(x=x0, y=x1,
                                                                                      power = 2, 
                                                                                      metric = "RKHS",
+                                                                                     kernel = private$RKHS$kernel,
                                                                                      rkhs.args = private$RKHS.opt[[i]],
                                                                                      estimand = est
                                                                                      )
@@ -565,6 +576,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                         gamma = list(private$RKHS$gamma)
                                         rkhs_p = private$RKHS$p
                                         sigma_2 = private$RKHS$sigma_2
+                                        kernel = private$RKHS$kernel
                                         grid.search = private$grid.search
                                         if(isTRUE(private$grid.search)) sdm <- NA
                                         if(isTRUE(private$grid.search)) lambdas <- NA
@@ -579,6 +591,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                           gamma = gamma,
                                                           rkhs_p = rkhs_p,
                                                           metric = private$RKHS$metric,
+                                                          kernel = kernel,
                                                           sigma_2 = sigma_2,
                                                           grid.search = private$grid.search,
                                                           opt = private$RKHS$opt,
@@ -733,12 +746,14 @@ SimHolder <- R6::R6Class("SimHolder",
                                             sigma_2 <- private$RKHS.opt[[estimand]]$sigma_2
                                             lambda <- 0
                                             power <- private$RKHS.opt[[estimand]]$p
+                                            # kernel <- private$RKHS$kernel
                                           } else {
                                             theta <- private$RKHS$theta
                                             gamma <- private$RKHS$gamma
                                             sigma_2 <- private$RKHS$sigma_2
                                             lambda <- delta
                                             power <- p[[1]]
+                                            # kernel <- private$RKHS$kernel
                                           }
                                         } else {
                                           theta <- private$RKHS$theta
@@ -746,6 +761,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                           sigma_2 <- private$RKHS$sigma_2
                                           lambda <- delta
                                           power <- p[[1]]
+                                          # kernel <- private$RKHS$kernel
                                         }
                                         if (estimand != "cATE") {
                                           private$weights[[estimand]]<- 
@@ -760,6 +776,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                                         opt.method = opt.method,
                                                         grid.search = grid.search,
                                                         grid = delta,
+                                                        kernel = private$RKHS$kernel,
                                                         rkhs.args = private$RKHS.opt[[estimand]],
                                                         theta =  theta,
                                                         gamma = gamma,
