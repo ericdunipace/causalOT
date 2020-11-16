@@ -24,6 +24,12 @@ DataSim <- R6::R6Class("DataSim",
                       get_p = function() {
                         return(private$p)
                       },
+                      get_tau = function() {
+                        if(is.character(private$mu1) | is.character(private$mu0)) {
+                          stop("Need to generate outcome data first")
+                        }
+                        return(private$mu1 - private$mu0)
+                      },
                       gen_data = function(){NULL},
                       opt_weight = function(estimand = "ATE", augment = FALSE, solver = "mosek") {
                           if(estimand == "cATE") estimand <- "ATE"
@@ -790,9 +796,6 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                                 rep(1, ceiling(private$n/2)))
                                private$check_data()
                                invisible(self)
-                             },
-                             get_tau = function() {
-                               return(private$mu1 - private$mu0)
                              },
                              initialize = function(n = 1024, p = 3, design = "A", overlap = "high", ...) {
                                
