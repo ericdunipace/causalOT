@@ -3,6 +3,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                      private$output <- vector("list", private$nsim)
                                      
                                      for(iter in 1:private$nsim) {
+                                       if(private$verbose) message("Iteration: ",iter," of ", private$nsim)
                                        private$iter <- iter
                                        private$output[[iter]] <- private$update()
                                      }
@@ -120,9 +121,11 @@ SimHolder <- R6::R6Class("SimHolder",
                                                            ground_powers = 2,
                                                            metrics = "Lp", 
                                                            constrained.wasserstein.target = c("RKHS", "SBW"),
-                                                           cluster = FALSE) {
+                                                           cluster = FALSE,
+                                                           verbose = FALSE) {
                                        private$nsim <- nsim
                                        private$cluster <- cluster
+                                       private$verbose <- isTRUE(verbose)
 
                                        if(is.null(dataSim) | !inherits(dataSim, "DataSim")) {
                                          stop("DataSim class must be given")
@@ -303,6 +306,7 @@ SimHolder <- R6::R6Class("SimHolder",
                                       standardized.difference.means = "vector",
                                       temp.output = "list",
                                       truncations = "vector",
+                                      verbose = "logical",
                                       wass_df = "list",
                                       wass_powers = "vector",
                                       weights = "list",
@@ -664,7 +668,15 @@ SimHolder <- R6::R6Class("SimHolder",
                                         private$simulator$gen_data()
                                         private$cost.setup()
                                         # private$kernel.setup()
+                                        if(private$verbose) message("  Method: ",appendLF = FALSE)
                                         for(mm in private$method) {
+                                          if(private$verbose) {
+                                           if(mm == private$method[length(private$method)]) {
+                                             message(mm)
+                                           } else {
+                                             message(mm,", ",appendLF = FALSE)
+                                           }
+                                          }
                                           private$estimate(mm) #updates private$estimate(mm)
                                           private$temp.output[[mm]] <- private$output.dt[!is.na(private$output.dt$estimate),] 
                                           data.table::set(private$output.dt, i = NULL, j = "estimate", value = NA_real_)

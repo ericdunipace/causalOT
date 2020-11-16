@@ -52,7 +52,8 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
                 solver = solver,
                 wass_powers = p,
                 ground_powers = ground_p,
-                metrics = distance)
+                metrics = distance,
+                verbose = isTRUE(dots$verbose))
   sh$run()
   
   #### Get outputs ####
