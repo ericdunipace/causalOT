@@ -111,13 +111,13 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
       }
     }
     if(dots$dist == "RKHS") {
-      w0.tab <- table(apply(cost[[1]], 2, which.min))
-      w1.tab <- table(apply(cost[[2]], 1, which.min))
+      w0.tab <- tabulate(apply(cost[[1]], 2, which.min), nbins = n0)
+      w1.tab <- tabulate(apply(cost[[2]], 1, which.min), nbins = n1)
       w0 <- w0.tab/n1
       w1 <- w1.tab/n0
     } else {
-      w0.tab <- table(apply(cost, 2, which.min))
-      w1.tab <- table(apply(cost, 1, which.min))
+      w0.tab <- tabulate(apply(cost, 2, which.min), nbins = n0)
+      w1.tab <- tabulate(apply(cost, 1, which.min), nbins = n1)
       w0 <- w0.tab/n1
       w1 <- w1.tab/n0
     }

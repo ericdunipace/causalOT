@@ -25,9 +25,126 @@ DataSim <- R6::R6Class("DataSim",
                         return(private$p)
                       },
                       gen_data = function(){NULL},
-                      opt_weight_dist = function(...){
-                        return(list(NA,NA))
-                      }),
+                      opt_weight = function(estimand = "ATE", augment = FALSE, solver = "mosek") {
+                          if(estimand == "cATE") estimand <- "ATE"
+                          estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
+                          aug <- isTRUE(augment)
+                          solver <- match.arg(solver, choices = c("mosek", "gurobi", "cplex"))
+                          design0 <- cbind(1,private$x[private$z==0,,drop = FALSE])
+                          design1 <- cbind(1,private$x[private$z==1,,drop = FALSE])
+                          design <- rbind(design0,design1)
+                          # the fitted model
+                          m0 <- .lm.fit(design0, private$y[private$z==0,drop=FALSE])
+                          m1 <- .lm.fit(design1, private$y[private$z==1,drop=FALSE])
+                          
+                          # the values of y or the residuals
+                          f = switch(as.character(aug),
+                                     "FALSE" =switch(estimand,
+                                                     "ATT" = private$y[private$z==0,drop=FALSE],
+                                                     "ATC" = private$y[private$z==1,drop=FALSE],
+                                                     "ATE" = list(private$y[private$z==0,drop=FALSE],
+                                                                  private$y[private$z==1,drop=FALSE])),
+                                     "TRUE" = switch(estimand,
+                                                     "ATT" = m0$residuals,
+                                                     "ATC" = m1$residuals,
+                                                     "ATE" = list(m0$residuals,
+                                                                  m1$residuals)))
+                          const <- switch(as.character(aug),
+                                          "FALSE" = switch(estimand,
+                                                           "ATT" = 0,
+                                                           "ATC" = 0,
+                                                           "ATE" = c(0,
+                                                                     0)),
+                                          "TRUE" = switch(estimand,
+                                                          "ATT" = mean(design %*% m0$coefficients),
+                                                          "ATC" = mean(design %*% m1$coefficients),
+                                                          "ATE" = c(mean(design %*% m0$coefficients),
+                                                                    mean(design %*% m1$coefficients))))
+                          
+                          
+                          mu <- switch(estimand,
+                                           "ATE" = c(mean(private$mu0), mean(private$mu1)),
+                                           "ATT" = mean(private$mu0[private$z==1]),
+                                           "ATC" = mean(private$mu1[private$z==0]))
+                          
+                          # f <- switch(estimand,
+                          #             "ATE" = f,
+                          #             "ATT" = f[private$z == 0],
+                          #             "ATC" = f[private$z == 1])
+                          if(estimand != "ATE" ) {
+                            Q <-Matrix::Matrix(tcrossprod(f), sparse = TRUE)
+                            L <- -2 * (mu - const) * t(f)
+                            A <- Matrix::sparseMatrix(i = rep(1, length(f)),
+                                                      j = 1:length(f),
+                                                      x = 1) # sum to 1 constraint
+                            problem <- list(obj = list(Q = Q, L = L),
+                                            LC = list(dir = "E",
+                                                      vals = 1,
+                                                      A = A))
+                            
+                            weights <- switch(solver,
+                                              "mosek" =  mosek_solver(problem),
+                                              "gurobi" = gurobi_solver(problem),
+                                              "cplex"  = cplex_solver(problem)
+                            )
+                            weights <- renormalize(weights)
+                          } else {
+                            f1 <- f[[2]]
+                            f0 <- f[[1]]
+                            
+                            Q0 <- Matrix::Matrix(tcrossprod(f0), sparse = TRUE)
+                            L0 <- -2 * (mu[1] - const[1]) * t(f0)
+                            A0 <- Matrix::sparseMatrix(i = rep(1, length(f0)),
+                                                       j = 1:length(f0),
+                                                       x = 1)
+                            problem0 <- list(obj = list(Q = Q0, L = L0),
+                                             LC = list(dir = "E",
+                                                       vals = 1,
+                                                       A = A0))
+                            
+                            Q1 <- Matrix::Matrix(tcrossprod(f1), sparse = TRUE)
+                            L1 <- -2 * (mu[2] - const[2]) * t(f1)
+                            A1 <- Matrix::sparseMatrix(i = rep(1, length(f1)),
+                                                       j = 1:length(f1),
+                                                       x = 1)
+                            problem1 <- list(obj = list(Q = Q1, L = L1),
+                                             LC = list(dir = "E",
+                                                       vals = 1,
+                                                       A = A1))
+                            
+                            weights <- list(w0 = switch(solver,
+                                                        "mosek" =  mosek_solver(problem0),
+                                                        "gurobi" = gurobi_solver(problem0),
+                                                        "cplex"  = cplex_solver(problem0)
+                            ),
+                            w1 = switch(solver,
+                                        "mosek" =  mosek_solver(problem1),
+                                        "gurobi" = gurobi_solver(problem1),
+                                        "cplex"  = cplex_solver(problem1)
+                            ) )
+                            weights <- lapply(weights, renormalize)
+                          }
+                          return(weights)
+                          
+                        },
+                      opt_weight_dist = function(weight, estimand = "ATE", augment = FALSE, solver = "mosek") {
+                        if(estimand == "cATE" | estimand == "feasible") estimand <- "ATE"
+                        estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
+                        
+                        w_star <- self$opt_weight(estimand = estimand, augment = augment, solver = solver)
+                        # norm_weight <- list(w0 = renormalize(weight$w0),
+                        #                     w1 = renormalize(weight$w1))
+                        if(estimand == "ATE") {
+                          dist <- mean(abs(unlist(w_star) - c(weight$w0, weight$w1)))
+                        } else if (estimand == "ATT") {
+                          dist <- mean(abs((w_star - c(weight$w0))))
+                        } else if (estimand == "ATC") {
+                          dist <- mean(abs((w_star - c(weight$w1))))
+                        }
+                        return(dist)
+                      }
+                        
+                      ),
          private = list(n = "numeric",
                        p = "numeric",
                        x = "matrix",
@@ -38,6 +155,8 @@ DataSim <- R6::R6Class("DataSim",
                        n0 = "numeric",
                        x0 = "vector",
                        x1 = "vector",
+                       mu1 = "vector",
+                       mu0 = "vector",
                        check_data = function() {
                          complete <- all(is.matrix(private$x) & is.vector(private$z) )
                          if(complete) {
@@ -81,7 +200,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                              },
                              gen_y = function() {
                                if(all(dim(private$x) == 0)) gen_x()
-                               mean_y <- if(private$design =="A" | private$design == 1) {
+                               mean_y <- private$mu0 <- private$mu1 <- if(private$design =="A" | private$design == 1) {
                                  private$x %*% private$param$beta_y
                                } else if (private$design =="B" | private$design == 2) {
                                  (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2
@@ -695,7 +814,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                              gen_y = function() {
                                if(all(dim(private$x) == 0)) self$gen_x()
                                if(is.character(private$z)) self$gen_z()
-                               private$mean_y1 <- if(private$design == "A"){
+                               private$mu1 <- if(private$design == "A"){
                                  1 + (private$x[,3] > 0)
                                } else if (private$design == "B") {
                                  ytemp <- (1 + (private$x[,3] > 0))
@@ -706,7 +825,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                } else {
                                  stop("Design must be one of A, B, or C")
                                }
-                               private$mean_y0 <- if(private$design == "A"){
+                               private$mu0 <- if(private$design == "A"){
                                  -1 - (1.5*abs(private$x[,3]) > 1)
                                }else if (private$design == "B") {
                                  ytemp <- -(1 + (1.5*abs(private$x[,3]) > 1))
@@ -715,8 +834,8 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                } else if (private$design == "C") {
                                  private$x[,1:3] %*% c(-1,-1,-2) - 2
                                }
-                               mean_y <- private$mean_y1 * private$z + 
-                                 (1 - private$z) * private$mean_y0
+                               mean_y <- private$mu1 * private$z + 
+                                 (1 - private$z) * private$mu0
                                private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = 1))
                                private$check_data()
                                invisible(self)
@@ -729,7 +848,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                invisible(self)
                              },
                              get_tau = function() {
-                               return(private$mean_y1 - private$mean_y0)
+                               return(private$mu1 - private$mu0)
                              },
                              initialize = function(n = 1024, p = 3, design = "A", overlap = "high", ...) {
                                
@@ -770,9 +889,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                              }
                            ),
                            private = list(design = "character",
-                                          overlap = "character",
-                                          mean_y1 = "numeric",
-                                          mean_y0 = "numeric"
+                                          overlap = "character"
                            )
 )
   }
