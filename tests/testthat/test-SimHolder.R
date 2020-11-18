@@ -76,6 +76,46 @@ testthat::test_that("SimHolder generates object, Kallus2018", {
   testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
 })
 
+testthat::test_that("SimHolder generates object, Sonabend2020", {
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 4
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  
+  #### get simulation functions ####
+  original <- Sonabend2020$new(n = n, p = p, 
+                             design = design, overlap = overlap)
+  # SimHolder$debug("initialize")
+  sh <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = TRUE,
+                      truncations = std_mean_diff,
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      match = "both",
+                      solver = "gurobi",
+                      wass_powers = 2,
+                      ground_powers = 2,
+                      metrics = "Lp")
+  testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
+})
+
+
 testthat::test_that("SimHolder runs", {
   set.seed(9867)
 
