@@ -17,10 +17,20 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
     param <- RKHS_param_opt(x,y,z,...)
   }
   
+  
   if(estimand == "cATE"){
     att <- gp_pred(formula, data, weights, param, estimand = "ATT",...)
     atc <- gp_pred(formula, data, weights, param, estimand = "ATC",...)
     return(weighted.mean(c(att,atc), w = c(n1,n0)))
+  }
+  
+  if(param$is.standardized) {
+    m_y0   <- mean(y[z==0])
+    m_y1   <- mean(y[z==1])
+    sd_y0   <- sd(y[z==0])
+    sd_y1   <- sd(y[z==1])
+    y[z==0] <- c(scale(y[z==0]))
+    y[z==1] <- c(scale(y[z==1]))
   }
   
   # theta <- kernel_param_check(param$theta)
@@ -100,18 +110,18 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   }
   
   tau <- if(estimand == "ATE") {
-    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0]))
-    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1]))
+    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0])) * sd_y0 + m_y0
+    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1])) * sd_y1 + m_y1
     
     mean(pred1 - pred0)
   } else if (estimand == "ATT") {
-    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0]))
+    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0])) * sd_y0 + m_y0
     
-    mean(y[z==1] - pred0[z==1])
+    mean(y[z==1] * sd_y1 + m_y1 - pred0[z==1])
   } else if (estimand == "ATC") {
-    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1]))
+    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1])) * sd_y1 + m_y1
     
-    mean(pred1[z==0] - y[z==0])
+    mean(pred1[z==0]* - y[z==0]*sd_y0 - m_y0)
   }
   
   return(tau)

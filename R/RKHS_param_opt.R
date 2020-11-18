@@ -197,7 +197,8 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
               sigma_2 = param$sigma,
               kernel = kernel,
               metric = metric,
-              is.dose = is.dose)
+              is.dose = is.dose,
+              is.standardized = TRUE)
   if(is.null(out$p)) out$p <- NA_real_
   if(is.null(out$theta)) out$theta <- c(NA_real_, NA_real_)
   if(is.null(out$gamma)) out$gamma <- c(NA_real_, NA_real_)
