@@ -95,7 +95,7 @@ testthat::test_that("works for Const Wass RKHS", {
   
   
   weights2 <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                        constraint = .2, 
+                                                        constraint = .001, 
                                                         estimand = e, 
                                                         p = power,
                                                         method = "Constrained Wasserstein",

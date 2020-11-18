@@ -25,11 +25,11 @@ testthat::test_that("optimal weighting works, no augmentation", {
     names(opt_weights_gurobi) <- 
     names(opt_weights_cplex) <- estimates
   
-  testthat::expect_equivalent(outcome_model(data, weights = opt_weights_mosek[[4]], doubly.robust = FALSE, target = "ATE"),
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], doubly.robust = FALSE, target = "ATE"),
                               mean(data$get_tau()))
-  testthat::expect_equivalent(outcome_model(data, weights = opt_weights_gurobi[[4]], doubly.robust = FALSE, target = "ATE"),
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], doubly.robust = FALSE, target = "ATE"),
                               mean(data$get_tau()))
-  testthat::expect_equivalent(outcome_model(data, weights = opt_weights_cplex[[4]], doubly.robust = FALSE, target = "ATE"),
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], doubly.robust = FALSE, target = "ATE"),
                               mean(data$get_tau()))
 })
 
@@ -61,11 +61,11 @@ testthat::test_that("optimal weighting works, augmentation", {
     names(opt_weights_gurobi) <- 
     names(opt_weights_cplex) <- estimates
   
-  testthat::expect_equivalent(outcome_model(data, weights = opt_weights_mosek[[4]], doubly.robust = augment, target = "ATE"),
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], doubly.robust = augment, target = "ATE"),
                               mean(data$get_tau()))
-  testthat::expect_equivalent(outcome_model(data, weights = opt_weights_gurobi[[4]], doubly.robust = augment, target = "ATE"),
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], doubly.robust = augment, target = "ATE"),
                               mean(data$get_tau()))
-  testthat::expect_equivalent(outcome_model(data, weights = opt_weights_cplex[[4]], doubly.robust = augment, target = "ATE"),
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], doubly.robust = augment, target = "ATE"),
                               mean(data$get_tau()))
 })
 

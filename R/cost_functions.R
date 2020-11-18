@@ -57,7 +57,7 @@ cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwi
 }
 
 cost_RKHS <- function(X, Y, 
-                      kernel = c("RBF", "polynomial"),
+                      kernel = c("RBF", "polynomial", "linear"),
                       rkhs.args = list(p = 1.0, 
                                         theta = c(1,1), 
                                         gamma = c(1,1), 
@@ -65,6 +65,7 @@ cost_RKHS <- function(X, Y,
                       estimand = "ATE", ...
                       ){
   if(is.null(rkhs.args)) stop("rkhs args must be specified")
+  kernel <- match.arg(kernel)
   # dir <- match.arg(direction)
   # 
   # if(dir == "rowwise") {

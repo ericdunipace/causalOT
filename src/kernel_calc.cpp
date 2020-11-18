@@ -15,6 +15,8 @@ void kernel_calculation(const matrix & A, matrix & kernel_matrix, double p,
     for(int i = 0; i < n; i++) kernel_matrix.col(i) = (A.rowwise() - A.row(i)).matrix().rowwise().squaredNorm();
     kernel_matrix.array() *= theta * (-0.5);
     kernel_matrix.array() = gamma * kernel_matrix.array().exp();
+  } else if (kernel_ == "linear") {
+    kernel_matrix = matrix(n, n).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
   }
   
 }
@@ -217,8 +219,6 @@ Rcpp::List kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
   const double theta_1 = theta_(1);
   const double gamma_0 = gamma_(0);
   const double gamma_1 = gamma_(1);
-  matrix theta = matrix::Zero(N,N);
-  matrix gamma = matrix::Zero(N,N);
   
   rowVector mean_x = mean_kern(X, z, estimand, calc_covariance);
   
@@ -233,42 +233,50 @@ Rcpp::List kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
   matrix kernel_matrix = sigma_2.asDiagonal();
   vector mean_kernel(N);
   
-  for(int i = 0; i < N; i ++) {
-    for(int j = 0; j < N; j ++) {
-      if( z(i) ==1 & z(j) == 1 ) {
-        theta(i,j) = theta_1;
-        gamma(i,j) = gamma_1;
-      }
-      if( z(i) == 0 & z(j) == 0 ) {
-        theta(i,j) = theta_0;
-        gamma(i,j) = gamma_0;
+  if(kernel_ == "RBF" || kernel_ == "polynomial") {
+    matrix theta = matrix::Zero(N,N);
+    matrix gamma = matrix::Zero(N,N);
+    
+    for(int i = 0; i < N; i ++) {
+      for(int j = 0; j < N; j ++) {
+        if( z(i) ==1 & z(j) == 1 ) {
+          theta(i,j) = theta_1;
+          gamma(i,j) = gamma_1;
+        }
+        if( z(i) == 0 & z(j) == 0 ) {
+          theta(i,j) = theta_0;
+          gamma(i,j) = gamma_0;
+        }
       }
     }
+    if(kernel_ == "RBF") {
+      for(int n = 0; n < N; n ++) kernel_matrix_X.col(n) = (A.rowwise() - A.row(n)).matrix().rowwise().squaredNorm();
+      kernel_matrix.array() += (- 0.5 * kernel_matrix_X.array() *theta.array() ).exp() * gamma.array();
+      for (int n = 0; n < N; n ++) {
+        if (z(n) == 0) {
+          mean_kernel(n) = ((-0.5 * theta_0 * kernel_matrix_X.col(n).array()).exp() * gamma_0).mean();
+        } else if ( z(n) == 1) {
+          mean_kernel(n) = ((-0.5 * theta_1 * kernel_matrix_X.col(n).array() ).exp() * gamma_1).mean();
+        } else {
+          Rcpp::stop("Invalid value in z!");
+        }
+      }
+    } else if (kernel_ == "polynomial") {
+      kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
+      kernel_matrix.array() += (kernel_matrix_X.array() *theta.array() + 1.0).pow(p) * gamma.array();
+      for (int n = 0; n < N; n ++) {
+        if (z(n) == 0) {
+          mean_kernel(n) = ((theta_0 * kernel_matrix_X.col(n).array() + 1.0).pow(p) * gamma_0).mean();
+        } else if ( z(n) == 1) {
+          mean_kernel(n) = ((theta_1 * kernel_matrix_X.col(n).array() + 1.0).pow(p) * gamma_1).mean();
+        } else {
+          Rcpp::stop("Invalid value in z!");
+        }
+      }
   }
-  if(kernel_ == "RBF") {
-    for(int n = 0; n < N; n ++) kernel_matrix_X.col(n) = (A.rowwise() - A.row(n)).matrix().rowwise().squaredNorm();
-    kernel_matrix.array() += (- 0.5 * kernel_matrix_X.array() *theta.array() ).exp() * gamma.array();
-    for (int n = 0; n < N; n ++) {
-      if (z(n) == 0) {
-        mean_kernel(n) = ((-0.5 * theta_0 * kernel_matrix_X.col(n).array()).exp() * gamma_0).mean();
-      } else if ( z(n) == 1) {
-        mean_kernel(n) = ((-0.5 * theta_1 * kernel_matrix_X.col(n).array() ).exp() * gamma_1).mean();
-      } else {
-        Rcpp::stop("Invalid value in z!");
-      }
-    }
-  } else if (kernel_ == "polynomial") {
-    kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
-    kernel_matrix.array() += (kernel_matrix_X.array() *theta.array() + 1.0).pow(p) * gamma.array();
-    for (int n = 0; n < N; n ++) {
-      if (z(n) == 0) {
-        mean_kernel(n) = ((theta_0 * kernel_matrix_X.col(n).array() + 1.0).pow(p) * gamma_0).mean();
-      } else if ( z(n) == 1) {
-        mean_kernel(n) = ((theta_1 * kernel_matrix_X.col(n).array() + 1.0).pow(p) * gamma_1).mean();
-      } else {
-        Rcpp::stop("Invalid value in z!");
-      }
-    }
+  } else if (kernel_ == "linear") {
+    kernel_matrix = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
+    mean_kernel = kernel_matrix.colwise().mean();
   }
   
   return (
@@ -370,10 +378,13 @@ Rcpp::List kernel_calc_pred_(const Rcpp::NumericMatrix & X_,  //confounders
     kernel_matrix_X1 = matrix(N1, N1).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A1.transpose());
     kernel_matrix_1.array() += (kernel_matrix_X1.array() *theta_1 + 1.0).pow(p) * gamma_1;
     kernel_matrix_0.array() += (kernel_matrix_X0.array() *theta_0 + 1.0).pow(p) * gamma_0;
-    for(int n = 0; n < Ntest; n ++) {
-      cross_matrix_X1 = ((A1.transpose() * Atest).array() *theta_1 + 1.0).pow(p) * gamma_1;;
-      cross_matrix_X0 = ((A0.transpose() * Atest).array() *theta_0 + 1.0).pow(p) * gamma_0;;
-    }
+    cross_matrix_X1 = ((A1.transpose() * Atest).array() *theta_1 + 1.0).pow(p) * gamma_1;
+    cross_matrix_X0 = ((A0.transpose() * Atest).array() *theta_0 + 1.0).pow(p) * gamma_0;
+  } else if (kernel_ == "linear") {
+    kernel_matrix_X0 = matrix(N0, N0).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A0.transpose());
+    kernel_matrix_X1 = matrix(N1, N1).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A1.transpose());
+    cross_matrix_X1 = A1.transpose() * Atest;
+    cross_matrix_X0 = A0.transpose() * Atest;
   } else {
     Rcpp::stop("Current kernel choice not supported");
   }
@@ -432,6 +443,8 @@ Rcpp::NumericMatrix kernel_update_(const Rcpp::NumericMatrix & sim_,  //similari
     kernel_matrix.array() += (sim.array() * theta.array() * -0.5).exp() * gamma.array();
   } else if (kernel_== "polynomial") {
     kernel_matrix.array() += (sim.array() * theta.array() + 1.0).pow(p) * gamma.array();
+  } else if (kernel_== "linear" ) {
+    kernel_matrix += sim;
   }
   
   return Rcpp::wrap(kernel_matrix);
@@ -447,11 +460,12 @@ matrix similarity_calc_(const Rcpp::NumericMatrix & X_,  //confounders
 
   const matMap X(Rcpp::as<matMap >(X_));
 
-  const rowVector mean_x = mean_kern(X, z, estimand, calc_covariance);
-
-  matrix A = X.rowwise() - mean_x;
+  matrix A = X;
 
   if(calc_covariance) {
+    const rowVector mean_x = mean_kern(X, z, estimand, calc_covariance);
+    
+    A = X.rowwise() - mean_x;
     covariance_kern(A, z, estimand);
   }
 
@@ -520,7 +534,7 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
   
   matrix kernel_matrix_X(N,N);
   
-  if(kernel_== "polynomial") {
+  if(kernel_== "polynomial" | kernel_=="linear") {
     kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
   } else if (kernel_ == "RBF") {
     for(int n = 0; n < N; n ++) kernel_matrix_X.col(n) = (A.rowwise() - A.row(n)).matrix().rowwise().squaredNorm();
@@ -537,6 +551,8 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
       kernel_matrix_t = (temp_sim_t.array() * theta_0 + 1.0).pow(p) * gamma_0;
     } else if (kernel_== "RBF") {
       kernel_matrix_t = (temp_sim_t.array() * theta_0 * -0.5).exp() * gamma_0;
+    } else if (kernel_ == "linear") {
+      kernel_matrix_t = temp_sim_t;
     }
     
     output[0] = Rcpp::wrap(kernel_matrix_t);
@@ -548,6 +564,8 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
       kernel_matrix_c = (temp_sim_c.array() * theta_1 + 1.0).pow(p) * gamma_1;
     } else if (kernel_== "RBF") {
       kernel_matrix_c = (temp_sim_c.array() * theta_1 * -0.5).exp() * gamma_1;
+    } else if (kernel_ == "linear") {
+      kernel_matrix_c = temp_sim_c;
     }
     output[0] = Rcpp::wrap(kernel_matrix_c);
     output[1] = R_NilValue;
@@ -564,6 +582,9 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
     } else if (kernel_== "RBF") {
       kernel_matrix_c = (temp_sim_c.array() * theta_1 * -0.5).exp() * gamma_1;
       kernel_matrix_t = (temp_sim_t.array() * theta_0 * -0.5).exp() * gamma_0;
+    } else if (kernel_== "linear") {
+      kernel_matrix_c = temp_sim_c;
+      kernel_matrix_t = temp_sim_t;
     }
     // matrix kernel_matrix_c = temp_sim_c;
     // matrix kernel_matrix_t = temp_sim_t;

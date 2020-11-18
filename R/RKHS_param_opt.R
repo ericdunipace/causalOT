@@ -1,3 +1,5 @@
+## TODO: add linear kernel...
+
 setClass("RKHS_param", slots = c(theta = "numeric", 
                                  gamma = "numeric",
                                  p = "numeric",
@@ -17,7 +19,7 @@ setClass("RKHS_param", slots = c(theta = "numeric",
 
 RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp"), is.dose = FALSE, 
                            opt.method = c("stan", "optim","bayesian.optimization"), 
-                           kernel = c("RBF","polynomial"),
+                           kernel = c("RBF","polynomial","linear"),
                            estimand = c("ATC","ATT","ATE"), ...) {
   
   opt.method <- match.arg(opt.method)
@@ -51,9 +53,9 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
                      "FALSE" = kern_)
   
   if(opt.method == "bayesian.optimization") {
-    if(kernel == "RBF") {
+    if(kernel != "polynomial") {
       kernel <- "polynomial"
-      warning("RBF kernel isn't supported for method optim. Switching to polynomial kernel")
+      warning("RBF and linear kernels aren't supported for method optim. Switching to polynomial kernel")
     }
     scoring_fun <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
       K <- cmb_kern(theta_0, theta_1, gamma_0, gamma_1, sigma2)
@@ -86,9 +88,9 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     param$p <- power[idx]
   } 
   else if(opt.method == "optim") {
-    if(kernel == "RBF") {
+    if(kernel != "polynomial" ) {
       kernel <- "polynomial"
-      warning("RBF kernel isn't supported for method optim. Switching to polynomial kernel")
+      warning("RBF and linear kernels aren't supported for method optim. Switching to polynomial kernel")
     }
     scoring_fun <- function(param) {
       exp.param <- exp(param)
@@ -150,11 +152,13 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
                   is_dose = as.integer(is.dose),
                   kernel = switch(kernel,
                                   "RBF" = 2L,
-                                  "polynomial" = 1L)),
+                                  "polynomial" = 1L,
+                                  "linear" = 3L,
+                                  2L)),
       ...,
       as_vector = FALSE
     )
-    if(is.null(arguments$data$kernel)) arguments$data$kernel <- 1L
+    if(is.null(arguments$data$kernel)) arguments$data$kernel <- 2L
     formals.stan <- c("iter", "save_iterations", 
                       "refresh", "init_alpha", "tol_obj", "tol_grad", "tol_param", 
                       "tol_rel_obj", "tol_rel_grad", "history_size",
@@ -181,7 +185,7 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
       param <- res[[idx]]$par
       # param$sigma2 <- c(param$sigma_0, param$sigma_1)
       param$p <- power[idx]
-    } else if (kernel == "RBF") {
+    } else if (kernel == "RBF" | kernel == "linear") {
       res <- eval(f.call, envir = arguments)
       param <- res$par
     }
@@ -195,6 +199,8 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
               metric = metric,
               is.dose = is.dose)
   if(is.null(out$p)) out$p <- NA_real_
+  if(is.null(out$theta)) out$theta <- c(NA_real_, NA_real_)
+  if(is.null(out$gamma)) out$gamma <- c(NA_real_, NA_real_)
   class(out) <- "RKHS_param"
   return(out)
 }

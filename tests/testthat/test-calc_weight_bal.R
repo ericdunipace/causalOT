@@ -93,7 +93,7 @@ testthat::test_that("works for Const Wass RKHS", {
   
   
   weights2 <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                            constraint = .2, 
+                                                            constraint = .001, 
                                                             estimand = e, 
                                                             distance = distance,
                                                             rkhs.args = rkhs.argz,
@@ -613,15 +613,15 @@ testthat::test_that("works for SBW", {
 #                                           theta = test5$addl.args$theta,
 #                                           gamma = test5$addl.args$gamma))
 # 
-# outcome_model(data, weights = test1, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test2, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test3, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test4, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test5, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test5b, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test6, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test7, target = "ATE", matched = TRUE, doubly.robust = TRUE)
-# outcome_model(data, weights = test8, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test1, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test2, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test3, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test4, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test5, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test5b, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test6, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test7, target = "ATE", matched = TRUE, doubly.robust = TRUE)
+# estimate_effect(data, weights = test8, target = "ATE", matched = TRUE, doubly.robust = TRUE)
 # 
 # library(causalOT)
 # options(mc.cores = 3)

@@ -71,6 +71,38 @@ matrix rbf_kern( matrix cost,
   return K;
 }
 
+matrix linear_kern( matrix cost,
+               int[] z,
+                        // real theta_0,
+                        // real theta_1,
+                        // real gamma_0,
+                        // real gamma_1,
+                        real sigma_0,
+                        real sigma_1
+                        ) { //kernel
+  int N = rows(cost);
+  
+  matrix[N, N] K;
+  
+  for (i in 1:N) {
+    for (j in 1:N) {
+      if ( z[i] == z[j] ) {
+        K[i,j] = cost[i,j];
+      } else {
+        K[i,j] = 0.0;
+      }
+    }
+  }
+  for (i in 1:N) {
+    if(z[i] == 1) {
+       K[i,i] += sigma_1;
+    } else if (z[i] == 0) {
+       K[i,i] += sigma_0;
+    }
+   
+  }
+  return K;
+}
   matrix pol_kern_dose(matrix cost_0, matrix cost_1,
                             real theta_0,
                             real theta_1,
@@ -102,14 +134,16 @@ data {
   int z[N];
   real p;
   int<lower = 0, upper = 1> is_dose;
-  int<lower = 1, upper = 2> kernel;
+  int<lower = 1, upper = 3> kernel;
 }
 
 transformed data {
   vector[N] mu;
   int poly = 0;
   int dose_var = 2;
+  int num_param = 1;
   
+  if(kernel == 3) num_param = 0;
   if(kernel == 1) poly = 1;
   if(is_dose == 1) dose_var = 1;
   
@@ -120,10 +154,10 @@ transformed data {
 // accepts two parameters 'mu' and 'sigma'.
 parameters {
   real<lower=0> sigma[dose_var]; //2nd variance only defined in binary tx eg
-  real<lower=0> theta_0;
-  real<lower=0> theta_1;
-  real<lower=0> gamma_0;
-  real<lower=0> gamma_1;
+  real<lower=0> theta_0[num_param]; // don't need these for the linear kernel
+  real<lower=0> theta_1[num_param];
+  real<lower=0> gamma_0[num_param];
+  real<lower=0> gamma_1[num_param];
 }
 
 transformed parameters {
@@ -131,28 +165,32 @@ transformed parameters {
   
   if(is_dose == 1 && kernel == 1) { //dose kernel with one variance
     Sigma = pol_kern_dose(discrep_z, discrep,
-                            theta_0,
-                            theta_1,
-                            gamma_0,
-                            gamma_1,
+                            theta_0[1],
+                            theta_1[1],
+                            gamma_0[1],
+                            gamma_1[1],
                             sigma[1],
                             p);
   } else { //non-dose with two variances
     if(kernel == 1 ) {
       Sigma = pol_kern(discrep, z,
-                            theta_0,
-                            theta_1,
-                            gamma_0,
-                            gamma_1,
+                            theta_0[1],
+                            theta_1[1],
+                            gamma_0[1],
+                            gamma_1[1],
                             sigma[1],
                             sigma[2],
                             p);
     } else if (kernel == 2) {
       Sigma = rbf_kern(discrep, z,
-                            theta_0,
-                            theta_1,
-                            gamma_0,
-                            gamma_1,
+                            theta_0[1],
+                            theta_1[1],
+                            gamma_0[1],
+                            gamma_1[1],
+                            sigma[1],
+                            sigma[2]);
+    } else if (kernel == 3) {
+      Sigma = linear_kern(discrep, z,
                             sigma[1],
                             sigma[2]);
     }

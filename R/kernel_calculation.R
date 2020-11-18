@@ -1,7 +1,7 @@
 kernel_calculation <- function(X, z, p = 1.0, 
                                theta = NULL, gamma = NULL, sigma_2 = NULL, 
                                metric = c("mahalanobis","Lp"),
-                               kernel = c("RBF","polynomial"),
+                               kernel = c("RBF", "polynomial", "linear"),
                                is.dose = FALSE, 
                                estimand = c("ATE","ATT","ATC")) {
   
@@ -87,7 +87,8 @@ kernel_sigma_check <- function(s, n, z, is.dose) {
   }
 }
 
-calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), kernel = c("RBF","polynomial"),
+calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), 
+                             kernel = c("RBF","polynomial","linear"),
                              is.dose = FALSE,
                              estimand = c("ATE","ATT","ATC")) {
   met <- match.arg(metric)
@@ -110,7 +111,7 @@ calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), kernel = c("R
   } else {
     if(!is.integer(z)) z <- as.integer(z)
     
-    if(kernel == "polynomial") {
+    if(kernel == "polynomial" | kernel == "linear") {
       return( similarity_calc_(X_ = X, z = z,
                              calc_covariance = calc_covariance,
                              estimand = estimand) )
@@ -129,7 +130,7 @@ calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"), kernel = c("R
 ot_kernel_calculation <- function(X, z, p = 1.0, 
                                   theta = NULL, gamma = NULL, 
                                   # sigma_2 = NULL, 
-                                  kernel = c("RBF","polynomial"),
+                                  kernel = c("RBF","polynomial","linear"),
                                   metric = c("mahalanobis","Lp"),
                                   is.dose = FALSE, 
                                   estimand = c("ATE","ATT","ATC")) {
@@ -153,6 +154,10 @@ ot_kernel_calculation <- function(X, z, p = 1.0,
   p <- kernel_power_check(p)
   
   if(is.dose) {
+    if(kernel != "polynomial") {
+      kernel <- "polynomial"
+      warning("Kernel needs to be polynomial for dose method.")
+    }
     return(kernel_calc_dose_(X_ = X, z_ = z, p = p, 
                              theta_ = theta, gamma_ = gamma,
                              kernel_ = kernel,

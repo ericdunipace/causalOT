@@ -1,16 +1,27 @@
 gp_pred <- function(formula = NULL, data, weights=NULL,
-                    param, estimand = c("ATE","ATT","ATC"),...) {
+                    param, estimand = c("ATE","ATT","ATC","cATE"),...) {
   # w0 <- weights$w0
   # w1 <- weights$w1
+  estimand <- match.arg(estimand)
   prep.data <- prep_data(data,...)
   
   z <- prep.data$z
-  y <- prepdata$df$y
+  y <- prep.data$df$y
   x <- as.matrix(prep.data$df[,-which(colnames(prep.data$df)=="y")])
   
   n <- length(z)
   n1 <- sum(z)
   n0 <- n - n1
+  
+  if(is.null(param)) {
+    param <- RKHS_param_opt(x,y,z,...)
+  }
+  
+  if(estimand == "cATE"){
+    att <- gp_pred(formula, data, weights, param, estimand = "ATT",...)
+    atc <- gp_pred(formula, data, weights, param, estimand = "ATC",...)
+    return(weighted.mean(c(att,atc), w = c(n1,n0)))
+  }
   
   # theta <- kernel_param_check(param$theta)
   # gamma <- kernel_param_check(param$gamma)
@@ -246,7 +257,7 @@ calc_hajek <- function(weights, target, hajek) {
   return(weights)
 }
 
-effect_estimate <- function(data, formula = NULL, weights, 
+estimate_effect <- function(data, formula = NULL, weights, 
                                   hajek = TRUE, 
                                   doubly.robust = TRUE,
                                   matched = FALSE,

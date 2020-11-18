@@ -16,7 +16,7 @@ testthat::test_that("similarity calcs work, non dose, ATE", {
   y <- data$get_y()
   z <- data$get_z()
   
-  b <- scale(x, scale=FALSE)
+  b <- scale(x, center = TRUE, scale=FALSE)
   a <- b %*% solve(chol(cov(x)))
   
   
@@ -26,7 +26,7 @@ testthat::test_that("similarity calcs work, non dose, ATE", {
                          estimand = "ATE")
   testthat::expect_equal(sim, tcrossprod(a))
   
-  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", 
+  testthat::expect_equal(tcrossprod(x), calc_similarity(X = x, z = z, metric = "Lp", 
                                                         kernel = "polynomial",
                                                         is.dose = FALSE,
                                                         estimand = "ATE"))
@@ -50,10 +50,10 @@ testthat::test_that("similarity calcs work, non dose, ATC", {
   y <- data$get_y()
   z <- data$get_z()
   
-  mean <- colMeans(x[z==0,])
-  cov  <- cov(x[z==0,])
+  mean <- colMeans(x)
+  cov  <- cov(x)
   
-  b <- x - matrix(mean, n,p, byrow = TRUE)
+  b <- scale(x, scale = FALSE, center = TRUE)
   a <- b %*% solve(chol(cov))
   
   
@@ -64,7 +64,7 @@ testthat::test_that("similarity calcs work, non dose, ATC", {
                          estimand = "ATC")
   testthat::expect_equal(sim, tcrossprod(a))
   
-  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, metric = "Lp", 
+  testthat::expect_equal(tcrossprod(x), calc_similarity(X = x, z = z, metric = "Lp", 
                                                         kernel = "polynomial",
                                                         is.dose = FALSE,
                                                         estimand = "ATC"))
@@ -88,8 +88,8 @@ testthat::test_that("similarity calcs work, non dose, ATT", {
   y <- data$get_y()
   z <- data$get_z()
   
-  mean <- colMeans(x[z==1,])
-  cov  <- cov(x[z==1,])
+  mean <- colMeans(x)
+  cov  <- cov(x)
   
   b <- x - matrix(mean, n,p, byrow = TRUE)
   a <- b %*% solve(chol(cov))
@@ -102,7 +102,7 @@ testthat::test_that("similarity calcs work, non dose, ATT", {
                          estimand = "ATT")
   testthat::expect_equal(sim, tcrossprod(a))
   
-  testthat::expect_equal(tcrossprod(b), calc_similarity(X = x, z = z, 
+  testthat::expect_equal(tcrossprod(x), calc_similarity(X = x, z = z, 
                                                         kernel = "polynomial",
                                                         metric = "Lp", is.dose = FALSE,
                                                         estimand = "ATT"))

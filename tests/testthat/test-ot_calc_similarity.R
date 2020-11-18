@@ -78,9 +78,9 @@ testthat::test_that("confirm ot kernel functions correct, LP", {
   x <- x[orders,]
   z <- z[orders]
   
-  mu_x <- colMeans(x)
+  # mu_x <- colMeans(x)
   
-  a <- x - matrix(mu_x, n, d, byrow=TRUE)
+  a <- x #- matrix(mu_x, n, d, byrow=TRUE)
   
   x_mat <- tcrossprod(a)
   
@@ -101,7 +101,7 @@ testthat::test_that("confirm ot kernel functions correct, LP", {
   
   mu_x <- colMeans(x[z==1,])
   
-  a <- x - matrix(mu_x, n, d, byrow=TRUE)
+  a <- x# - matrix(mu_x, n, d, byrow=TRUE)
   
   x_mat <- tcrossprod(a)
   
@@ -123,7 +123,7 @@ testthat::test_that("confirm ot kernel functions correct, LP", {
   
   mu_x <- colMeans(x[z==0,])
   
-  a <- x - matrix(mu_x, n, d, byrow=TRUE)
+  a <- x #- matrix(mu_x, n, d, byrow=TRUE)
   
   x_mat <- tcrossprod(a)
   
@@ -176,10 +176,10 @@ testthat::test_that("confirm ot kernel functions correct, mahalanobis", {
   x <- x[orders,]
   z <- z[orders]
   
-  mu_x <- colMeans(x[z==1,])
+  mu_x <- colMeans(x)
   
   a <- x - matrix(mu_x, n, d, byrow=TRUE)
-  a <- a %*% solve(chol(cov(x[z==1,])))
+  a <- a %*% solve(chol(cov(x)))
   
   x_mat <- tcrossprod(a)
   
@@ -199,10 +199,10 @@ testthat::test_that("confirm ot kernel functions correct, mahalanobis", {
   x <- x[orders,]
   z <- z[orders]
   
-  mu_x <- colMeans(x[z==0,])
+  mu_x <- colMeans(x)
   
   a <- x - matrix(mu_x, n, d, byrow=TRUE)
-  a <- a %*% solve(chol(cov(x[z==0,])))
+  a <- a %*% solve(chol(cov(x)))
   
   x_mat <- tcrossprod(a)
   
@@ -312,7 +312,7 @@ testthat::test_that("different values of parameters not dose, LP", {
     
     mu_x <- colMeans(x)
     
-    a <- x - matrix(mu_x, n, d, byrow=TRUE)
+    a <- x #- matrix(mu_x, n, d, byrow=TRUE)
 
     x_mat <- tcrossprod(a)
     
@@ -340,7 +340,7 @@ testthat::test_that("different values of parameters not dose, LP", {
     
     mu_x <- colMeans(x[z==1,])
     
-    a <- x - matrix(mu_x, n, d, byrow=TRUE)
+    a <- x #- matrix(mu_x, n, d, byrow=TRUE)
 
     x_mat <- tcrossprod(a)
     
@@ -367,7 +367,7 @@ testthat::test_that("different values of parameters not dose, LP", {
     
     mu_x <- colMeans(x[z==0,])
     
-    a <- x - matrix(mu_x, n, d, byrow=TRUE)
+    a <- x #- matrix(mu_x, n, d, byrow=TRUE)
 
     x_mat <- tcrossprod(a)
     
@@ -434,10 +434,10 @@ testthat::test_that("different values of parameters not dose, mahalanobis", {
     x <- x[orders,]
     z <- z[orders]
     
-    mu_x <- colMeans(x[z==1,])
+    mu_x <- colMeans(x)
     
     a <- x - matrix(mu_x, n, d, byrow=TRUE)
-    a <- a %*% solve(chol(cov(x[z==1,])))
+    a <- a %*% solve(chol(cov(x)))
     
     x_mat <- tcrossprod(a)
     
@@ -462,10 +462,10 @@ testthat::test_that("different values of parameters not dose, mahalanobis", {
     x <- x[orders,]
     z <- z[orders]
     
-    mu_x <- colMeans(x[z==0,])
+    mu_x <- colMeans(x)
     
     a <- x - matrix(mu_x, n, d, byrow=TRUE)
-    a <- a %*% solve(chol(cov(x[z==0,])))
+    a <- a %*% solve(chol(cov(x)))
     
     x_mat <- tcrossprod(a)
     
