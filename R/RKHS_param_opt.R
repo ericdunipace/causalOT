@@ -1,3 +1,20 @@
+setClass("RKHS_param", slots = c(theta = "numeric", 
+                                 gamma = "numeric",
+                                 p = "numeric",
+                                 sigma_2 = "numeric",
+                                 kernel = "character",
+                                 metric = "character",
+                                 is.dose = "logical"
+                                 
+                                 ),
+                       prototype = list(theta = numeric(0),
+                                        gamma = numeric(0),
+                                        p = numeric(0),
+                                        sigma_2 = numeric(0),
+                                        kernel = character(0),
+                                        metric = character(0),
+                                        is.dose = logical(0)))
+
 RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp"), is.dose = FALSE, 
                            opt.method = c("stan", "optim","bayesian.optimization"), 
                            kernel = c("RBF","polynomial"),
@@ -173,6 +190,11 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
   out <- list(theta = c(param$theta_0, param$theta_1),
               gamma = c(param$gamma_0, param$gamma_1),
               p = param$p,
-              sigma_2 = param$sigma)
+              sigma_2 = param$sigma,
+              kernel = kernel,
+              metric = metric,
+              is.dose = is.dose)
+  if(is.null(out$p)) out$p <- NA_real_
+  class(out) <- "RKHS_param"
   return(out)
 }

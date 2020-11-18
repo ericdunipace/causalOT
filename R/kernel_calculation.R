@@ -64,6 +64,7 @@ kernel_power_check <- function(p) {
   
   if(missing(p)) p <- 1.0
   if(is.null(p)) p <- 1.0
+  if(is.na(p)) p <- 1.0
   
   if (!is.double(p) ) p <- as.double(p)
   return(p)

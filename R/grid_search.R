@@ -16,11 +16,21 @@ sbw_grid_search <- function(data, grid = NULL,
   
   f.call <- as.call(c(as.name("calc_weight_bal"), argn))
   
+  pd <- prep_data(data, ...)
+  x1 <- as.matrix(pd$df[pd$z == 1,-1])
+  x0 <- as.matrix(pd$df[pd$z == 0,-1])
+  x <- rbind(x0,x1)
+  mean.bal.dat <- cbind(z = pd$z, x)
+  
+  n <- nrow(pd$df)
+  n0 <- nrow(x0)
+  n1 <- nrow(x1)
+  
   weight.list <- lapply(grid, function(delta) {
     args$constraint <- delta
     out <- tryCatch(eval(f.call, envir = args),
-                    error = function(e) {return(list(w0 = rep(NA_real_, get_n(data)[1]),
-                                                    w1 = rep(NA_real_, get_n(data)[2])))})
+                    error = function(e) {return(list(w0 = rep(NA_real_, n0),
+                                                    w1 = rep(NA_real_, n1)))})
     # out <- do.call("calc_weight_bal", args)
     if(list(...)$solver == "gurobi") Sys.sleep(0.1)
     return(out)

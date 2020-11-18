@@ -21,6 +21,10 @@ kernel_calc_ <- function(X_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covar
     .Call(`_causalOT_kernel_calc_`, X_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand)
 }
 
+kernel_calc_pred_ <- function(X_, X_test_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand) {
+    .Call(`_causalOT_kernel_calc_pred_`, X_, X_test_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand)
+}
+
 kernel_update_ <- function(sim_, z_, p, theta_, gamma_, sigma_2_, kernel_) {
     .Call(`_causalOT_kernel_update_`, sim_, z_, p, theta_, gamma_, sigma_2_, kernel_)
 }

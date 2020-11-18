@@ -1,10 +1,118 @@
+gp_pred <- function(formula = NULL, data, weights=NULL,
+                    param, estimand = c("ATE","ATT","ATC"),...) {
+  # w0 <- weights$w0
+  # w1 <- weights$w1
+  prep.data <- prep_data(data,...)
+  
+  z <- prep.data$z
+  y <- prepdata$df$y
+  x <- as.matrix(prep.data$df[,-which(colnames(prep.data$df)=="y")])
+  
+  n <- length(z)
+  n1 <- sum(z)
+  n0 <- n - n1
+  
+  # theta <- kernel_param_check(param$theta)
+  # gamma <- kernel_param_check(param$gamma)
+  # sigma2 <- as.double(param$sigma_2)
+  # p <- as.double(param$p)
+  # kernel <-  param$kernel
+  # is.dose <- param$is.dose
+  # 
+  # calc_covariance <- isTRUE(param$metric == "mahalanobis")
+  
+  
+  # Rcpp::List kernel_calc_pred_(const Rcpp::NumericMatrix & X_,  //confounders
+  #                              const Rcpp::NumericMatrix & X_test_, //test points
+  #                              const Rcpp::IntegerVector & z,  //tx, a vector but easier if matrix
+  #                              const double p,
+  #                              const Rcpp::NumericVector  & theta_,
+  #                              const Rcpp::NumericVector & gamma_,
+  #                              const Rcpp::NumericVector & sigma_2_,
+  #                              const std::string & kernel_,
+  #                              const bool calc_covariance,
+  #                              const std::string & estimand)
+  # Kernel_full <- kernel_calc_pred_(X_=as.matrix(x), 
+  #                                  X_test_ = as.matrix(x),
+  #                                  z = as.integer(z), p = p, 
+  #                                  theta_ = theta, 
+  #                                  gamma_ = gamma, 
+  #                                  sigma_2_ = sigma2,
+  #                                  calc_covariance = calc_covariance, 
+  #                                  kernel = as.character(kernel), 
+  #                                  estimand = as.character(estimand))
+  # pred0 <- if(estimand == "ATE" | estimand == "ATT") {
+  #   crossprod(Kernel_full[[1]]$cross, 
+  #             solve(Kernel_full[[1]]$cov, y[z==0]))
+  # } else if (estimand == "ATC") {
+  #   y[sel]
+  # }
+  # pred1 <- if(estimand == "ATE" | estimand == "ATC") {
+  #   crossprod(Kernel_full[[2]]$cross, 
+  #             solve(Kernel_full[[2]]$cov, y[z==1]))
+  # } else if (estimand == "ATT") {
+  #   y[sel]
+  # }
+  if(param$metric == "mahalanobis") {
+    cov <- cov(x)
+    A <- scale(x, center = TRUE, scale = FALSE) %*% solve(chol(cov))
+    
+  } else {
+    A <- x
+  }
+  A0 <- A[z==0,]
+  A1 <- A[z==1,]
+  
+  if(param$kernel == "polynomial") {
+    kernel_cov0 <- diag(param$sigma_2[1],n0,n0) + 
+      param$gamma[1] * (1+ param$theta[1] * tcrossprod(A0))^param$p
+    kernel_cross0 <- param$gamma[1] * (1+ param$theta[1] * tcrossprod(A0,A))^param$p
+    
+    kernel_cov1 <- diag(param$sigma_2[2],n1,n1) + 
+      param$gamma[2] * (1+ param$theta[2] * tcrossprod(A1))^param$p
+    kernel_cross1 <- param$gamma[2] * (1+ param$theta[2] * tcrossprod(A1,A))^param$p
+  } else if (param$kernel == "RBF") {
+    if(estimand == "ATE" | estimand == "ATT") {
+      kernel_cov0 <- diag(param$sigma_2[1],n0,n0) + 
+      param$gamma[1] * exp(-0.5 * param$theta[1] * 
+                             cost_calc_lp(A0,A0,ground_p = 2, direction = "rowwise" )^2)
+    kernel_cross0 <- param$gamma[1] * exp(-0.5 *  param$theta[1] * 
+                                            cost_calc_lp(A0,A,ground_p = 2, direction = "rowwise" )^2)
+    }
+    if(estimand == "ATE" | estimand == "ATC") {
+      kernel_cov1 <- diag(param$sigma_2[2],n1,n1) + 
+        param$gamma[2] * exp(-0.5 * param$theta[2] * 
+                               cost_calc_lp(A1,A1,ground_p = 2, direction = "rowwise" )^2)
+      kernel_cross1 <- param$gamma[2] * exp(-0.5 *  param$theta[2] * 
+                                              cost_calc_lp(A1,A,ground_p = 2, direction = "rowwise" )^2)
+    }
+  }
+  
+  tau <- if(estimand == "ATE") {
+    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0]))
+    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1]))
+    
+    mean(pred1 - pred0)
+  } else if (estimand == "ATT") {
+    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0]))
+    
+    mean(y[z==1] - pred0[z==1])
+  } else if (estimand == "ATC") {
+    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1]))
+    
+    mean(pred1[z==0] - y[z==0])
+  }
+  
+  return(tau)
+}
+
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand) {
   
   w0 <- weights$w0
   w1 <- weights$w1
   t_ind <- z==1
   c_ind <- z==0
-
+  
   fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
   fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
   f_1   <- predict(fit_1, data) 
@@ -66,6 +174,24 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
   return(tx_effect)
 }
 
+
+outcome_calc_model <- function(data, z, weights, formula, model.fun, matched, estimand,...) {
+  w0 <- weights$w0
+  w1 <- weights$w1
+
+  n <- length(z)
+  w <- rep(NA,n)
+  w[z==1] <- w1
+  w[z==0] <- w0
+
+  fit <- model.fun(formula, data = cbind(data,z=z), weights = w, ...)
+
+
+  tx_effect <- coef(fit)["z"]
+
+  return(tx_effect)
+}
+
 calc_form <- function(formula, doubly.robust, target) {
   if(!is.null(formula)){
     stopifnot(isTRUE(all(names(formula) %in% c("treated","control"))))
@@ -120,18 +246,22 @@ calc_hajek <- function(weights, target, hajek) {
   return(weights)
 }
 
-outcome_model <- function(data, formula = NULL, weights, 
+effect_estimate <- function(data, formula = NULL, weights, 
                                   hajek = TRUE, 
                                   doubly.robust = TRUE,
                                   matched = FALSE,
                                   target = c("ATT", "ATC", "ATE", "feasible"), 
-                                  model = NULL, ...) {
+                                  model = NULL, 
+                                  split.model = TRUE, ...) {
   #get args
   dots <- list(...)
   
   # hajek <- match.arg(hajek)
   dr <- isTRUE(doubly.robust[1])
   matched <- isTRUE(matched[1])
+  
+  split.model <- isTRUE(split.model)
+  
   if(is.null(target)){
     if(inherits(weights, "causalWeights")){
       target <- switch(weights$estimand,
@@ -159,9 +289,14 @@ outcome_model <- function(data, formula = NULL, weights,
   prep.data <- prep_data(data)
   
   #get estimate
-  estimate <- outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun,
+  estimate <- if(split.model) {
+    outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun,
                            matched, target)
-  
+  } else {
+    outcome_calc_model(prep.data$df, prep.data$z, weights, formula, model.fun,
+                       matched, target)
+  }
+
   return(estimate)
 }
   

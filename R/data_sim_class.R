@@ -745,17 +745,30 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                }
                                n0 <- floor(private$n/2)
                                n1 <- ceiling(private$n/2)
-                               pp <- private$p - 3
+                               pp <- private$p - 2
+                               pp_skew <- floor(pp / 2)
+                               alpha_extra <- runif(pp_skew, -0.5,.5)
+                               pp_nonskew <- pp - pp_skew * 2
+                               
                                v <- rskew(n0, alpha)
                                w <- rskew(n1, -alpha)
+                               extra_skew0 <- matrix(replicate(pp_skew, rskew(n0, alpha_extra)), 
+                                                     nrow = n0,
+                                                     ncol = pp_skew * 2)
+                               extra_skew1 <- matrix(replicate(pp_skew, rskew(n1, alpha_extra)),
+                                                        nrow = n0,
+                                                        ncol = pp_skew * 2)
+                               
                                x0 <- cbind( 
-                                           rnorm(n0, mean = v[,1]^2),
+                                           # rnorm(n0, mean = v[,1]^2),
                                            v,
-                                           matrix(rnorm(n0 * pp), n0, pp))
+                                           extra_skew0,
+                                           matrix(rnorm(n0 * pp_nonskew), n0, pp_nonskew))
                                x1 <- cbind(
-                                           rnorm(n1, mean = (w[,1]^2)),
+                                           # rnorm(n1, mean = (w[,1]^2)),
                                            w, 
-                                           matrix(rnorm(n1 * pp), n1, pp))
+                                           extra_skew1,
+                                           matrix(rnorm(n0 * pp_nonskew), n1, pp_nonskew))
                                
                                private$x <- rbind(x0,x1)
                                colnames(private$x) <- paste0("X",1:private$p)
@@ -765,22 +778,25 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                if(all(dim(private$x) == 0)) self$gen_x()
                                if(is.character(private$z)) self$gen_z()
                                private$mu1 <- if(private$design == "A"){
-                                 1 + (private$x[,3] > 0)
+                                 1 + (private$x[,2] > 0)
                                } else if (private$design == "B") {
-                                 ytemp <- (1 + (private$x[,3] > 0))
+                                 ytemp <- (round(cos(private$x[,2])))
                                  # ytemp <- 0
-                                 10*sign(1/(.01*private$x[,2]+.05*private$x[,3]+ytemp/20)) + private$x[,1]
+                                 10*sign(1/(.01*private$x[,1]+.05*private$x[,2])+ ytemp*100) + private$x[,3]^2/10 
+                                 # 5*(sign(1/(.01*private$x[,1]+.05*private$x[,2])) + private$x[,1]^2/10 + ytemp)
                                } else if (private$design == "C") {
                                  private$x[,1:3] %*% c(-1,1,-2) + 0.5 *private$x[,3]^2
                                } else {
                                  stop("Design must be one of A, B, or C")
                                }
                                private$mu0 <- if(private$design == "A"){
-                                 -1 - (1.5*abs(private$x[,3]) > 1)
+                                 -1 - (1.5*abs(private$x[,1]) > 1)
                                }else if (private$design == "B") {
-                                 ytemp <- -(1 + (1.5*abs(private$x[,3]) > 1))
+                                 ytemp <- -(1 + (1.5*abs(private$x[,2]) > 1))
                                  # ytemp <- 0
-                                 10*sign(-1/(.01*private$x[,2]+.05*private$x[,3] + ytemp/20)) - private$x[,1]
+                                 # 5*(sign(-1/(.01*private$x[,1]+.05*private$x[,2])) - private$x[,1]^2/10 + ytemp)
+                                 
+                                 10*sign(-.05*private$x[,1]+.01*private$x[,2]) + ytemp*5 - private$x[,3]^3/10
                                } else if (private$design == "C") {
                                  private$x[,1:3] %*% c(-1,-1,-2) - 2
                                }
@@ -797,11 +813,11 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                private$check_data()
                                invisible(self)
                              },
-                             initialize = function(n = 1024, p = 3, design = "A", overlap = "high", ...) {
+                             initialize = function(n = 1024, p = 4, design = "A", overlap = "high", ...) {
                                
                                if(p < 3) {
-                                 warning("'p' must be at least 3")
-                                 private$p <- 3
+                                 warning("'p' must be at least 4")
+                                 private$p <- 4
                                } else {
                                  private$p <- p
                                }

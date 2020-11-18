@@ -82,6 +82,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// kernel_calc_pred_
+Rcpp::List kernel_calc_pred_(const Rcpp::NumericMatrix& X_, const Rcpp::NumericMatrix& X_test_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const std::string& kernel_, const bool calc_covariance, const std::string& estimand);
+RcppExport SEXP _causalOT_kernel_calc_pred_(SEXP X_SEXP, SEXP X_test_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP kernel_SEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_test_(X_test_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z(zSEXP);
+    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type sigma_2_(sigma_2_SEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type kernel_(kernel_SEXP);
+    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_calc_pred_(X_, X_test_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand));
+    return rcpp_result_gen;
+END_RCPP
+}
 // kernel_update_
 Rcpp::NumericMatrix kernel_update_(const Rcpp::NumericMatrix& sim_, const Rcpp::IntegerVector& z_, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const std::string& kernel_);
 RcppExport SEXP _causalOT_kernel_update_(SEXP sim_SEXP, SEXP z_SEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP kernel_SEXP) {
@@ -164,6 +184,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_kernel_calc_dose_", (DL_FUNC) &_causalOT_kernel_calc_dose_, 7},
     {"_causalOT_similarity_calc_dose_", (DL_FUNC) &_causalOT_similarity_calc_dose_, 3},
     {"_causalOT_kernel_calc_", (DL_FUNC) &_causalOT_kernel_calc_, 9},
+    {"_causalOT_kernel_calc_pred_", (DL_FUNC) &_causalOT_kernel_calc_pred_, 10},
     {"_causalOT_kernel_update_", (DL_FUNC) &_causalOT_kernel_update_, 7},
     {"_causalOT_similarity_calc_", (DL_FUNC) &_causalOT_similarity_calc_, 4},
     {"_causalOT_marginal_lik_gp_", (DL_FUNC) &_causalOT_marginal_lik_gp_, 2},
