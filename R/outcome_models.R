@@ -126,6 +126,7 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   
   return(tau)
 }
+  
 
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand) {
   

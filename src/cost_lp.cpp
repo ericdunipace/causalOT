@@ -6,7 +6,7 @@ void cost_calculation_Lp(const refMatConst & A, const refMatConst & B, matrix & 
   for (int j = 0; j < B.cols(); j++) { 
     vector bvec = B.col(j);
     for (int i = 0; i < A.cols(); i++) {
-      double cost_p = (A.col(i)-bvec).array().pow(p).sum();
+      double cost_p = (A.col(i)-bvec).array().abs().pow(p).sum();
       cost_matrix(i,j) = std::pow(cost_p, p_inv);
     }
   }

@@ -124,7 +124,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
     
   } else if (est == "ATE") {
     x <- as.matrix(df)
-    if(is.null(cost)) {
+    if(is.null(cost) | !is.list(cost)) {
       cost <- list(cost_fun(x0, x, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
                             estimand = "ATE"),
                    cost_fun(x1, x, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
@@ -169,7 +169,9 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   }
   
   
-  output <- list(w0 = w0, w1 = w1, gamma = NULL)
+  output <- list(w0 = w0, w1 = w1, gamma = NULL,
+                 args = list(power = dots$p, 
+                             metric = dots$dist))
   # output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
   
   return(output)

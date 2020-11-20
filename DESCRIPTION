@@ -11,6 +11,7 @@ Imports:
     data.table (>= 1.12.8),
     kernlab,
     Matrix,
+    matrixStats,
     methods,
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
