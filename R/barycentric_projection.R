@@ -101,9 +101,10 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
   data$p <- power
   
   if(metric == "Lp") {
-    y0t <- y0
-    y1t <- y1
+    y0t <- as.matrix(y0)
+    y1t <- as.matrix(y1)
   } else if (metric == "mahalanobis") {
+    d   <- ncol(x0)
     d_0 <- cbind(x0,y0)
     d_1 <- cbind(x1,y1)
     
@@ -120,54 +121,98 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
     data$N <- n0
     data$M <- n1
     data$y <- y0t
-    data$gamma <- gamma
+    data$D <- ncol(y0t)
+    data$gamma <- apply(gamma,2,renormalize)
   } else if (estimand == "ATC"){
-    data$N <- n0
-    data$M <- n1
+    data$M <- n0
+    data$N <- n1
     data$y <- y1t
-    data$gamma <- t(gamma)
+    data$D <- ncol(y1t)
+    data$gamma <- apply(gamma,1,renormalize)
   }
-  arguments <- list(
-    data = data,
-    ...,
-    as_vector = FALSE
-  )
-  formals.stan <- c("iter", "save_iterations", 
-                    "refresh", "init_alpha", "tol_obj", "tol_grad", "tol_param", 
-                    "tol_rel_obj", "tol_rel_grad", "history_size",
-                    "object", "data", "seed", "init", "check_data",
-                    "sample_file", "algorithm", "verbose", "hessian", 
-                    "as_vector", "draws", "constrained", "importance_resampling")
-  arguments <- arguments[!duplicated(names(arguments))]
-  arguments <- arguments[names(arguments) %in% formals.stan]
-  if(is.null(arguments$object)) {
-    if(metric == "Lp") {
-      arguments$object <- stanmodels$barycenter_projection_
-    } else if (metric == "mahalanobis") {
-      arguments$object <- stanmodels$barycenter_projection_mahalanobis_
+  
+  dots <- list(...)
+  iter <- dots$iter
+  precision <- dots$tol
+  method <- dots$method
+  
+  if(is.null(iter)) iter <- 2000L
+  if(is.null(precision)) precision <- as.double(1e-16)
+  if(is.null(method)) method <- "optim"
+  method <- match.arg(method, c("optim","rstan"))
+  
+  if(method == "optim"){
+    data$y <- t(data$y)
+    lp_loss <- function(x,y,p,w,n,d) {
+      z<- matrix(x,d,n)
+      return(sum(w * sapply(1:n, function(i) colSums(abs(z[,i] - y)^p))))
     }
+    lp_grad <- function(x,y,p,w,n,d) {
+      z <- matrix(x, d,n)
+      return(sapply(1:n, function(i) p*(sign(z[,i] - y)*abs(z[,i] - y)^(p-1))%*% w[,i]))
+    }
+    res <- optim(par = c(x=rep(0,data$M* data$D)), fn = lp_loss, gr = lp_grad,
+                 y = data$y, p = power, w = data$gamma, n = data$M, d = data$D,
+                 control = list(maxit = iter, reltol = precision), method = "BFGS")
+    iter.used <- res$counts[1] 
+    convergence <- res$convergence
+    output.message <- res$message
+    
+    zmat <- matrix(res$par, nrow = data$M, ncol = data$D, byrow = TRUE)
+  } else if (method == "rstan") {
+    arguments <- list(
+      data = data,
+      iter = iter,
+      check_data = FALSE,
+      ...,
+      as_vector = FALSE
+    )
+    formals.stan <- c("iter", "save_iterations", 
+                      "refresh", "init_alpha", "tol_obj", "tol_grad", "tol_param", 
+                      "tol_rel_obj", "tol_rel_grad", "history_size",
+                      "object", "data", "seed", "init", "check_data",
+                      "sample_file", "algorithm", "verbose", "hessian", 
+                      "as_vector", "draws", "constrained", "importance_resampling")
+    arguments <- arguments[!duplicated(names(arguments))]
+    arguments <- arguments[names(arguments) %in% formals.stan]
+    if(is.null(arguments$object)) {
+      if(metric == "Lp") {
+        arguments$object <- stanmodels$barycenter_projection
+      } else if (metric == "mahalanobis") {
+        arguments$object <- stanmodels$barycenter_projection
+      }
+    }
+    
+    argn <- lapply(names(arguments), as.name)
+    names(argn) <- names(arguments)
+    f.call <- as.call(c(list(call("::", as.name("rstan"), 
+                                  as.name("optimizing"))), argn))
+    res <- eval(f.call, envir = arguments)
+    zmat <- res$par$z
+    convergence <- res$return_code
+    output.message <- NULL
+    iter.used <- 0
   }
   
-  argn <- lapply(names(arguments), as.name)
-  names(argn) <- names(arguments)
-  f.call <- as.call(c(list(call("::", as.name("rstan"), 
-                                as.name("optimizing"))), argn))
-  res <- eval(f.call, envir = arguments)
+  if(convergence != 0) warning("Convergence code ", convergence,"in method ",method,".Algorithm not converged for Lp minimization in barycenter projection. ", 
+                               output.message)
   
+  if(iter.used >= iter ) warning("Maximum number of iterations hit")
   y_out <- list(y0 = rep(NA_real_, n1),
                 y1 = rep(NA_real_, n0))
   
   if (metric == "mahalanobis") {
+    
     if(estimand == "ATT") {
-      y_out$y0 <- c((res$par$z %*% U)[,d+1])
+      y_out$y0 <- c((zmat %*% U)[,d+1])
     } else if (estimand == "ATC") {
-      y_out$y1 <- c((res$par$z %*% U)[,d+1])
+      y_out$y1 <- c((zmat %*% U)[,d+1])
     }
   } else if (metric == "Lp") {
     if(estimand == "ATT") {
-      y_out$y0 <- c(res$par$z)
+      y_out$y0 <- c(zmat)
     } else if (estimand == "ATC") {
-      y_out$y1 <- c(res$par$z)
+      y_out$y1 <- c(zmat)
     }
   }
   return(y_out)

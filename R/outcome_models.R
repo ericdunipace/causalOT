@@ -1,5 +1,15 @@
 gp_pred <- function(formula = NULL, data, weights=NULL,
                     param, estimand = c("ATE","ATT","ATC","cATE"),...) {
+  #TODO: add check for the matrix being positive def
+  
+  test_pos_def_inv <- function(x,y) {
+    e <- eigen(x, only.values = TRUE)
+    if(any(e$values <=0)) {
+      min.e <- min(e$values)
+      x <- x + diag(-min.e, nrow(x),ncol(x))
+    }
+    return(solve(x,y))
+  }
   # w0 <- weights$w0
   # w1 <- weights$w1
   estimand <- match.arg(estimand)
@@ -31,6 +41,11 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
     sd_y1   <- sd(y[z==1])
     y[z==0] <- c(scale(y[z==0]))
     y[z==1] <- c(scale(y[z==1]))
+  } else {
+    m_y0   <- 0
+    m_y1   <- 0
+    sd_y0   <- 1
+    sd_y1   <- 1
   }
   
   # theta <- kernel_param_check(param$theta)
@@ -110,16 +125,16 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   }
   
   tau <- if(estimand == "ATE") {
-    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0])) * sd_y0 + m_y0
-    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1])) * sd_y1 + m_y1
+    pred0 <- crossprod(kernel_cross0, test_pos_def_inv(kernel_cov0, y[z==0])) * sd_y0 + m_y0
+    pred1 <- crossprod(kernel_cross1, test_pos_def_inv(kernel_cov1, y[z==1])) * sd_y1 + m_y1
     
     mean(pred1 - pred0)
   } else if (estimand == "ATT") {
-    pred0 <- crossprod(kernel_cross0, solve(kernel_cov0, y[z==0])) * sd_y0 + m_y0
+    pred0 <- crossprod(kernel_cross0, test_pos_def_inv(kernel_cov0, y[z==0])) * sd_y0 + m_y0
     
     mean(y[z==1] * sd_y1 + m_y1 - pred0[z==1])
   } else if (estimand == "ATC") {
-    pred1 <- crossprod(kernel_cross1, solve(kernel_cov1, y[z==1])) * sd_y1 + m_y1
+    pred1 <- crossprod(kernel_cross1, test_pos_def_inv(kernel_cov1, y[z==1])) * sd_y1 + m_y1
     
     mean(pred1[z==0]* - y[z==0]*sd_y0 - m_y0)
   }

@@ -176,8 +176,7 @@ BEGIN_RCPP
 END_RCPP
 }
 
-RcppExport SEXP _rcpp_module_boot_stan_fit4barycenter_projection__mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4barycenter_projection_mahalanobis__mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4barycenter_projection_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4gp_hyper_mod();
 
 static const R_CallMethodDef CallEntries[] = {
@@ -192,8 +191,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_marginal_lik_gp_", (DL_FUNC) &_causalOT_marginal_lik_gp_, 2},
     {"_causalOT_kernel_calc_ot_", (DL_FUNC) &_causalOT_kernel_calc_ot_, 8},
     {"_causalOT_entry", (DL_FUNC) &_causalOT_entry, 3},
-    {"_rcpp_module_boot_stan_fit4barycenter_projection__mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4barycenter_projection__mod, 0},
-    {"_rcpp_module_boot_stan_fit4barycenter_projection_mahalanobis__mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4barycenter_projection_mahalanobis__mod, 0},
+    {"_rcpp_module_boot_stan_fit4barycenter_projection_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4barycenter_projection_mod, 0},
     {"_rcpp_module_boot_stan_fit4gp_hyper_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4gp_hyper_mod, 0},
     {NULL, NULL, 0}
 };

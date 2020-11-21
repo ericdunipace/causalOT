@@ -78,7 +78,9 @@ testthat::test_that("gaussian process prediction works polynomial, mahalanobis",
                 is.dose = FALSE,
                 kernel = "polynomial",
                 metric = "mahalanobis",
-                is.dose = FALSE
+                is.dose = FALSE,
+                is.standardized = TRUE
+                
                 )
   
   rout <- gauss_pred_r(x,y,z, param)
@@ -122,7 +124,9 @@ testthat::test_that("gaussian process prediction works rbf, mahalanobis", {
                 is.dose = FALSE,
                 kernel = "RBF",
                 metric = "mahalanobis",
-                is.dose = FALSE
+                is.dose = FALSE,                
+                is.standardized = TRUE
+
   )
   
   rout <- gauss_pred_r(x,y,z, param)
@@ -166,7 +170,9 @@ testthat::test_that("gaussian process prediction works polynomial, Lp", {
                 is.dose = FALSE,
                 kernel = "polynomial",
                 metric = "Lp",
-                is.dose = FALSE
+                is.dose = FALSE,
+                is.standardized = TRUE
+                
   )
   
   rout <- gauss_pred_r(x,y,z, param)
@@ -210,7 +216,8 @@ testthat::test_that("gaussian process prediction works rbf, Lp", {
                 is.dose = FALSE,
                 kernel = "RBF",
                 metric = "Lp",
-                is.dose = FALSE
+                is.dose = FALSE,
+                is.standardized = TRUE
   )
   
   rout <- gauss_pred_r(x,y,z, param)
@@ -236,6 +243,35 @@ testthat::test_that("gaussian process prediction works rbf, Lp", {
   testthat::expect_equal(Kernel_full[[1]]$cross, rout$kernels$control$cross)
   testthat::expect_equal(Kernel_full[[2]]$cross, rout$kernels$treated$cross)
 })
+
+testthat::test_that("gaussian process corrects non-positive def matrix rbf, Lp", {
+  
+  n <- 100
+  d <- 10
+  x <- matrix(rnorm(n*d),n,d)
+  y <- rnorm(n)
+  z <- rbinom(n,1,0.5)
+  n1 <- sum(z)
+  n0 <- n - n1
+  
+  param <- list(theta = c(1.1,1.22),
+                gamma = c(0.5,0.423),
+                p = 2,
+                sigma_2 = -10*c(1.01, 1.033),
+                is.dose = FALSE,
+                kernel = "RBF",
+                metric = "Lp",
+                is.dose = FALSE,
+                is.standardized = TRUE
+  )
+  
+  df <- data.frame(x, y = y, z = z)
+  testthat::expect_silent(tau <- gp_pred(data = df, weights = NULL,param = param, estimand = "ATE", 
+                 balance.covariates = colnames(df)[1:d],
+                 treatment.indicator = "z",
+                 outcome = "y"))
+})
+
 
 testthat::test_that("timing is better for C code, rbf lp", {
   testthat::skip("This test is meant to be run interactively.")

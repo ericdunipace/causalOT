@@ -29,6 +29,8 @@ typedef Eigen::Ref<const vectorI> refVecConstI;
 typedef matrix::ColXpr ColXpr;
 typedef matrixI::ColXpr ColXprI;
 
+typedef matrix::RowXpr RowXpr;
+
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rowMat;
 typedef Eigen::LLT<matrix> llt;
 typedef Eigen::LDLT<matrix> ldlt;
