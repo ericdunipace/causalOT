@@ -3,12 +3,12 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   #TODO: add check for the matrix being positive def
   
   test_pos_def_inv <- function(x,y) {
-    e <- eigen(x, only.values = TRUE)
+    e <- eigen(x)
     if(any(e$values <=0)) {
       min.e <- min(e$values)
-      x <- x + diag(-min.e, nrow(x),ncol(x))
+      e$values <- e$values - min.e
     }
-    return(solve(x,y))
+    return(e$vectors %*% diag(1/e$values) %*% crossprod(e$vectors, y))
   }
   # w0 <- weights$w0
   # w1 <- weights$w1

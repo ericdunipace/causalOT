@@ -443,32 +443,33 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
       warn <- warnings()
     })
   if(!is.null(warn)) print(warn)
-  sh2 <- SimHolder$new(nsim = nsims,
-                       dataSim = original,
-                       grid.search = TRUE,
-                       RKHS = list(opt = TRUE, opt.method = "optim"),
-                       truncations = std_mean_diff,
-                       standardized.difference.means = NULL,
-                       outcome.model = list("lm"),
-                       outcome.formula = list(none = NULL,
-                                              augmentation = NULL),
-                       model.augmentation = "both",
-                       match = "both",
-                       solver = "gurobi",
-                       wass_powers = power,
-                       ground_powers = ground_power,
-                       metrics = distance)
-  testthat::expect_warning(
-    {
-      sh2$run()
-      warn <- warnings()
-    })
-  if(!is.null(warn)) print(warn)
-  testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
-  testthat::expect_type(original$get_x0(), "double")
-  testthat::expect_type(original$get_x1(), "double")
-  testthat::expect_type(original$get_z(), "double")
-  testthat::expect_type(original$get_y(), "double")
+  # sh2 <- SimHolder$new(nsim = nsims,
+  #                      dataSim = original,
+  #                      grid.search = TRUE,
+  #                      RKHS = list(opt = TRUE, opt.method = "optim",
+  #                                  kernel = "polynomial"),
+  #                      truncations = std_mean_diff,
+  #                      standardized.difference.means = NULL,
+  #                      outcome.model = list("lm"),
+  #                      outcome.formula = list(none = NULL,
+  #                                             augmentation = NULL),
+  #                      model.augmentation = "both",
+  #                      match = "both",
+  #                      solver = "gurobi",
+  #                      wass_powers = power,
+  #                      ground_powers = ground_power,
+  #                      metrics = distance)
+  # testthat::expect_warning(
+  #   {
+  #     sh2$run()
+  #     warn <- warnings()
+  #   })
+  # if(!is.null(warn)) print(warn)
+  # testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
+  # testthat::expect_type(original$get_x0(), "double")
+  # testthat::expect_type(original$get_x1(), "double")
+  # testthat::expect_type(original$get_z(), "double")
+  # testthat::expect_type(original$get_y(), "double")
 })
 
 

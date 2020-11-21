@@ -14,8 +14,8 @@ matrix pol_kern( matrix cost,
   
   matrix[N, N] K;
   
-  for (i in 1:N) {
-    for (j in 1:N) {
+  for (j in 1:N) {
+    for (i in j:N) {
       if ( (z[i] == 1) && ( z[j] == 1) ) {
         K[i,j] = gamma_1 * pow(1.0 + theta_1 * cost[i,j], p);
       } else if ( (z[i] == 0) && (z[j] == 0) ) {
@@ -23,6 +23,7 @@ matrix pol_kern( matrix cost,
       } else {
         K[i,j] = 0.0;
       }
+      K[j,i] = K[i,j];
     }
   }
   for (i in 1:N) {
@@ -49,8 +50,8 @@ matrix rbf_kern( matrix cost,
   
   matrix[N, N] K;
   
-  for (i in 1:N) {
-    for (j in 1:N) {
+  for (j in 1:N) {
+    for (i in j:N) {
       if ( (z[i] == 1) && ( z[j] == 1) ) {
         K[i,j] = gamma_1 * exp(- 0.5 * theta_1 * cost[i,j]);
       } else if ( (z[i] == 0) && (z[j] == 0) ) {
@@ -58,6 +59,7 @@ matrix rbf_kern( matrix cost,
       } else {
         K[i,j] = 0.0;
       }
+      K[j,i] = K[i,j];
     }
   }
   for (i in 1:N) {
@@ -84,13 +86,14 @@ matrix linear_kern( matrix cost,
   
   matrix[N, N] K;
   
-  for (i in 1:N) {
-    for (j in 1:N) {
+  for (j in 1:N) {
+    for (i in j:N) {
       if ( z[i] == z[j] ) {
         K[i,j] = cost[i,j];
       } else {
         K[i,j] = 0.0;
       }
+      K[j,i] = K[i,j];
     }
   }
   for (i in 1:N) {
@@ -116,10 +119,12 @@ matrix linear_kern( matrix cost,
 
     // real sigma_2 = sigma;
 
-    for(i in 1:N) {
-      for(j in 1:N) {
+    for(j in 1:N) {
+      for(i in j:N) {
         K[i,j] = gamma_0 * pow(1.0 + theta_0 * cost_0[i,j], p) * gamma_1 * pow(1.0 + theta_1 * cost_1[i,j], p);
+        K[j,i] = K[i,j];
       }
+      
     }
 
     return K;

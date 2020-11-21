@@ -79,7 +79,7 @@ testthat::test_that("gaussian process prediction works polynomial, mahalanobis",
                 kernel = "polynomial",
                 metric = "mahalanobis",
                 is.dose = FALSE,
-                is.standardized = TRUE
+                is.standardized = FALSE
                 
                 )
   
@@ -125,7 +125,7 @@ testthat::test_that("gaussian process prediction works rbf, mahalanobis", {
                 kernel = "RBF",
                 metric = "mahalanobis",
                 is.dose = FALSE,                
-                is.standardized = TRUE
+                is.standardized = FALSE
 
   )
   
@@ -171,7 +171,7 @@ testthat::test_that("gaussian process prediction works polynomial, Lp", {
                 kernel = "polynomial",
                 metric = "Lp",
                 is.dose = FALSE,
-                is.standardized = TRUE
+                is.standardized = FALSE
                 
   )
   
@@ -217,7 +217,7 @@ testthat::test_that("gaussian process prediction works rbf, Lp", {
                 kernel = "RBF",
                 metric = "Lp",
                 is.dose = FALSE,
-                is.standardized = TRUE
+                is.standardized = FALSE
   )
   
   rout <- gauss_pred_r(x,y,z, param)

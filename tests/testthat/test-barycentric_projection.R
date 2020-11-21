@@ -36,14 +36,14 @@ testthat::test_that("barycenter projection pow2, lp", {
                                                        cost = cost))
   
   
-  testthat::expect_equal(crossprod(weights[[1]]$gamma, y0), 
+  testthat::expect_equal(c(crossprod(weights[[1]]$gamma, y0) * 1/colSums(weights[[1]]$gamma)), 
                          barycenter_pow2(weights[[1]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATT", metric = "Lp")$y0)
-  testthat::expect_equal(weights[[1]]$gamma %*% y1, 
+  testthat::expect_equal(c(weights[[1]]$gamma %*% y1) * 1/rowSums(weights[[1]]$gamma) , 
   barycenter_pow2(weights[[1]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATC", metric = "Lp")$y1)
   
-  testthat::expect_equal(crossprod(weights[[2]]$gamma, y0), 
+  testthat::expect_equal(c(crossprod(weights[[2]]$gamma, y0) * 1/colSums(weights[[2]]$gamma)), 
                          barycenter_pow2(weights[[2]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATT", metric = "Lp")$y0)
-  testthat::expect_equal(weights[[2]]$gamma %*% y1, 
+  testthat::expect_equal(c(weights[[2]]$gamma %*% y1) * 1/rowSums(weights[[2]]$gamma), 
                          barycenter_pow2(weights[[2]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATC", metric = "Lp")$y1)
   
   
@@ -90,12 +90,12 @@ testthat::test_that("barycenter projection pow2, mahalanobis", {
   
   testthat::expect_equal(c(crossprod(weights[[1]]$gamma, y0)*n1), 
                          barycenter_pow2(weights[[1]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATT", metric = "Lp")$y0)
-  testthat::expect_equal(c(weights[[1]]$gamma %*% y1 * n0), 
+  testthat::expect_equal(c(weights[[1]]$gamma %*% y1 * 1/rowSums(weights[[1]]$gamma)), 
                          barycenter_pow2(weights[[1]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATC", metric = "Lp")$y1)
   
-  testthat::expect_equal(c(crossprod(weights[[2]]$gamma, y0)*n1), 
+  testthat::expect_equal(c(crossprod(weights[[2]]$gamma, y0)*1/colSums(weights[[2]]$gamma)), 
                          barycenter_pow2(weights[[2]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATT", metric = "Lp")$y0)
-  testthat::expect_equal(c(weights[[2]]$gamma %*% y1)*n0, 
+  testthat::expect_equal(c(weights[[2]]$gamma %*% y1)*1/rowSums(weights[[2]]$gamma), 
                          barycenter_pow2(weights[[2]]$gamma, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATC", metric = "Lp")$y1)
   
   # fit0 <-lm(y0 ~ x0)
