@@ -1,6 +1,5 @@
 gp_pred <- function(formula = NULL, data, weights=NULL,
                     param, estimand = c("ATE","ATT","ATC","cATE"),...) {
-  #TODO: add check for the matrix being positive def
   
   test_pos_def_inv <- function(x,y) {
     e <- eigen(x)

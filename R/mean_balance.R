@@ -5,8 +5,8 @@ mean_bal <- function(data, weights, ...) {
   }
   
   xs <- extract_x(data, ...)
-  x1 <- xs$x1
-  x0 <- xs$x0
+  x1 <- as.matrix(xs$x1)
+  x0 <- as.matrix(xs$x0)
   
   sigma_x1 <- colVar(x1)
   sigma_x2 <- colVar(x0)

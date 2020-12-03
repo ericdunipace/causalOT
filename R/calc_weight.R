@@ -492,6 +492,19 @@ get_n.data.frame <- function(data,...) {
   return(ns)
 }
 
+get_p.DataSim <- function(data,...) {
+  return(data$get_p())
+}
+
+get_p.data.frame <- function(data,...) {
+  df <- prep_data(data,...)
+  if(!is.null(df$df$y)){
+    return(ncol(df$df) - 1)
+  } else {
+    return(ncol(df$df))
+  }
+}
+
 setOldClass("DataSim")
 setGeneric("get_z", function(data, ...) UseMethod("get_z"))
 setMethod("get_z", "DataSim", get_z.DataSim)
@@ -499,3 +512,7 @@ setMethod("get_z", "data.frame", get_z.data.frame)
 setGeneric("get_n", function(data, ...) UseMethod("get_n"))
 setMethod("get_n", "DataSim", get_n.DataSim)
 setMethod("get_n", "data.frame", get_n.data.frame)
+
+setGeneric("get_p", function(data, ...) UseMethod("get_p"))
+setMethod("get_p", "DataSim", get_p.DataSim)
+setMethod("get_p", "data.frame", get_p.data.frame)
