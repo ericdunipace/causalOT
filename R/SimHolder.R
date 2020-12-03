@@ -660,13 +660,13 @@
                                                                                                               "no" = FALSE))
                                             private$method.lookup$solver <- sapply(private$method, function(mm) switch(mm,
                                                                                                                        Logistic = "glm",
-                                                                                                                       NNM = NULL,
+                                                                                                                       NNM = NA_character_,
                                                                                                                        SBW = private$solver,
                                                                                                                        RKHS = private$solver,
                                                                                                                        RKHS.dose = private$solver,
                                                                                                                        'Constrained Wasserstein' = private$solver,    
                                                                                                                        Wasserstein = private$solver,
-                                                                                                                       NA_real_
+                                                                                                                       NA_character_
                                             ))
                                             sdm <- private$standardized.difference.means
                                             lambdas <- private$RKHS$lambdas
@@ -709,7 +709,7 @@
                                             wass_list$std_diff <- NA
                                             private$method.lookup$options <- sapply(private$method, function(mm) switch(mm,
                                                                                                                         Logistic = list(delta = private$truncations),
-                                                                                                                        NNM = list(NA),
+                                                                                                                        NNM = list(delta = NA),
                                                                                                                         SBW = list(grid.search = private$grid.search,
                                                                                                                                    delta = sdm),   
                                                                                                                         RKHS = RKHS_list,

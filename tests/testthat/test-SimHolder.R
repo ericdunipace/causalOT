@@ -182,6 +182,7 @@ testthat::test_that("SimHolder runs", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
+  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW', 'RKHS', 'NNM', 'Constrained Wasserstein', 'gp'))
 })
 
 testthat::test_that("SimHolder runs,verbose", {
