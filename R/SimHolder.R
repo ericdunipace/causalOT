@@ -229,15 +229,18 @@
                              } else {
                                private$outcome.formula <- list(none = NULL, augmentation = NULL)
                              }
-                             if(!is.null(estimands)) {
-                               estimands <- match.arg(estimands, several.ok = TRUE)
-                             }
+                             
                              private$solver <- match.arg(solver, c("gurobi","cplex","mosek"))
                              private$wass_powers <- as.numeric(wass_powers)
                              private$ground_powers <- as.numeric(ground_powers)
                              
                              private$calculate.feasible <- isTRUE(calculate.feasible)
                              options <- get_holder_options()
+                             if(!is.null(estimands)) {
+                               estimands <- match.arg(estimands, several.ok = TRUE)
+                             } else {
+                               estimands <- options$estimates
+                             }
                              private$estimand <- options$estimates[options$estimates %in% estimands]
                              if(!private$calculate.feasible) private$estimand <- private$estimand[private$estimand != "feasible"]
                              #removing "wasserstein"
