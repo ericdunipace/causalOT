@@ -1,3 +1,5 @@
+arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "addl.args")
+
 testthat::test_that("works for Const Wass", {
   set.seed(23483)
   n <- 2^7
@@ -24,7 +26,7 @@ testthat::test_that("works for Const Wass", {
                                                            p = power,
                                                            method = "Constrained Wasserstein",
                                                            solver = "gurobi"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand")))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   
   
   weights2 <- lapply(estimates, function(e) calc_weight(data = data, 
@@ -33,7 +35,7 @@ testthat::test_that("works for Const Wass", {
                                                             p = power,
                                                             method = "Constrained Wasserstein",
                                                             solver = "gurobi"))
-  sapply(weights2, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand")))
+  sapply(weights2, function(w) testthat::expect_equal(names(w), arg.names))
   
   
   test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1), "Mean relative difference")}
@@ -91,7 +93,7 @@ testthat::test_that("works for Const Wass RKHS", {
                                                        solver = "gurobi",
                                                        distance = distance,
                                                        rkhs.args = rkhs.argz))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand")))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   
   
   weights2 <- lapply(estimates, function(e) calc_weight(data = data, 
@@ -102,7 +104,7 @@ testthat::test_that("works for Const Wass RKHS", {
                                                         solver = "gurobi",
                                                         distance = distance,
                                                         rkhs.args = rkhs.argz))
-  sapply(weights2, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand")))
+  sapply(weights2, function(w) testthat::expect_equal(names(w), arg.names))
   
   
   test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1), "Mean relative difference")}
@@ -154,7 +156,7 @@ testthat::test_that("works for Wass", {
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            solver = "gurobi"))
-  for(w in weights) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma","estimand"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -174,7 +176,7 @@ testthat::test_that("works for Wass", {
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            solver = "cplex"))
-  for(w in weights) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -194,7 +196,7 @@ testthat::test_that("works for Wass", {
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            solver = "mosek"))
-  for(w in weights) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
@@ -241,7 +243,7 @@ testthat::test_that("works for Wass", {
 #                                                        solver = "gurobi",
 #                                                        distance = distance,
 #                                                        rkhs.args = rkhs.argz))
-#   for(w in weights) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma","estimand"))
+#   for(w in weights) testthat::expect_equal(names(w), arg.names)
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
 #                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -263,7 +265,7 @@ testthat::test_that("works for Wass", {
 #                                                        solver = "cplex",
 #                                                        distance = distance,
 #                                                        rkhs.args = rkhs.argz))
-#   for(w in weights) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand"))
+#   for(w in weights) testthat::expect_equal(names(w), arg.names)
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
 #                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -285,7 +287,7 @@ testthat::test_that("works for Wass", {
 #                                                        solver = "mosek",
 #                                                        distance = distance,
 #                                                        rkhs.args = rkhs.argz))
-#   for(w in weights) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand"))
+#   for(w in weights) testthat::expect_equal(names(w), arg.names)
 #   
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
 #                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
@@ -324,19 +326,19 @@ testthat::test_that("works for SBW", {
                                                            estimate = e, 
                                                            method = "SBW",
                                                            solver = "gurobi"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand")))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                            constraint = 3, 
                                                            estimate = e, 
                                                            method = "SBW",
                                                            solver = "mosek"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand")))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                            constraint = 3, 
                                                            estimate = e, 
                                                            method = "SBW",
                                                            solver = "cplex"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", "estimand")))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   
   
 })
@@ -366,10 +368,8 @@ testthat::test_that("works for SBW grid", {
                                                        estimate = e, 
                                                        method = "SBW",
                                                        solver = "gurobi"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma",
-                                                                 "standardized.mean.difference", 
-                                                                 "estimand")))
-  sapply(weights, function(w) testthat::expect_lte(w$standardized.mean.difference , 10))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
+  sapply(weights, function(w) testthat::expect_lte(w$addl.args$standardized.mean.difference , 10))
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = constraint,
@@ -378,10 +378,8 @@ testthat::test_that("works for SBW grid", {
                                                        estimate = e, 
                                                        method = "SBW",
                                                        solver = "mosek"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", 
-                                                                 "standardized.mean.difference", 
-                                                                 "estimand")))
-  sapply(weights, function(w) testthat::expect_lte(w$standardized.mean.difference , 10))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
+  sapply(weights, function(w) testthat::expect_lte(w$addl.args$standardized.mean.difference , 10))
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = constraint,
@@ -390,10 +388,8 @@ testthat::test_that("works for SBW grid", {
                                                        estimate = e, 
                                                        method = "SBW",
                                                        solver = "cplex"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), c("w0",    "w1",    "gamma", 
-                                                                 "standardized.mean.difference", 
-                                                                 "estimand")))
-  sapply(weights, function(w) testthat::expect_lte(w$standardized.mean.difference , 10))
+  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
+  sapply(weights, function(w) testthat::expect_lte(w$addl.args$standardized.mean.difference , 10))
   
   
   

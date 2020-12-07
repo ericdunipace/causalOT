@@ -206,7 +206,8 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
     pred[pred > up] <- up
     pred[pred < low]<- low
   }
-  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL, estimand = estimand, method = "Logistic",
+                 addl.args = c(constraint = constraint , dots))
   if (estimand == "ATT") {
     output$w1 <- rep(1/n1,n1)
     output$w0 <- pred[z==0]/(1 - pred[z==0]) * 1/n1
@@ -217,6 +218,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
     output$w1 <- 1/pred[z==1] * 1/n
     output$w0 <- 1/(1-pred[z==0]) * 1/n
   }
+  
   return(output)
 }
 
@@ -248,6 +250,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
+  output$estimand <- estimand
   output$method <- method
   if(method %in% ot.methods()) {
     dots <- list(...)
@@ -295,7 +298,8 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
     output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
     output$w0 <- att.call$w0
     output$w1 <- atc.call$w1
-    
+    output$estimand <- estimand
+    output$method <- "RKHS"
     output$addl.args <- list("control" = list(theta = atc.call$addl.args$theta, 
                                               gamma = atc.call$addl.args$gamma,
                                               p = atc.call$addl.args$p,
@@ -343,7 +347,18 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   
   sol <- lapply(qp, function(q) QPsolver(q, solver = solver, ...)) # normalize to have closer to sum 1
   
-  output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL,
+                 estimand = estimand,
+                 method = "RKHS",
+                 addl.args = list(theta = args$theta, 
+                      gamma = args$gamma,
+                      p = args$p,
+                      sigma_2 = args$sigma_2,
+                      kernel = args$kernel,
+                      metric = args$metric,
+                      is.dose = args$is.dose,
+                      is.standardized = args$is.standardized
+                 ))
   
   ns <- get_n(data, ...)
   
@@ -360,15 +375,6 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
     output$w0 <- renormalize(sol[[1]][pd$z == 0])
     output$w1 <- renormalize(sol[[1]][pd$z == 1])
   }
-  output$addl.args <- list(theta = args$theta, 
-                           gamma = args$gamma,
-                           p = args$p,
-                           sigma_2 = args$sigma_2,
-                           kernel = args$kernel,
-                           metric = args$metric,
-                           is.dose = args$is.dose,
-                           is.standardized = args$is.standardized
-                           )
   return(output)
 }
 

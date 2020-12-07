@@ -53,7 +53,7 @@ sbw_grid_search <- function(data, grid = NULL,
   if(all(is.na(output))) stop("sbw_grid_search: All grid values generated errors")
   
   min.idx <- which(output == min(output, na.rm=TRUE))
-  weight.list[[min.idx]]$standardized.mean.difference <- grid[min.idx]
+  weight.list[[min.idx]]$addl.args$standardized.mean.difference <- grid[min.idx]
   return(weight.list[[min.idx]])
 }
 
