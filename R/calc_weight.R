@@ -1,4 +1,4 @@
-setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimand = "character",
+setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "matrix",estimand = "character",
                                     method = "character", addl.args = "list"))
 
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
@@ -249,8 +249,23 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
   output$method <- method
-  output$addl.args <- list(solver = solver, constraint = constraint,
-                           )
+  if(method %in% ot.methods()) {
+    dots <- list(...)
+    if(is.null(dots$p)) dots$p <- 2
+    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
+    if(!is.null(dots$cost)) dots$cost <- NULL
+    if(dots$dist == "RKHS") {
+      if(is.null(dots$opt.method)) dots$opt.method <- "stan"
+      if(is.null(dots$kernel)) dots$kernel <- "RBF"
+    }
+    dots$metric <- dots$dist
+    dots$dist <- NULL
+    dots$power <- dots$p
+    dots$p <- NULL
+  }
+  output$addl.args <- c(list(solver = solver, constraint = constraint),
+                        dots)
+  
   return(output)
 }
 
