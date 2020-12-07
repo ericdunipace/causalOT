@@ -131,11 +131,11 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   } else if (estimand == "ATT") {
     pred0 <- crossprod(kernel_cross0, test_pos_def_inv(kernel_cov0, y[z==0])) * sd_y0 + m_y0
     
-    mean(y[z==1] * sd_y1 + m_y1 - pred0[z==1])
+    mean((y[z==1] * sd_y1 + m_y1) - pred0[z==1])
   } else if (estimand == "ATC") {
     pred1 <- crossprod(kernel_cross1, test_pos_def_inv(kernel_cov1, y[z==1])) * sd_y1 + m_y1
     
-    mean(pred1[z==0]* - y[z==0]*sd_y0 - m_y0)
+    mean(pred1[z==0] - (y[z==0] * sd_y0 + m_y0))
   }
   
   return(tau)

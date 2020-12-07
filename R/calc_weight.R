@@ -1,4 +1,5 @@
-setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimand = "character"))
+setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "NULL",estimand = "character",
+                                    method = "character", addl.args = "list"))
 
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
@@ -55,6 +56,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
     output$gamma <- calc_gamma(output, ...)
   }
   output$estimand <- estimand
+  output$method <- method
   class(output) <- "causalWeights"
   return(output)
 }
@@ -246,7 +248,9 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
-  
+  output$method <- method
+  output$addl.args <- list(solver = solver, constraint = constraint,
+                           )
   return(output)
 }
 
