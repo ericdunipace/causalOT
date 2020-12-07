@@ -19,15 +19,17 @@ testthat::test_that("grid search function works, dataSim", {
   
   data$gen_data()
   
-  test.fun <- function(g1,g2) {testthat::expect_equal(g1,g2)}
+  test.fun <- function(g1,g2) {
+    testthat::expect_equal(g1,g2)}
   for(e in estimates) {
     weight <- sbw_grid_search(data, grid = seq(0,0.5, length.out = 10), 
                   estimand = e,
                               n.boot = 100,
                   solver = solver)
-    mapply(test.fun, g1 = weight[1:3], g2 = do.call("calc_weight_bal", 
+    weight$addl.args$standardized.mean.difference <- NULL
+    mapply(test.fun, g1 = weight, g2 = do.call("calc_weight_bal", 
                                            list(data = data, 
-                                                constraint = weight$standardized.mean.difference,  
+                                                constraint = weight$addl.args$constraint,  
                                                 estimand = e, 
                                                method = "SBW", solve = solver)))
   }
@@ -62,9 +64,10 @@ testthat::test_that("grid search deletes extra args", {
                               estimand = e,
                               n.boot = 100,
                               solver = solver))
-    mapply(test.fun, g1 = weight[1:3], g2 = do.call("calc_weight_bal", 
+    weight$addl.args$standardized.mean.difference <- NULL
+    mapply(test.fun, g1 = weight, g2 = do.call("calc_weight_bal", 
                                                     list(data = data, 
-                                                         constraint = weight$standardized.mean.difference,  
+                                                         constraint = weight$addl.args$constraint,  
                                                          estimand = e, 
                                                          method = "SBW", solve = solver)))
   }
