@@ -24,9 +24,11 @@ barycentric_projection <- function(data, weight,
     rkhs.args <- as.double(dots$rkhs.args)
   }
   if(is.null(pow)) stop("weights must have `p` parameter (power) or must be specified in function arguments")
-  if(is.null(met)) stop("weights must have `metric` parameter (power) or must be specified in function arguments")
-  met <- "Lp"
-  prep.data <- prep_data(data,...)
+  if(is.null(met)) stop("weights must have `metric` parameter or must be specified in function arguments")
+  if(is.null(est)) stop("weights must have `estimand` parameter or must be specified in function arguments")
+  
+  # met <- "Lp"
+  prep.data <- prep_data(data, ...)
   
   z <- prep.data$z
   y <- prep.data$df$y
@@ -43,7 +45,8 @@ barycentric_projection <- function(data, weight,
   d <- ncol(x)
   
   y_out <- list(control = rep(NA,n),
-                treated = rep(NA,n))
+                treated = rep(NA,n),
+                observed.treatment = z)
   y_out$control[z==0] <- y0
   y_out$treated[z==1] <- y1
   
@@ -67,7 +70,7 @@ barycentric_projection <- function(data, weight,
     y_out$treated[z==0] <- bproj$y1
   } else if (estimand == "ATE") {
     bproj <- list(y0 = barycenter_estimation(gamma[[1]],x0,x,y0,y,"ATT",met,pow,...)$y0,
-                  y1 = barycenter_estimation(gamma[[1]],x1,x,y1,y,"ATT",met,pow,...)$y0)
+                  y1 = barycenter_estimation(gamma[[2]],x1,x,y1,y,"ATT",met,pow,...)$y0)
     y_out$control <- bproj$y0
     y_out$treated <- bproj$y1
   }
@@ -222,7 +225,7 @@ barycenter_pow2 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
   y_out <- list(y0 = rep(NA, length(y1)),
                y1 = rep(NA, length(y0)))
   if(metric != "Lp") warning("With p = 2 the mahalanobis and Lp metrics give the same answer.")
-  metric <- "Lp"
+  # metric <- "Lp"
   if(metric == "Lp") {
     if(estimand == "ATT") {
       y_out$y0 <-  c(crossprod(gamma,y0) * 1/colSums(gamma))

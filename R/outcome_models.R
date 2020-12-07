@@ -142,6 +142,22 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
 }
   
 
+mapping <- function(data, z, weights, estimand, ...) {
+  if(weights$method %in% ot.methods()) {
+    bal.cov <- colnames(data)[colnames(data) != "y"]
+    data$z  <- z
+    bproj   <- barycentric_projection(data, weight, 
+                                      treatment.indicator = "z", 
+                                      outcome = "y",
+                                      balance.covariates = bal.cov,
+                                      ...)
+    
+  } else {
+    return(list(control = data$y[z==0],
+                treated = data$y[z==1]))
+  }
+}
+
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand) {
   
   w0 <- weights$w0
@@ -151,8 +167,10 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
   
   fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
   fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
-  f_1   <- predict(fit_1, data) 
+  f_1   <- predict(fit_1, data)
   f_0   <- predict(fit_0, data)
+  
+  # maps <- mapping(data, z, weights, estimand)
   
   if (matched) {
     # if(is.null(weights$gamma)) {

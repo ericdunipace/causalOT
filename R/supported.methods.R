@@ -3,3 +3,9 @@ supported.methods <- function() {
            "Wasserstein",
            "Constrained Wasserstein"))
 }
+
+ot.methods <- function() {
+  return(c("NNM", 
+           "Wasserstein",
+           "Constrained Wasserstein"))
+}

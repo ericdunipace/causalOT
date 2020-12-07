@@ -294,6 +294,7 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   if(opt.hyperparam) {
     # pd <- prep_data(data,...)
     opt_args <- list(x=pd$df[,-1, drop = FALSE], y = pd$df$y, z = pd$z, power = 2:3, 
+                     kernel = kernel,
                      estimand = estimand, ...)
     opt_args <- opt_args[!duplicated(names(opt_args))]
     opt_argn <- lapply(names(opt_args), as.name)
@@ -343,7 +344,12 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   output$addl.args <- list(theta = args$theta, 
                            gamma = args$gamma,
                            p = args$p,
-                           sigma_2 = args$sigma_2)
+                           sigma_2 = args$sigma_2,
+                           kernel = args$kernel,
+                           metric = args$metric,
+                           is.dose = args$is.dose,
+                           is.standardized = args$is.standardized
+                           )
   return(output)
 }
 

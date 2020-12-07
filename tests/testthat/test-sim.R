@@ -232,3 +232,55 @@ testthat::test_that("sim.function works with RKHS", {
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.14))
   testthat::expect_true(all(unlist(output$Wasserstein[,"dist"]) >= 0))
 })
+
+testthat::test_that("bug in gp code",
+                    {
+                      testthat::skip("Only run interactively")
+                      design <- "B"
+                      overlap <- "low"
+                      data <- "Hainmueller"
+                      seed <- 767362796
+                      
+                      n <- 2^9
+                      p <- 6
+                      nsims <- 1
+                      distance <- c("mahalanobis", "Lp") #c("Lp", "mahalanobis", "RKHS")
+                      wass_power <- 1 #c(1,2)
+                      ground_power <- 1 #1:2
+                      std_mean_diff <- seq(0, p^(-1/2), length.out = 50)
+                      trunc <- c(0, 0.01, 0.05, 0.1, 0.2)
+                      solver <- "gurobi"
+                      augmentation <- match <- "both"
+                      grid.search <- TRUE
+                      RKHS <- list(opt = TRUE, opt.method = "stan")
+                      calc.feasible <- FALSE #FALSE
+                      cwass.targ <- c("SBW")
+                      
+                      if(data == "Hainmueller") {
+                        dataGen <- Hainmueller$new(n = n, p = p, 
+                                                   design = design, overlap = overlap)
+                      } else if (data == "Sonabend"){
+                        dataGen <- Sonabend2020$new(n = n, p = p, 
+                                                    design = design, overlap = overlap)
+                      }
+                      times <- proc.time()
+                      testthat::expect_warning(output <- sim.function(dataGen = dataGen,
+                                             nsims = nsims, 
+                                             ground_p = ground_power, 
+                                             p = wass_power,
+                                             grid.search = grid.search,
+                                             RKHS = RKHS,
+                                             match = match,
+                                             estimands = c("cATE","ATE"),
+                                             augmentation = augmentation,
+                                             standardized.mean.difference = std_mean_diff,
+                                             truncations = trunc,
+                                             distance = distance, 
+                                             solver = solver,
+                                             calculate.feasible = calc.feasible,
+                                             constrained.wasserstein.target = cwass.targ,
+                                             seed = seed,
+                                             verbose = FALSE))
+                      
+                      
+                    })
