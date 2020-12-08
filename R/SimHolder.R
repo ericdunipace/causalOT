@@ -432,6 +432,7 @@
                                                   if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(est == "feasible")) {
                                                     if(o$metric == "RKHS") next
                                                   }
+                                                  if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
                                                                       solver = solver,

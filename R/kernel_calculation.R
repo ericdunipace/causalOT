@@ -117,9 +117,9 @@ calc_similarity <- function( X, z, metric = c("mahalanobis","Lp"),
                              estimand = estimand) )
     } else if (kernel == "RBF") {
       if(calc_covariance) {
-        return(cost_mahalanobis(X,X, ground_p = 2, direction = "rowwise"))
+        return(cost_mahalanobis(X,X, ground_p = 2, direction = "rowwise")^2)
       } else {
-        return(cost_calc_lp(X,X, ground_p = 2, direction = "rowwise"))
+        return(cost_calc_lp(X,X, ground_p = 2, direction = "rowwise")^2)
       }
     }
   }

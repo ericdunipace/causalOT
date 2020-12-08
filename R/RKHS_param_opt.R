@@ -167,7 +167,16 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
                       "as_vector", "draws", "constrained", "importance_resampling")
     arguments <- arguments[!duplicated(names(arguments))]
     arguments <- arguments[names(arguments) %in% formals.stan]
-    if(is.null(arguments$object)) arguments$object <- stanmodels$gp_hyper
+    if(is.null(arguments$object)) {
+      if(!is.dose) {
+        arguments$object <- stanmodels$gp_hyper
+      } else{
+        arguments$object <- stanmodels$gp_hyper_dose
+      }
+    }
+    if(is.null(arguments$algorithm) & kernel == "RBF") {
+      arguments$algorithm <- "Newton"
+    }
     
     argn <- lapply(names(arguments), as.name)
     names(argn) <- names(arguments)
@@ -178,18 +187,30 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
       res <- vector("list", length(power))
       for(i in seq_along(power) ) {
         arguments$data$p <-  as.double(power[i])
-        res[[i]] <- eval(f.call, envir = arguments)
+        res[[i]] <- if(is.dose) {
+          eval(f.call, envir = arguments)
+        } else {
+          rkhs_stan_binary_helper(f.call, arguments)
+        }
         # samp <- rstan::vb(stan_mod, data = data_stan)
       }
-      idx <- which.max(sapply(res, function(r) r$par$marg_lik))
-      param <- res[[idx]]$par
+      if(is.dose) {
+        idx <- which.max(sapply(res, function(r) r$par$marg_lik))
+        param <- res[[idx]]$par
+      } else {
+        idx <- which.max(sapply(res, function(r) r$marg_lik))
+        param <- res[[idx]]
+      }
       # param$sigma2 <- c(param$sigma_0, param$sigma_1)
       param$p <- power[idx]
     } else if (kernel == "RBF" | kernel == "linear") {
-      res <- eval(f.call, envir = arguments)
-      param <- res$par
+      if(!is.dose) {
+        param <- rkhs_stan_binary_helper(f.call, arguments)
+      } else {
+        res <- eval(f.call, envir = arguments)
+        param <- res$par
+      }
     }
-    
   }
   out <- list(theta = c(param$theta_0, param$theta_1),
               gamma = c(param$gamma_0, param$gamma_1),
@@ -205,3 +226,93 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
   class(out) <- "RKHS_param"
   return(out)
 }
+
+rkhs_stan_binary_helper <- function (f.call, arguments) {
+  param <- list()
+  tune.fun <- function(x, l, u){
+    abs(0.01 - pgamma(l, exp(x[1]), exp(x[2]))) + abs(0.01 - pgamma(u, exp(x[1]), exp(x[2]), lower.tail = FALSE))
+  }
+  
+  y_std <- arguments$data$y
+  z <- arguments$data$z
+  dis_x <- arguments$data$discrep
+    
+  #control gp
+  arguments$data$N = sum(z==0)
+  arguments$data$y = c(y_std[z==0])
+  arguments$data$discrep = dis_x[z==0,z==0]
+  
+  arguments$data$a <- 0.
+  arguments$data$b <- 0.
+  
+  if(arguments$data$kernel == 2) {
+    l = sqrt(min(arguments$data$discrep[lower.tri(arguments$data$discrep)]))
+    u = sqrt(max(arguments$data$discrep))
+    tuned <- optim(par = runif(2), fn = tune.fun, l = l, u = u)
+    if(tuned$convergence == 0) {
+      arguments$data$a <- exp(tuned$par[1])
+      arguments$data$b <- exp(tuned$par[2])
+    }
+    if(arguments$algorithm != "Newton"){
+      res <- lapply(1:10,function(i) eval(f.call, envir = arguments))
+      res <- res[[which.max(sapply(res, function(r) r$par$marg_lik))]]
+    } else {
+      res <- eval(f.call, envir = arguments)
+    }
+  } else {
+    res <- eval(f.call, envir = arguments)
+  }
+  if(!is.null(res$par$theta_half)) param$theta_0 <- if(arguments$data$kernel == 2) {
+    1/res$par$theta_half^2
+  } else {
+    res$par$theta_half^2
+  }
+  if(!is.null(res$par$gamma_half)) param$gamma_0 <- res$par$gamma_half^2
+  param$sigma   <- res$par$sigma_half^2
+  param$marg_lik <- res$par$marg_lik
+  
+  #treated gp
+  arguments$data$N = sum(z==1)
+  arguments$data$y = c(y_std[z==1])
+  arguments$data$discrep = dis_x[z==1,z==1]
+  
+  arguments$data$a <- 0.
+  arguments$data$b <- 0.
+  
+  if(arguments$data$kernel == 2) {
+    l = sqrt(min(arguments$data$discrep[lower.tri(arguments$data$discrep)]))
+    u = sqrt(max(arguments$data$discrep))
+    tuned <- optim(par = runif(2), fn = tune.fun, l = l, u = u)
+    if(tuned$convergence == 0) {
+      arguments$data$a <- exp(tuned$par[1])
+      arguments$data$b <- exp(tuned$par[2])
+    }
+    if(arguments$algorithm != "Newton"){
+      res <- lapply(1:10,function(i) eval(f.call, envir = arguments))
+      res <- res[[which.max(sapply(res, function(r) r$par$marg_lik))]]
+    } else {
+      res <- eval(f.call, envir = arguments)
+    }
+  } else {
+    res <- eval(f.call, envir = arguments)
+  }
+    
+    # tuned <- rstan::extract(rstan::sampling(stanmodels$prior_tune, data = arguments$data, 
+    #                                         iter=1, warmup=0, chains=1,
+    #                                         algorithm="Fixed_param",
+    #                                         verbose = FALSE),
+    #                         pars = c("alpha","beta"))
+    # arguments$data$a <- tuned$alpha
+    # arguments$data$b <- tuned$beta
+  
+  if(!is.null(res$par$theta_half)) param$theta_1 <- if(arguments$data$kernel == 2) {
+    1/res$par$theta_half^2
+  } else {
+    res$par$theta_half^2
+  }
+  if(!is.null(res$par$gamma_half)) param$gamma_1 <- res$par$gamma^2
+  param$sigma   <- c(param$sigma, res$par$sigma^2)
+  param$marg_lik <- res$par$marg_lik + param$marg_lik
+  return(param)
+}
+  

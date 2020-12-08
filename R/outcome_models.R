@@ -121,6 +121,12 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
       kernel_cross1 <- param$gamma[2] * exp(-0.5 *  param$theta[2] * 
                                               cost_calc_lp(A1,A,ground_p = 2, direction = "rowwise" )^2)
     }
+  } else if (param$kernel == "linear") {
+    kernel_cov0 <- diag(param$sigma_2[1],n0,n0) + tcrossprod(A0)
+    kernel_cross0 <- tcrossprod(A0,A)
+    
+    kernel_cov1 <- diag(param$sigma_2[2],n1,n1) + tcrossprod(A1)
+    kernel_cross1 <- tcrossprod(A1,A)
   }
   
   tau <- if(estimand == "ATE") {
@@ -340,7 +346,7 @@ estimate_effect <- function(data, formula = NULL, weights,
   weights <- calc_hajek(weights, target, hajek)
   
   #setup data
-  prep.data <- prep_data(data)
+  prep.data <- prep_data(data,...)
   
   #get estimate
   estimate <- if(split.model) {

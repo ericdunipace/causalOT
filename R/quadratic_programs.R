@@ -137,7 +137,7 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
 
 quadprog.data.frame <- function(data, constraint,  
                                 estimand = c("ATT", "ATC", "ATE", "cATE", "feasible"), 
-                                method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+                                method = supported.methods(),
                                 ...) {
   meth <- match.arg(method)
   est <- match.arg(estimand)
@@ -260,7 +260,7 @@ quadprog.data.frame <- function(data, constraint,
                    lambda = dots$lambda, sigma_2 = dots$sigma_2,
                    dist = dots$dist, cost = dots$cost,
                    is.dose = isTRUE(meth == "RKHS.dose"),
-                   estimand - est))
+                   estimand = est))
     }
   }
   return(qp)
