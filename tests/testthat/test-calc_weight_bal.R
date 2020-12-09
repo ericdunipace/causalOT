@@ -171,7 +171,9 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   
   
   test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1, check.attributes = FALSE), "Mean relative difference")}
-  mapply(test_fun, w1 = weights[2:4], w2 = weights2[2:4])
+  test_fun1 <- function(w1,w2){testthat::expect_true(all.equal(w1$w1, w2$w1, check.attributes = FALSE))}
+  
+  mapply(test_fun1, w1 = weights[2:4], w2 = weights2[2:4])
   
   test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0, check.attributes = FALSE), "Mean relative difference")}
   # test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
