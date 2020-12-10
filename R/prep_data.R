@@ -35,22 +35,28 @@ prep_data.data.frame <- function(data,...) {
       outcome
     }
     df <- data.frame(y = data[y.var], data[x.vars])
+    attr(df, "outcome") <- "y"
+    attr(df, "balance.covariates") <- colnames(df)[2:ncol(df)]
   } else {
     df <- data.frame(data[x.vars])
+    attr(df, "balance.covariates") <- colnames(df)
   }
+  
   
   
   # df <- data[c(y.var, x.vars)]
   z <- as.integer(data[[tx.var]])
-  
+  attr(z, "treatment.indicator") <- "z"
   return(list(df = df, z = z))
 }
 
 prep_data.list <- function(data, ...) {
   #create data.frame
   df <- data.frame(y = data$y, data$x)
+  attr(df, "outcome") <- "y"
+  attr(df, "balance.covariates") <- colnames(df)[2:ncol(df)]
   z <- as.integer(data$z)
-  
+  attr(z, "treatment.indicator") <- "z"
   return(list(df = df, z = z))
 }
 
@@ -58,7 +64,9 @@ prep_data.DataSim <- function(data, ...) {
   #create data.frame
   df <- data.frame(y = data$get_y(), data$get_x())
   z <- data$get_z()
-  
+  attr(df, "outcome") <- "y"
+  attr(df, "balance.covariates") <- colnames(df)[2:ncol(df)]
+  attr(z, "treatment.indicator") <- "z"
   return(list(df = df, z = z))
 }
 
