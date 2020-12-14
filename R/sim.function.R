@@ -1,5 +1,5 @@
 sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1, 
-                          methods = c("Logistic", "SBW", "RKHS", "NNM", "Constrained Wasserstein"),
+                          methods = c("Logistic", "SBW", "RKHS", "NNM", "Constrained Wasserstein", "gp"),
                           grid.search = TRUE,
                           RKHS = list(opt = TRUE, opt.method = "stan"),
                           match = c("both", "yes", "no"),
