@@ -395,7 +395,7 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
   #                    "RKHS" = causalOT::cost_RKHS)
   # covar <- (x1_var + x0_var)/2 # add later
   if(is.null(cost)) { 
-    cost <- cost_fun(x0, x1, ground_p = p, metric = dist,
+    cost <- cost_fun(x, z, ground_p = p, metric = dist,
                      rkhs.args = rkhs.args, estimand = estimand)
   } else {
     if(estimand != "ATE") {
@@ -486,16 +486,16 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
       cost_n0 <- cost[[1]]
       cost_n1 <- cost[[2]]
     } else {
-      if(dist != "RKHS") {
-        cost_n0 <- cost_fun(x0, x, ground_p = p, metric = dist)
-        cost_n1 <- cost_fun(x1, x, ground_p = p, metric = dist)
-        
-      } else {
-        cost    <- cost_fun(x0, x1, ground_p = p, metric = dist,
+      # if(dist != "RKHS") {
+      #   cost_n0 <- cost_fun(x0, x, ground_p = p, metric = dist)
+      #   cost_n1 <- cost_fun(x1, x, ground_p = p, metric = dist)
+      #   
+      # } else {
+        cost    <- cost_fun(x, z, ground_p = p, metric = dist,
                             rkhs.args = rkhs.args, estimand = estimand)
         cost_n0 <- cost[[1]]
         cost_n1 <- cost[[2]]
-      }
+      # }
     }
     
     if(length(K) >=2) {
@@ -622,48 +622,47 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   # covar <- (x1_var + x0_var)/2 # add later
   if(is.null(cost)) { 
     if(estimand %in% c("ATT","ATC")) {
-      cost <- lapply(1:d, function(i) cost_fun(x0[,i,drop=FALSE], x1[,i,drop=FALSE], 
+      cost <- lapply(1:d, function(i) cost_fun(x[,i,drop=FALSE], z, 
                                                ground_p = p, metric = dist,
                                                rkhs.args = rkhs.args, estimand = estimand))
-      cost[d+1] <- list(cost_fun(x0, x1, 
+      cost[d+1] <- list(cost_fun(x, z, 
                               ground_p = p, metric = dist,
                               rkhs.args = rkhs.args, estimand = estimand))
     } else if (estimand == "ATE") {
-      if(dist != "RKHS") {
-        cost <- list(z0 = lapply(1:d, function(i) cost_fun(x0[,i,drop=FALSE], x[,i,drop=FALSE], 
-                                                           ground_p = p, metric = dist,
-                                                           rkhs.args = rkhs.args, estimand = "ATE")),
-                     z1 = lapply(1:d, function(i) cost_fun(x1[,i,drop=FALSE], x[,i,drop=FALSE], 
-                                                           ground_p = p, metric = dist,
-                                                           rkhs.args = rkhs.args, estimand = "ATE")))
-        cost$z0[d+1] <- list(cost_fun(x0, x, 
-                                 ground_p = p, metric = dist,
-                                 rkhs.args = rkhs.args, estimand = "ATE"))
-        cost$z1[d+1] <- list(cost_fun(x1, x, 
-                                 ground_p = p, metric = dist,
-                                 rkhs.args = rkhs.args, estimand = "ATE"))
-      } else {
-        cost_temp    <- lapply(1:d, function(i) cost_fun(x0[,i,drop=FALSE], x1[,i,drop=FALSE], 
+      # if(dist != "RKHS") {
+      #   cost <- list(z0 = lapply(1:d, function(i) cost_fun(x[,i,drop=FALSE], z, 
+      #                                                      ground_p = p, metric = dist,
+      #                                                      rkhs.args = rkhs.args, estimand = "ATE")[[1]]),
+      #                z1 = lapply(1:d, function(i) cost_fun(x[,i,drop=FALSE], z, 
+      #                                                      ground_p = p, metric = dist,
+      #                                                      rkhs.args = rkhs.args, estimand = "ATE")[[2]]))
+      #   overall.cost <- cost_fun(x, z, 
+      #                            ground_p = p, metric = dist,
+      #                            rkhs.args = rkhs.args, estimand = "ATE")
+      #   cost$z0[d+1] <- overall.cost[1]
+      #   cost$z1[d+1] <- overall.cost[2]
+      # } else {
+        cost_temp    <- lapply(1:d, function(i) cost_fun(x[,i,drop=FALSE], z, 
                                                          ground_p = p, metric = dist,
                                                          rkhs.args = rkhs.args, estimand = "ATE"))
         cost <- list(z0 = lapply(cost_temp, function(cc) cc[[1]]),
                      z1 = lapply(cost_temp, function(cc) cc[[2]]))
-        if(dist != "RKHS") {
-          cost$z0[d+1] <- list(cost_fun(x0, x, 
-                                        ground_p = p, metric = dist,
-                                        rkhs.args = rkhs.args, estimand = "ATE"))
-          cost$z1[d+1] <- list(cost_fun(x1, x, 
-                                        ground_p = p, metric = dist,
-                                        rkhs.args = rkhs.args, estimand = "ATE"))
-        } else {
-          cost.list <- cost_fun(x0, x1, 
+        # if(dist != "RKHS") {
+        #   cost$z0[d+1] <- list(cost_fun(x, z, 
+        #                                 ground_p = p, metric = dist,
+        #                                 rkhs.args = rkhs.args, estimand = "ATE"))
+        #   cost$z1[d+1] <- list(cost_fun(x1, x, 
+        #                                 ground_p = p, metric = dist,
+        #                                 rkhs.args = rkhs.args, estimand = "ATE"))
+        # } else {
+          cost.list <- cost_fun(x, z, 
                                         ground_p = p, metric = dist,
                                         rkhs.args = rkhs.args, estimand = "ATE")
           cost$z0[d+1] <- cost.list[1]
           cost$z1[d+1] <- cost.list[2]
-        }
+        # }
         
-      }
+      # }
       
     }
     

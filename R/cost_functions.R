@@ -1,4 +1,5 @@
-cost_fun <- function(x, y, power = 2, metric = c("mahalanobis","Lp","RKHS"), rkhs.args = NULL, estimand = "ATE", ...) {
+.cost_fun_deprecated <- function(x, y, power = 2, metric = c("mahalanobis","Lp","RKHS"), 
+                     rkhs.args = NULL, estimand = "ATE", ...) {
   direction <- "rowwise"
   metric <- match.arg(metric)
   
@@ -9,6 +10,38 @@ cost_fun <- function(x, y, power = 2, metric = c("mahalanobis","Lp","RKHS"), rkh
   
   return(dist)
   
+}
+
+cost_fun <- function(x, z, power = 2, metric = c("mahalanobis","Lp","RKHS"), 
+                     rkhs.args = NULL, estimand = "ATE", ...) {
+  metric <- match.arg(metric)
+  
+  dist <- switch(metric, 
+                 "Lp" = cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
+                 "mahalanobis" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
+                 "RKHS" = causalOT::cost_RKHS(X=x, z=z, rkhs.args = rkhs.args, estimand = estimand, ...))
+  
+  return(dist)
+  
+}
+
+cost_metric_calc <- function(x,z,ground_p, metric = c("mahalanobis","Lp"), estimand) {
+  direction <- "rowwise"
+  metric <- match.arg(metric)
+  
+  cost_function <- switch(metric,
+                          "Lp" = "cost_calc_lp",
+                          "mahalanobis" = "cost_mahalanobis")
+  
+  if(estimand == "ATT" | estimand == "ATC") {
+    return(match.fun(cost_function)(X = x[z == 0, , drop = FALSE], 
+                                    Y = x[z == 1, , drop = FALSE], ground_p = ground_p, direction = direction))
+  } else if (estimand == "ATE") {
+    return(list(
+      match.fun(cost_function)(X = x[z == 0, , drop = FALSE], Y = x, ground_p = ground_p, direction = direction),
+      match.fun(cost_function)(X = x[z == 1, , drop = FALSE], Y = x, ground_p = ground_p, direction = direction)
+    ))
+  }
 }
 
 cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")) {
@@ -56,7 +89,7 @@ cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwi
   return( cost_mahal_(X, Y, ground_p) )
 }
 
-cost_RKHS <- function(X, Y, 
+cost_RKHS <- function(X, z, 
                       kernel = c("RBF", "polynomial", "linear"),
                       rkhs.args = list(p = 1.0, 
                                         theta = c(1,1), 
@@ -76,14 +109,14 @@ cost_RKHS <- function(X, Y,
   #   Y <- t(Y)
   # }
   
-  if ( ncol(X) != ncol(Y) ) {
-    stop("Number of covariates of X and Y should be equal.")
-  }
+  # if ( ncol(X) != ncol(Y) ) {
+  #   stop("Number of covariates of X and Y should be equal.")
+  # }
   
-  covars <- rbind(X,Y)
-  z <- c(rep(0,nrow(X)), rep(1, nrow(Y)))
+  # covars <- rbind(X,Y)
+  # z <- c(rep(0,nrow(X)), rep(1, nrow(Y)))
   
-  dist <- ot_kernel_calculation(X = covars, z = z, 
+  dist <- ot_kernel_calculation(X = X, z = z, 
                                 p = rkhs.args$p, 
                                theta = rkhs.args$theta, 
                                gamma = rkhs.args$gamma,

@@ -1,4 +1,4 @@
-test_that("runs for current causal weights", {
+testthat::test_that("runs for current causal weights", {
   set.seed(23483)
   n <- 2^7
   p <- 6

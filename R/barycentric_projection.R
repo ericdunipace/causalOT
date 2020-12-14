@@ -51,26 +51,64 @@ barycentric_projection <- function(data, weight,
   y_out$treated[z==1] <- y1
   
   if(is.null(gamma)) {
-    cost <- causalOT::cost_fun(x[z==0,], x[z==1,],
+    cost <- causalOT::cost_fun(x, z,
                                power = pow,
                                metric = met, rkhs.args = rkhs.args,
                                estimand = est
-                               )
-    if(estimand == "ATE" ) {
-      gamma <- list(calc_gamma(weight, cost = cost[[1]], p = pow),
-                    calc_gamma(weight, cost = cost[[2]], p = pow))
-    } else if(estimand == "ATT" | estimand == "ATC") {
+    )
+    if(est == "ATE" ) {
+      # cost <- list(causalOT::cost_fun(x[z==0,], x,
+      #                            power = pow,
+      #                            metric = met, rkhs.args = rkhs.args,
+      #                            estimand = est),
+      #              causalOT::cost_fun(x[z==1,], x,
+      #                                         power = pow,
+      #                                         metric = met, rkhs.args = rkhs.args,
+      #                                         estimand = est
+      #              )
+      # )
+      
+      gamma <- list(calc_gamma(weights = list(w0 = weight$w0, w1 = rep(1/n,n)), 
+                               cost = cost[[1]], p = pow),
+                    calc_gamma(weights = list(w0 = weight$w1, w1 = rep(1/n,n)), 
+                               cost = cost[[2]], p = pow))
+    } else if(est == "ATT" | est == "ATC") {
+      
       gamma <- calc_gamma(weight, cost = cost, p = pow)
     }
     
   }
-  if(estimand == "ATC" | estimand == "ATT") {
-    bproj <- barycenter_estimation(gamma,x0,x1,y0,y1,est,met,pow,...)
+  if(est == "ATC" | est == "ATT") {
+    be_args <- list(gamma = gamma,x0 = x0,
+                    x1 = x1, y0 = y0, y1 = y1, estimand = est,
+                    metric = met,power = pow, ...)
+    be_args <- be_args[!duplicated(names(be_args))]
+    be_n  <- lapply(names(be_args), as.name)
+    names(be_n) <- names(be_args)
+    f.call <- as.call(c(list(as.name("barycenter_estimation")),  be_n))
+    
+    bproj <- eval(f.call, envir = be_args)
+    
     y_out$control[z==1] <- bproj$y0
     y_out$treated[z==0] <- bproj$y1
-  } else if (estimand == "ATE") {
-    bproj <- list(y0 = barycenter_estimation(gamma[[1]],x0,x,y0,y,"ATT",met,pow,...)$y0,
-                  y1 = barycenter_estimation(gamma[[2]],x1,x,y1,y,"ATT",met,pow,...)$y0)
+  } else if (est == "ATE") {
+    bproj <- list(y0 = NULL, y1 = NULL)
+    be_args <- list(gamma = gamma[[1]], x0 = x0,
+                    x1 = x, y0 = y0, y1 = y, estimand = "ATT",
+                    metric = met,power = pow, ...)
+    be_args <- be_args[!duplicated(names(be_args))]
+    be_n  <- lapply(names(be_args), as.name)
+    names(be_n) <- names(be_args)
+    f.call <- as.call(c(list(as.name("barycenter_estimation")),  be_n))
+    
+    bproj$y0 <- eval(f.call, envir = be_args)$y0
+    
+    be_args$gamma <- gamma[[2]]
+    be_args$x0 <- x1
+    be_args$y0 <- y1
+    
+    bproj$y1  <- eval(f.call, envir = be_args)$y0
+    
     y_out$control <- bproj$y0
     y_out$treated <- bproj$y1
   }
@@ -91,6 +129,25 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
   estimand <- match.arg(estimand)
   metric <- match.arg(metric)
   # metric <- "Lp"
+  
+  # check if all outcomes are the same
+  
+  if(estimand == "ATT" | estimand == "ATE") {
+    if(all(y0[1] == y0)) {
+      y_out <- list(y0 = rep(NA_real_, length(y1)),
+                    y1 = rep(NA_real_, length(y0)))
+      y_out$y0 <- y0[1]
+      return(y_out)
+    }
+  }
+  if(estimand == "ATC" | estimand == "ATE") {
+    if(all(y1[1] == y1)) {
+      y_out <- list(y0 = rep(NA_real_, length(y1)),
+                    y1 = rep(NA_real_, length(y0)))
+      y_out$y1 <- y1[1]
+      return(y_out)
+    }
+  }
   
   if(power == 2) {
     return(barycenter_pow2(gamma,x0,x1,y0,y1,estimand,metric))
@@ -233,28 +290,37 @@ barycenter_pow2 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
       y_out$y1 <- c((gamma %*% y1) * 1/rowSums(gamma))
     }
   } else if (metric == "mahalanobis") {
+    n0 <- length(y0)
+    n1 <- length(y1)
     d <- ncol(x0)
     stopifnot(ncol(x1)==ncol(x0))
     d_0 <- cbind(x0,y0)
     d_1 <- cbind(x1,y1)
     cov <- 0.5*(cov(d_1) + cov(d_0))
-    U    <- chol(cov)
-    U_inv <- solve(U)
-    grand_mean <- colMeans(rbind(d_0,d_1))
-    mean_0 <- colMeans(rbind(d_0))
-    mean_1 <- colMeans(rbind(d_1))
+    # U    <- chol(cov)
+    # U_inv <- solve(U)
+    eigen.vals <- eigen(cov, symmetric = TRUE)
+    U    <- tcrossprod(eigen.vals$vectors %*% diag(sqrt(abs(eigen.vals$values))), eigen.vals$vectors)
+    U_inv <- tcrossprod(eigen.vals$vectors %*% diag(1/sqrt(abs(eigen.vals$values))), eigen.vals$vectors)
+    # grand_mean <- colMeans(rbind(d_0,d_1))
+    # mean_0 <- colMeans(rbind(d_0))
+    # mean_1 <- colMeans(rbind(d_1))
     
     if(estimand == "ATT") {
-      dt_0 <- scale(d_0, scale = FALSE, center = mean_0) %*% U_inv
+      # dt_0 <- scale(d_0, scale = FALSE, center = mean_0) %*% U_inv
+      dt_0 <- d_0 %*% U_inv
       dt_0_counterfactual <- crossprod(gamma,dt_0) * 1/colSums(gamma)
-      d_0_counterfactual <- dt_0_counterfactual %*% U + matrix(mean_0, n1,d+1)
+      # d_0_counterfactual <- dt_0_counterfactual %*% U + matrix(mean_0, n1,d+1)
+      d_0_counterfactual <- dt_0_counterfactual %*% U
       y_0_counterfactual <- d_0_counterfactual[,d+1]
       y_out$y0 <- c(y_0_counterfactual)
     } else if (estimand == "ATC") {
       # mean_1 <- colMeans(d_1)
-      dt_1 <- scale(d_1, scale = FALSE, center = mean_1) %*% U_inv
+      # dt_1 <- scale(d_1, scale = FALSE, center = mean_1) %*% U_inv
+      dt_1 <- d_1 %*% U_inv
       dt_1_counterfactual <- (gamma %*% dt_1) * 1/rowSums(gamma)
-      d_1_counterfactual <- dt_1_counterfactual %*% U + matrix(mean_1, n0,d+1)
+      # d_1_counterfactual <- dt_1_counterfactual %*% U + matrix(mean_1, n0,d+1)
+      d_1_counterfactual <- dt_1_counterfactual %*% U
       y_1_counterfactual <- d_1_counterfactual[,d+1]
       y_out$y1 <- c(y_1_counterfactual)
     }
@@ -279,19 +345,22 @@ barycenter_pow1 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
     d_0 <- cbind(x0,y0)
     d_1 <- cbind(x1,y1)
     cov <- 0.5*(cov(d_1) + cov(d_0))
-    U    <- chol(cov)
-    U_inv <- solve(U)
+    eigen.vals <- eigen(cov, symmetric = TRUE)
+    U    <- tcrossprod(eigen.vals$vectors %*% diag(sqrt(abs(eigen.vals$values))), eigen.vals$vectors)
+    U_inv <- tcrossprod(eigen.vals$vectors %*% diag(1/sqrt(abs(eigen.vals$values))), eigen.vals$vectors)
     
     if(estimand == "ATT") {
       # mean_0 <- colMeans(d_0)
-      dt_0 <- scale(d_0, scale = FALSE, center = FALSE) %*% U_inv
+      # dt_0 <- scale(d_0, scale = FALSE, center = FALSE) %*% U_inv
+      dt_0 <- d_0 %*% U_inv
       dt_0_counterfactual <- apply(gamma,2,function(w) matrixStats::colWeightedMedians(x=dt_0, w=w))
       d_0_counterfactual <- crossprod(dt_0_counterfactual, U)# + matrix(mean_0, n1,d+1)
       y_0_counterfactual <- d_0_counterfactual[,d+1]
       y_out$y0 <- c(y_0_counterfactual)
     } else if (estimand == "ATC") {
-      mean_1 <- colMeans(d_1)
-      dt_1 <- scale(d_1, scale = FALSE, center = FALSE) %*% U_inv
+      # mean_1 <- colMeans(d_1)
+      # dt_1 <- scale(d_1, scale = FALSE, center = FALSE) %*% U_inv
+      dt_1 <- d_1 %*% U_inv
       dt_1_counterfactual <- apply(gamma,1,function(w) matrixStats::colWeightedMedians(x=dt_1, w=w))
       d_1_counterfactual <- crossprod(dt_1_counterfactual, U)# + matrix(mean_1, n0,d+1)
       y_1_counterfactual <- d_1_counterfactual[,d+1]

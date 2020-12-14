@@ -1,4 +1,4 @@
-arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "addl.args")
+arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "args")
 
 testthat::test_that("works for Const Wass", {
   set.seed(23483)
@@ -177,8 +177,9 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   
   test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0, check.attributes = FALSE), "Mean relative difference")}
   # test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
+  test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0, check.attributes = FALSE)}
   mapply(test_fun2, w1 = weights[c(4)], w2 = weights2[c(4)])
-  test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
+  
   mapply(test_fun2, w1 = weights[c(1,3)], w2 = weights2[c(1,3)])
   
   test_fun2(list(w0 = rep(1/n0,n0)), 
@@ -188,11 +189,11 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   test_fun2(list(w0 = rep(1/n0,n0)), 
             weights2[[4]])
   
-  test_fun(list(w1 = rep(1/n1,n1)), 
+  test_fun1(list(w1 = rep(1/n1,n1)), 
             weights2[[2]])
-  test_fun(list(w1 = rep(1/n1,n1)), 
+  test_fun1(list(w1 = rep(1/n1,n1)), 
            weights2[[3]])
-  test_fun(list(w1 = rep(1/n1,n1)), 
+  test_fun1(list(w1 = rep(1/n1,n1)), 
            weights2[[4]])
   
 })
@@ -613,9 +614,9 @@ testthat::test_that("works for SBW", {
 #                          method = "Constrained Wasserstein",
 #                          dist = "RKHS",
 #                          solver="mosek",
-#                          rkhs.args = list(p = test5$addl.args$p,
-#                                           theta = test5$addl.args$theta,
-#                                           gamma = test5$addl.args$gamma))
+#                          rkhs.args = list(p = test5$args$p,
+#                                           theta = test5$args$theta,
+#                                           gamma = test5$args$gamma))
 # 
 # estimate_effect(data, weights = test1, target = "ATE", matched = TRUE, doubly.robust = TRUE)
 # estimate_effect(data, weights = test2, target = "ATE", matched = TRUE, doubly.robust = TRUE)

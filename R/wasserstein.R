@@ -23,7 +23,8 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
   } else if ( n_b == 1) {
     return(c((sum(c(cost^p) * c(a)))^(1/p)))
   } else {
-    return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
+    # return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
+    return(approxOT::wasserstein(a = a, b = b, p = p, ground_p = p, tplan = tplan, cost = cost, ...))
   }
 }
 
@@ -55,6 +56,7 @@ wasserstein_p.matrix <- function(a, b, p = 1, tplan = NULL, cost = NULL, dist = 
 
 setGeneric("wasserstein_p", function(a, b, ...) UseMethod("wasserstein_p"))  
 setMethod("wasserstein_p", signature(a = "vector", b= "vector"), wasserstein_p.default)
+setMethod("wasserstein_p", signature(a = "causalWeights"), wasserstein_p.causalWeights)
 setMethod("wasserstein_p", signature(a = "causalWeights", b= "NULL"), wasserstein_p.causalWeights)
 setMethod("wasserstein_p", signature(a = "causalWeights", b= "numeric"), wasserstein_p.causalWeights)
 setMethod("wasserstein_p", signature(a = "causalWeights", b= "matrix"), wasserstein_p.causalWeights)

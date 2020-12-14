@@ -31,9 +31,9 @@ testthat::test_that("SimHolder generates object", {
             model.augmentation = "both",
             match = "both",
             solver = "gurobi",
-            wass_powers = 2,
-            ground_powers = 2,
-            metrics = "Lp")
+            Wass = list(wass_powers = 2,
+                        ground_powers = 2,
+                        metrics = "Lp"))
   testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
 })
 
@@ -70,9 +70,9 @@ testthat::test_that("SimHolder generates object, Kallus2018", {
                       model.augmentation = "both",
                       match = "both",
                       solver = "gurobi",
-                      wass_powers = 2,
+                      Wass = list(wass_powers = 2,
                       ground_powers = 2,
-                      metrics = "Lp")
+                      metrics = "Lp"))
   testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
 })
 
@@ -108,13 +108,12 @@ testthat::test_that("SimHolder generates object, Sonabend2020", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
-                      wass_powers = 2,
+                      solver = "mosek",
+                      Wass = list(wass_powers = 2,
                       ground_powers = 2,
-                      metrics = "Lp")
+                      metrics = "Lp"))
   testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
 })
-
 
 testthat::test_that("SimHolder runs", {
   set.seed(9867)
@@ -157,10 +156,11 @@ testthat::test_that("SimHolder runs", {
                       model.augmentation = "both",
                       match = "both",
                       solver = "gurobi",
-                      wass_powers = power,
-                      ground_powers = ground_power,
-                      metrics = distance,
-                      constrained.wasserstein.target = c("SBW"))
+                      Wass = list(wass_powers = power,
+                        ground_powers = ground_power,
+                        metrics = distance,
+                        constrained.wasserstein.target = c("SBW")
+                      ))
   # the cost of one was all NA and the weights too...
   # sh$run()
   testthat::expect_warning(
@@ -225,10 +225,10 @@ testthat::test_that("SimHolder runs,verbose", {
                       model.augmentation = "both",
                       match = "both",
                       solver = "gurobi",
-                      wass_powers = power,
-                      ground_powers = ground_power,
-                      metrics = distance,
-                      constrained.wasserstein.target = c("SBW"),
+                      Wass = list(wass_powers = power,
+                          ground_powers = ground_power,
+                          metrics = distance,
+                          constrained.wasserstein.target = c("SBW")),
                       verbose = TRUE)
   # the cost of one was all NA and the weights too...
   # sh$run()
@@ -291,10 +291,10 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
                       model.augmentation = "both",
                       match = "both",
                       solver = "gurobi",
-                      wass_powers = power,
+                      Wass = list( wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance,
-                      constrained.wasserstein.target = c("RKHS"))
+                      constrained.wasserstein.target = c("RKHS")) )
   # the cost of one was all NA and the weights too...
   # sh$run()
   testthat::expect_warning(
@@ -334,7 +334,7 @@ testthat::test_that("SimHolder with grid works", {
   power <- c(1,2)
   ground_power <- 1:2
   std_mean_diff <- c(0, 0.1, 1)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -357,10 +357,16 @@ testthat::test_that("SimHolder with grid works", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
-                      wass_powers = power,
-                      ground_powers = ground_power,
-                      metrics = distance)
+                      solver = "mosek",
+                      Wass = list(wass_powers = power,
+                        ground_powers = ground_power,
+                        metrics = distance,
+                        niter = 5,
+                        method = "greenkhorn",
+                        wasserstein.distance.constraints = c(10,11)),
+                      verbose = FALSE)
+  # options(error = recover)
+  # sh$run()
   testthat::expect_warning(
     {
       sh$run()
@@ -377,10 +383,13 @@ testthat::test_that("SimHolder with grid works", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
-                      wass_powers = power,
-                      ground_powers = ground_power,
-                      metrics = distance)
+                      solver = "mosek",
+                      Wass = list(wass_powers = power,
+                        ground_powers = ground_power,
+                        metrics = distance,
+                        niter = 5,
+                        method = "greenkhorn",
+                        wasserstein.distance.constraints = NULL))
   testthat::expect_warning(
     {
       sh2$run()
@@ -434,10 +443,13 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
-                      wass_powers = power,
-                      ground_powers = ground_power,
-                      metrics = distance)
+                      solver = "mosek",
+                      Wass = list (wass_powers = power,
+                          ground_powers = ground_power,
+                          metrics = distance,
+                          method = "greenkhorn",
+                          niter = 5,
+                          wasserstein.distance.constraints = c(10,11)))
   testthat::expect_warning(
     {
       sh$run()
@@ -473,6 +485,87 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   # testthat::expect_type(original$get_y(), "double")
 })
 
+# testthat::test_that("SimHolder with grid works, not specify grid", {
+#   set.seed(082374)
+#   
+#   #### Load Packages ####
+#   library(causalOT)
+#   
+#   #### Sim param ####
+#   n <- 2^6
+#   p <- 6
+#   nsims <- 2
+#   overlap <- "high"
+#   design <- "A"
+#   distance <- c("Lp", "mahalanobis", "RKHS")
+#   power <- c(1,2)
+#   ground_power <- 1:2
+#   std_mean_diff <- c(0, 0.1, 1)
+#   solver <- "gurobi"
+#   
+#   #### get simulation functions ####
+#   original <- Hainmueller$new(n = n, p = p, 
+#                               design = design, overlap = overlap)
+#   # SimHolder$debug("initialize")
+#   # SimHolder$debug("update")
+#   # SimHolder$debug("estimate")
+#   # SimHolder$debug("get_delta")
+#   # SimHolder$debug("method.setup")
+#   # SimHolder$debug("cost.setup")
+#   # SimHolder$debug("max.cond.calc")
+#   # SimHolder$debug("weight.calc")
+#   sh <- SimHolder$new(nsim = nsims,
+#                       dataSim = original,
+#                       grid.search = TRUE,
+#                       truncations = std_mean_diff,
+#                       standardized.difference.means = NA,
+#                       outcome.model = list("lm"),
+#                       outcome.formula = list(none = NULL,
+#                                              augmentation = NULL),
+#                       model.augmentation = "both",
+#                       match = "both",
+#                       solver = "gurobi",
+#                       Wass = list(wass_powers = power,
+#                                   ground_powers = ground_power,
+#                                   metrics = distance,
+#                                   method = "greenkhorn",
+#                                   niter = 5,
+#                                   wasserstein.distance.constraints = NA))
+#   testthat::expect_warning(
+#     {
+#       sh$run()
+#       warn <- warnings()
+#     })
+#   if(!is.null(warn)) print(warn)
+#   sh2 <- SimHolder$new(nsim = nsims,
+#                        dataSim = original,
+#                        grid.search = TRUE,
+#                        truncations = std_mean_diff,
+#                        standardized.difference.means = NULL,
+#                        outcome.model = list("lm"),
+#                        outcome.formula = list(none = NULL,
+#                                               augmentation = NULL),
+#                        model.augmentation = "both",
+#                        match = "both",
+#                        solver = "gurobi",
+#                        Wass = list(wass_powers = power,
+#                                    ground_powers = ground_power,
+#                                    metrics = distance,
+#                                    method = "greenkhorn",
+#                                    niter = 5,
+#                                    wasserstein.distance.constraints = NULL))
+#   testthat::expect_warning(
+#     {
+#       sh2$run()
+#       warn <- warnings()
+#     })
+#   if(!is.null(warn)) print(warn)
+#   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
+#   testthat::expect_type(original$get_x0(), "double")
+#   testthat::expect_type(original$get_x1(), "double")
+#   testthat::expect_type(original$get_z(), "double")
+#   testthat::expect_type(original$get_y(), "double")
+# })
 
 # testthat::test_that("SimHolder with with multiple kernels works, RKHS", {
 #   set.seed(082374)

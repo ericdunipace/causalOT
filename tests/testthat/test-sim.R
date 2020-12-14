@@ -29,6 +29,7 @@ testthat::test_that("sim.function works", {
   agumentation <- match <- "both"
   solver <- "gurobi"
   grid.search <- TRUE
+  wdc <- c(10:11)
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -48,7 +49,10 @@ testthat::test_that("sim.function works", {
                          truncations = trunc,
                          distance = distance, 
                          calculate.feasible = FALSE,
-                         solver = solver)
+                         solver = solver,
+                         wass.method  = "greenkhorn",
+                         wass.niter = 5,
+                         wasserstein.distance.constraints = wdc)
   })
   warn.fun()
   # if(!is.null(warn)) print(warn)
@@ -73,7 +77,11 @@ testthat::test_that("sim.function works", {
                          truncations = trunc,
                          distance = distance, 
                          calculate.feasible = TRUE,
-                         solver = solver)
+                         solver = solver,
+                         wass.method  = "greenkhorn",
+                         wass.niter = 5,
+                         wasserstein.distance.constraints = wdc
+                         )
   })
   warn.fun()
   testthat::expect_s3_class(output, "simOutput")
@@ -105,6 +113,7 @@ testthat::test_that("sim.function works, sonabend2020", {
   agumentation <- match <- "both"
   solver <- "gurobi"
   grid.search <- TRUE
+  wdc <- 10:11
   
   #### get simulation functions ####
   original <- Sonabend2020$new(n = n, p = p, 
@@ -124,7 +133,10 @@ testthat::test_that("sim.function works, sonabend2020", {
                            truncations = trunc,
                            distance = distance, 
                            calculate.feasible = FALSE,
-                           solver = solver)
+                           solver = solver,
+                           wass.method  = "greenkhorn",
+                           wass.niter = 5,
+                           wasserstein.distance.constraints = wdc)
   })
   warn.fun()
   # if(!is.null(warn)) print(warn)
@@ -149,12 +161,15 @@ testthat::test_that("sim.function works, sonabend2020", {
                            truncations = trunc,
                            distance = distance, 
                            calculate.feasible = TRUE,
-                           solver = solver)
+                           solver = solver,
+                           wass.method  = "greenkhorn",
+                           wass.niter = 5,
+                           wasserstein.distance.constraints = wdc)
   })
   warn.fun()
   testthat::expect_s3_class(output, "simOutput")
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
-  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.03))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.36))
   testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
   testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] >= 0))
   testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] <= 1.01))
@@ -181,6 +196,7 @@ testthat::test_that("sim.function works with RKHS", {
   agumentation <- match <- "both"
   solver <- "gurobi"
   grid.search <- TRUE
+  wdc <- 40:41
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -200,7 +216,10 @@ testthat::test_that("sim.function works with RKHS", {
                          truncations = trunc,
                          distance = distance, 
                          calculate.feasible = FALSE,
-                         solver = solver)
+                         solver = solver,
+                         wass.method  = "greenkhorn",
+                         wass.niter = 5,
+                         wasserstein.distance.constraints = wdc)
   })
   warn.fun()
   testthat::expect_s3_class(output, "simOutput")
@@ -224,9 +243,12 @@ testthat::test_that("sim.function works with RKHS", {
                            truncations = trunc,
                            distance = distance, 
                            calculate.feasible = TRUE,
-                           solver = solver)
+                           solver = solver,
+                           wass.method  = "greenkhorn",
+                           wass.niter = 5,
+                           wasserstein.distance.constraints = wdc)
   })
-    warn.fun()
+  warn.fun()
   testthat::expect_s3_class(output, "simOutput")
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.14))

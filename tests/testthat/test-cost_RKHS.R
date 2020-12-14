@@ -1,4 +1,4 @@
-testthat::test_that("multiplication works", {
+testthat::test_that("cost rkhs works", {
   set.seed(008868)
   
   n <- 2^6
@@ -27,13 +27,13 @@ testthat::test_that("multiplication works", {
                  opt.method = "stan",
                  estimand = est))
   names(RKHS.opt) <- estimand
-  x0 <- simulator$get_x0()
-  x1 <- simulator$get_x1()
+  x <- simulator$get_x()
+  z <- simulator$get_z()
   
   
   testthat::expect_silent(
     costs <- lapply(estimand, function(est) 
-    cost_fun(x=x0, y=x1,
+    cost_fun(x=x, z=z,
            power = 2, 
            metric = "RKHS",
            rkhs.args = RKHS.opt[[est]],

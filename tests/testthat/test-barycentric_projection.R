@@ -159,7 +159,8 @@ testthat::test_that("barycenter projection pow1, mahalanobis", {
   y0 <- y[z==0]
   y1 <- y[z==1]
   
-  U <- chol(0.5*(cov(cbind(x0,y0)) + cov(cbind(x1,y1))))
+  e <- eigen(0.5*(cov(cbind(x0,y0)) + cov(cbind(x1,y1))))
+  U <- e$vectors %*% diag(sqrt(abs(e$values))) %*% t(e$vectors)
   U_inv <- solve(U)
   dt0 <- (cbind(x0,y0) %*% U_inv)
   dt1 <- (cbind(x1,y1) %*% U_inv)

@@ -148,23 +148,85 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
 }
   
 
-mapping <- function(data, z, weights, estimand, ...) {
+mapping <- function(data, z, weights, estimand, f1, f0, ...) {
+  n  <- length(z)
+  n1 <- sum(z)
+  n0 <- n - n1
   if(weights$method %in% ot.methods()) {
     bal.cov <- colnames(data)[colnames(data) != "y"]
     data$z  <- z
-    bproj   <- barycentric_projection(data, weight, 
+    data$f1 <- f1
+    data$f0 <- f0
+    bproj_y <- barycentric_projection(data, weights, 
                                       treatment.indicator = "z", 
                                       outcome = "y",
                                       balance.covariates = bal.cov,
+                                      estimand = estimand,
                                       ...)
     
+    if(estimand == "ATE" | estimand == "ATC") {
+      # the model projection for the controls and then predicted value of E(Y|X for controls)
+      bproj_f1<- barycentric_projection(data, weights, 
+                                        treatment.indicator = "z", 
+                                        outcome = "f1",
+                                        balance.covariates = bal.cov,
+                                        estimand = "ATC",
+                                        ...)
+      
+      
+    } else {
+      bproj_f1 <- list(control = rep(NA_real_,n),
+                       treated = rep(NA_real_,n))
+    }
+    if(estimand == "ATE" | estimand == "ATT") {
+      bproj_f0<- barycentric_projection(data, weights, 
+                                           treatment.indicator = "z", 
+                                           outcome = "f0",
+                                           balance.covariates = bal.cov,
+                                           estimand = "ATT",
+                                           ...)
+    } else {
+      bproj_f0 <- list(control = rep(NA_real_,n),
+                       treated = rep(NA_real_,n))
+    }
+    # y0         <- y1 <- rep(NA_real_, n)
+    y1 <- (bproj_y$treated - ifelse(z == 1, bproj_f0$treated, bproj_f1$treated))
+    y0 <- (bproj_y$control - ifelse(z == 1, bproj_f0$control, bproj_f1$control))
+    
+    y1 <- y1[!is.na(y1)]
+    y0 <- y0[!is.na(y0)]
+    
   } else {
-    return(list(control = data$y[z==0],
-                treated = data$y[z==1]))
+    n          <- length(z)
+    y0         <- y1 <- rep(NA_real_, n)
+    y0[z==0]   <- data$y[z==0] - f1[z==0]
+    y1[z==1]   <- data$y[z==1] - f0[z==1]
+    if(estimand == "ATE" | estimand == "ATT") {
+      y0[z==1] <- (data$y[z==0] -  f0[z==0]) %*% weights$w0
+      y0 <- y0[z==1]
+      y1 <- y1[z==1]
+    }
+    if (estimand == "ATE" | estimand == "ATC") {
+      y1[z==0] <- (data$y[z==1] -  f1[z==1]) %*% weights$w1
+      y0 <- y0[z==0]
+      y1 <- y1[z==0]
+      
+    }
+    
+    
   }
+  n1 <- length(y1)
+  n0 <- length(y0)
+  new_weights <- list(w0 = rep(1/n0, n0),
+                      w1 = rep(1/n1, n1))
+  new_weights <- list(w0 = rep(1/n0, n0),
+                      w1 = rep(1/n1, n1))
+  return(list(y0 = y0,
+              y1 = y1,
+              weights = new_weights))
 }
 
-outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand) {
+.outcome_calc_deprecated <- function(data, z, weights, formula, model.fun, matched, estimand) {
   
   w0 <- weights$w0
   w1 <- weights$w1
@@ -176,15 +238,16 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
   f_1   <- predict(fit_1, data)
   f_0   <- predict(fit_0, data)
   
-  # maps <- mapping(data, z, weights, estimand)
-  
   if (matched) {
     # if(is.null(weights$gamma)) {
     #   stop("Transport matrix must be specified for matched estimator")
     # }
     # rad   <- (2*z - 1)
+    # maps <- mapping(data, z, weights, estimand, f1 = f_1, f0 = f_0, ...)
+    
     e_1   <- (data$y - f_1)
     e_0   <- (data$y - f_0)
+    
     # idx   <- which(weights$gamma !=0, arr.ind = TRUE)
     # 
     # gamma_vec <- c(weights$gamma[idx])
@@ -218,6 +281,63 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
       tx_effect <- ( t_w * tau_t + c_w * tau_c)/(c_w + t_w)
     }
     
+  } else {
+    mu_1  <- mean(f_1)
+    mu_0  <- mean(f_0)
+    e_1   <- fit_1$residuals
+    e_0   <- fit_0$residuals
+    
+    y_1   <- mu_1 + e_1 %*% w1
+    y_0   <- mu_0 + e_0 %*% w0
+    
+    tx_effect <- c(y_1 - y_0)
+  }
+  
+  
+  return(tx_effect)
+}
+
+outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand) {
+  
+  w0 <- weights$w0
+  w1 <- weights$w1
+  t_ind <- z==1
+  c_ind <- z==0
+  
+  fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
+  fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
+  f_1   <- predict(fit_1, data)
+  f_0   <- predict(fit_0, data)
+  
+  if (matched) {
+
+    maps <- mapping(data = data, z = z, weights = weights, estimand = estimand, f1 = f_1, f0 = f_0)
+    
+    # tau_t <- 0
+    # tau_c <- 0
+    # if(estimand == "ATT" | estimand == "ATE" | estimand == "feasible") {
+    #   tau_t <- c(mean(maps$y1[z==1]) - mean(maps$y0[z==1]))
+    # }
+    # if(estimand == "ATC" | estimand == "ATE" | estimand == "feasible") {
+    #   tau_c <- c(mean(maps$y1[z==0]) - mean(maps$y0[z==0]))
+    # }
+    # if(estimand == "ATT"){
+    #   tx_effect <- tau_t
+    # } else if (estimand == "ATC") {
+    #   tx_effect <- tau_c
+    # } else if(estimand == "ATE" | estimand == "feasible") {
+    #   if(estimand == "ATE") {
+    #     t_w   <- sum(t_ind) #1/(sum(w1^2))
+    #     c_w   <- sum(c_ind) #1/(sum(w0^2))
+    #   } else if (estimand == "feasible") {
+    #     t_w   <- 1/(sum(w1^2))
+    #     c_w   <- 1/(sum(w0^2))
+    #   }
+    #   
+    #   tx_effect <- ( t_w * tau_t + c_w * tau_c)/(c_w + t_w)
+    # }
+    tx_effect <- mean(maps$y1 - maps$y0)
+      
   } else {
     mu_1  <- mean(f_1)
     mu_0  <- mean(f_0)
@@ -280,7 +400,9 @@ calc_form <- function(formula, doubly.robust, target) {
 
 calc_model <- function(model.fun) {
   if(!is.null(model.fun)) {
-    model.fun <- model.fun
+    if(is.character(model.fun)) {
+      model.fun <- match.fun(model.fun)
+    }
     stopifnot(is.function(model.fun))
   } else {
     model.fun <- lm
@@ -356,7 +478,94 @@ estimate_effect <- function(data, formula = NULL, weights,
     outcome_calc_model(prep.data$df, prep.data$z, weights, formula, model.fun,
                        matched, target)
   }
+  output.df <- cbind(prep.data$df, z=prep.data$z)
+  attr(output.df, "balance.covariates") <- attributes(prep.data$df)$balance.covariates
+  attr(output.df, "outcome") <- attributes(prep.data$df)$outcome
+  attr(output.df, "treatment.indicator") <- "z"
+  
+  output <- list(estimate = estimate,
+                 data = output.df,
+                 model = model.fun,
+                 formula = formula,
+                 weights = weights,
+                 target = target,
+                 options = list(hajek = hajek,
+                                doubly.robust = doubly.robust,
+                                matched = matched,
+                                split.model = split.model
+                                ),
+                 call = match.call())
+  
+  class(output) <- "causalEffect"
+  return(output)
+}
 
-  return(estimate)
+confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstrap", "asymptotic"),...) {
+  
+  if(method == "bootstrap") {
+    return(ci_boot_ce(object, parm, level, ...))
+  } else {
+    stop("asymptotic confidence intervals not currently implemented")
+  }
+  
+  
+}
+
+ci_boot_cw <- function(object, parm, level, n.boot = 1000, balance.covariates = NULL,
+                       treatment.indicator = NULL, outcome = NULL, ...) {
+  boot.fun <- function(idx, object,  ...) {
+    weight <- object$weights
+    balance.covariates <- attributes(object$data)$balance.covarites
+    outcome <- attributes(object$data)$outcome
+    treatment.indicator <- attributes(object$data)$treatment.indicator
+    
+    wt.args <- c(list(data = object$data, constraint = weight$args$constraint,
+                      estimand = object$estimand, method = weight$method,
+                      transport.matrix = !is.null(weight$gamma),
+                      grid.search = isTRUE(weight$args$grid.search), 
+                      formula = weight$args$formula,
+                      balance.covariates = balance.covariates,
+                      treatment.indicator = treatment.indicator), 
+                 weight$args,
+                 ...)
+    
+    wt.args <- wt.args[!duplicated(names(wt.args))]
+    wtargn <- names(wt.args)
+    wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
+    
+    weight <- eval(wf.call, envir = wt.args) 
+    
+    est.args <- c(list(data = data, formula = object$formula,
+                       weights = weight,
+                       model = object$model,
+                       hajek = object$options$hajek,
+                       doubly.robust = object$options$doubly.robust,
+                       target = object$target,
+                       split.model = object$split.model,
+                       balance.covariates = balance.covariates,
+                       treatment.indicator = treatment.indicator,
+                       outcome = outcome),
+                  ...)
+    
+    est.args <- est.args[!duplicated(names(est.args))]
+    estargn <- names(est.args)
+    estf.call <- as.call(c(list(as.name("estimate_effect")), estargn))
+    
+    est <- eval(estf.call, envir = est.args)$estimate
+    clear_subset(data)
+    return(est)
+  }
+  ns <- get_n(data, ...)
+  N  <- sum(ns)
+  
+  boot.idx <- replicate(n = n.boot, sample.int(N,N, replace = TRUE))
+  
+  boots <- lapply(boot.idx, boot.fun, data = data, object = object, ...)
+  
+  ci <- quantile(boots, probs = c((1-level)/2, level + (1-level)/2))
+  names(ci) <- c("lower", "upper")
+  
+  return(ci)
+  
 }
   

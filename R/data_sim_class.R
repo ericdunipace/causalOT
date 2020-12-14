@@ -1,13 +1,42 @@
 # parent class
 {
 DataSim <- R6::R6Class("DataSim",
-        public = list(get_x = function() { return( private$x)},
+        public = list(
+                      # clear_index = function() {
+                      #   private$index <- 1:(private$n0 + private$n1)
+                      #   private$tx_index <- which(private$z==1)
+                      #   private$ctrl_index <- which(private$z==0)
+                      # },
+                      # get_x = function() { return( private$x[private$index])},
+                      # get_y = function() { return( private$y[private$index])},
+                      # get_z = function() { return( private$z[private$index])},
+                      get_x = function() { return( private$x)},
                       get_y = function() { return( private$y)},
                       get_z = function() { return( private$z)},
                       get_n = function() {return(c("n0" = private$n0, "n1" = private$n1))},
+                      # get_x1 = function() {
+                      #   if(!is.character(private$x)) {
+                      #     if(is.character(private$x1)) {
+                      #       private$x1 <- private$x[private$z == 1,,drop=FALSE]
+                      #     }
+                      #     return(private$x1[private$tx_index])
+                      #   } else {
+                      #     stop("x not initialized yet")
+                      #   }
+                      # },
+                      # get_x0 = function(){
+                      #   if(!is.character(private$x)) {
+                      #     if(is.character(private$x0)) private$x0 <- private$x[private$z == 0,,drop=FALSE]
+                      #     return(private$x0[private$tx_index])
+                      #   } else {
+                      #     stop("x not initialized yet")
+                      #   }
+                      # },
                       get_x1 = function() {
                         if(!is.character(private$x)) {
-                          if(is.character(private$x1)) private$x1 <- private$x[private$z == 1,,drop=FALSE]
+                          if(is.character(private$x1)) {
+                            private$x1 <- private$x[private$z == 1,,drop=FALSE]
+                          }
                           return(private$x1)
                         } else {
                           stop("x not initialized yet")
@@ -149,6 +178,14 @@ DataSim <- R6::R6Class("DataSim",
                         }
                         return(dist)
                       }
+                      # ,
+                      # set_index = function(idx) {
+                      #   private$index = idx
+                      #   fulltx <- which(z==1)
+                      #   fullcn <- which(z==0)
+                      #   private$tx_index <- fulltx[fulltx %in% index]
+                      #   private$ctrl_index <- fullcn[fullcn %in% index]
+                      # }
                         
                       ),
          private = list(n = "numeric",
@@ -156,6 +193,9 @@ DataSim <- R6::R6Class("DataSim",
                        x = "matrix",
                        y = "vector",
                        z = "vector",
+                       # index = "vector",
+                       # tx_index = "vector",
+                       # ctrl_index = "vector",
                        param = "list",
                        n1 = "numeric",
                        n0 = "numeric",

@@ -1,4 +1,4 @@
-arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "addl.args")
+arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "args")
 
 testthat::test_that("works for Const Wass", {
   set.seed(23483)
@@ -369,7 +369,7 @@ testthat::test_that("works for SBW grid", {
                                                        method = "SBW",
                                                        solver = "gurobi"))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
-  sapply(weights, function(w) testthat::expect_lte(w$addl.args$standardized.mean.difference , 10))
+  sapply(weights, function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = constraint,
@@ -379,7 +379,7 @@ testthat::test_that("works for SBW grid", {
                                                        method = "SBW",
                                                        solver = "mosek"))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
-  sapply(weights, function(w) testthat::expect_lte(w$addl.args$standardized.mean.difference , 10))
+  sapply(weights, function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = constraint,
@@ -389,7 +389,7 @@ testthat::test_that("works for SBW grid", {
                                                        method = "SBW",
                                                        solver = "cplex"))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
-  sapply(weights, function(w) testthat::expect_lte(w$addl.args$standardized.mean.difference , 10))
+  sapply(weights, function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
   
   
   

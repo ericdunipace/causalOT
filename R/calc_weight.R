@@ -1,5 +1,5 @@
 setClass("causalWeights", slots = c(w0 = "numeric", w1="numeric", gamma = "matrix",estimand = "character",
-                                    method = "character", addl.args = "list"))
+                                    method = "character", args = "list"))
 
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
@@ -15,29 +15,29 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   argn <- lapply(names(args), as.name)
   names(argn) <- names(args)
   
-  output <- if (method == "SBW" & grid.search) {
+  output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein")) {
     args$method <- NULL
     # if(is.null(args$grid)) 
     if(!is.null(constraint)) args$grid <- constraint
-    f.call <- as.call(c(list(as.name("sbw_grid_search")), argn))
+    grid.fun <- switch(method,
+                       "SBW" = "sbw_grid_search",
+                       "Constrained Wasserstein" = "wass_grid_search",
+                       "Wasserstein" = "wass_grid_search",
+                       "RKHS.dose" = "RKHS_grid_search"
+                       )
     
+    f.call <- as.call(c(list(as.name(grid.fun)), argn))
     
-    eval(f.call, envir = args) #do.call("sbw_grid_search", args)
+    eval(f.call, envir = args)
+    
   } else if (method == "RKHS" | method == "RKHS.dose") {
-    if (grid.search & method == "RKHS.dose") {
-      f.call <- as.call(c(list(as.name("RKHS_grid_search")), argn))
-      eval(f.call, envir = args)
-      # do.call("RKHS_grid_search", list(data = data, estimand = estimand, 
-      #                                  method = method,
-      #                                  ...))
-    } else {
+    
       f.call <- as.call(c(list(as.name("calc_weight_RKHS")), argn))
       eval(f.call, envir = args)
       # do.call("calc_weight_RKHS", list(data = data, estimand = estimand, 
       #                                  method = method,
       #                                  ...))
       
-    }
   } else if (method == "NNM" ) {
     f.call <- as.call(c(list(as.name("calc_weight_NNM")), argn))
     eval(f.call, envir = args)
@@ -62,6 +62,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
 }
 
 calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
+                            transport.matrix = FALSE,
                             ...) {
   
   est <- match.arg(estimand)
@@ -70,10 +71,12 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   df <- pd$df
   
   if(any(colnames(df) == "y")) {
+    y <- df$y
     df$y <- NULL
   }
-  x1 <- as.matrix(df[z==1,,drop=FALSE])
-  x0 <- as.matrix(df[z==0,,drop=FALSE])
+  x  <- as.matrix(df)
+  x1 <- x[z==1,,drop=FALSE]
+  x0 <- x[z==0,,drop=FALSE]
   ns <- get_n(data, ...)
   n0 <- ns["n0"]
   n1 <- ns["n1"]
@@ -81,7 +84,8 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   
   dots <- list(...)
   cost <- dots$cost
-  if(is.null(dots$p)) dots$p <- 2
+  p <- dots$p
+  if(is.null(p)) p <- 2
   if(is.null(dots$dist)) dots$dist <- "Lp"
   if(dots$dist == "RKHS" & is.null(dots$rkhs.args) & is.null(dots$cost)) {
     if(is.null(dots$opt.method)) dots$opt.method <- "stan"
@@ -92,9 +96,9 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
     )
     if(is.null(dots$kernel)) dots$kernel <- "RBF"
     
-    dots$rkhs.args <- RKHS_param_opt(x=data$get_x(), 
-                                     z=data$get_z(), 
-                                     y = data$get_y(),
+    dots$rkhs.args <- RKHS_param_opt(x = x, 
+                                     z = z, 
+                                     y = y,
                                      metric = dots$dist,
                                      kernel = dots$kernel,
                                      is.dose = dots$is.dose,
@@ -102,77 +106,71 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
                                      estimand = temp.est,
                                      ...)
   }
-  if(est == "cATE") {
-    if(is.null(cost)) {
-      cost <- cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
-                      estimand = "ATC")
-      if(dots$dist == "RKHS") {
-        cost <- list(cost,
-                     cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
-                              estimand = "ATT"))
-      }
-    }
-    if(dots$dist == "RKHS") {
-      w0.tab <- tabulate(apply(cost[[1]], 2, which.min), nbins = n0)
-      w1.tab <- tabulate(apply(cost[[2]], 1, which.min), nbins = n1)
-      w0 <- w0.tab/n1
-      w1 <- w1.tab/n0
+  if(is.null(cost)) {
+    if(est == "cATE"){
+      cost <- list(cost_fun(x, z, power = p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                            estimand = "ATC"),
+                   cost_fun(x, z, power = p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                            estimand = "ATT"))
     } else {
-      w0.tab <- tabulate(apply(cost, 2, which.min), nbins = n0)
-      w1.tab <- tabulate(apply(cost, 1, which.min), nbins = n1)
+      cost <- cost_fun(x, z, power = p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                       estimand = est)
+    }
+    
+  }
+  if(est == "cATE") {
+    
+    # if(dots$dist == "RKHS") {
+      w0.tab <- tabulate(apply(cost[[1]]^p, 2, which.min), nbins = n0)
+      w1.tab <- tabulate(apply(cost[[2]]^p, 1, which.min), nbins = n1)
       w0 <- w0.tab/n1
       w1 <- w1.tab/n0
-    }
+    # } else {
+    #   w0.tab <- tabulate(apply(cost^p, 2, which.min), nbins = n0)
+    #   w1.tab <- tabulate(apply(cost^p, 1, which.min), nbins = n1)
+    #   w0 <- w0.tab/n1
+    #   w1 <- w1.tab/n0
+    # }
     
   } else if (est == "ATE") {
-    x <- as.matrix(df)
-    if(is.null(cost) | !is.list(cost)) {
-      cost <- list(cost_fun(x0, x, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
-                            estimand = "ATE"),
-                   cost_fun(x1, x, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
-                            estimand = "ATE")
-      )
-    }
+    # x <- as.matrix(df)
     
-    w0.tab <- tabulate(apply(cost[[1]], 2, which.min), nbins = n0)
-    w1.tab <- tabulate(apply(cost[[2]], 2, which.min), nbins = n1)
+    w0.tab <- tabulate(apply(cost[[1]]^p, 2, which.min), nbins = n0)
+    w1.tab <- tabulate(apply(cost[[2]]^p, 2, which.min), nbins = n1)
     w0 <- w0.tab/n
     w1 <- w1.tab/n
   } else if (est == "ATT") {
-    if(is.null(cost)) {
-      cost <- cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
-                       estimand = "ATT")
-    }
     
     if(dots$dist == "RKHS") {
-      w0.tab <- tabulate(apply(cost[[1]], 2, which.min), nbins = n0)
+      w0.tab <- tabulate(apply(cost[[1]]^p, 2, which.min), nbins = n0)
       # w1.tab <- table(apply(cost[[2]], 1, which.min))
     } else {
-      w0.tab <- tabulate(apply(cost, 2, which.min), nbins = n0)
+      w0.tab <- tabulate(apply(cost^p, 2, which.min), nbins = n0)
       # w1.tab <- table(apply(cost, 1, which.min))
     }
     w0 <- w0.tab/n1
     w1 <- rep(1/n1,n1)
    
   } else if (est == "ATC") {
-    if(is.null(cost)) {
-      cost <- cost_fun(x0, x1, power = dots$p, metric = dots$dist, rkhs.args = dots$rkhs.args,
-                     estimand = "ATC")
-    }
     if(dots$dist == "RKHS") {
       # w0.tab <- table(apply(cost[[1]], 2, which.min))
-      w1.tab <- tabulate(apply(cost[[2]], 1, which.min), nbins = n1)
+      w1.tab <- tabulate(apply(cost[[2]]^p, 1, which.min), nbins = n1)
     } else {
       # w0.tab <- table(apply(cost, 2, which.min))
-      w1.tab <- tabulate(apply(cost, 1, which.min), nbins = n1)
+      w1.tab <- tabulate(apply(cost^p, 1, which.min), nbins = n1)
     }
     w0 <- rep(1/n0, n0)
-    w1 <- w1.tab/n1
+    w1 <- w1.tab/n0
   }
   
   
+  gamma <- if (isTRUE(transport.matrix)) {
+    calc_gamma(output, cost = cost, p = p, ...)
+  } else {
+    NULL
+  }
   output <- list(w0 = w0, w1 = w1, gamma = NULL,
-                 args = list(power = dots$p, 
+                 args = list(power = p, 
                              metric = dots$dist))
   # output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
   
@@ -207,7 +205,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
     pred[pred < low]<- low
   }
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL, estimand = estimand, method = "Logistic",
-                 addl.args = c(constraint = constraint , dots))
+                 args = c(constraint = constraint , dots))
   if (estimand == "ATT") {
     output$w1 <- rep(1/n1,n1)
     output$w0 <- pred[z==0]/(1 - pred[z==0]) * 1/n1
@@ -266,7 +264,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
     dots$power <- dots$p
     dots$p <- NULL
   }
-  output$addl.args <- c(list(solver = solver, constraint = constraint),
+  output$args <- c(list(solver = solver, constraint = constraint),
                         dots)
   
   return(output)
@@ -300,14 +298,14 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
     output$w1 <- atc.call$w1
     output$estimand <- estimand
     output$method <- "RKHS"
-    output$addl.args <- list("control" = list(theta = atc.call$addl.args$theta, 
-                                              gamma = atc.call$addl.args$gamma,
-                                              p = atc.call$addl.args$p,
-                                              sigma_2 = atc.call$addl.args$sigma_2),
-                             "treated" = list(theta = att.call$addl.args$theta, 
-                                              gamma = att.call$addl.args$gamma,
-                                              p = att.call$addl.args$p,
-                                              sigma_2 = att.call$addl.args$sigma_2)
+    output$args <- list("control" = list(theta = atc.call$args$theta, 
+                                              gamma = atc.call$args$gamma,
+                                              p = atc.call$args$p,
+                                              sigma_2 = atc.call$args$sigma_2),
+                             "treated" = list(theta = att.call$args$theta, 
+                                              gamma = att.call$args$gamma,
+                                              p = att.call$args$p,
+                                              sigma_2 = att.call$args$sigma_2)
                              )
     
     return(output)
@@ -350,7 +348,7 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL,
                  estimand = estimand,
                  method = "RKHS",
-                 addl.args = list(theta = args$theta, 
+                 args = list(theta = args$theta, 
                       gamma = args$gamma,
                       p = args$p,
                       sigma_2 = args$sigma_2,
@@ -428,15 +426,15 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
   ATC.pres <- check.vals %in% "ATC"
   both <- (sum(c(ATT.pres, ATC.pres)) == 2)
   if(!both) stop("One set of weights must be from an ATT estimand and one must be from an ATC to combine")
+  if(weight1$method != weight2$method) warning("Methods of estimating weights don't agree!")
   
   ATC.weight <- list_weight[[which(ATC.pres)]]
   ATT.weight <- list_weight[[which(ATT.pres)]]
   
-  output <- list(w0 = NULL, w1 = NULL, gamma= NULL, estimand = NULL)
+  output <- list(w0 = ATT.weight$w0, w1 = ATC.weight$w1, gamma= NULL, estimand = "ATE",
+                 method = ATT.weight$method, args = ATT.weight$args)
   class(output) <- "causalWeights"
-  
-  output$w0 <- ATT.weight$w0
-  output$w1 <- ATC.weight$w1
+
   if(transport.matrix) {
     dots <- list(...)
     cost <- dots$cost
@@ -456,15 +454,16 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE,...) {
     # output$gamma[nzero_row, nzero_col] <- gamma
     output$gamma <- calc_gamma(weights = output, cost = cost, p = p)
   }
-  output$estimand <- "ATE"
+  
   return(output)
 }
 
 calc_gamma <- function(weights, ...) {
+  if(!is.null(weights$gamma)) return(weights$gamma)
   dots <- list(...)
   n1 <- length(weights$w1)
   n0 <- length(weights$w0)
-  if(!is.null(dots$cost) & ! is.null(dots$p)) {
+  if(!is.null(dots$cost) & !is.null(dots$p)) {
     nzero_row <- weights$w0>0
     nzero_col <- weights$w1>0
     
@@ -486,17 +485,17 @@ calc_gamma <- function(weights, ...) {
       }
     } else {
       cost <- dots$cost[nzero_row, nzero_col, drop = FALSE]
-      transp_plan <- transport::transport(a, b, p = p, costm = cost)
+      # transp_plan <- transport::transport(a, b, p = p, costm = cost)
       tplan <- transport::transport(a = a,
                                     b = b,
-                                    p = dots$p,
-                                    costm = cost)
+                                    # p = dots$p,
+                                    costm = cost^dots$p)
       
       temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
       
     }
     gamma[nzero_row, nzero_col] <- temp_gamma
-    
+    transport::transport.default
     
   } else {
     gamma <- NULL
@@ -536,7 +535,30 @@ get_p.data.frame <- function(data,...) {
   }
 }
 
+get_subset.DataSim <- function(data,idx, ...) {
+  stop("not implemented yet")
+  data$set_index(idx)
+  return(data)
+}
+
+get_subset.data.frame <- function(data, idx, ...) {
+  return(data[idx,,drop=FALSE])
+}
+
+clear_subset.DataSim <- function(data,idx, ...) {
+  stop("not implemented yet")
+  data$clear_index
+  # return(data)
+}
+
+clear_subset.data.frame <- function(data, idx, ...) {
+  NULL
+}
+
 setOldClass("DataSim")
+setOldClass("Hainmueller")
+setOldClass("Sonabend2020")
+
 setGeneric("get_z", function(data, ...) UseMethod("get_z"))
 setMethod("get_z", "DataSim", get_z.DataSim)
 setMethod("get_z", "data.frame", get_z.data.frame)
@@ -547,3 +569,11 @@ setMethod("get_n", "data.frame", get_n.data.frame)
 setGeneric("get_p", function(data, ...) UseMethod("get_p"))
 setMethod("get_p", "DataSim", get_p.DataSim)
 setMethod("get_p", "data.frame", get_p.data.frame)
+
+setGeneric("get_subset", function(data, idx, ...) UseMethod("get_subset"))
+setMethod("get_subset", "DataSim", get_subset.DataSim)
+setMethod("get_subset", "data.frame", get_subset.data.frame)
+
+setGeneric("clear_subset", function(data, idx, ...) UseMethod("clear_subset"))
+setMethod("clear_subset", "DataSim", clear_subset.DataSim)
+setMethod("clear_subset", "data.frame", clear_subset.data.frame)

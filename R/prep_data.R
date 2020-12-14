@@ -34,7 +34,7 @@ prep_data.data.frame <- function(data,...) {
     } else {
       outcome
     }
-    df <- data.frame(y = data[y.var], data[x.vars])
+    df <- data.frame(y = data[[y.var]], data[x.vars])
     attr(df, "outcome") <- "y"
     attr(df, "balance.covariates") <- colnames(df)[2:ncol(df)]
   } else {
@@ -71,6 +71,8 @@ prep_data.DataSim <- function(data, ...) {
 }
 
 setGeneric("prep_data", function(data, ...) UseMethod("prep_data"))
+setMethod("prep_data", signature(data = "Hainmueller"), prep_data.DataSim)
+setMethod("prep_data", signature(data = "Sonabend2020"), prep_data.DataSim)
 setMethod("prep_data", signature(data = "DataSim"), prep_data.DataSim)
 setMethod("prep_data", signature(data = "data.frame"), prep_data.data.frame)
 setMethod("prep_data", signature(data = "list"), prep_data.list)

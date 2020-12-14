@@ -26,10 +26,10 @@ testthat::test_that("grid search function works, dataSim", {
                   estimand = e,
                               n.boot = 100,
                   solver = solver)
-    weight$addl.args$standardized.mean.difference <- NULL
+    weight$args$standardized.mean.difference <- NULL
     mapply(test.fun, g1 = weight, g2 = do.call("calc_weight_bal", 
                                            list(data = data, 
-                                                constraint = weight$addl.args$constraint,  
+                                                constraint = weight$args$constraint,  
                                                 estimand = e, 
                                                method = "SBW", solve = solver)))
   }
@@ -64,10 +64,10 @@ testthat::test_that("grid search deletes extra args", {
                               estimand = e,
                               n.boot = 100,
                               solver = solver))
-    weight$addl.args$standardized.mean.difference <- NULL
+    weight$args$standardized.mean.difference <- NULL
     mapply(test.fun, g1 = weight, g2 = do.call("calc_weight_bal", 
                                                     list(data = data, 
-                                                         constraint = weight$addl.args$constraint,  
+                                                         constraint = weight$args$constraint,  
                                                          estimand = e, 
                                                          method = "SBW", solve = solver)))
   }

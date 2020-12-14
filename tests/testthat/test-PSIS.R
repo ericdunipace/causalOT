@@ -73,9 +73,9 @@ testthat::test_that("PSIS diagnostics work", {
                        method = "Constrained Wasserstein",
                        dist = "RKHS",
                        solver="mosek",
-                       rkhs.args = list(p = test5$addl.args$p,
-                                        theta = test5$addl.args$theta,
-                                        gamma = test5$addl.args$gamma))
+                       rkhs.args = list(p = test5$args$p,
+                                        theta = test5$args$theta,
+                                        gamma = test5$args$gamma))
   
   
   weights <- list(CW = test1,W = test2, SBW=test3, IPW = test4, RKHS = test5,
