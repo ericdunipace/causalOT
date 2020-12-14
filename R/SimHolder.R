@@ -1038,7 +1038,8 @@
                                                             metric = metric,
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
-                                                            epsilon = private$wass.opt$epsilon)
+                                                            epsilon = private$wass.opt$epsilon,
+                                                            verbose = isTRUE(private$verbose))
                                             } else {
                                               private$weights[[estimand]] <- 
                                                 convert_ATE(private$weights[["ATT"]], 

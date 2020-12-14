@@ -123,6 +123,7 @@ wass_grid_search <- function(data, grid = NULL,
                              n.boot = 100,
                              method = c("Wasserstein","Constrained Wasserstein"),
                              wass.method = "shortsimplex", wass.iter = 0,
+                             verbose = FALSE,
                              ...) 
 {
   # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
@@ -186,18 +187,18 @@ wass_grid_search <- function(data, grid = NULL,
       w1$w0 <- w1$w1
       w1$w1 <- w0$w1 <- rep(1/n,n)
       wass_nnm <- list(
-        wass_dist_helper(a= w0, cost =cost[[1]], p = p, method = wass.method, niter = wass.iter, ...),
-        wass_dist_helper(a= w1, cost =cost[[2]], p = p, method = wass.method, niter = wass.iter, ...)
+        wass_dist_helper(a= w0, cost =cost[[1]], p = p, method = "networkflow", niter = wass.iter, ...),
+        wass_dist_helper(a= w1, cost =cost[[2]], p = p, method = "networkflow", niter = wass.iter, ...)
       )
       wass_full <- list(
         wass_dist_helper(a=rep(1/n0,n0), 
                       b = rep(1/n,n),
                       cost = cost[[1]], 
-                      p = p, method = wass.method, niter = wass.iter, ...),
+                      p = p, method = "networkflow", niter = wass.iter, ...),
         wass_dist_helper(a=rep(1/n1,n1), 
                       b = rep(1/n,n),
                       cost = cost[[2]], 
-                      p = p, method = wass.method, niter = wass.iter, ...)
+                      p = p, method = "networkflow", niter = wass.iter, ...)
       )
       
       grid <- rbind(seq(wass_nnm[[1]], wass_full[[1]], length.out = 10),
@@ -254,7 +255,7 @@ wass_grid_search <- function(data, grid = NULL,
   names(argn) <- names(args)
   
   f.call <- as.call(setNames(c(as.name("calc_weight_bal"), argn), c("", names(args))))
-  
+  if(verbose) message("\nEstimating wasserstein values for each constraint")
   weight.list <- lapply(grid, function(delta) {
     args$constraint <- delta
     out <- tryCatch(eval(f.call, envir = args),
@@ -283,9 +284,15 @@ wass_grid_search <- function(data, grid = NULL,
   boot.n <- lapply(names(boot.args), as.name)
   names(boot.n) <- names(boot.args)
   f.call <- as.call(c(list(quote(sapply)), boot.n))
+  if (verbose ) {
+    pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
+    message("\nCalculating out of sample balance")
+  }
+  
   for(g in seq_along(grid)) {
     boot.args$weight <- weight.list[[g]]
     output[g] <- mean(eval(f.call, envir = boot.args))
+    if (verbose) setTxtProgressBar(pb, g)
   }
   if(all(is.na(output))) stop("wass_grid_search: All grid values generated errors")
   
