@@ -329,7 +329,8 @@
                                                                 options$weights != "RKHS.dose"],
                                               "gp")
                              if(!is.null(methods)) {
-                               private$method <- match.arg(methods, pot.methods)
+                               private$method <- match.arg(methods, pot.methods,
+                                                           several.ok = TRUE)
                              } else {
                                private$method <- pot.methods
                              }
