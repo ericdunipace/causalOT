@@ -1,4 +1,5 @@
 sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1, 
+                          methods = c("Logistic", "SBW", "RKHS", "NNM", "Constrained Wasserstein"),
                           grid.search = TRUE,
                           RKHS = list(opt = TRUE, opt.method = "stan"),
                           match = c("both", "yes", "no"),
@@ -43,6 +44,7 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
   #### run simulations ####
   sh <- SimHolder$new(nsim = nsims,
                 dataSim = dataGen,
+                methods = methods,
                 grid.search = grid.search,
                 RKHS = RKHS,
                 truncations = truncations,

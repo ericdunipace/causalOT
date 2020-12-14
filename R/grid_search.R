@@ -255,7 +255,7 @@ wass_grid_search <- function(data, grid = NULL,
   names(argn) <- names(args)
   
   f.call <- as.call(setNames(c(as.name("calc_weight_bal"), argn), c("", names(args))))
-  if(verbose) message("\nEstimating wasserstein values for each constraint")
+  if(verbose) message("\nEstimating Wasserstein values for each constraint")
   weight.list <- lapply(grid, function(delta) {
     args$constraint <- delta
     out <- tryCatch(eval(f.call, envir = args),
@@ -285,8 +285,9 @@ wass_grid_search <- function(data, grid = NULL,
   names(boot.n) <- names(boot.args)
   f.call <- as.call(c(list(quote(sapply)), boot.n))
   if (verbose ) {
-    pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
     message("\nCalculating out of sample balance")
+    pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
+    
   }
   
   for(g in seq_along(grid)) {

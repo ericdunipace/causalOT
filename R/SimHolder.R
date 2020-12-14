@@ -104,6 +104,7 @@
                            },
                            initialize = function(nsim = 100,
                                                  dataSim,
+                                                 methods = NULL,
                                                  grid.search = TRUE,
                                                  truncations = NULL,
                                                  standardized.difference.means = NULL,
@@ -324,9 +325,14 @@
                              private$estimand <- options$estimates[options$estimates %in% estimands]
                              if(!private$calculate.feasible) private$estimand <- private$estimand[private$estimand != "feasible"]
                              #removing "wasserstein"
-                             private$method <- c(options$weights[options$weights != "Wasserstein" &
-                                                                   options$weights != "RKHS.dose"],
-                                                 "gp")
+                             pot.methods <- c(options$weights[options$weights != "Wasserstein" &
+                                                                options$weights != "RKHS.dose"],
+                                              "gp")
+                             if(!is.null(methods)) {
+                               private$method <- match.arg(methods, pot.methods)
+                             } else {
+                               private$method <- pot.methods
+                             }
                              private$weight_based_methods <- private$method[private$method != "gp"]
                              private$nmethod <- length(private$method)
                              private$model.augmentation <- match.arg(model.augmentation, c("both", "yes", "no"))
