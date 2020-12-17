@@ -3,64 +3,91 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
                              ...) {
   meth <- match.arg(method, supported.methods())
   est <- match.arg(estimand)
+  dots <- list(...)
   
-  qp <- if(meth == "SBW") {
-    if(length(constraint) != data$get_p())  {
-      K <- rep(constraint, data$get_p())[1:data$get_p()]
+  form <- dots$formula
+  if (!is.null(form)) {
+    form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
+    mm <- model.matrix(form, data = data.frame(data$get_x()))
+  } else {
+    if (method == "SBW") {
+      form <- formula(~ . + 0)
+      mm <- model.matrix(form, data = data.frame(data$get_x()))
+    } else {
+      mm <- NULL
+    }
+  }
+  
+  qp <- if (meth == "SBW") {
+    if (length(constraint) != ncol(mm))  {
+      K <- rep(constraint, ncol(mm))[1:ncol(mm)]
     } else {
       K <- constraint
     }
-    if(est == "cATE") {
-      list(qp_sbw(x=data$get_x(), z = data$get_z(), K = K, estimand = "ATC"),
-           qp_sbw(x=data$get_x(), z = data$get_z(), K = K, estimand = "ATT"))
+    if (est == "cATE") {
+      list(qp_sbw(x = mm, z = data$get_z(), K = K, estimand = "ATC"),
+           qp_sbw(x = mm, z = data$get_z(), K = K, estimand = "ATT"))
     } else {
-      list(qp_sbw(x=data$get_x(), z = data$get_z(), K = K, estimand = est))
+      list(qp_sbw(x = mm, z = data$get_z(), K = K, estimand = est))
     } 
   } else if (meth == "Wasserstein") {
-    dots <- list(...)
+    
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
-    if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
+    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
+    if(is.null(dots$add.joint)) dots$add.joint <- FALSE
+    
+    if(dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
                          "ATT" = "ATT",
                          "ATC" = "ATC",
                          "ATE"
                          )
-      if(is.null(dots$kernel)) dots$kernel <- "RBF"
-      
-      dots$rkhs.args <- RKHS_param_opt(x=data$get_x(), 
-                                       z=data$get_z(), 
-                                       y = data$get_y(),
-                                       metric = "mahalanobis",
-                                       is.dose = dots$is.dose,
-                                       opt.method = dots$opt.method,
-                                       kernel = dots$kernel,
-                                       estimand = temp.est,
-                                       ...)
+      if (is.null(dots$kernel)) dots$kernel <- "RBF"
+      args <- list(x = data$get_x(), 
+                   z = data$get_z(), 
+                   y = data$get_y(),
+                   metric = switch(dots$metric,
+                                   "RKHS" = "mahalanobis",
+                                   "mahalanobis" = "mahalanobis",
+                                   "Lp" = "Lp"),
+                   kernel = dots$kernel,
+                   is.dose = dots$is.dose,
+                   opt.method = dots$opt.method,
+                   estimand = temp.est,
+                   ...)
+      args <- args[!duplicated(names(args))]
+      argn <- lapply(names(args), as.name)
+      names(argn) <- names(args)
+      f.call <- as.call(c(list(as.name("RKHS_param_opt")), argn))
+      dots$rkhs.args <- eval(f.call, args)
     }
     if(est == "cATE") {
       list(qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
-                   p=dots$p, estimand = "ATC", dist = dots$dist, cost = dots$cost,
-                   rkhs.args = dots$rkhs.args),
+                   p=dots$p, estimand = "ATC", dist = dots$metric, cost = dots$cost,
+                   rkhs.args = dots$rkhs.args, 
+                   add.joint = dots$add.joint, mm = mm),
            qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
-                   p=dots$p, estimand = "ATT", dist = dots$dist, cost = dots$cost,
-                   rkhs.args = dots$rkhs.args))
+                   p=dots$p, estimand = "ATT", dist = dots$metric, cost = dots$cost,
+                   rkhs.args = dots$rkhs.args, 
+                   add.joint = dots$add.joint, mm = mm))
     } else if (est == "ATE") {
       qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
-              p=dots$p, estimand = est, dist = dots$dist, cost = dots$cost,
-              rkhs.args = dots$rkhs.args)
+              p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
+              rkhs.args = dots$rkhs.args, 
+              add.joint = dots$add.joint, mm = mm)
     } else {
       list(qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
-                   p=dots$p, estimand = est, dist = dots$dist, cost = dots$cost,
-                   rkhs.args = dots$rkhs.args))
+                   p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
+                   rkhs.args = dots$rkhs.args, 
+                   add.joint = dots$add.joint, mm = mm))
     }
     
   } else if (meth == "Constrained Wasserstein") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
-    if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
+    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
+    if(dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
                          "ATT" = "ATT",
@@ -68,43 +95,48 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
                          "ATE"
       )
       if(is.null(dots$kernel)) dots$kernel <- "RBF"
-      dots$rkhs.args <- RKHS_param_opt(x=data$get_x(), 
-                                       z=data$get_z(), 
-                                       y = data$get_y(),
-                                       metric = switch(dots$dist,
-                                                       "RKHS" = "mahalanobis",
-                                                       "mahalanobis" = "mahalanobis",
-                                                       "Lp" = "Lp"),
-                                       kernel = dots$kernel,
-                                       is.dose = dots$is.dose,
-                                       opt.method = dots$opt.method,
-                                       estimand = temp.est,
-                                       ...)
+      args <- list(x=data$get_x(), 
+                   z=data$get_z(), 
+                   y = data$get_y(),
+                   metric = switch(dots$metric,
+                                   "RKHS" = "mahalanobis",
+                                   "mahalanobis" = "mahalanobis",
+                                   "Lp" = "Lp"),
+                   kernel = dots$kernel,
+                   is.dose = dots$is.dose,
+                   opt.method = dots$opt.method,
+                   estimand = temp.est,
+                   ...)
+      args <- args[!duplicated(names(args))]
+      argn <- lapply(names(args), as.name)
+      names(argn) <- names(args)
+      f.call <- as.call(c(list(as.name("RKHS_param_opt")), argn))
+      dots$rkhs.args <- eval(f.call, args)
     }
     if (est == "cATE") {
       list(qp_wass_const(x=data$get_x(), z=data$get_z(), K=constraint, 
-                   p=dots$p, estimand = "ATC", dist = dots$dist, 
+                   p=dots$p, estimand = "ATC", dist = dots$metric, 
                    cost = dots$cost, 
-                   rkhs.args = dots$rkhs.args),
+                   rkhs.args = dots$rkhs.args,  mm = mm),
            qp_wass_const(x=data$get_x(), z=data$get_z(), K=constraint, 
                    p=dots$p, estimand = "ATT", 
-                   dist = dots$dist, cost = dots$cost,
-                   rkhs.args = dots$rkhs.args))
+                   dist = dots$metric, cost = dots$cost,
+                   rkhs.args = dots$rkhs.args,  mm = mm))
     } else if (est == "ATE") {
       qp_wass_const(x=data$get_x(), z=data$get_z(),K=constraint, 
               p=dots$p, estimand = est, 
-              dist = dots$dist, cost = dots$cost,
-              rkhs.args = dots$rkhs.args)
+              dist = dots$metric, cost = dots$cost,
+              rkhs.args = dots$rkhs.args,  mm = mm)
     } else {
       list(qp_wass_const(x=data$get_x(), z=data$get_z(), K=constraint, 
                     p=dots$p, estimand = est, 
-                    dist = dots$dist, cost = dots$cost,
-                    rkhs.args = dots$rkhs.args))
+                    dist = dots$metric, cost = dots$cost,
+                    rkhs.args = dots$rkhs.args, mm = mm))
     }
   } else if (meth == "RKHS" | meth == "RKHS.dose") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
+    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
     if(is.null(dots$theta)) dots$theta <- c(1,1)
     if(is.null(dots$gamma)) dots$gamma <- c(1,1)
     if(is.null(dots$lambda)) dots$lambda <- 0
@@ -114,20 +146,20 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
       list(qp_rkhs(x=data$get_x(), z=data$get_z(),
             p=dots$p, theta = dots$theta, gamma = dots$gamma,
             lambda = dots$lambda, sigma_2 = dots$sigma_2,
-            dist = dots$dist, cost = dots$cost,
+            dist = dots$metric, cost = dots$cost,
             is.dose = isTRUE(meth == "RKHS.dose"),
             estimand = "ATT"),
            qp_rkhs(x=data$get_x(), z=data$get_z(),
                    p=dots$p, theta = dots$theta, gamma = dots$gamma,
                    lambda = dots$lambda, sigma_2 = dots$sigma_2,
-                   dist = dots$dist, cost = dots$cost,
+                   dist = dots$metric, cost = dots$cost,
                    is.dose = isTRUE(meth == "RKHS.dose"),
                    estimand = "ATT"))
     } else {
       list(qp_rkhs(x=data$get_x(), z=data$get_z(),
               p=dots$p, theta = dots$theta, gamma = dots$gamma,
               lambda = dots$lambda, sigma_2 = dots$sigma_2,
-              dist = dots$dist, cost = dots$cost,
+              dist = dots$metric, cost = dots$cost,
               is.dose = isTRUE(meth == "RKHS.dose"),
               estimand = estimand))
     }
@@ -144,26 +176,42 @@ quadprog.data.frame <- function(data, constraint,
   
   df <- prep_data(data, ...)
   z <- as.numeric(df$z)
-  x <- as.matrix(df$df[,!(colnames(df$df) == "y")])
-  col_x <- ncol(x)
+  x.df <- df$df[,!(colnames(df$df) == "y")]
+  x <- as.matrix(x.df)
+  # col_x <- ncol(x)
   
-  qp <- if(meth == "SBW") {
-    if(length(constraint) != col_x)  {
-      K <- rep(constraint, col_x)[1:col_x]
+  dots <- list(...)
+  form <- dots$formula
+  if (!is.null(form)) {
+    form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
+    mm <- model.matrix(form, data = x.df)
+  } else {
+    if (method == "SBW") {
+      form <- formula(~ . + 0)
+      mm <- model.matrix(form, data = x.df)
+    } else {
+      mm <- NULL
+    }
+  }
+  
+  qp <- if (meth == "SBW") {
+    if (length(constraint) != ncol(mm))  {
+      K <- rep(constraint, ncol(mm))[1:ncol(mm)]
     } else {
       K <- constraint
     }
     if(est == "cATE") {
-      list(qp_sbw(x=x, z = z, K = K, estimand = "ATC"),
-           qp_sbw(x=x, z = z, K = K, estimand = "ATT"))
+      list(qp_sbw(x=mm, z = z, K = K, estimand = "ATC"),
+           qp_sbw(x=mm, z = z, K = K, estimand = "ATT"))
     } else {
-      list(qp_sbw(x=x, z = z, K = K, estimand = est))
+      list(qp_sbw(x=mm, z = z, K = K, estimand = est))
     } 
   } else if (meth == "Wasserstein") {
-    dots <- list(...)
+    # dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
-    if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
+    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
+    if(is.null(dots$add.joint)) dots$add.joint <- FALSE
+    if(dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
                          "ATT" = "ATT",
@@ -171,37 +219,46 @@ quadprog.data.frame <- function(data, constraint,
                          "ATE"
       )
       if(is.null(dots$kernel)) dots$kernel <- "RBF"
-      dots$rkhs.args <- RKHS_param_opt(x=x, 
-                                       z=z, 
-                                       y = y,
-                                       metric = switch(dots$dist,
-                                                       "RKHS" = "mahalanobis",
-                                                       "mahalanobis" = "mahalanobis",
-                                                       "Lp" = "Lp"),
-                                       kernel = dots$kernel,
-                                       is.dose = dots$is.dose,
-                                       opt.method = dots$opt.method,
-                                       estimand = temp.est,
-                                       ...)
+      args <- list(x = x, 
+                   z = z, 
+                   y = y,
+                   metric = switch(dots$metric,
+                                   "RKHS" = "mahalanobis",
+                                   "mahalanobis" = "mahalanobis",
+                                   "Lp" = "Lp"),
+                   kernel = dots$kernel,
+                   is.dose = dots$is.dose,
+                   opt.method = dots$opt.method,
+                   estimand = temp.est,
+                   ...)
+      args <- args[!duplicated(names(args))]
+      argn <- lapply(names(args), as.name)
+      names(argn) <- names(args)
+      f.call <- as.call(c(list(as.name("RKHS_param_opt")), argn))
+      dots$rkhs.args <- eval(f.call, args)
     }
     if(est == "cATE") {
       list(qp_wass(x=x, z=z, 
-                   p=dots$p, estimand = "ATC", dist = dots$dist, cost = dots$cost),
+                   p=dots$p, estimand = "ATC", dist = dots$metric, cost = dots$cost,
+                   add.joint = dots$add.joint, mm = mm),
            qp_wass(x=x, z=z,
-                   p=dots$p, estimand = "ATT", dist = dots$dist, cost = dots$cost))
+                   p=dots$p, estimand = "ATT", dist = dots$metric, cost = dots$cost,
+                   add.joint = dots$add.joint, mm = mm))
     } else if (est == "ATE") {
       qp_wass(x=x, z=z,
-              p=dots$p, estimand = est, dist = dots$dist, cost = dots$cost)
+              p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
+              add.joint = dots$add.joint, mm = mm)
     } else {
       list(qp_wass(x=x, z=z,
-                   p=dots$p, estimand = est, dist = dots$dist, cost = dots$cost))
+                   p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
+                   add.joint = dots$add.joint, mm = mm))
     }
     
   } else if (meth == "Constrained Wasserstein") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
-    if(dots$dist == "RKHS" & is.null(dots$rkhs.args)) {
+    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
+    if(dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
                          "ATT" = "ATT",
@@ -209,33 +266,44 @@ quadprog.data.frame <- function(data, constraint,
                          "ATE"
       )
       if(is.null(dots$kernel)) dots$kernel <- "RBF"
-      
-      dots$rkhs.args <- RKHS_param_opt(x=x, 
-                                       z=z, 
-                                       y = y,
-                                       metric = dots$dist,
-                                       kernel = dots$kernel,
-                                       is.dose = dots$is.dose,
-                                       opt.method = dots$opt.method,
-                                       estimand = temp.est,
-                                       ...)
+      args <- list(x = x, 
+                   z = z, 
+                   y = y,
+                   metric = switch(dots$metric,
+                                   "RKHS" = "mahalanobis",
+                                   "mahalanobis" = "mahalanobis",
+                                   "Lp" = "Lp"),
+                   kernel = dots$kernel,
+                   is.dose = dots$is.dose,
+                   opt.method = dots$opt.method,
+                   estimand = temp.est,
+                   ...)
+      args <- args[!duplicated(names(args))]
+      argn <- lapply(names(args), as.name)
+      names(argn) <- names(args)
+      f.call <- as.call(c(list(as.name("RKHS_param_opt")), argn))
+      dots$rkhs.args <- eval(f.call, args)
     }
     if (est == "cATE") {
       list(qp_wass_const(x=x, z=z,K=constraint, 
-                   p=dots$p, estimand = "ATC", dist = dots$dist, cost = dots$cost),
+                   p=dots$p, estimand = "ATC", dist = dots$metric, cost = dots$cost,
+                   mm = mm),
            qp_wass_const(x=x, z=z,K=constraint, 
-                   p=dots$p, estimand = "ATT", dist = dots$dist, cost = dots$cost))
+                   p=dots$p, estimand = "ATT", dist = dots$metric, cost = dots$cost,
+                   mm = mm))
     } else if (est == "ATE") {
       qp_wass_const(x=x, z=z,K=constraint, 
-              p=dots$p, estimand = est, dist = dots$dist, cost = dots$cost)
+              p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
+              mm = mm)
     } else {
       list(qp_wass_const(x=x, z=z, K=constraint, 
-                         p=dots$p, estimand = est, dist = dots$dist, cost = dots$cost))
+                         p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
+                         mm = mm))
     }
   } else if (meth == "RKHS" | meth == "RKHS.dose") {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
+    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
     if(is.null(dots$theta)) dots$theta <- c(1,1)
     if(is.null(dots$gamma)) dots$gamma <- c(1,1)
     if(is.null(dots$lambda)) dots$lambda <- 0
@@ -245,20 +313,20 @@ quadprog.data.frame <- function(data, constraint,
       list(qp_rkhs(x=x, z=z,
                    p=dots$p, theta = dots$theta, gamma = dots$gamma,
                    lambda = dots$lambda, sigma_2 = dots$sigma_2,
-                   dist = dots$dist, cost = dots$cost,
+                   dist = dots$metric, cost = dots$cost,
                    is.dose = isTRUE(meth == "RKHS.dose"),
                    estimand = "ATC"),
            qp_rkhs(x=x, z=z,
                    p=dots$p, theta = dots$theta, gamma = dots$gamma,
                    lambda = dots$lambda, sigma_2 = dots$sigma_2,
-                   dist = dots$dist, cost = dots$cost,
+                   dist = dots$metric, cost = dots$cost,
                    is.dose = isTRUE(meth == "RKHS.dose"),
                    estimand = "ATT"))
     } else {
       list(qp_rkhs(x=x, z=z,
                    p=dots$p, theta = dots$theta, gamma = dots$gamma,
                    lambda = dots$lambda, sigma_2 = dots$sigma_2,
-                   dist = dots$dist, cost = dots$cost,
+                   dist = dots$metric, cost = dots$cost,
                    is.dose = isTRUE(meth == "RKHS.dose"),
                    estimand = est))
     }
@@ -372,13 +440,13 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
 qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT", 
                                                        "ATE", "feasible"),
                           dist=c("Lp", "mahalanobis","RKHS"), cost = NULL,
-                          rkhs.args = NULL) {
+                          rkhs.args = NULL, mm = NULL) {
   estimand <- match.arg(estimand)
   stopifnot(is.numeric(p))
   stopifnot(length(p) == 1)
   
-  x1 <- x[z==1,,drop=FALSE]
-  x0 <- x[z==0,,drop=FALSE]
+  x1 <- x[z == 1,,drop=FALSE]
+  x0 <- x[z == 0,,drop=FALSE]
   
   n <- nrow(x)
   d <- ncol(x)
@@ -422,20 +490,31 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     # q_mat <- matrix(0, n0,n1*n0)
     n1_idx <- seq(1,n0*n1,n0)
     q_s <- Matrix::sparseMatrix(i = rep(1:n0, each = n1) , 
-                                j = c(sapply(0:(n0-1), function(i) i + n1_idx)),
+                                j = c(sapply(0:(n0 - 1), function(i) i + n1_idx)),
                                 x = 1,
                                 dims = c(n0,n1*n0), giveCsparse = FALSE)
     # for(i in 1:n0) q_mat[i, (i-1) + n1_idx] <- 1
     marg_mass <- 1/n0
     marg_n <- n0
     marg_const_mat <- Matrix::sparseMatrix(i = rep(1:n1, each = n0),
-                                           j = c(sapply(0:(n1-1), function(i) i*n0 + 1:n0)),
-                                           x = rep(1,n0*n1),
-                                           dims = c(n1,n0*n1), giveCsparse = FALSE)
+                                           j = c(sapply(0:(n1 - 1), function(i) i * n0 + 1:n0)),
+                                           x = rep(1,n0 * n1),
+                                           dims = c(n1, n0 * n1), giveCsparse = FALSE)
     # marg_const_mat <- matrix(0, n1,n1*n0)
     # for(i in 1:n1) marg_const_mat[i, (i-1) * n0 + (1:n0)] <- 1
-    marg_const <- rep( 1/n1, n1)
+    marg_const <- rep( 1 / n1, n1)
     marg_const_n <- n1
+    
+    if (!is.null(mm)) {
+      mm0 <- mm[z == 0,, drop = FALSE]
+      mm1 <- mm[z == 1,, drop = FALSE ]
+      
+      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 +
+                      matrixStats::colVars(mm1) * 0.5 )
+      
+      mmbal <- mm0
+      mmtarg  <- colMeans(mm1)
+    }
     # q_m <- (diag(1, n0, n0) - matrix(1/n0, n0,n0))
     # q_m <- matrix(-1/n0, n0,n0)
   } 
@@ -456,6 +535,17 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     
     marg_const <- rep.int( 1/n0, n0 )
     marg_const_n <- n0
+    
+    if (!is.null(mm)) {
+      mm0 <- mm[z == 0,, drop = FALSE]
+      mm1 <- mm[z == 1,, drop = FALSE ]
+      
+      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 +
+                      matrixStats::colVars(mm1) * 0.5 )
+      
+      mmbal <- mm1
+      mmtarg  <- colMeans(mm0)
+    }
     # q_m <- (diag(1, n1, n1) - matrix(1/n1, n1,n1))
   } 
   else if (estimand == "feasible") {
@@ -481,6 +571,7 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     #                             dims = c(n,n)
     # )
     rm(q_t, q_c)
+    
   } else if (estimand == "ATE") {
     if(is.list(cost)) {
       cost_n0 <- cost[[1]]
@@ -550,6 +641,22 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
                                 x = 1,
                                 dims = c(n1,n1*n), giveCsparse = FALSE)
     op <- vector("list",2)
+    
+    if (!is.null(mm)) {
+      mm0 <- mm[z == 0,, drop = FALSE]
+      mm1 <- mm[z == 1,, drop = FALSE ]
+      
+      mmse0  <- sqrt(matrixStats::colVars(mm0) * 0.5 + 
+                       matrixStats::colVars(mm) * 0.5)
+      
+      mmse1  <- sqrt(matrixStats::colVars(mm1) * 0.5 + 
+                       matrixStats::colVars(mm) * 0.5)
+      
+      mmbal0  <- mm0
+      mmbal1  <- mm1
+      mmtarg  <- colMeans(mm)
+    }
+    
     op[[1]] <- list(obj = list(Q =  Matrix::crossprod(q_c),
                                L = c(rep(0, n0*n))),
                     LC = list(A = rbind(cost_vec_n0, sum_const_n0, marg_const_mat_n0),
@@ -585,30 +692,31 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
   LC$vals <- c(K^p, 1, marg_const)
   LC$dir <- c("L", rep("E", 1 + marg_const_n))
   
-  op <- list(obj=obj, LC=LC)
+  op <- list(obj = obj, LC = LC)
   return(op)
 }
 
 
 qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                                             "feasible"),
-                    dist = c("Lp", "mahalanobis", "RKHS"), cost = NULL,
-                    rkhs.args = NULL) {
-  sqrt_mat <- function(X) {
-    p <- ncol(X)
-    decomp <- eigen(X)
-    return(decomp$vectors %*% diag(sqrt(decomp$values), p, p) %*% t(decomp$vectors))
-  }
+                    dist = dist.metrics(), cost = NULL,
+                    rkhs.args = NULL, add.joint = FALSE,
+                    mm = NULL) {
+  
   estimand <- match.arg(estimand)
   stopifnot(is.numeric(p))
   stopifnot(length(p) == 1)
   
-  x1 <- x[z==1,,drop=FALSE]
-  x0 <- x[z==0,,drop=FALSE]
+  x1 <- x[z == 1,,drop = FALSE]
+  x0 <- x[z == 0,,drop = FALSE]
   
   n <- nrow(x)
   d <- ncol(x)
-  d_plus <- d+1
+  if (add.joint) {
+    d_plus <- d + 1
+  } else {
+    d_plus <- d
+  }
   
   n1 <- nrow(x1)
   n0 <- nrow(x0)
@@ -620,14 +728,16 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   #                    "Lp" = causalOT::cost_calc_lp,
   #                    "mahalanobis" = causalOT::cost_mahalanobis)
   # covar <- (x1_var + x0_var)/2 # add later
-  if(is.null(cost)) { 
-    if(estimand %in% c("ATT","ATC")) {
+  if (is.null(cost)) { 
+    if (estimand %in% c("ATT","ATC")) {
       cost <- lapply(1:d, function(i) cost_fun(x[,i,drop=FALSE], z, 
                                                ground_p = p, metric = dist,
                                                rkhs.args = rkhs.args, estimand = estimand))
-      cost[d+1] <- list(cost_fun(x, z, 
+      if (add.joint) {
+        cost[d+1] <- list(cost_fun(x, z, 
                               ground_p = p, metric = dist,
                               rkhs.args = rkhs.args, estimand = estimand))
+      }
     } else if (estimand == "ATE") {
       # if(dist != "RKHS") {
       #   cost <- list(z0 = lapply(1:d, function(i) cost_fun(x[,i,drop=FALSE], z, 
@@ -655,11 +765,13 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
         #                                 ground_p = p, metric = dist,
         #                                 rkhs.args = rkhs.args, estimand = "ATE"))
         # } else {
-          cost.list <- cost_fun(x, z, 
+          if(add.joint) {
+            cost.list <- cost_fun(x, z, 
                                         ground_p = p, metric = dist,
                                         rkhs.args = rkhs.args, estimand = "ATE")
-          cost$z0[d+1] <- cost.list[1]
-          cost$z1[d+1] <- cost.list[2]
+            cost$z0[d + 1] <- cost.list[1]
+            cost$z1[d + 1] <- cost.list[2]
+          }
         # }
         
       # }
@@ -672,12 +784,12 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   # }
   # cost <- as.matrix(dist(rbind(x0,x1), method = "minkowski", p = p))[1:n0, (n0+1):n]
   
-  if(estimand != "ATE") {
+  if (estimand != "ATE") {
     weight.dim <- n0 * n1
-    cost_vec <- Matrix::sparseMatrix(i = rep(1:d_plus, each = n0*n1),
-                                     j = rep(1:(n0*n1), d_plus),
-                                     x= c(sapply(cost, c)^p),
-                                     dims = c(d_plus, n0*n1))
+    cost_vec <- Matrix::sparseMatrix(i = rep(1:d_plus, each = n0 * n1),
+                                     j = rep(1:(n0 * n1), d_plus),
+                                     x = c(sapply(cost[1:d_plus], c)^p),
+                                     dims = c(d_plus, n0 * n1))
   } 
   
   sum_const <- Matrix::sparseMatrix(i = rep(1, n0*n1),
@@ -687,10 +799,12 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   q_s <- marg_const_mat <- marg_const <- NULL
   marg_const_n <- 0
   
+  
+  
   # Qmat
-  if(estimand == "ATT") {
+  if (estimand == "ATT") {
     # q_mat <- matrix(0, n0,n1*n0)
-    n1_idx <- seq(1, weight.dim, n0)
+    # n1_idx <- seq(1, weight.dim, n0)
     # q_s <- Matrix::sparseMatrix(i = rep(1:n0, each = n1) , 
     #                             j = c(sapply(0:(n0-1), function(i) i + n1_idx)),
     #                             x = 1,
@@ -699,13 +813,26 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     marg_mass <- 1/n0
     marg_n <- n0
     marg_const_mat <- Matrix::sparseMatrix(i = rep(1:n1, each = n0),
-                                           j = c(sapply(0:(n1-1), function(i) i*n0 + 1:n0)),
+                                           j = c(sapply(0:(n1 - 1), function(i) i*n0 + 1:n0)),
                                            x = rep(1, weight.dim),
                                            dims = c(n1, weight.dim))
     # marg_const_mat <- matrix(0, n1,n1*n0)
     # for(i in 1:n1) marg_const_mat[i, (i-1) * n0 + (1:n0)] <- 1
     marg_const <- rep(1/n1, n1)
     marg_const_n <- n1
+    
+    # handle mm
+    if (!is.null(mm)) {
+      mm0 <- mm[z == 0,, drop = FALSE]
+      mm1 <- mm[z == 1,, drop = FALSE ]
+      
+      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 + 
+                    matrixStats::colVars(mm1) * 0.5)
+      mmbal  <- mm0
+      mmtarg <- colMeans(mm1)
+      
+    }
+    
     # q_m <- (diag(1, n0, n0) - matrix(1/n0, n0,n0))
     # q_m <- matrix(-1/n0, n0,n0)
   } else if (estimand == "ATC") {
@@ -719,15 +846,27 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     marg_n <- n1
     n1_idx <- seq(1, weight.dim, n0)
     marg_const_mat <- Matrix::sparseMatrix(i = rep(1:n0, each = n1),
-                                           j = c(sapply(0:(n0-1), function(i) i + n1_idx)),
-                                           x= rep.int(1, weight.dim),
+                                           j = c(sapply( 0:(n0 - 1), 
+                                                         function(i) i + n1_idx)),
+                                           x = rep.int(1, weight.dim),
                                            dims = c(n0, weight.dim))
     
     marg_const <- rep.int( 1/n0, n0 )
     marg_const_n <- n0
+    
+    if (!is.null(mm)) {
+      mm0 <- mm[z == 0,, drop = FALSE]
+      mm1 <- mm[z == 1,, drop = FALSE ]
+      
+      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 + 
+                      matrixStats::colVars(mm1) * 0.5)
+      mmbal  <- mm1
+      mmtarg <- colMeans(mm0)
+      
+    }
     # q_m <- (diag(1, n1, n1) - matrix(1/n1, n1,n1))
   } else if (estimand == "feasible") {
-    n1_idx <- seq(1,n0*n1,n0)
+    n1_idx <- seq(1, n0 * n1,n0)
     n0_idx <- 1:n0
     # q_c <- Matrix::sparseMatrix(i = rep(1:n0, each = n1) ,
     #                             j = c(sapply(0:(n0-1), function(i) i + n1_idx)),
@@ -758,7 +897,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     weight.dim1 <- n * n1
     weight.dim0 <- n * n0
     
-    if(is.list(cost)) {
+    if (is.list(cost)) {
       cost_n0 <- cost[[1]]
       cost_n1 <- cost[[2]]
     } else {
@@ -767,12 +906,12 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     
     cost_vec_n1 <- Matrix::sparseMatrix(i = rep(1:d_plus, each = weight.dim1),
                                         j = rep(1:weight.dim1, d_plus ),
-                                        x= c(sapply(cost_n1,c))^p,
+                                        x = c(sapply(cost_n1[1:d_plus],c))^p,
                                         dims = c( d_plus, weight.dim1))
     
     cost_vec_n0 <- Matrix::sparseMatrix(i = rep(1:d_plus, each = weight.dim0),
                                         j = rep(1:weight.dim0,d_plus),
-                                        x= c(sapply(cost_n0,c))^p,
+                                        x = c(sapply(cost_n0[1:d_plus],c))^p,
                                         dims = c(d_plus , weight.dim0))
     
     sum_const_n1 <- Matrix::sparseMatrix(i = rep(1, weight.dim1),
@@ -792,16 +931,16 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     n_idx <- 1:n 
     
     marg_const_mat_n1 <- Matrix::sparseMatrix(i = rep(1:n, each = n1),
-                                              j = c(sapply(0:(n-1), function(i) i * n1 + n1_idx)),
-                                              x = rep(1,n*n1),
-                                              dims = c(n,n*n1))
+                                              j = c(sapply(0:(n - 1), function(i) i * n1 + n1_idx)),
+                                              x = rep(1, n * n1),
+                                              dims = c(n, n * n1))
     
     marg_const_mat_n0 <- Matrix::sparseMatrix(i = rep(1:n, each = n0),
-                                              j = c(sapply(0:(n-1), function(i) i* n0 + n0_idx)),
-                                              x= rep.int(1,n0*n),
-                                              dims = c(n, n0*n))
+                                              j = c(sapply(0:(n - 1), function(i) i * n0 + n0_idx)),
+                                              x = rep.int(1, n0 * n),
+                                              dims = c(n, n0 * n))
     
-    if(is.null(K)) {
+    if (is.null(K)) {
       sigma1 <- cov(x1)
       sigma0 <- cov(x0)
       sigma  <- cov(x)
@@ -813,10 +952,12 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       
       max0 <- sapply(1:d, function(i) transport::wasserstein1d(a = x0[,i], b = x[,i],p = p))
       max1 <- sapply(1:d, function(i) transport::wasserstein1d(a = x1[,i], b = x[,i],p = p))
-      max0 <- c(max0, transport::wasserstein(a = rep(1/n0,n0), b = rep(1/n,n), 
+      if (add.joint) {
+        max0 <- c(max0, transport::wasserstein(a = rep(1/n0,n0), b = rep(1/n,n), 
                                              p = p, costm = cost$z0[[d_plus]]))
-      max1 <- c(max1, transport::wasserstein(a = rep(1/n1,n1), b = rep(1/n,n),
-                                             p = p, costm = cost$z1[[d_plus]]))
+        max1 <- c(max1, transport::wasserstein(a = rep(1/n1,n1), b = rep(1/n,n),
+                                               p = p, costm = cost$z1[[d_plus]]))
+      }
       
       min0 <- sapply(1:d_plus, function(i) mean(apply(cost$z0[[i]]^p, 2, min)))^(1/p)
       min1 <- sapply(1:d_plus, function(i) mean(apply(cost$z1[[i]]^p, 2, min)))^(1/p)
@@ -830,12 +971,12 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       #                                                        p = p, costm = cost$z0[[i]]))
       
       K_vals_0 <- c(
-             sqrt(0.2^2 * shared_var0  + v + v0 - 2 * sqrt(sqrt(v) *v0 * sqrt(v))),
+             sqrt(0.2^2 * shared_var0  + v + v0 - 2 * sqrt(sqrt(v) * v0 * sqrt(v))),
              sqrt(sum(0.2^2 * shared_var0) + sum(v) + sum(v0) - 
                2 * sum(diag(sqrt_mat(sqrt_mat(sigma) %*% sqrt_mat(sigma0)))))
       )
       K_vals_1 <- c(
-        sqrt(abs(0.2^2 * shared_var1   + v + v0 - 2 * sqrt(sqrt(v) *v1 * sqrt(v)))),
+        sqrt(abs(0.2^2 * shared_var1   + v + v0 - 2 * sqrt(sqrt(v) * v1 * sqrt(v)))),
         sqrt(abs(sum(0.2^2 * shared_var1 ) + sum(v) + sum(v1) -
           2 * sum(diag(sqrt_mat(sqrt_mat(sigma) %*% sigma1 %*% sqrt_mat(sigma))))))
       )
@@ -843,42 +984,62 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       increase.factor.1 <- ifelse(max1/min1 < 2, max1/min1, 2)
       K_vals_0 <- ifelse(K_vals_0 < min0, min0 * increase.factor.0, K_vals_0)
       K_vals_1 <- ifelse(K_vals_1 < min1, min1 * increase.factor.1, K_vals_1)
-    } else if(length(K) == 2 ) {
-      if(is.numeric(K)) {
+    } else if (length(K) == 2 ) {
+      if (is.numeric(K)) {
         K <- K
         K_vals_0 <- rep(K[1], d_plus)
         K_vals_1 <- rep(K[2], d_plus)
         
-        K_vals_0[d_plus] <- K[1] * d
-        K_vals_1[d_plus] <- K[2] * d
+        if (add.joint) {
+          K_vals_0[d_plus] <- K[1] * d
+          K_vals_1[d_plus] <- K[2] * d
+          }
       } else if (is.list(K)) {
         K0 <- K[[1]]
         K1 <- K[[2]]
         
-        if(length(K1) != d_plus ){
+        if (length(K1) != d_plus ) {
           K1 <- K1
           K_vals_1 <- rep(K1, d_plus)[1:d_plus]
         } else if (length(K1) == d_plus) {
           K_vals_1 <- K1
         }
-        if(length(K0) == 1 ){
+        if (length(K0) == 1 ) {
           K0 <- K1
-          K_vals_2 <- rep(K0, d_plus)[1:d_plus]
+          K_vals_0 <- rep(K0, d_plus)[1:d_plus]
         } else if (length(K0) == d_plus) {
           K_vals_0 <- K0
         }
       }
       
       
-    } else if(length(K) == 1 & is.numeric(K)) {
+    } else if (length(K) == 1 & is.numeric(K)) {
       K <- K
       K_vals_0 <- K_vals_1 <-  rep(K, d_plus)[1:d_plus]
       
-      K_vals_0[d_plus] <- K * d
-      K_vals_1[d_plus] <- K * d
+      if (add.joint) {
+        K_vals_0[d_plus] <- K * d
+        K_vals_1[d_plus] <- K * d
+      }
     } else {
+      # if (length(K) < d_plus & length(K) > 1) stop("Constraint values must be same length as constraints")
       K <- K
       K_vals_0 <- K_vals_1 <- K
+    }
+    
+    if (!is.null(mm)) {
+      mm0 <- mm[z == 0,, drop = FALSE]
+      mm1 <- mm[z == 1,, drop = FALSE ]
+      
+      mmse0  <- sqrt(matrixStats::colVars(mm0) * 0.5 + 
+                      matrixStats::colVars(mm) * 0.5)
+      
+      mmse1  <- sqrt(matrixStats::colVars(mm1) * 0.5 + 
+                       matrixStats::colVars(mm) * 0.5)
+      
+      mmbal0  <- mm0
+      mmbal1  <- mm1
+      mmtarg  <- colMeans(mm)
     }
     
     # q_c <- Matrix::sparseMatrix(i = rep(1:n0, each = n) , 
@@ -890,7 +1051,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     #                             j = c(sapply(0:(n1-1), function(i) i * n1 + n1_idx)),
     #                             x = 1,
     #                             dims = c(n1,n1*n))
-    op <- vector("list",2)
+    op <- vector("list", 2)
     op[[1]] <- list(obj = list(Q =  Matrix::Diagonal(weight.dim0, 1),
                                L = rep(0, weight.dim0)),
                     LC = list(A = rbind(sum_const_n0, marg_const_mat_n0,
@@ -926,39 +1087,41 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   #   Q0 <-  2*q_s
   # }
   # rm(q_s)
-  if(is.null(K)) {
+  if (is.null(K)) {
     sigma1 <- cov(x1)
     sigma0 <- cov(x0)
     v1 <- diag(sigma1)
     v0 <- diag(sigma0)
     shared_var <- 0.5 * v1 + 0.5 * v0
-    
-    K <- c(sqrt(0.2^2 * shared_var * 2  + v1 + v0 - 2 * sqrt(sqrt(v1) *v0 * sqrt(v1))),
-           sum(0.2^2 * shared_var * 2) + sum(v1) + sum(v0) - 
+
+    K <- c(sqrt(0.2^2 * shared_var * 2  + v1 + v0 - 2 * sqrt(sqrt(v1) * v0 * sqrt(v1))),
+           sum(0.2^2 * shared_var * 2) + sum(v1) + sum(v0) -
              2 * sum(diag(sqrt_mat(sqrt_mat(sigma1) %*% sigma0 %*% sqrt_mat(sigma1))))
            )
   }
-  if(length(K) == 1) {
+  if (length(K) == 1) {
     K_vals <- rep(K, d_plus)
   } else if (length(K) == d_plus) {
     K_vals <- K
   } else {
     stop("K must be length 1 or ncol covariates +1 for ATC/ATT")
   }
-  
+
   # K_vals <- rep(K, d_plus)
-  L0 <- rep(0, n0*n1) #simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
+  L0 <- rep(0, n0 * n1) #simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
   #nrow = 1, ncol = n0*n1) #c(rep(0, n0*n1)) #c( w = rep( -marg_mass, n0 * n1 ) )
   obj <- list(Q = Matrix::Diagonal(weight.dim, 1),#Q0,
               L = L0)
-  
+
   LC <- list()
-  LC$A <- rbind(sum_const, marg_const_mat, cost_vec)
+  LC$A <- rbind(sum_const, 
+                marg_const_mat, 
+                cost_vec)
   LC$vals <- c(1, marg_const, K_vals^p)
   LC$dir <- c(rep("E", 1 + marg_const_n),
               rep("L", d_plus))
   
-  op <- list(obj=obj, LC=LC)
+  op <- list(obj = obj, LC = LC)
   return(op)
 }
 
@@ -980,7 +1143,7 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
   #                    "TRUE" = "kernel_calculation",
   #                    "FALSE" = 
   
-  if(is.null(cost)) { 
+  if (is.null(cost)) { 
     kernels <- kernel_calculation(x, z, p = p, theta = theta, 
                                gamma = gamma, sigma_2 = sigma_2, 
                                metric = dist, kernel =  kernel,
@@ -993,7 +1156,7 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
   
   cost[[1]] <- Matrix::Matrix(data = cost[[1]], sparse = TRUE)
   
-  if(is.dose) {
+  if (is.dose) {
     Q0 <- (1/(n^2)) * (cost[[1]] + Matrix::Diagonal(n, lambda/(n^2)))
     
     L0 <- c(w = -2/(n^2) * c(cost[[2]]))
@@ -1008,7 +1171,7 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
     L0 <- c(w = -2 * c(cost[[2]]))
     
     A <- rbind(t(1/n * z),
-               t(1/n * (1-z)  ))
+               t(1/n * (1 - z)  ))
     vals <- as.double(c(n,n))
     dir <- c("E", "E")
   }
@@ -1029,7 +1192,7 @@ check_wass_const <- function(opt_problem) {
   mass <- rep.int(1/n,n)
   wass <- sum(cost * mass)
   
-  output <- if(wass < const) {
+  output <- if (wass < const) {
     list(res = mass, skip_cplex = TRUE)
   } else {
     list(res = NULL, skip_cplex = FALSE)

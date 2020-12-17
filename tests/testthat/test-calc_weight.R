@@ -91,7 +91,7 @@ testthat::test_that("works for Const Wass RKHS", {
                                                        p = power,
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",
-                                                       distance = distance,
+                                                       metric = distance,
                                                        rkhs.args = rkhs.argz))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   
@@ -102,7 +102,7 @@ testthat::test_that("works for Const Wass RKHS", {
                                                         p = power,
                                                         method = "Constrained Wasserstein",
                                                         solver = "gurobi",
-                                                        distance = distance,
+                                                        metric = distance,
                                                         rkhs.args = rkhs.argz))
   sapply(weights2, function(w) testthat::expect_equal(names(w), arg.names))
   
@@ -241,7 +241,7 @@ testthat::test_that("works for Wass", {
 #                                                        estimand = e, 
 #                                                        method = "Wasserstein",
 #                                                        solver = "gurobi",
-#                                                        distance = distance,
+#                                                        metric = distance,
 #                                                        rkhs.args = rkhs.argz))
 #   for(w in weights) testthat::expect_equal(names(w), arg.names)
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -263,7 +263,7 @@ testthat::test_that("works for Wass", {
 #                                                        estimand = e, 
 #                                                        method = "Wasserstein",
 #                                                        solver = "cplex",
-#                                                        distance = distance,
+#                                                        metric = distance,
 #                                                        rkhs.args = rkhs.argz))
 #   for(w in weights) testthat::expect_equal(names(w), arg.names)
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -285,7 +285,7 @@ testthat::test_that("works for Wass", {
 #                                                        estimand = e, 
 #                                                        method = "Wasserstein",
 #                                                        solver = "mosek",
-#                                                        distance = distance,
+#                                                        metric = distance,
 #                                                        rkhs.args = rkhs.argz))
 #   for(w in weights) testthat::expect_equal(names(w), arg.names)
 #   

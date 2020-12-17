@@ -18,9 +18,9 @@ testthat::test_that("optimal weighting works, no augmentation", {
   data$gen_data()
   
   # debugonce( data$opt_weight)
-  opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-  opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
-  opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
+  opt_weights_mosek  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
+  opt_weights_gurobi <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
+  opt_weights_cplex  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
   names(opt_weights_mosek) <-
     names(opt_weights_gurobi) <- 
     names(opt_weights_cplex) <- estimates

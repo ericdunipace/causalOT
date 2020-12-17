@@ -7,7 +7,7 @@ testthat::test_that("works for Const Wass", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("Lp")
+  metric <- c("Lp")
   power <- c(1,2)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
@@ -67,7 +67,7 @@ testthat::test_that("works for Const Wass RKHS", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("RKHS")
+  metric <- c("RKHS")
   power <- c(1,2)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
@@ -84,9 +84,9 @@ testthat::test_that("works for Const Wass RKHS", {
   n1 <- ns["n1"]
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = 3, 
+                                                           constraint = 30, 
                                                            estimand = e, 
-                                                           distance = distance,
+                                                           metric = metric,
                                                            method = "Constrained Wasserstein",
                                                            solver = "gurobi",
                                                            rkhs.args = rkhs.argz)
@@ -97,7 +97,7 @@ testthat::test_that("works for Const Wass RKHS", {
   weights2 <- lapply(estimates, function(e) calc_weight_bal(data = data, 
                                                             constraint = .001, 
                                                             estimand = e, 
-                                                            distance = distance,
+                                                            metric = metric,
                                                             rkhs.args = rkhs.argz,
                                                             method = "Constrained Wasserstein",
                                                             solver = "gurobi"))
@@ -135,7 +135,7 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("RKHS")
+  metric <- c("RKHS")
   power <- c(1,2)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
@@ -152,7 +152,7 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
                                                            constraint = 300, 
                                                            estimand = e, 
-                                                           distance = distance,
+                                                           metric = metric,
                                                            method = "Constrained Wasserstein",
                                                            solver = "gurobi",
                                                            rkhs.args = rkhs.argz)
@@ -163,7 +163,7 @@ testthat::test_that("works for Const Wass RKHS, opt", {
   weights2 <- lapply(estimates, function(e) calc_weight_bal(data = data, 
                                                             constraint = 40, 
                                                             estimand = e, 
-                                                            distance = distance,
+                                                            metric = metric,
                                                             rkhs.args = rkhs.argz,
                                                             method = "Constrained Wasserstein",
                                                             solver = "gurobi"))
@@ -205,7 +205,7 @@ testthat::test_that("works for Wass", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("Lp")
+  metric <- c("Lp")
   power <- c(1,2)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
@@ -287,7 +287,7 @@ testthat::test_that("works for Wass", {
 #   nsims <- 1
 #   overlap <- "low"
 #   design <- "A"
-#   distance <- c("RKHS")
+#   metric <- c("RKHS")
 #   power <- c(1,2)
 #   solver <- "gurobi"
 #   estimates <- c("ATT", "ATC", "cATE", "ATE")
@@ -307,7 +307,7 @@ testthat::test_that("works for Wass", {
 #                                                            constraint = 30, 
 #                                                            estimand = e, 
 #                                                            rkhs.args = rkhs.argz,
-#                                                            distance = distance,
+#                                                            metric = metric,
 #                                                            method = "Wasserstein",
 #                                                            solver = "gurobi"))
 #   for(w in weights) testthat::expect_equal(names(w), arg.names)
@@ -330,7 +330,7 @@ testthat::test_that("works for Wass", {
 #                                                            estimand = e, 
 #                                                            method = "Wasserstein",
 #                                                            rkhs.args = rkhs.argz,
-#                                                            distance = distance,
+#                                                            metric = metric,
 #                                                            solver = "cplex"))
 #   for(w in weights) testthat::expect_equal(names(w), arg.names)
 #   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -351,7 +351,7 @@ testthat::test_that("works for Wass", {
 #                                                            constraint = 30, 
 #                                                            estimand = e, 
 #                                                            rkhs.args = rkhs.argz,
-#                                                            distance = distance,
+#                                                            metric = metric,
 #                                                            method = "Wasserstein",
 #                                                            solver = "mosek"))
 #   for(w in weights) testthat::expect_equal(names(w), arg.names)
@@ -378,7 +378,7 @@ testthat::test_that("works for Wass RKHS, opt", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("RKHS")
+  metric <- c("RKHS")
   power <- c(1,2)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
@@ -393,17 +393,17 @@ testthat::test_that("works for Wass RKHS, opt", {
   n1 <- ns["n1"]
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = 10, 
+                                                           constraint = 8, 
                                                            estimand = e, 
                                                            rkhs.args = rkhs.argz,
-                                                           distance = distance,
+                                                           metric = metric,
                                                            method = "Wasserstein",
                                                            solver = "gurobi"))
-  for(w in weights) testthat::expect_equal(names(w), arg.names)
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  for (w in weights) testthat::expect_equal(names(w), arg.names)
+  testthat::expect_equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE)
+  testthat::expect_equal(rep(1/n0,n0), 
+                         weights[[3]]$w0, check.attributes = FALSE)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
@@ -419,7 +419,7 @@ testthat::test_that("works for Wass RKHS, opt", {
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            rkhs.args = rkhs.argz,
-                                                           distance = distance,
+                                                           metric = metric,
                                                            solver = "cplex"))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -440,7 +440,7 @@ testthat::test_that("works for Wass RKHS, opt", {
                                                            constraint = 10, 
                                                            estimand = e, 
                                                            rkhs.args = rkhs.argz,
-                                                           distance = distance,
+                                                           metric = metric,
                                                            method = "Wasserstein",
                                                            solver = "mosek"))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
@@ -467,7 +467,7 @@ testthat::test_that("works for SBW", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("Lp")
+  metric <- c("Lp")
   power <- c(1,2)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
@@ -507,7 +507,7 @@ testthat::test_that("works for SBW", {
 # nsims <- 1
 # overlap <- "low"
 # design <- "B"
-# distance <- c("Lp")
+# metric <- c("Lp")
 # power <- c(1,2)
 # solver <- "gurobi"
 # estimates <- c("ATT", "ATC","ATE")

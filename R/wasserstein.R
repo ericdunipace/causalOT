@@ -10,8 +10,8 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
     stop("cost matrix must be specified if only masses are given")
   }
   if(is.null(tplan)){
-    nzero_row <- a>0
-    nzero_col <- b>0
+    nzero_row <- a > 0
+    nzero_col <- b > 0
     a <- a[nzero_row]
     b <- b[nzero_col]
     cost <- cost[nzero_row, nzero_col, drop = FALSE]

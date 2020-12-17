@@ -37,7 +37,7 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
   #### dist mat ####
   dist <- match.arg(distance, several.ok = TRUE)
   
-  if(!is.null(seed)) {
+  if (!is.null(seed)) {
     set.seed(seed)
   }
   
@@ -59,11 +59,12 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
                 solver = solver,
                 Wass = list(wass_powers = p,
                           ground_powers = ground_p,
-                          metrics = distance,
+                          metrics = dist,
                           method = wass.method,
                           niter = wass.niter,
                           epsilon = wass.epsilon,
-                          wasserstein.distance.constraints = wasserstein.distance.constraints),
+                          wasserstein.distance.constraints = wasserstein.distance.constraints,
+                          add.joint = dots$add.joint),
                 verbose = isTRUE(dots$verbose))
   sh$run()
   

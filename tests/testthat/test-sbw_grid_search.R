@@ -21,7 +21,7 @@ testthat::test_that("grid search function works, dataSim", {
   
   test.fun <- function(g1,g2) {
     testthat::expect_equal(g1,g2)}
-  for(e in estimates) {
+  for (e in estimates) {
     weight <- sbw_grid_search(data, grid = seq(0,0.5, length.out = 10), 
                   estimand = e,
                               n.boot = 100,

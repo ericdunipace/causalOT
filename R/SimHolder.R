@@ -121,13 +121,15 @@
                                                              ground_powers = 2,
                                                              metrics = "Lp",
                                                              constrained.wasserstein.target = c("RKHS", "SBW"),
-                                                             wasserstein.distance.constraints = NULL),
+                                                             wasserstein.distance.constraints = NULL,
+                                                             add.joint = FALSE),
                                                  outcome.model = "lm",
                                                  outcome.formula = list(none = NULL,
                                                                         augmentation = NULL),
                                                  propensity.formula = list(Logistic = NULL,
                                                                         SBW = NULL,
-                                                                        "Constrained Wasserstein" = NULL),
+                                                                        "Constrained Wasserstein" = NULL,
+                                                                        "Wasserstein" = NULL),
                                                  model.augmentation = "both",
                                                  match = "both",
                                                  calculate.feasible = FALSE,
@@ -159,16 +161,17 @@
                                            epsilon = 0.05,
                                            powers = 2,
                                            ground_powers = 2,
-                                           metrics = "Lp",
+                                           metrics = "mahalanobis",
                                            constrained.wasserstein.target = c("SBW"),
-                                           wasserstein.distance.constraints = NULL)
+                                           wasserstein.distance.constraints = NULL,
+                                           add.joint = FALSE)
                              }
                              private$wass.opt <- list()
                              if(!is.null(Wass$metrics)) {
                                private$metric <- match.arg(Wass$metrics,
                                                            c("Lp", "mahalanobis", "RKHS"), several.ok = TRUE)
                              } else {
-                               private$metric <- "Lp"
+                               private$metric <- "mahalanobis"
                              }
                              
                              if(!is.null(Wass$wass_powers)) {
@@ -199,20 +202,25 @@
                                                                  1000)
                              }
                              
-                             if(!is.null(Wass$epsilon)) {
+                             if (!is.null(Wass$epsilon)) {
                                private$wass.opt$epsilon <- as.double(Wass$epsilon)
                              } else {
                                private$wass.opt$epsilon <- 0.05
                              }
-                             if(!is.null(Wass$constrained.wasserstein.target)) {
+                             if (!is.null(Wass$constrained.wasserstein.target)) {
                                private$cwass.targ <- match.arg(Wass$constrained.wasserstein.target, c("RKHS", "SBW"))
                              } else {
                                private$cwass.targ <- "SBW"
                              }
-                             if(!is.null(Wass$wasserstein.distance.constraints)) {
+                             if (!is.null(Wass$wasserstein.distance.constraints)) {
                                private$wasserstein.distance.constraints <- as.double(Wass$wasserstein.distance.constraints)
                              } else {
                                private$wasserstein.distance.constraints <- NA
+                             }
+                             if (!is.null(Wass$add.joint)) {
+                               private$wass.opt$add.joint <- isTRUE(Wass$add.joint)
+                             } else {
+                               private$wass.opt$add.joint <- FALSE
                              }
                              # private$metric <- match.arg(Wass$metrics,
                              #                             c("Lp", "mahalanobis", "RKHS"), several.ok = TRUE)
@@ -306,6 +314,9 @@
                              
                              private$solver <- match.arg(solver, c("gurobi","cplex","mosek"))
                              
+                             if(is.null(propensity.formula)) {
+                               propensity.formula <- list()
+                             }
                              private$ps.formula <- list(logistic = propensity.formula$Logistic,
                                                         sbw = propensity.formula$SBW,
                                                         cwass = propensity.formula$`Constrained Wasserstein`,
@@ -325,8 +336,7 @@
                              private$estimand <- options$estimates[options$estimates %in% estimands]
                              if(!private$calculate.feasible) private$estimand <- private$estimand[private$estimand != "feasible"]
                              #removing "wasserstein"
-                             pot.methods <- c(options$weights[options$weights != "Wasserstein" &
-                                                                options$weights != "RKHS.dose"],
+                             pot.methods <- c(options$weights[options$weights != "RKHS.dose"],
                                               "gp")
                              if(!is.null(methods)) {
                                private$method <- match.arg(methods, pot.methods,
@@ -547,7 +557,7 @@
                                                                       metric = o$metric,
                                                                       formula = o$formula
                                                   )
-                                                  if(private$check.skip(private$weights[[est]])) next
+                                                  if (private$check.skip(private$weights[[est]])) next
                                                   
                                                   ess.frac <- list(ESS(private$weights[[est]])/ns)
                                                   psis.output <- PSIS_diag(private$weights[[est]])
@@ -704,7 +714,55 @@
                                               delta <- temp.wass$dist[[idx]]
                                               # if(is.null(delta)) delta <- NA
                                               return(delta)
-                                            } else if (method == "Wasserstein" | method == "RKHS") {
+                                            # } else if (method == "Wasserstein" | method == "RKHS") {
+                                            } else if (method == "Wasserstein" & !private$grid.search) {
+                                                if (private$cwass.targ == "SBW") {
+                                                  tf.est <- private$temp.output[["SBW"]]$estimand == estimand
+                                                  tf.delta <- private$temp.output[["SBW"]]$delta == opts$delta
+                                                  if (all(is.na(tf.delta)) & isTRUE(private$grid.search)) tf.delta <- rep(TRUE, length(tf.delta))
+                                                  select.rows <- which(tf.delta & tf.est)[1]
+                                                  temp.wass <- private$temp.output[["SBW"]][select.rows, "wasserstein"][[1]]
+                                                  idx <- which(temp.wass$metric == opts$metric & 
+                                                                 temp.wass$ground_p == opts$ground_p &
+                                                                 temp.wass$wass_p == opts$wass_p )
+                                                  # delta <- temp.wass$dist[[idx]]
+                                                } else if (private$cwass.targ == "RKHS") {
+                                                  tf.est <- private$temp.output[["RKHS"]]$estimand == estimand
+                                                  # tf.delta <- private$temp.output[["RKHS"]]$delta == opts$delta
+                                                  # if(all(is.na(tf.delta)) & isTRUE(private$grid.search)) tf.delta <- rep(TRUE, length(tf.delta))
+                                                  select.rows <- which(tf.est)[1]
+                                                  temp.wass <- private$temp.output[["RKHS"]][select.rows, "wasserstein"][[1]]
+                                                  idx <- which(temp.wass$metric == opts$metric & 
+                                                                 temp.wass$ground_p == opts$ground_p &
+                                                                 temp.wass$wass_p == opts$wass_p )
+                                                  # delta <- temp.wass$dist[[idx]]
+                                                } 
+                                                # else if (private$cwass.targ == "RKHS.dose") {
+                                                #   tf.est <- private$temp.output[["RKHS.dose"]]$estimand == estimand
+                                                #   tf.delta <- private$temp.output[["RKHS.dose"]]$delta == opts$delta
+                                                #   if(all(is.na(tf.delta)) & isTRUE(private$grid.search)) tf.delta <- rep(TRUE, length(tf.delta))
+                                                #   select.rows <- which(tf.delta & tf.est)[1]
+                                                #   temp.wass <- private$temp.output[["RKHS.dose"]][select.rows, "wasserstein"][[1]]
+                                                #   idx <- which(temp.wass$metric == opts$metric & 
+                                                #                  temp.wass$ground_p == opts$ground_p &
+                                                #                  temp.wass$wass_p == opts$wass_p )
+                                                # }
+                                              
+                                                delta.joint <- temp.wass$dist[[idx]]
+                                                nc <- private$simulator$get_p()
+                                                delta.marg <- if (opts$metric == "Lp" ) {
+                                                  scale <-  matrixStats::colSds(private$simulator$get_x())
+                                                 (delta.joint^opts$wass_p * scale^opts$wass_p/sum(scale^opts$wass_p)) 
+                                                } else {
+                                                  (delta.joint^opts$wass_p/nc)^(1/opts$wass_p)
+                                                }
+                                                delta <- if (private$wass.opt$add.joint) {
+                                                  c(delta.marg, delta.joint)
+                                                } else {
+                                                  delta.marg
+                                                }
+                                                return(delta)
+                                            } else if (method == "RKHS") {
                                               return(NA)
                                             } else {
                                               return(opts$delta)
@@ -831,7 +889,8 @@
                                                                                 "RKHS.dose" = lambdas),
                                                               # RKHS.metric = private$RKHS$metric,
                                                               delta = sdm,
-                                                              grid.search = private$grid.search
+                                                              grid.search = private$grid.search,
+                                                              formula = private$ps.formula$wass
                                             )
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
@@ -855,18 +914,18 @@
                                             dims <- sapply(private$method, function(mm){
                                               cur <- private$method.lookup[private$method.lookup$method == mm,]
                                               lens <- sapply(cur$options[[1]], length)
-                                              noptions <- prod(lens[lens!=0])
+                                              noptions <- prod(lens[lens != 0])
                                               cur$options <- NULL
                                               dim <- prod( sapply(unlist(cur, recursive = FALSE), length) ) * noptions
                                               return(dim)
                                             })
-                                            return(max(dims, na.rm= TRUE))
+                                            return(max(dims, na.rm = TRUE))
                                           },
                                           set.opts = function(cur) { #sets options for run in estimate function
-                                            lens <- sapply(cur$options[[1]], function(o) if(!is.null(o)) {return(length(o))} else {return(1)})
+                                            lens <- sapply(cur$options[[1]], function(o) if (!is.null(o)) {return(length(o))} else {return(1)})
                                             nrows <- prod(lens)
                                             
-                                            iter.list <- if(cur$method == "Wasserstein") {
+                                            iter.list <- if (cur$method == "Wasserstein") {
                                               # private$wass_df[1:3]
                                               lapply(cur$options[[1]], rep, length.out = nrows)
                                             } else if (cur$method == "Constrained Wasserstein" & isFALSE(cur$options[[1]]$grid.search)) {
@@ -884,7 +943,7 @@
                                               lapply(cur$options[[1]], rep, length.out = nrows)
                                             }
                                             opts <- vector("list", nrows)
-                                            for(i in 1:nrows) {
+                                            for (i in 1:nrows) {
                                               opts[[i]] <- lapply(iter.list, function(o) o[[i]])
                                             }
                                             return(opts)
@@ -893,16 +952,16 @@
                                             private$simulator$gen_data()
                                             private$cost.setup()
                                             # private$kernel.setup()
-                                            if(private$verbose) message("  Method: ",appendLF = FALSE)
-                                            for(mm in private$method) {
-                                              if(private$verbose) {
-                                                if(mm == private$method[length(private$method)]) {
+                                            if (private$verbose) message("  Method: ",appendLF = FALSE)
+                                            for (mm in private$method) {
+                                              if (private$verbose) {
+                                                if (mm == private$method[length(private$method)]) {
                                                   message(mm)
                                                 } else {
                                                   message(mm,", ",appendLF = FALSE)
                                                 }
                                               }
-                                              if(mm %in% private$weight_based_methods) {
+                                              if (mm %in% private$weight_based_methods) {
                                                 private$estimate(mm) #updates private$estimate(mm)
                                               } else {
                                                 private$model_estimate(mm) #updates private$estimate(mm)
@@ -917,10 +976,10 @@
                                           wass.calc = function(iter, estimand) {
                                             wass.df <- private$wass_df
                                             wass_iter <- 1L
-                                            for(metric in private$metric) {
-                                              if(metric == "RKHS") next
-                                              for(ground_p in private$ground_powers) {
-                                                for(wass_p in private$wass_powers) {
+                                            for (metric in private$metric) {
+                                              if (metric == "RKHS") next
+                                              for (ground_p in private$ground_powers) {
+                                                for (wass_p in private$wass_powers) {
                                                   wass.df[["dist"]][[wass_iter]] <- causalOT::wasserstein_p(a = private$weights[[estimand]], 
                                                                                                             p = wass_p, 
                                                                                                             cost = private$costs[[metric]][[as.character(ground_p)]][["ATT"]],
@@ -932,12 +991,12 @@
                                                 }
                                               }
                                             }
-                                            if("RKHS" %in% private$metric) {
+                                            if ("RKHS" %in% private$metric) {
                                               temp.cost <- temp.wass <- cost.list <- cost.0 <- cost.1 <- NULL
                                               # for(j in private$RKHS$metric){
                                               
-                                              for(wass_p in private$wass_powers) {
-                                                if(estimand == "cATE"|estimand == "ATE" | estimand == "feasible") {
+                                              for (wass_p in private$wass_powers) {
+                                                if (estimand == "cATE"|estimand == "ATE" | estimand == "feasible") {
                                                   cost.list <- private$costs[["RKHS"]][[estimand]]#[[j]]
                                                   # cost.0 <- cost.list[[1]][,private$simulator$get_z() == 1]
                                                   # cost.1 <- cost.list[[2]][,private$simulator$get_z() == 0]
@@ -1021,8 +1080,8 @@
                                               # kernel <- private$RKHS$kernel
                                             }
                                             if (estimand != "cATE") {
-                                              private$weights[[estimand]]<- 
-                                                calc_weight(private$simulator,  
+                                              private$weights[[estimand]] <- 
+                                                tryCatch(calc_weight(private$simulator,  
                                                             constraint = delta,
                                                             formula = formula,
                                                             estimand = estimand, 
@@ -1040,13 +1099,26 @@
                                                             gamma = gamma,
                                                             sigma_2 = sigma_2,
                                                             lambda = lambda,
-                                                            iter = if(is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
-                                                            maxit = if(is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
+                                                            iter = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
+                                                            maxit = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             metric = metric,
+                                                            add.joint = private$wass.opt$add.joint,
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
                                                             epsilon = private$wass.opt$epsilon,
-                                                            verbose = isTRUE(private$verbose))
+                                                            verbose = isTRUE(private$verbose)),
+                                                         error = function(e) {
+                                                           warning("Error in weight method ", method, " with estimand ",estimand)
+                                                           ns <- private$simulator$get_n()
+                                                           e.out <- list(w0 = rep(NA_real_, ns[1]),
+                                                                         w1 = rep(NA_real_, ns[2]),
+                                                                         gamma = NULL,
+                                                                         estimand = estimand,
+                                                                         method = method, args = list(constraint = delta))
+                                                           class(e.out) <- "causalWeights"
+                                                           return(e.out)
+                                                         }
+                                                )
                                             } else {
                                               private$weights[[estimand]] <- 
                                                 convert_ATE(private$weights[["ATT"]], 

@@ -57,13 +57,13 @@ testthat::test_that("qp_wass has correct dimensions", {
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATT")
   
   testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
-  testthat::expect_equal( dim(qp$LC$A)[1], 2 + n1 + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n1 + p, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
   
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATC")
   
   testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
-  testthat::expect_equal( dim(qp$LC$A)[1], 2 + n0 + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n0 + p, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
   
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATE")
@@ -71,8 +71,8 @@ testthat::test_that("qp_wass has correct dimensions", {
   testthat::expect_equal(prod(dim(qp[[1]]$obj$Q)), (n0*n)^2, check.attributes=FALSE)
   testthat::expect_equal(prod(dim(qp[[2]]$obj$Q)), (n1*n)^2, check.attributes=FALSE)
   
-  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 2 + n + p, check.attributes=FALSE)
-  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 2 + n + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
   
   testthat::expect_equal( dim(qp[[1]]$LC$A)[2], n0*n, check.attributes=FALSE)
   testthat::expect_equal( dim(qp[[2]]$LC$A)[2], n*n1, check.attributes=FALSE)

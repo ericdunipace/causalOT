@@ -355,7 +355,6 @@ testthat::test_that("timing is better for C code, rbf mahalanobis", {
   )
   
 })
-
 testthat::test_that("timing is better for C code, polynomial lp", {
   testthat::skip("This test is meant to be run interactively.")
   n <- 2^9

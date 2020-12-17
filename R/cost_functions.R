@@ -6,34 +6,36 @@
   dist <- switch(metric, 
          "Lp" = causalOT::cost_calc_lp(x,y,ground_p = power, direction = direction),
          "mahalanobis" = causalOT::cost_mahalanobis(x,y, ground_p = power, direction = direction),
-         "RKHS" = causalOT::cost_RKHS(X=x, Y=y, rkhs.args = rkhs.args, estimand = estimand, ...))
+         "RKHS" = causalOT::cost_RKHS(X = x, Y = y, rkhs.args = rkhs.args, estimand = estimand, ...))
   
   return(dist)
   
 }
 
-cost_fun <- function(x, z, power = 2, metric = c("mahalanobis","Lp","RKHS"), 
+cost_fun <- function(x, z, power = 2, metric = dist.metrics(), 
                      rkhs.args = NULL, estimand = "ATE", ...) {
   metric <- match.arg(metric)
   
   dist <- switch(metric, 
                  "Lp" = cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
                  "mahalanobis" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "RKHS" = causalOT::cost_RKHS(X=x, z=z, rkhs.args = rkhs.args, estimand = estimand, ...))
+                 "sdLp" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
+                 "RKHS" = causalOT::cost_RKHS(X = x, z = z, rkhs.args = rkhs.args, estimand = estimand, ...))
   
   return(dist)
   
 }
 
-cost_metric_calc <- function(x,z,ground_p, metric = c("mahalanobis","Lp"), estimand) {
+cost_metric_calc <- function(x,z,ground_p, metric = c("mahalanobis","Lp","sdLp"), estimand) {
   direction <- "rowwise"
   metric <- match.arg(metric)
   
   cost_function <- switch(metric,
                           "Lp" = "cost_calc_lp",
-                          "mahalanobis" = "cost_mahalanobis")
+                          "mahalanobis" = "cost_mahalanobis",
+                          "sdLp" = "cost_calc_sdlp")
   
-  if(estimand == "ATT" | estimand == "ATC") {
+  if (estimand == "ATT" | estimand == "ATC") {
     return(match.fun(cost_function)(X = x[z == 0, , drop = FALSE], 
                                     Y = x[z == 1, , drop = FALSE], ground_p = ground_p, direction = direction))
   } else if (estimand == "ATE") {
@@ -47,15 +49,15 @@ cost_metric_calc <- function(x,z,ground_p, metric = c("mahalanobis","Lp"), estim
 cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")) {
   
   dir <- match.arg(direction)
-  if(!is.matrix(X)) {
+  if (!is.matrix(X)) {
     X <- as.matrix(X)
   }
-  if(!is.matrix(Y)) {
+  if (!is.matrix(Y)) {
     Y <- as.matrix(Y)
   }
-  if(dir == "rowwise") {
+  if (dir == "rowwise") {
     if (ncol(X) != ncol(Y)) {
-      stop("ncol X and Y should be equal. They can different numbers of observations")
+      stop("ncol X and Y should be equal. They can have different numbers of observations")
     }
     X <- t(X)
     Y <- t(Y)
@@ -69,11 +71,40 @@ cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")
   return(causalOT::cost_calculation_(X,Y,as.double(ground_p))) 
 }
 
+cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")) {
+  dir <- match.arg(direction)
+  if (!is.matrix(X)) {
+    X <- as.matrix(X)
+  }
+  if (!is.matrix(Y)) {
+    Y <- as.matrix(Y)
+  }
+  if (dir == "rowwise") {
+    if (ncol(X) != ncol(Y)) {
+      stop("ncol X and Y should be equal. They can have different numbers of observations")
+    }
+    X <- t(X)
+    Y <- t(Y)
+  } else {
+    if (nrow(X) != nrow(Y)) {
+      stop("Number of covariates of X and Y should be equal.")
+    }
+  }
+  stopifnot(ground_p > 0)
+  
+  scale <- 1/(matrixStats::rowSds(X) * 0.5 + 0.5 * matrixStats::rowSds(Y))
+  
+  X <-  scale * X
+  Y <-  scale * Y
+  
+  return(causalOT::cost_calculation_(X,Y,as.double(ground_p))) 
+}
+
 cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")) {
   
   dir <- match.arg(direction)
   
-  if(dir == "rowwise") {
+  if (dir == "rowwise") {
     if (ncol(X) != ncol(Y)) {
       stop("ncol X and Y should be equal. They can different numbers of observations")
     }

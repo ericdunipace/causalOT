@@ -5,7 +5,7 @@ testthat::test_that("check RKHS kernel works", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("Lp")
+  metric <- c("Lp")
   power <- c(1,2)
   solver <- "gurobi"
   estimands <- c("ATT", "ATC", "cATE","ATE")
@@ -39,7 +39,7 @@ testthat::test_that("check RKHS kernel works with hyper param opt", {
   nsims <- 1
   overlap <- "low"
   design <- "A"
-  distance <- c("Lp")
+  metric <- c("Lp")
   power <- c(1,2)
   solver <- "gurobi"
   estimands <- c("ATT", "ATC", "ATE")
@@ -58,5 +58,38 @@ testthat::test_that("check RKHS kernel works with hyper param opt", {
                                                   solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
                                                   p = power[1], metric = "mahalanobis", iter = 10))
   }
+  
+})
+
+testthat::test_that("check RKHS kernel optimal for hainmueller", {
+  set.seed(23483)
+  n <- 2^9
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "B"
+  metric <- c("mahalanobis")
+  kernel <- "polynomial"
+  power <- c(1,2)
+  solver <- "gurobi"
+  estimands <- c("ATT", "ATC", "cATE","ATE")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  
+  data$gen_data()
+  
+  #### run sims  ####
+  # debugonce(calc_weight_RKHS)
+  # debugonce(RKHS_param_opt)
+  testthat::expect_silent(out <- calc_weight_RKHS(data, estimand = "ATE",  opt.hyperparam = TRUE,
+                                                  p = 2:3, metric = metric, kernel = kernel,
+                                                  opt.method = "stan", verbose = FALSE,
+                                                  algorithm = "LBFGS"))
+  
+  est <- estimate_effect(data = data, weights = out, target = "ATE")
+  
+  # testthat::expect_lte( abs(est$estimate - 0), 1)
   
 })

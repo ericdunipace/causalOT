@@ -9,3 +9,7 @@ ot.methods <- function() {
            "Wasserstein",
            "Constrained Wasserstein"))
 }
+
+dist.metrics <- function() {
+  c("Lp", "mahalanobis", "RKHS", "sdLp")
+}
