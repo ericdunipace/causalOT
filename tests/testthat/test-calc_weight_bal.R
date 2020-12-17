@@ -421,7 +421,7 @@ testthat::test_that("works for Wass RKHS, opt", {
                                                            rkhs.args = rkhs.argz,
                                                            metric = metric,
                                                            solver = "cplex"))
-  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  for (w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -443,7 +443,7 @@ testthat::test_that("works for Wass RKHS, opt", {
                                                            metric = metric,
                                                            method = "Wasserstein",
                                                            solver = "mosek"))
-  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  for (w in weights) testthat::expect_equal(names(w), arg.names)
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
