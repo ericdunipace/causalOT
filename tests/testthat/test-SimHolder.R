@@ -194,7 +194,7 @@ testthat::test_that("SimHolder runs with formula options", {
   #### Sim param ####
   n <- 2^6
   p <- 6
-  nsims <- 2
+  nsims <- 1
   overlap <- "high"
   design <- "A"
   distance <- c("Lp", "mahalanobis","RKHS")
@@ -208,7 +208,7 @@ testthat::test_that("SimHolder runs with formula options", {
                               design = design, overlap = overlap)
   # SimHolder$debug("initialize")
   # SimHolder$debug("update")
-  # SimHolder$debug("estimate")
+  SimHolder$debug("estimate")
   # SimHolder$debug("model_estimate")
   # SimHolder$debug("get_delta")
   # SimHolder$debug("method.setup")
@@ -217,7 +217,7 @@ testthat::test_that("SimHolder runs with formula options", {
   # SimHolder$debug("max.cond.calc")
   sh <- SimHolder$new(nsim = nsims,
                       dataSim = original,
-                      grid.search = FALSE,
+                      grid.search = TRUE,
                       truncations = std_mean_diff,
                       standardized.difference.means = std_mean_diff,
                       outcome.model = list("lm"),
@@ -230,7 +230,8 @@ testthat::test_that("SimHolder runs with formula options", {
                                                                 "z ~ . "),
                                                 SBW = list("~.+0",
                                                            "~. + .*.+0"),
-                                                "Constrained Wasserstein" = "~.+0"),
+                                                "Constrained Wasserstein" = list(NA, "~.+0"),
+                                                Wasserstein = list(NA, "~.+0")),
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
                                   metrics = distance,
