@@ -9,12 +9,16 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
   if (!is.null(form)) {
     form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
     mm <- model.matrix(form, data = data.frame(data$get_x()))
+    if (method == "Wasserstein" | method == "Constrained Wasserstein") {
+      bf <- list(mm = mm,
+                 K = dots$balance.constraints)
+    }
   } else {
     if (method == "SBW") {
       form <- formula(~ . + 0)
       mm <- model.matrix(form, data = data.frame(data$get_x()))
     } else {
-      mm <- NULL
+      bf <- NULL
     }
   }
   
@@ -66,21 +70,21 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
       list(qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
                    p=dots$p, estimand = "ATC", dist = dots$metric, cost = dots$cost,
                    rkhs.args = dots$rkhs.args, 
-                   add.joint = dots$add.joint, mm = mm),
+                   add.joint = dots$add.joint, bf = bf),
            qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
                    p=dots$p, estimand = "ATT", dist = dots$metric, cost = dots$cost,
                    rkhs.args = dots$rkhs.args, 
-                   add.joint = dots$add.joint, mm = mm))
+                   add.joint = dots$add.joint, bf = bf))
     } else if (est == "ATE") {
       qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
               p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
               rkhs.args = dots$rkhs.args, 
-              add.joint = dots$add.joint, mm = mm)
+              add.joint = dots$add.joint, bf = bf)
     } else {
       list(qp_wass(x=data$get_x(), z=data$get_z(), K = constraint,
                    p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
                    rkhs.args = dots$rkhs.args, 
-                   add.joint = dots$add.joint, mm = mm))
+                   add.joint = dots$add.joint, bf = bf))
     }
     
   } else if (meth == "Constrained Wasserstein") {
@@ -117,21 +121,21 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
       list(qp_wass_const(x=data$get_x(), z=data$get_z(), K=constraint, 
                    p=dots$p, estimand = "ATC", dist = dots$metric, 
                    cost = dots$cost, 
-                   rkhs.args = dots$rkhs.args,  mm = mm),
+                   rkhs.args = dots$rkhs.args,  bf = bf),
            qp_wass_const(x=data$get_x(), z=data$get_z(), K=constraint, 
                    p=dots$p, estimand = "ATT", 
                    dist = dots$metric, cost = dots$cost,
-                   rkhs.args = dots$rkhs.args,  mm = mm))
+                   rkhs.args = dots$rkhs.args,  bf = bf))
     } else if (est == "ATE") {
       qp_wass_const(x=data$get_x(), z=data$get_z(),K=constraint, 
               p=dots$p, estimand = est, 
               dist = dots$metric, cost = dots$cost,
-              rkhs.args = dots$rkhs.args,  mm = mm)
+              rkhs.args = dots$rkhs.args,  bf = bf)
     } else {
       list(qp_wass_const(x=data$get_x(), z=data$get_z(), K=constraint, 
                     p=dots$p, estimand = est, 
                     dist = dots$metric, cost = dots$cost,
-                    rkhs.args = dots$rkhs.args, mm = mm))
+                    rkhs.args = dots$rkhs.args, bf = bf))
     }
   } else if (meth == "RKHS" | meth == "RKHS.dose") {
     dots <- list(...)
@@ -185,6 +189,10 @@ quadprog.data.frame <- function(data, constraint,
   if (!is.null(form)) {
     form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
     mm <- model.matrix(form, data = x.df)
+    if (method == "Wasserstein" | method == "Constrained Wasserstein") {
+      bf <- list(mm = mm,
+                 K = dots$balance.constraints)
+    }
   } else {
     if (method == "SBW") {
       form <- formula(~ . + 0)
@@ -240,18 +248,18 @@ quadprog.data.frame <- function(data, constraint,
     if(est == "cATE") {
       list(qp_wass(x=x, z=z, 
                    p=dots$p, estimand = "ATC", dist = dots$metric, cost = dots$cost,
-                   add.joint = dots$add.joint, mm = mm),
+                   add.joint = dots$add.joint, bf = bf),
            qp_wass(x=x, z=z,
                    p=dots$p, estimand = "ATT", dist = dots$metric, cost = dots$cost,
-                   add.joint = dots$add.joint, mm = mm))
+                   add.joint = dots$add.joint, bf = bf))
     } else if (est == "ATE") {
       qp_wass(x=x, z=z,
               p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
-              add.joint = dots$add.joint, mm = mm)
+              add.joint = dots$add.joint, bf = bf)
     } else {
       list(qp_wass(x=x, z=z,
                    p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
-                   add.joint = dots$add.joint, mm = mm))
+                   add.joint = dots$add.joint, bf = bf))
     }
     
   } else if (meth == "Constrained Wasserstein") {
@@ -287,18 +295,18 @@ quadprog.data.frame <- function(data, constraint,
     if (est == "cATE") {
       list(qp_wass_const(x=x, z=z,K=constraint, 
                    p=dots$p, estimand = "ATC", dist = dots$metric, cost = dots$cost,
-                   mm = mm),
+                   bf = bf),
            qp_wass_const(x=x, z=z,K=constraint, 
                    p=dots$p, estimand = "ATT", dist = dots$metric, cost = dots$cost,
-                   mm = mm))
+                   bf = bf))
     } else if (est == "ATE") {
       qp_wass_const(x=x, z=z,K=constraint, 
               p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
-              mm = mm)
+              bf = bf)
     } else {
       list(qp_wass_const(x=x, z=z, K=constraint, 
                          p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
-                         mm = mm))
+                         bf = bf))
     }
   } else if (meth == "RKHS" | meth == "RKHS.dose") {
     dots <- list(...)
@@ -440,7 +448,7 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
 qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT", 
                                                        "ATE", "feasible"),
                           dist=c("Lp", "mahalanobis","RKHS"), cost = NULL,
-                          rkhs.args = NULL, mm = NULL) {
+                          rkhs.args = NULL, bf = NULL) {
   estimand <- match.arg(estimand)
   stopifnot(is.numeric(p))
   stopifnot(length(p) == 1)
@@ -486,7 +494,7 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
   marg_const_n <- 0
   
   # Qmat
-  if(estimand == "ATT") {
+  if (estimand == "ATT") {
     # q_mat <- matrix(0, n0,n1*n0)
     n1_idx <- seq(1,n0*n1,n0)
     q_s <- Matrix::sparseMatrix(i = rep(1:n0, each = n1) , 
@@ -496,24 +504,32 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     # for(i in 1:n0) q_mat[i, (i-1) + n1_idx] <- 1
     marg_mass <- 1/n0
     marg_n <- n0
-    marg_const_mat <- Matrix::sparseMatrix(i = rep(1:n1, each = n0),
-                                           j = c(sapply(0:(n1 - 1), function(i) i * n0 + 1:n0)),
-                                           x = rep(1,n0 * n1),
-                                           dims = c(n1, n0 * n1), giveCsparse = FALSE)
+    marg_const_mat <- vec_to_col_constraints(n0,n1)
+      
+      # Matrix::sparseMatrix(i = rep(1:n1, each = n0),
+      #                                      j = c(sapply(0:(n1 - 1), function(i) i * n0 + 1:n0)),
+      #                                      x = rep(1,n0 * n1),
+      #                                      dims = c(n1, n0 * n1), giveCsparse = FALSE)
     # marg_const_mat <- matrix(0, n1,n1*n0)
     # for(i in 1:n1) marg_const_mat[i, (i-1) * n0 + (1:n0)] <- 1
     marg_const <- rep( 1 / n1, n1)
     marg_const_n <- n1
     
-    if (!is.null(mm)) {
+    if (!is.null(bf)) {
+      if (!is.list(bf)) stop("Must specify balance contraints for balance functions.
+                            calc_weight(data, constraints = list(wass = ...,
+                            balance.constraints = ...), formula)")
+      mm  <- bf$mm
+      
       mm0 <- mm[z == 0,, drop = FALSE]
       mm1 <- mm[z == 1,, drop = FALSE ]
       
       mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 +
                       matrixStats::colVars(mm1) * 0.5 )
       
-      mmbal <- mm0
+      mmbal <-  Matrix::crossprod(mm0, vec_to_row_constraints(n0,n1))
       mmtarg  <- colMeans(mm1)
+      
     }
     # q_m <- (diag(1, n0, n0) - matrix(1/n0, n0,n0))
     # q_m <- matrix(-1/n0, n0,n0)
@@ -527,24 +543,31 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     
     marg_mass <- 1/n1
     marg_n <- n1
-    n1_idx <- seq(1,n0*n1,n0)
-    marg_const_mat <- Matrix::sparseMatrix(i = rep(1:n0, each = n1),
-                                           j = c(sapply(0:(n0-1), function(i) i + n1_idx)),
-                                           x= rep.int(1,n0*n1),
-                                           dims = c(n0, n0*n1), giveCsparse = FALSE)
+    # n1_idx <- seq(1,n0*n1,n0)
+    marg_const_mat <- vec_to_row_constraints(n0,n1)
+      
+      # Matrix::sparseMatrix(i = rep(1:n0, each = n1),
+      #                                      j = c(sapply(0:(n0-1), function(i) i + n1_idx)),
+      #                                      x= rep.int(1,n0*n1),
+      #                                      dims = c(n0, n0*n1), giveCsparse = FALSE)
     
     marg_const <- rep.int( 1/n0, n0 )
     marg_const_n <- n0
     
-    if (!is.null(mm)) {
+    if (!is.null(bf)) {
+      if (!is.list(bf)) stop("Must specify balance contraints for balance functions.
+                            calc_weight(data, constraints = list(wass = ...,
+                            balance.constraints = ...), formula)")
+      mm  <- bf$mm
       mm0 <- mm[z == 0,, drop = FALSE]
       mm1 <- mm[z == 1,, drop = FALSE ]
       
       mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 +
                       matrixStats::colVars(mm1) * 0.5 )
       
-      mmbal <- mm1
+      mmbal <- Matrix::crossprod(mm1, vec_to_col_constraints(n0,n1))
       mmtarg  <- colMeans(mm0)
+      
     }
     # q_m <- (diag(1, n1, n1) - matrix(1/n1, n1,n1))
   } 
@@ -597,12 +620,12 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     
     cost_vec_n1 <- Matrix::sparseMatrix(i = rep(1, n*n1),
                                         j = 1:(n*n1),
-                                        x= c(cost_n1)^p,
+                                        x = c(cost_n1)^p,
                                         dims = c(1, n*n1))
     
     cost_vec_n0 <- Matrix::sparseMatrix(i = rep(1, n*n0),
                                         j = 1:(n*n0),
-                                        x= c(cost_n0)^p,
+                                        x = c(cost_n0)^p,
                                         dims = c(1, n0*n))
     
     sum_const_n1 <- Matrix::sparseMatrix(i = rep(1, n*n1),
@@ -621,15 +644,19 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     n0_idx <- 1:n0
     n_idx <- 1:n
     
-    marg_const_mat_n1 <- Matrix::sparseMatrix(i = rep(1:n, each = n1),
-                                              j = c(sapply(0:(n-1), function(i) i * n1 + n1_idx)),
-                                              x = rep(1,n*n1),
-                                              dims = c(n,n*n1))
+    marg_const_mat_n0 <- vec_to_col_constraints(n0,n)
+      
+      # Matrix::sparseMatrix(i = rep(1:n, each = n1),
+      #                                         j = c(sapply(0:(n-1), function(i) i * n1 + n1_idx)),
+      #                                         x = rep(1,n*n1),
+      #                                         dims = c(n,n*n1))
     
-    marg_const_mat_n0 <- Matrix::sparseMatrix(i = rep(1:n, each = n0),
-                                              j = c(sapply(0:(n-1), function(i) i* n0 + n0_idx)),
-                                              x= rep.int(1,n0*n),
-                                              dims = c(n, n0*n))
+    marg_const_mat_n1 <- vec_to_col_constraints(n1,n)
+      
+      # Matrix::sparseMatrix(i = rep(1:n, each = n0),
+      #                                         j = c(sapply(0:(n-1), function(i) i* n0 + n0_idx)),
+      #                                         x= rep.int(1,n0*n),
+      #                                         dims = c(n, n0*n))
     
     q_c <- Matrix::sparseMatrix(i = rep(1:n0, each = n) , 
                                 j = c(sapply(0:(n-1), function(i) i * n0 + n0_idx)),
@@ -642,7 +669,15 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
                                 dims = c(n1,n1*n), giveCsparse = FALSE)
     op <- vector("list",2)
     
-    if (!is.null(mm)) {
+    marg_const0 <- marg_const1 <- marg_const
+    
+    K_0 <- K[1]^p
+    K_1  <- K[2]^p
+    if (!is.null(bf)) {
+      if (!is.list(bf)) stop("Must specify balance contraints for balance functions.
+                            calc_weight(data, constraints = list(wass = ...,
+                            balance.constraints = ...), formula)")
+      mm  <- bf$mm
       mm0 <- mm[z == 0,, drop = FALSE]
       mm1 <- mm[z == 1,, drop = FALSE ]
       
@@ -652,23 +687,57 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
       mmse1  <- sqrt(matrixStats::colVars(mm1) * 0.5 + 
                        matrixStats::colVars(mm) * 0.5)
       
-      mmbal0  <- mm0
-      mmbal1  <- mm1
+      mmbal0  <- Matrix::crossprod(mm0, vec_to_row_constraints(n0,n))
+      mmbal1  <- Matrix::crossprod(mm1, vec_to_row_constraints(n1,n))
       mmtarg  <- colMeans(mm)
+      
+      cost_vec_n0 <- rbind(cost_vec_n0,
+                                 mmbal0,
+                                 -mmbal0)
+      
+      cost_vec_n1 <- rbind(cost_vec_n1,
+                                 mmbal1,
+                                 -mmbal1)
+      
+      if (all(is.null( bf$K[1])) | all(is.na(bf$K[1])))  bf$K[1] <- mean(sqrt(K_0^(1/p)))
+      
+      Kmm0 <- bf$K[[1]] * mmse0
+      Kmm_low0 <- -Kmm0 + mmtarg
+      Kmm_high0 <- Kmm0 + mmtarg
+      
+      K_0 <- c(K_0, Kmm_high0, -Kmm_low0)
+      
+      
+      if (all(is.null( bf$K[2])) | all(is.na(bf$K[2])))  {
+        if (length(bf$K) == 1) {
+          bf$K[2] <- bf$K[1]
+        } else {
+          bf$K[2] <- mean(sqrt(K_1^(1/p)))
+        }
+       
+      }
+      
+      Kmm1 <- bf$K[[2]] * mmse1
+      Kmm_low1 <- -Kmm1 + mmtarg
+      Kmm_high1 <- Kmm1 + mmtarg
+      
+      K_1 <- c(K_1, Kmm_high1, -Kmm_low1)
+      
+      
     }
     
-    op[[1]] <- list(obj = list(Q =  Matrix::crossprod(q_c),
+    op[[1]] <- list(obj = list(Q =  Matrix::Diagonal(n0*n, x = 1), #Matrix::crossprod(q_c),
                                L = c(rep(0, n0*n))),
                     LC = list(A = rbind(cost_vec_n0, sum_const_n0, marg_const_mat_n0),
-                              vals = c(K[1]^p, 1, marg_const),
-                              dir = c("L", rep("E", 1 + marg_n))))
+                              vals = c(K_0, 1, marg_const0),
+                              dir = c(rep("L", length(K_0)), rep("E", 1 + marg_n))))
     rm(q_c)
     
-    op[[2]] <- list(obj = list(Q =  Matrix::crossprod(q_t),
+    op[[2]] <- list(obj = list(Q =  Matrix::Diagonal(n1*n, x = 1), #Matrix::crossprod(q_t),
                                L = c(rep(0, n1*n))),
                     LC = list(A = rbind(cost_vec_n1, sum_const_n1, marg_const_mat_n1),
-                              vals = c(K[2]^p, 1, marg_const),
-                              dir = c("L", rep("E", 1 + marg_n))))
+                              vals = c(K_1, 1, marg_const1),
+                              dir = c(rep("L", length(K_1)), rep("E", 1 + marg_n))))
     rm(q_t)
     return(op)
   }
@@ -679,7 +748,7 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
   # q_self  <- Matrix::crossprod(q_s)
   # q_mult  <- Matrix::crossprod(q_m_chol, q_s)
   # q_cross  <- Matrix::crossprod(q_s)
-  Q0 <-  Matrix::crossprod(q_s)
+  Q0 <-  Matrix::Diagonal(n0*n1, x = 1) #Matrix::crossprod(q_s)
   rm(q_s)
   
   L0 <- c(rep(0, n0*n1))#simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
@@ -687,10 +756,22 @@ qp_wass_const <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
   obj <- list(Q = Q0,
               L = L0)
   
+  K <- K^p
+  if (!is.null(bf)) {
+    if (is.null( bf$K))  bf$K <- mean(sqrt(K^(1/p)))
+    Kmm <- bf$K * mmse
+    Kmm_low <- -Kmm + mmtarg
+    Kmm_high <- Kmm + mmtarg
+    
+    K <- c(K, Kmm_high, -Kmm_low)
+    
+    cost_vec <- rbind(cost_vec, mmbal, -mmbal)
+  }
+  
   LC <- list()
   LC$A <- rbind(cost_vec, sum_const, marg_const_mat)
-  LC$vals <- c(K^p, 1, marg_const)
-  LC$dir <- c("L", rep("E", 1 + marg_const_n))
+  LC$vals <- c(K, 1, marg_const)
+  LC$dir <- c(rep("L", length(K)), rep("E", 1 + marg_const_n))
   
   op <- list(obj = obj, LC = LC)
   return(op)
@@ -701,7 +782,7 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                                             "feasible"),
                     dist = dist.metrics(), cost = NULL,
                     rkhs.args = NULL, add.joint = FALSE,
-                    mm = NULL) {
+                    bf = NULL) {
   
   estimand <- match.arg(estimand)
   stopifnot(is.numeric(p))
@@ -812,24 +893,32 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     # for(i in 1:n0) q_mat[i, (i-1) + n1_idx] <- 1
     marg_mass <- 1/n0
     marg_n <- n0
-    marg_const_mat <- Matrix::sparseMatrix(i = rep(1:n1, each = n0),
-                                           j = c(sapply(0:(n1 - 1), function(i) i*n0 + 1:n0)),
-                                           x = rep(1, weight.dim),
-                                           dims = c(n1, weight.dim))
+    marg_const_mat <- vec_to_col_constraints(n0,n1)
+      
+      # Matrix::sparseMatrix(i = rep(1:n1, each = n0),
+      #                                      j = c(sapply(0:(n1 - 1), function(i) i*n0 + 1:n0)),
+      #                                      x = rep(1, weight.dim),
+      #                                      dims = c(n1, weight.dim))
     # marg_const_mat <- matrix(0, n1,n1*n0)
     # for(i in 1:n1) marg_const_mat[i, (i-1) * n0 + (1:n0)] <- 1
     marg_const <- rep(1/n1, n1)
     marg_const_n <- n1
     
     # handle mm
-    if (!is.null(mm)) {
+    if (!is.null(bf)) {
+      if (!is.list(bf)) stop("Must specify balance contraints for balance functions.
+                            calc_weight(data, constraints = ...,
+                            balance.constraints = ..., formula = ...)")
+      mm  <- bf$mm
+      
       mm0 <- mm[z == 0,, drop = FALSE]
       mm1 <- mm[z == 1,, drop = FALSE ]
       
-      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 + 
-                    matrixStats::colVars(mm1) * 0.5)
-      mmbal  <- mm0
-      mmtarg <- colMeans(mm1)
+      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 +
+                      matrixStats::colVars(mm1) * 0.5 )
+      
+      mmbal <-  Matrix::crossprod(mm0, vec_to_row_constraints(n0,n1))
+      mmtarg  <- colMeans(mm1)
       
     }
     
@@ -854,14 +943,19 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     marg_const <- rep.int( 1/n0, n0 )
     marg_const_n <- n0
     
-    if (!is.null(mm)) {
+    if (!is.null(bf)) {
+      if (!is.list(bf)) stop("Must specify balance contraints for balance functions.
+                            calc_weight(data, constraints = list(wass = ...,
+                            balance.constraints = ...), formula)")
+      mm  <- bf$mm
       mm0 <- mm[z == 0,, drop = FALSE]
       mm1 <- mm[z == 1,, drop = FALSE ]
       
-      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 + 
-                      matrixStats::colVars(mm1) * 0.5)
-      mmbal  <- mm1
-      mmtarg <- colMeans(mm0)
+      mmse  <- sqrt(matrixStats::colVars(mm0) * 0.5 +
+                      matrixStats::colVars(mm1) * 0.5 )
+      
+      mmbal <- Matrix::crossprod(mm1, vec_to_col_constraints(n0,n1))
+      mmtarg  <- colMeans(mm0)
       
     }
     # q_m <- (diag(1, n1, n1) - matrix(1/n1, n1,n1))
@@ -930,15 +1024,21 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     n0_idx <- 1:n0
     n_idx <- 1:n 
     
-    marg_const_mat_n1 <- Matrix::sparseMatrix(i = rep(1:n, each = n1),
-                                              j = c(sapply(0:(n - 1), function(i) i * n1 + n1_idx)),
-                                              x = rep(1, n * n1),
-                                              dims = c(n, n * n1))
+    marg_const_mat_n1 <- vec_to_col_constraints(n1,n)
+      
+      
+      # Matrix::sparseMatrix(i = rep(1:n, each = n1),
+      #                                         j = c(sapply(0:(n - 1), function(i) i * n1 + n1_idx)),
+      #                                         x = rep(1, n * n1),
+      #                                         dims = c(n, n * n1))
     
-    marg_const_mat_n0 <- Matrix::sparseMatrix(i = rep(1:n, each = n0),
-                                              j = c(sapply(0:(n - 1), function(i) i * n0 + n0_idx)),
-                                              x = rep.int(1, n0 * n),
-                                              dims = c(n, n0 * n))
+    marg_const_mat_n0 <- vec_to_col_constraints(n0,n)
+      
+      
+      # Matrix::sparseMatrix(i = rep(1:n, each = n0),
+      #                                         j = c(sapply(0:(n - 1), function(i) i * n0 + n0_idx)),
+      #                                         x = rep.int(1, n0 * n),
+      #                                         dims = c(n, n0 * n))
     
     if (is.null(K)) {
       sigma1 <- cov(x1)
@@ -1027,19 +1127,60 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
       K_vals_0 <- K_vals_1 <- K
     }
     
-    if (!is.null(mm)) {
+    K_vals_0 <- K_vals_0^p
+    K_vals_1  <- K_vals_1^p
+    if (!is.null(bf)) {
+      if (!is.list(bf)) stop("Must specify balance contraints for balance functions.
+                            calc_weight(data, constraints = list(wass = ...,
+                            balance.constraints = ...), formula)")
+      mm  <- bf$mm
       mm0 <- mm[z == 0,, drop = FALSE]
       mm1 <- mm[z == 1,, drop = FALSE ]
       
-      mmse0  <- sqrt(matrixStats::colVars(mm0) * 0.5 + 
-                      matrixStats::colVars(mm) * 0.5)
-      
-      mmse1  <- sqrt(matrixStats::colVars(mm1) * 0.5 + 
+      mmse0  <- sqrt(matrixStats::colVars(mm0) * 0.5 +
                        matrixStats::colVars(mm) * 0.5)
       
-      mmbal0  <- mm0
-      mmbal1  <- mm1
+      mmse1  <- sqrt(matrixStats::colVars(mm1) * 0.5 +
+                       matrixStats::colVars(mm) * 0.5)
+      
+      mmbal0  <- Matrix::crossprod(mm0, vec_to_row_constraints(n0,n))
+      mmbal1  <- Matrix::crossprod(mm1, vec_to_row_constraints(n1,n))
       mmtarg  <- colMeans(mm)
+      
+      cost_vec_n0 <- rbind(cost_vec_n0,
+                                 mmbal0,
+                                 -mmbal0)
+      
+      cost_vec_n1 <- rbind(cost_vec_n1,
+                                 mmbal1,
+                                 -mmbal1)
+      
+      if (is.null(bf$K[1])) {
+        warning("Setting arbitrary balance constraints...")
+        bf$K[1] <- mean(sqrt(K_vals_0))
+      }
+      Kmm0 <- bf$K[[1]] * mmse0
+      Kmm_low0 <- -Kmm0 + mmtarg
+      Kmm_high0 <- Kmm0 + mmtarg
+      
+      K_vals_0 <- c(K_vals_0, Kmm_high0, -Kmm_low0)
+      
+      
+      if (all(is.null(bf$K[2])) | all(is.na(bf$K[2]))) {
+        if (length(bf$K) == 1) {
+          bf$K <- rep(bf$K, 2)
+        } else {
+          bf$K[2] <- mean(sqrt(K_vals_1))
+        }
+        
+      }
+      Kmm1 <- bf$K[[2]] * mmse1
+      Kmm_low1 <- -Kmm1 + mmtarg
+      Kmm_high1 <- Kmm1 + mmtarg
+      
+      K_vals_1 <- c(K_vals_1, Kmm_high1, -Kmm_low1)
+      
+      
     }
     
     # q_c <- Matrix::sparseMatrix(i = rep(1:n0, each = n) , 
@@ -1057,9 +1198,9 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                     LC = list(A = rbind(sum_const_n0, marg_const_mat_n0,
                                         cost_vec_n0),
                               vals = c(1, marg_const,
-                                       K_vals_0^p),
+                                       K_vals_0),
                               dir = c(rep("E", 1 + marg_n),
-                                      rep("L", d_plus)
+                                      rep("L", length(K_vals_0))
                                       )))
     # rm(q_c)
     
@@ -1068,9 +1209,9 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
                     LC = list(A = rbind(sum_const_n1, marg_const_mat_n1,
                                         cost_vec_n1),
                               vals = c(1, marg_const,
-                                       K_vals_1^p),
+                                       K_vals_1),
                               dir = c(rep("E", 1 + marg_n),
-                                      rep("L", d_plus))))
+                                      rep("L", length(K_vals_1)))))
     # rm(q_t)
     return(op)
   }
@@ -1107,6 +1248,18 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
     stop("K must be length 1 or ncol covariates +1 for ATC/ATT")
   }
 
+  K_vals <- K_vals^p
+  if (!is.null(bf)) {
+    if (is.null(bf$K)) bf$K <- mean(sqrt(K_vals^(1/p)))
+    Kmm <- bf$K * mmse
+    Kmm_low <- -Kmm + mmtarg
+    Kmm_high <- Kmm + mmtarg
+    
+    K_vals <- c(K_vals, Kmm_high, -Kmm_low)
+    
+    cost_vec <- rbind(cost_vec, mmbal, -mmbal)
+  }
+  
   # K_vals <- rep(K, d_plus)
   L0 <- rep(0, n0 * n1) #simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
   #nrow = 1, ncol = n0*n1) #c(rep(0, n0*n1)) #c( w = rep( -marg_mass, n0 * n1 ) )
@@ -1117,9 +1270,9 @@ qp_wass <- function(x, z, K = NULL, p = 2, estimand = c("ATC", "ATT", "ATE",
   LC$A <- rbind(sum_const, 
                 marg_const_mat, 
                 cost_vec)
-  LC$vals <- c(1, marg_const, K_vals^p)
+  LC$vals <- c(1, marg_const, K_vals)
   LC$dir <- c(rep("E", 1 + marg_const_n),
-              rep("L", d_plus))
+              rep("L", length(K_vals)))
   
   op <- list(obj = obj, LC = LC)
   return(op)
