@@ -199,6 +199,7 @@ quadprog.data.frame <- function(data, constraint,
       mm <- model.matrix(form, data = x.df)
     } else {
       mm <- NULL
+      bf <- NULL
     }
   }
   

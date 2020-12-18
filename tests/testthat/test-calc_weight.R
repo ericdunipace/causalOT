@@ -153,18 +153,36 @@ testthat::test_that("works for Const Wass, grid/formula", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-  for (e in estimates) {
-    testthat::expect_warning(weight.check[[e]] <- calc_weight(data = data, 
+    weight.check[["ATT"]] <- calc_weight(data = data, 
                                      constraint = NULL,
                                      grid.search = TRUE,
-                                     estimand = e, 
+                                     estimand = "ATT", 
                                      formula = "~.+0",
                                      balance.constraints = 0.2,
                                      method = "Constrained Wasserstein",
                                      solver = "mosek",
                                      wass.method = "greenkhorn",
-                                     iter = 10))
-  }
+                                     iter = 10)
+    weight.check[["ATC"]] <- calc_weight(data = data, 
+                                         constraint = NULL,
+                                         grid.search = TRUE,
+                                         estimand = "ATT", 
+                                         formula = "~.+0",
+                                         balance.constraints = 0.2,
+                                         method = "Constrained Wasserstein",
+                                         solver = "mosek",
+                                         wass.method = "greenkhorn",
+                                         iter = 10)
+    weight.check[["ATE"]] <- calc_weight(data = data, 
+                                         constraint = NULL,
+                                         grid.search = TRUE,
+                                         estimand = "ATT", 
+                                         formula = "~.+0",
+                                         balance.constraints = 0.2,
+                                         method = "Constrained Wasserstein",
+                                         solver = "mosek",
+                                         wass.method = "greenkhorn",
+                                         iter = 10)
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
 })
