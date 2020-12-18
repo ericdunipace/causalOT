@@ -235,7 +235,7 @@ wass_grid_search <- function(data, grid = NULL,
                            add.joint = add.joint,
                            ...
   )
-  boot.args <- boot.args[!duplicated(boot.args)]
+  boot.args <- boot.args[!duplicated(names(boot.args))]
   boot.n <- lapply(names(boot.args), as.name)
   names(boot.n) <- names(boot.args)
   b.call <- as.call(c(list(quote(sapply)), boot.n))
@@ -601,7 +601,7 @@ wass_grid_default <- function(x, z, p, data, cost, estimand, method, metric, was
   args <- list(x = x, z = z, p = p, data = data, 
                cost = cost, estimand = estimand, metric = metric, 
                wass.iter = wass.iter, ...)
-  args <- args[!duplicated(args)]
+  args <- args[!duplicated(names(args))]
   n.args <- lapply(names(args), as.name)
   names(n.args) <- names(args)
   f.call <- as.call(c(list(get_defaults), args))

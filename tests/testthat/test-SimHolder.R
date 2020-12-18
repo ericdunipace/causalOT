@@ -235,6 +235,8 @@ testthat::test_that("SimHolder runs with formula options", {
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
                                   metrics = distance,
+                                  wass.iter = 10,
+                                  wass.method = "networkflow",
                                   constrained.wasserstein.target = c("SBW")
                       ))
   # the cost of one was all NA and the weights too...
