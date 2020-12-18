@@ -25,7 +25,7 @@ LinkingTo:
     Rcpp (>= 0.12.0),
     RcppEigen (>= 0.3.3.3.0),
     RcppParallel,
-    rstan (>= 2.18.1),
+    rstan (>= 2.19.3),
     StanHeaders (>= 2.19.2)
 Suggests: 
     testthat (>= 2.1.0),

@@ -157,7 +157,21 @@ wass_grid_search <- function(data, grid = NULL,
   
   wass.dat <- cbind(z = z, x)
   
-  if (is.null(dots$cost)) {
+  cost <- dots$cost
+  rerun <- FALSE
+  if (method == "Wasserstein" ) {
+    if (estimand == "ATE")  {
+      if ( length(cost[[1]]) != (ncol(x) + 1) | 
+                              length(cost[[2]]) != (ncol(x) + 1)) {
+        rerun <- TRUE 
+      }
+    } else {
+      if ( length(cost) != (ncol(x) + 1) ) {
+        rerun <- TRUE
+      }
+    }
+  }
+  if (is.null(cost) | rerun) {
     # if(is.null(dots$p)) dots$p <- 2
     # if(is.null(dots$metric)) dots$metric <- "mahalanobis"
     
@@ -175,11 +189,11 @@ wass_grid_search <- function(data, grid = NULL,
     cost <- dots$cost
   }
   
-  if (is.null(grid)) {
+  if (is.null(grid) | is.na(grid)) {
     gargs <- list(x = x, z = z, p = p, data = data, cost = cost, estimand = estimand,
                   method = method, metric = metric, wass.iter = wass.iter, 
                   add.joint = add.joint, ...)
-    gargs <- gargs[!duplicated(gargs)]
+    gargs <- gargs[!duplicated(names(gargs))]
     n.gargs <- lapply(names(gargs), as.name)
     names(n.gargs) <- names(gargs)
     g.call <- as.call(c(list(as.name("wass_grid_default")), n.gargs))

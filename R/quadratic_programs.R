@@ -6,7 +6,7 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
   dots <- list(...)
   
   form <- dots$formula
-  if (!is.null(form)) {
+  if (isTRUE(!is.null(form)) & isTRUE(!is.na(form))) {
     form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
     mm <- model.matrix(form, data = data.frame(data$get_x()))
     if (method == "Wasserstein" | method == "Constrained Wasserstein") {
@@ -186,7 +186,7 @@ quadprog.data.frame <- function(data, constraint,
   
   dots <- list(...)
   form <- dots$formula
-  if (!is.null(form)) {
+  if (isTRUE(!is.null(form)) & isTRUE(!is.na(form))) {
     form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
     mm <- model.matrix(form, data = x.df)
     if (method == "Wasserstein" | method == "Constrained Wasserstein") {

@@ -678,6 +678,21 @@
                                               }
                                             }
                                           },
+                                          get_balconst = function(opts, estimand, method) {
+                                            if (method == "Constrained Wasserstein" | method == "Wasserstein" ) {
+                                                tf.est <- private$temp.output[["SBW"]]$estimand == estimand
+                                                tf.delta <- private$temp.output[["SBW"]]$formula == opts$formula
+                                                if (all(is.na(tf.delta))) tf.delta <- rep(TRUE, length(tf.delta))
+                                                select.rows <- which(tf.delta & tf.est)[1]
+                                                temp.delt <- private$temp.output[["SBW"]][select.rows, "delta"][[1]]
+                                                # delta <- temp.wass$dist[[idx]]
+                                             
+                                              return(temp.delt)
+                                              
+                                            } else {
+                                              return(NA)
+                                            } 
+                                          },
                                           get_delta = function(opts, estimand, method) {
                                             if(method == "Constrained Wasserstein" & !private$grid.search) {
                                               if(private$cwass.targ == "SBW"){
@@ -996,7 +1011,7 @@
                                               # for(j in private$RKHS$metric){
                                               
                                               for (wass_p in private$wass_powers) {
-                                                if (estimand == "cATE"|estimand == "ATE" | estimand == "feasible") {
+                                                if (estimand == "cATE" | estimand == "ATE" | estimand == "feasible") {
                                                   cost.list <- private$costs[["RKHS"]][[estimand]]#[[j]]
                                                   # cost.0 <- cost.list[[1]][,private$simulator$get_z() == 1]
                                                   # cost.1 <- cost.list[[2]][,private$simulator$get_z() == 0]
@@ -1031,7 +1046,7 @@
                                                 }
                                                 
                                                 
-                                                for(ground_p in private$ground_powers) {
+                                                for (ground_p in private$ground_powers) {
                                                   wass.df[["dist"]][[wass_iter]] <- temp.wass
                                                   wass_iter <- wass_iter + 1L
                                                 }
@@ -1052,7 +1067,7 @@
                                             method <- as.character(cur$method[[1]])
                                             if (grid.search & method == "SBW") delta <- private$standardized.difference.means
                                             if (grid.search & method == "RKHS.dose") delta <- private$RKHS$lambdas
-                                            if (grid.search & method == "Wasserstein") delta <- private$standardized.difference.means
+                                            # if (grid.search & method == "Wasserstein") delta <- private$standardized.difference.means
                                             if (grid.search & method == "Constrained Wasserstein") delta <- private$wasserstein.distance.constraints
                                             if (method == "RKHS") {
                                               if (opt.hyperparam & !is.null(private$RKHS.opt[[estimand]]) ) {
@@ -1102,6 +1117,7 @@
                                                             iter = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             maxit = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             metric = metric,
+                                                            balance.constraints = 0.3,
                                                             add.joint = private$wass.opt$add.joint,
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
