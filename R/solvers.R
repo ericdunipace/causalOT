@@ -125,19 +125,19 @@ mosek_solver <- function(qp, ...) {
   # model$dparam <- list(ANA_SOL_INFEAS_TOL = 1e-6)
   
   res <- Rmosek::mosek(problem = model, opts = opts)
-  if(res$response$code != 0) {
+  if (res$response$code != 0) {
     # browser()
     warning("Algorithm did not converge!!! Mosek solver message: ", res$response$msg)
   }
   sol <- (res$sol$itr$xx)[1:num_param]
-  sol[sol<0] <- 0
+  sol[sol < 0] <- 0
   
-  if(all(sol == 0)) stop("All weights are 0!")
+  if (all(sol == 0)) stop("All weights are 0!")
   # obj_total <- out$obj
   # 
   # status <- out$status
   # 
-  # dual_vars <- out$pi[-length(out$pi)]
+  # dual_vars <- res$sol$itr$slc - res$sol$itr$suc
   return(sol)
 }
 

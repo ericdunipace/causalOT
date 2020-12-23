@@ -368,31 +368,34 @@ testthat::test_that("works for SBW grid", {
                                                        constraint = constraint, 
                                                        grid.search = TRUE,
                                                        grid = 10,
-                                                       estimate = e, 
+                                                       estimand = e, 
                                                        method = "SBW",
                                                        solver = "gurobi"))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
-  sapply(weights, function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
+  sapply(weights[1:3], function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
+  sapply(weights[4], function(w) testthat::expect_equal(w$args$standardized.mean.difference , c(10,10)))
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = constraint,
                                                        grid.search = TRUE,
                                                        grid = 10,
-                                                       estimate = e, 
+                                                       estimand = e, 
                                                        method = "SBW",
                                                        solver = "mosek"))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
-  sapply(weights, function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
+  sapply(weights[1:3], function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
+  sapply(weights[4], function(w) testthat::expect_equal(w$args$standardized.mean.difference , c(10,10)))
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = constraint,
                                                        grid.search = TRUE,
                                                        grid = 10,
-                                                       estimate = e, 
+                                                       estimand = e, 
                                                        method = "SBW",
                                                        solver = "cplex"))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
-  sapply(weights, function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
+  sapply(weights[1:3], function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
+  sapply(weights[4], function(w) testthat::expect_equal(w$args$standardized.mean.difference , c(10,10)))
   
   
   

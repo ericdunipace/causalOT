@@ -21,10 +21,11 @@ log_sum_exp2 <- function(x,y) {
 }
 
 renormalize <- function(x) {
-  if(any(x < 0)) {
+  if (any(x < 0)) {
     warning("Negative weights found! Normalizing to sum to 1 with less accurate function. Make sure negative weights make sense for your problem")
     return(x/sum(x))
   }
+  if (all(x == 0)) return(rep(0, length(x)))
   l_x <- log(x)
   return(exp(l_x - log_sum_exp(l_x)))
 }

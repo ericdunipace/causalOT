@@ -23,25 +23,27 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
   }
   
   qp <- if (meth == "SBW") {
-    if (length(constraint) != ncol(mm))  {
-      K <- rep(constraint, ncol(mm))[1:ncol(mm)]
-    } else {
+    # if (length(constraint) != ncol(mm))  {
+    #   K <- rep(constraint, ncol(mm))[1:ncol(mm)]
+    # } else {
       K <- constraint
-    }
+    # }
     if (est == "cATE") {
       list(qp_sbw(x = mm, z = data$get_z(), K = K, estimand = "ATC"),
            qp_sbw(x = mm, z = data$get_z(), K = K, estimand = "ATT"))
+    } else if (est == "ATE") {
+      qp_sbw(x = mm, z = data$get_z(), K = K, estimand = est)
     } else {
       list(qp_sbw(x = mm, z = data$get_z(), K = K, estimand = est))
     } 
   } else if (meth == "Wasserstein") {
     
-    if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
-    if(is.null(dots$add.joint)) dots$add.joint <- FALSE
+    if (is.null(dots$p)) dots$p <- 2
+    if (is.null(dots$metric)) dots$metric <- "mahalanobis"
+    if (is.null(dots$add.joint)) dots$add.joint <- FALSE
     
-    if(dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
-      if(is.null(dots$opt.method)) dots$opt.method <- "stan"
+    if (dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
+      if (is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
                          "ATT" = "ATT",
                          "ATC" = "ATC",
@@ -209,19 +211,21 @@ quadprog.data.frame <- function(data, constraint,
     } else {
       K <- constraint
     }
-    if(est == "cATE") {
-      list(qp_sbw(x=mm, z = z, K = K, estimand = "ATC"),
-           qp_sbw(x=mm, z = z, K = K, estimand = "ATT"))
+    if (est == "cATE") {
+      list(qp_sbw(x = mm, z = z, K = K, estimand = "ATC"),
+           qp_sbw(x = mm, z = z, K = K, estimand = "ATT"))
+    } else if (est == "ATE") {
+      qp_sbw(x = mm, z = z, K = K, estimand = est)
     } else {
-      list(qp_sbw(x=mm, z = z, K = K, estimand = est))
+      list(qp_sbw(x = mm, z = z, K = K, estimand = est))
     } 
   } else if (meth == "Wasserstein") {
     # dots <- list(...)
-    if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
-    if(is.null(dots$add.joint)) dots$add.joint <- FALSE
-    if(dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
-      if(is.null(dots$opt.method)) dots$opt.method <- "stan"
+    if (is.null(dots$p)) dots$p <- 2
+    if (is.null(dots$metric)) dots$metric <- "mahalanobis"
+    if (is.null(dots$add.joint)) dots$add.joint <- FALSE
+    if (dots$metric == "RKHS" & is.null(dots$rkhs.args)) {
+      if (is.null(dots$opt.method)) dots$opt.method <- "stan"
       temp.est <- switch(estimand,
                          "ATT" = "ATT",
                          "ATC" = "ATC",
@@ -350,33 +354,93 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
     z <- 1 - z
   }
   
-  stopifnot(length(K) == ncol(x))
-  x1 <- x[z==1,,drop=FALSE]
-  x0 <- x[z==0,,drop=FALSE]
+  x1 <- x[z == 1,,drop = FALSE]
+  x0 <- x[z == 0,,drop = FALSE]
   x1_var <- colVar(x1)
   x0_var <- colVar(x0)
-  pool_sd <- sqrt((x1_var + x0_var)/2)
-  K_sd <- K * pool_sd
-  K_upr <- K_sd
-  K_lwr <- (-K_sd)
   
-  if(est == "ATE") {
+  if (est != "ATE") {
+    pool_sd <- sqrt((x1_var + x0_var) / 2)
+    
+    if (length(K) != 1 & length(K) != ncol(x)) stop("Constraint must be length 1 or length of number of columns for estimand ", estimand, " in SBW")
+    
+    K_sd <- K * pool_sd
+    K_upr <- K_sd
+    K_lwr <- (-K_sd)
+  } else {
+    x_var <- colVar(x)
+    xm <- colMeans(x)
+    pool_sd_0 <- sqrt((x_var + x0_var) / 2)
+    pool_sd_1 <- sqrt((x1_var + x_var) / 2)
+    
+    if (length(K) != 2) {
+      if (is.numeric(K) & length(K) == 1) {
+        K <- c(K, K)
+      } else if (is.numeric(K) & length(K) == ncol(x)) {
+        K <- list(K, K)
+      } else {
+        stop("Constraint must be a length 1 or 2 numeric vector or a length 2 list of numeric vectors or appropriate length ",est, " in SBW")
+      }
+    }
+    
+    K_sd_0 <- K[[1]] * pool_sd_0
+    K_sd_1 <- K[[2]] * pool_sd_1
+    
+    K_upr_0  <- K_sd_0 + xm
+    K_lwr_0  <- (-K_sd_0 + xm)
+    K_upr_1  <- K_sd_1 + xm
+    K_lwr_1  <- (-K_sd_1 + xm)
+  }
+  
+  if (est == "ATE") {
     n <- nrow(x)
     n1 <- nrow(x1)
     n0 <- nrow(x0)
     
     d <- ncol(x)
-    Q0 <- Matrix::Diagonal(n, 1) 
-    A1 <- Matrix::sparseMatrix(i = c(rep(1,n0),
-                                     rep(2,n1)),
-                               j = c(1:n0, n0+1:n1),
-                               x = 1,
-                               dims = c(2,n))
+    Q0_0 <- Matrix::Diagonal(n0, 1) 
+    Q0_1 <- Matrix::Diagonal(n1, 1)
     
-    x_constraint <- t(cbind(rbind(x0,matrix(0,nrow(x1),d)),rbind(matrix(0,nrow(x0),d),x1)))
-    xm <- rep(colMeans(x), 2)
-    K_upr <- rep(K_upr,2) + xm
-    K_lwr <- rep(K_lwr,2) + xm
+    A1_0 <- Matrix::sparseMatrix(i = rep(1, n0),
+                                 j = 1:n0,
+                                 x = 1,
+                                 dims = c(1, n0))
+    A1_1 <- Matrix::sparseMatrix(i = rep(1, n1),
+                               j = 1:n1,
+                               x = 1,
+                               dims = c(1, n1))
+    
+    x_constraint_0 <- t(x0)
+    x_constraint_1 <- t(x1)
+    
+    
+    L0_0 <- c(w = rep(0, n0))
+    L0_1 <- c(w = rep(0, n1))
+    
+    
+    A2_0 <- x_constraint_0
+    A2_1 <- x_constraint_1
+    
+    A_1 <- rbind(A1_1, A2_1, A2_1)
+    A_0 <- rbind(A1_0, A2_0, A2_0)
+    
+    vals_0 <- c(rep(1, nrow(A1_0)), K_lwr_0, K_upr_0)
+    vals_1 <- c(rep(1, nrow(A1_1)), K_lwr_1, K_upr_1)
+    
+    dir_0 <- c(rep("E", nrow(A1_0)),rep("G",length(K_lwr_0)), rep("L",length(K_upr_0)))
+    dir_1 <- c(rep("E", nrow(A1_1)),rep("G",length(K_lwr_1)), rep("L",length(K_upr_1)))
+    
+    program_0 <- list(obj = list(Q = Q0_0, L = L0_0),
+                    LC = list(A = A_0, dir = dir_0,
+                              vals = vals_0))
+    
+    program_1 <- list(obj = list(Q = Q0_1, L = L0_1),
+                      LC = list(A = A_1, dir = dir_1,
+                                vals = vals_1))
+    
+    
+    return(list(program_0, program_1))
+    
   } else if (est != "feasible") {
     n <- nrow(x0)
     d <- ncol(x0)
@@ -386,7 +450,7 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
     K_lwr <- K_lwr + x1m
     Q0 <- Matrix::Diagonal(n, 1) 
     A1 <- matrix(1,nrow = 1, ncol = n)
-  } else if(est == "feasible") {
+  } else if (est == "feasible") {
     n <- nrow(x)
     d <- ncol(x)
     x_diff <- x * matrix(ifelse(z == 0, 1, -1), nrow=n, ncol=d)

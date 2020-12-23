@@ -208,7 +208,7 @@ testthat::test_that("SimHolder runs with formula options", {
                               design = design, overlap = overlap)
   # SimHolder$debug("initialize")
   # SimHolder$debug("update")
-  SimHolder$debug("estimate")
+  # SimHolder$debug("estimate")
   # SimHolder$debug("model_estimate")
   # SimHolder$debug("get_delta")
   # SimHolder$debug("method.setup")
@@ -235,8 +235,8 @@ testthat::test_that("SimHolder runs with formula options", {
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
                                   metrics = distance,
-                                  wass.iter = 10,
-                                  wass.method = "networkflow",
+                                  niter = 10,
+                                  method = "greenkhorn",
                                   constrained.wasserstein.target = c("SBW")
                       ))
   # the cost of one was all NA and the weights too...
@@ -262,7 +262,7 @@ testthat::test_that("SimHolder runs with formula options", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW', 'RKHS', 'NNM', 'Constrained Wasserstein', 'gp'))
+  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW', 'RKHS', 'NNM', 'Wasserstein','Constrained Wasserstein', 'gp'))
 })
 
 testthat::test_that("SimHolder runs,verbose", {

@@ -1,7 +1,7 @@
 mean_bal <- function(data, weights, ...) {
   
   if(!inherits(weights, "causalWeights")){
-    if(!all(names(weights) %in% c("w0","w1"))) stop("weights must be of class 'causalWeights' or be a list with named slots 'w0' and 'w1'.")
+    if(!any(names(weights) %in% c("w0","w1"))) stop("weights must be of class 'causalWeights' or be a list with named slots 'w0' and 'w1'.")
   }
   
   xs <- extract_x(data, ...)

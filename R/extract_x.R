@@ -18,7 +18,7 @@ extract_x.data.frame <- function(data, ...) {
     stop("must specify treatment indicator 'treatment.indicator' either by name or column number")
   }
   
-  tx.var <- if(is.character(tx_ind)) {
+  tx.var <- if (is.character(tx_ind)) {
     match(tx_ind, colnames(data))
   } else {
     tx_ind
@@ -35,7 +35,7 @@ extract_x.data.frame <- function(data, ...) {
   return(list(x0 = x0, x1 = x1))
 }
 
-setGeneric("extract_x", function(data, ...){UseMethod("extract_x")})
+setGeneric("extract_x", function(data, ...) UseMethod("extract_x"))
 setMethod("extract_x", "DataSim", extract_x.DataSim)
 setMethod("extract_x", "data.frame", extract_x.data.frame)
 setMethod("extract_x", "matrix", extract_x.data.frame)

@@ -18,9 +18,14 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   names(argn) <- names(args)
   
   output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein")) {
-    args$method <- NULL
+    # args$method <- NULL
     # if(is.null(args$grid)) 
-    if (!is.null(constraint)) args$grid <- constraint
+    if (!is.null(constraint) & is.null(args$grid)) {
+      args$grid <- constraint
+      argn <- lapply(names(args), as.name)
+      names(argn) <- names(args)
+    }
+    
     grid.fun <- switch(method,
                        "SBW" = "sbw_grid_search",
                        "Constrained Wasserstein" = "wass_grid_search",
@@ -400,7 +405,7 @@ convert_sol <- function(sol, estimand, method, n0, n1) {
       output$w1 <-  rowSums(matrix(sol[[2]], n1, N)) #note both are rowSums here
     }
   } else {
-    if(estimand == "ATT") {
+    if (estimand == "ATT") {
       output$w0 <- sol[[1]]
       output$w1 <- rep.int(1/n1,n1)
     } else if (estimand == "ATC") {
@@ -413,8 +418,8 @@ convert_sol <- function(sol, estimand, method, n0, n1) {
       output$w0 <- renormalize(sol[[1]])
       output$w1 <- renormalize(sol[[2]])
     } else if (estimand == "ATE") {
-      output$w0 <- renormalize(sol[[1]][1:n0])
-      output$w1 <- renormalize(sol[[1]][n0 + 1:n1])
+      output$w0 <- renormalize(sol[[1]])
+      output$w1 <- renormalize(sol[[2]])
     }
   }
   

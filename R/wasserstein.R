@@ -1,15 +1,15 @@
-wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
+wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL, ...) {
   
-  if(is.numeric(a)) {
-    if(!isTRUE(all.equal(sum(a) ,1))) a <- renormalize(a)
+  if (is.numeric(a)) {
+    if (!isTRUE(all.equal(sum(a) ,1))) a <- renormalize(a)
   }
-  if(is.numeric(b)){
-    if(!isTRUE(all.equal(sum(b) ,1))) b <- renormalize(b)
+  if (is.numeric(b)) {
+    if (!isTRUE(all.equal(sum(b) ,1))) b <- renormalize(b)
   }
-  if(is.null(cost)){
+  if (is.null(cost)) {
     stop("cost matrix must be specified if only masses are given")
   }
-  if(is.null(tplan)){
+  if (is.null(tplan)) {
     nzero_row <- a > 0
     nzero_col <- b > 0
     a <- a[nzero_row]
@@ -18,7 +18,7 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL,...) {
   }
   n_a <- length(a)
   n_b <- length(b)  
-  if(n_a == 1) {
+  if (n_a == 1) {
     return(c((sum(c(cost^p) * c(b)))^(1/p)))
   } else if ( n_b == 1) {
     return(c((sum(c(cost^p) * c(a)))^(1/p)))
