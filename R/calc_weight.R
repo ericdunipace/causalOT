@@ -93,8 +93,8 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   cost <- dots$cost
   p <- dots$p
   if (is.null(p)) p <- 2
-  if (is.null(dots$dist)) dots$dist <- "Lp"
-  if (dots$dist == "RKHS" & is.null(dots$rkhs.args) & is.null(dots$cost)) {
+  if (is.null(dots$metric)) dots$metric <- "Lp"
+  if (dots$metric == "RKHS" & is.null(dots$rkhs.args) & is.null(dots$cost)) {
     if (is.null(dots$opt.method)) dots$opt.method <- "stan"
     temp.est <- switch(estimand,
                        "ATT" = "ATT",
@@ -106,7 +106,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
     dots$rkhs.args <- RKHS_param_opt(x = x, 
                                      z = z, 
                                      y = y,
-                                     metric = dots$dist,
+                                     metric = dots$metric,
                                      kernel = dots$kernel,
                                      is.dose = dots$is.dose,
                                      opt.method = dots$opt.method,
@@ -115,19 +115,19 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   }
   if (is.null(cost)) {
     if (est == "cATE") {
-      cost <- list(cost_fun(x, z, power = p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+      cost <- list(cost_fun(x, z, power = p, metric = dots$metric, rkhs.args = dots$rkhs.args,
                             estimand = "ATC"),
-                   cost_fun(x, z, power = p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+                   cost_fun(x, z, power = p, metric = dots$metric, rkhs.args = dots$rkhs.args,
                             estimand = "ATT"))
     } else {
-      cost <- cost_fun(x, z, power = p, metric = dots$dist, rkhs.args = dots$rkhs.args,
+      cost <- cost_fun(x, z, power = p, metric = dots$metric, rkhs.args = dots$rkhs.args,
                        estimand = est)
     }
     
   }
   if (est == "cATE") {
     
-    # if(dots$dist == "RKHS") {
+    # if(dots$metric == "RKHS") {
       w0.tab <- tabulate(apply(cost[[1]]^p, 2, which.min), nbins = n0)
       w1.tab <- tabulate(apply(cost[[2]]^p, 1, which.min), nbins = n1)
       w0 <- w0.tab/n1
@@ -148,7 +148,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
     w1 <- w1.tab/n
   } else if (est == "ATT") {
     
-    if (dots$dist == "RKHS") {
+    if (dots$metric == "RKHS") {
       w0.tab <- tabulate(apply(cost[[1]]^p, 2, which.min), nbins = n0)
       # w1.tab <- table(apply(cost[[2]], 1, which.min))
     } else {
@@ -159,7 +159,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
     w1 <- rep(1/n1,n1)
    
   } else if (est == "ATC") {
-    if (dots$dist == "RKHS") {
+    if (dots$metric == "RKHS") {
       # w0.tab <- table(apply(cost[[1]], 2, which.min))
       w1.tab <- tabulate(apply(cost[[2]]^p, 1, which.min), nbins = n1)
     } else {
@@ -178,7 +178,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   }
   output <- list(w0 = w0, w1 = w1, gamma = gamma,
                  args = list(power = p, 
-                             metric = dots$dist))
+                             metric = dots$metric))
   # output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"])
   
   return(output)
@@ -203,7 +203,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
   mod <- glm(dots$formula, data.frame(z = z, df), family = binomial(link = "logit"))
   pred <- predict(mod, type = "response")
   
-  if (constraint > 0 & constraint < 1) {
+  if (isTRUE(constraint > 0) & isTRUE(constraint < 1)) {
     Ks  <- sort(c(constraint, 1 - constraint))
     up  <- Ks[2]
     low <- Ks[1]
@@ -260,14 +260,14 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   if(method %in% ot.methods()) {
     dots <- list(...)
     if(is.null(dots$p)) dots$p <- 2
-    if(is.null(dots$dist)) dots$dist <- "mahalanobis"
+    if(is.null(dots$metric)) dots$metric <- "mahalanobis"
     if(!is.null(dots$cost)) dots$cost <- NULL
-    if(dots$dist == "RKHS") {
+    if(dots$metric == "RKHS") {
       if(is.null(dots$opt.method)) dots$opt.method <- "stan"
       if(is.null(dots$kernel)) dots$kernel <- "RBF"
     }
-    dots$metric <- dots$dist
-    dots$dist <- NULL
+    dots$metric <- dots$metric
+    dots$metric <- NULL
     dots$power <- dots$p
     dots$p <- NULL
   }

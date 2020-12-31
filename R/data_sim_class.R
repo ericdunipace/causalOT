@@ -205,11 +205,11 @@ DataSim <- R6::R6Class("DataSim",
                        mu0 = "vector",
                        check_data = function() {
                          complete <- all(is.matrix(private$x) & is.vector(private$z) )
-                         if(complete) {
+                         if (complete) {
                            private$n1 <- sum(private$z == 1)
                            private$n0 <- sum(private$z == 0)
-                           private$x1 <- private$x[private$z == 1,,drop=FALSE]
-                           private$x0 <- private$x[private$z == 0,,drop=FALSE]
+                           private$x1 <- private$x[private$z == 1,,drop = FALSE]
+                           private$x0 <- private$x[private$z == 0,,drop = FALSE]
                          }
                        }#,
                        )
@@ -895,4 +895,416 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                           overlap = "character"
                            )
 )
-  }
+}
+
+
+#### Kang and Schafer data ####
+{
+  
+  # ks_data <- function(tau, n, sig2, rho, y_scen = c("a", "b"), z_scen = c("a", "b")) {
+  #   
+  #   # covariate correlations
+  #   x1 <- stats::rnorm(n, 0, 1)
+  #   x2 <- stats::rnorm(n, 0, 1)
+  #   x3 <- stats::rnorm(n, 0, 1)
+  #   x4 <- stats::rnorm(n, 0, 1)
+  #   
+  #   # initial predictors
+  #   u1 <- as.numeric(scale(exp(x1/2)))
+  #   u2 <- as.numeric(scale(x2/(1 + exp(x1)) + 10))
+  #   u3 <- as.numeric(scale((x1*x3/25 + 0.6)^3))
+  #   u4 <- as.numeric(scale((x2 + x4 + 20)^2))
+  #   
+  #   # treatment probabiities
+  #   if (z_scen == "b")
+  #     e_X <- 1/(1 + exp( -(-u1 + 0.5*u2 - 0.25*u3 - 0.1*u4) ) )
+  #   else
+  #     e_X <- 1/(1 + exp( -(-x1 + 0.5*x2 - 0.25*x3 - 0.1*x4) ) )
+  #   
+  #   r_exposure <- stats::runif(n)
+  #   z <- ifelse(r_exposure < e_X, 1, 0)
+  #   
+  #   # error variance
+  #   R <- matrix(rho, nrow = 2, ncol = 2)
+  #   diag(R) <- 1
+  #   V <- diag(sqrt(sig2), nrow = 2, ncol = 2)
+  #   Sig <- V %*% R %*% V
+  #   
+  #   if (y_scen == "b")
+  #     mu <- 210 + 27.4*u1 + 13.7*u2 + 13.7*u3 + 13.7*u4
+  #   else
+  #     mu <- 210 + 27.4*x1 + 13.7*x2 + 13.7*x3 + 13.7*x4
+  #   
+  #   eval <- eigen(Sig, symmetric = TRUE)
+  #   y_init <- matrix(stats::rnorm(n*2, 0, 1), nrow = n, ncol = 2) # iid potential outcomes
+  #   y_tmp <- t(eval$vectors %*% diag(sqrt(eval$values), nrow = 2) %*% t(y_init)) # SVD
+  #   y_pot <- y_tmp + cbind(mu, mu + tau) # include causal effect
+  #   
+  #   # observed outcome
+  #   y <- z*y_pot[,2] + (1 - z)*y_pot[,1]
+  #   
+  #   # create simulation dataset
+  #   sim <- as.data.frame(cbind(y, z, x1, x2, x3, x4, u1, u2, u3, u4))
+  #   
+  #   return(sim)
+  #   
+  # }
+  KangSchafer <- R6::R6Class("KangSchafer", 
+                             inherit = DataSim,
+                             public = list(
+                               gen_data = function() {
+                                 self$gen_x()
+                                 self$gen_z()
+                                 self$gen_y()
+                                 invisible(self)
+                               },
+                               gen_x = function() {
+                                 stopifnot(length(private$n) > 0 )
+                                 
+                                 private$u <- matrix(stats::rnorm(private$n * private$p),
+                                                     nrow = private$n, ncol = private$p)
+                                 if (private$design %in% c("A", 1) ) {
+                                   private$x <- private$u
+                                 } else {
+                                   private$x <- cbind(
+                                     exp(private$u[,1]/2),
+                                     private$u[,2]/(1 + exp(private$u[,1])) + 10,
+                                     (private$u[,1] * private$u[,3] / 25 + 0.6)^3,
+                                     (private$u[,2] + private$u[,4] + 20)^2
+                                   )
+                                   if (private$p > 4)
+                                     private$x <- cbind(private$x, private$u[,5:private$p,drop = FALSE])
+                                 }
+                                 colnames(private$u) <- paste0("U",1:private$p)
+                                 colnames(private$x) <- paste0("X",1:private$p)
+                                 private$check_data()
+                                 invisible(self)
+                               },
+                               gen_y = function() {
+                                 if (all(dim(private$u) == 0)) gen_x()
+                                 if (length(private$x) == 0) gen_z()
+                                 
+                                 
+                                 private$mu0 <- 
+                                   210 + 27.4*private$u[,1] + 13.7*private$u[,2] + 
+                                   13.7*private$u[,3] + 13.7*private$u[,4]
+                                 
+                                 private$mu1 <- private$mu0 + private$param$tau 
+                                 mean_y <- private$mu0 * (private$z == 0) + 
+                                   private$mu1 * (private$z == 1)
+                                 private$y <- c(mean_y + rnorm(private$n, 
+                                                               mean = 0, 
+                                                               sd = private$param$sigma_y))
+                                 # private$check_data()
+                                 invisible(self)
+                               },
+                               gen_z = function() {
+                                 if (all(dim(private$x) == 0)) gen_x()
+                                 
+                                 #set coefficient
+                                 beta_z <- if ( private$overlap == "low") {
+                                   c(-1, 0.5, -0.25, -0.1)
+                                 } else if ( private$overlap == "high" ) {
+                                   c(-1, -0.5, -0.25, -0.1)
+                                 }
+                                 
+                                 #probability
+                                 prob_z <- plogis(private$u[,1:4] %*% beta_z)
+                                 
+                                 #assign z
+                                 private$z <- rbinom(private$n, 
+                                                     1, 
+                                                     prob = prob_z)
+                                 private$check_data()
+                                 invisible(self)
+                               },
+                               get_u = function() {
+                                 return(private$u)
+                               },
+                               initialize = function(n = 100, p = 4, design = "A", overlap = "low", 
+                                                     param = list(), ...) {
+                                 
+                                 if (isTRUE(is.null(p)) | isTRUE(p < 4)) {
+                                   warning("'p' must be >= 4. Set to 4.")
+                                  private$p <- 4
+                                 } else {
+                                   private$p <- p
+                                 }
+                                 
+                                 if (missing(n) | is.null(n)) {
+                                   private$n <- 100
+                                 } else {
+                                   private$n <- n
+                                 }
+                                 if (missing(design ) | is.null(design) ) {
+                                   private$design <- "A"
+                                 } else {
+                                   private$design <- match.arg(design, c("A","B"))
+                                 } 
+                                 if ( missing(overlap) | is.null(overlap) ) {
+                                   private$overlap <- "low"
+                                 } else {
+                                   private$overlap <- match.arg(overlap, c("low","high"))
+                                 }
+                                 
+                                 if ( missing(param) | is.null(param)) {
+                                   private$param <- list(tau = 0,
+                                                         sigma_y = 1)
+                                 } else {
+                                   private$param <- param[c("tau", "sigma_y")]
+                                   if (is.null(param$sigma_y) ) param$sigma_y <- 1
+                                   if (is.null(param$tau) ) param$tau <- 0.0
+                                   
+                                   if (!is.numeric(private$param$tau)) stop("treatment effect `tau` must be a real number")
+                                   if (!is.numeric(private$param$sigma_y) | private$param$sigma_y <= 0) stop("variance of outcome `sigma_y` must be a positive real number")
+                                 }
+                               },
+                               get_design = function() {
+                                 return(c(design = private$design, overlap = private$overlap))
+                               }
+                             ),
+                             private = list(design = "character",
+                                            overlap = "character",
+                                            u = "matrix"
+                                            
+                             )
+  )
+}
+
+#### LaLonde data ####
+{
+  
+  LaLonde <- R6::R6Class("LaLonde", 
+                             inherit = DataSim,
+                             public = list(
+                               gen_data = function() {
+                                 self$gen_x()
+                                 self$gen_z()
+                                 self$gen_y()
+                                 invisible(self)
+                               },
+                               get_tau = function() {
+                                 return(1794)
+                               },
+                               gen_x = function() {
+                                 if (private$design == "Full") {
+                                   cn <- colnames(lalonde_full)
+                                   
+                                   private$x <- model.matrix(object = as.formula("~.+0"), 
+                                                             data = lalonde_full[,-match(c("data_id","treat","re78"),cn)])
+                                 } else if (private$design == "NSW") {
+                                   cn <- colnames(lalonde_nsw)
+                                   private$x <- model.matrix(object = as.formula("~.+0"), 
+                                                             data = lalonde_nsw[,-match(c("data_id","treat","re78"),cn)])
+                                 } else {
+                                   stop("Design not found")
+                                 }
+                                 private$p <- ncol(private$x)
+                                 private$n <- nrow(private$x)
+                                 private$check_data()
+                                 invisible(self)
+                               },
+                               gen_y = function() {
+                                 if (private$design == "Full") {
+                                   cn <- colnames(lalonde_full)
+                                   
+                                   private$y <- c(unlist(lalonde_full[,match("re78",cn)]))
+                                 } else if (private$design == "NSW") {
+                                   cn <- colnames(lalonde_nsw)
+                                   private$y <- c(unlist(lalonde_nsw[,match("re78",cn)]))
+                                 } else {
+                                   stop("Design not found")
+                                 }
+                                 private$mu1 <- private$mu0  <- rep(NA, private$n)
+                                 private$mu1[private$z == 1] <- private$y[private$z == 1]
+                                 private$mu0[private$z == 1] <- private$mu1[private$z == 1] - 1794
+                                 
+                                 private$mu0[private$z == 0] <- private$y[private$z == 0]
+                                 private$mu1[private$z == 0] <- private$mu0[private$z == 0] + 1794
+                                 invisible(self)
+                               },
+                               gen_z = function() {
+                                 if (private$design == "Full") {
+                                   cn <- colnames(lalonde_full)
+                                   
+                                   private$z <- as.integer(unlist(lalonde_full[,match("treat",cn)]))
+                                 } else if (private$design == "NSW") {
+                                   cn <- colnames(lalonde_nsw)
+                                   private$z <- as.integer(unlist(lalonde_nsw[,match("treat",cn)]))
+                                 } else {
+                                   stop("Design not found")
+                                 }
+                                 private$check_data()
+                                 invisible(self)
+                               },
+                               initialize = function(n = NULL, p = NULL, param = list(), design = "NSW", ...) {
+                                 
+                                 if (missing(design ) | is.null(design) ) {
+                                   private$design <- "NSW"
+                                 } else {
+                                   private$design <- match.arg(design, c("NSW","Full"))
+                                 }
+                                 
+                               },
+                               get_design = function() {
+                                 return(c(design = private$design))
+                               }
+                             ),
+                             private = list(design = "character"
+                             )
+  )
+}
+
+#### Fan et al ####
+{
+  FanEtAl <- R6::R6Class("FanEtAl", 
+                             inherit = DataSim,
+                             public = list(
+                               gen_data = function() {
+                                 self$gen_x()
+                                 self$gen_z()
+                                 self$gen_y()
+                                 # private$\check_data()
+                                 invisible(self)
+                               },
+                               gen_x = function() {
+                                 stopifnot(length(private$n) > 0 )
+                                 
+                                 private$x <- matrix(
+                                   stats::rnorm(private$n * private$p),
+                                   nrow = private$n,
+                                   ncol = private$p
+                                 ) %*% sqrt_mat(private$param$sigma_x)
+                                 colnames(private$x) <- paste0("X",1:private$p)
+                                 private$check_data()
+                                 invisible(self)
+                               },
+                               gen_y = function() {
+                                 if (all(dim(private$x) == 0)) gen_x()
+                                 if (length(private$z) == 0) gen_z()
+                                 
+                                 private$mu0 <- rep(0.0, private$n)
+                                 private$mu1 <- c(10 + private$x %*% private$param$beta_y)
+                                 
+                                 private$y <- private$mu1 * private$z + rnorm(private$n, sd = private$param$sigma_y)
+                                 # private$check_data()
+                                 invisible(self)
+                               },
+                               gen_z = function() {
+                                 if (all(dim(private$x) == 0)) gen_x()
+                                 latent_z <- private$x %*% private$param$beta_z
+                                 private$U <- runif(1)
+                                 
+                                 private$z <- c(ifelse(plogis(latent_z) < private$U, 0, 1))
+                                 private$check_data()
+                                 invisible(self)
+                               },
+                               initialize = function(n = 100, p = 100, numActive = 4, param = list(), 
+                                                     design = "B", ...) {
+                                 
+                                 if (isTRUE(missing(numActive)) | isTRUE(is.null(numActive)) | isTRUE(numActive < 1) ) {
+                                   warning("'numActive' must be greater than 1. Set to 4")
+                                   private$p1 <- 4 # p is always 6 for this guy
+                                 } else {
+                                   private$p1 <- numActive
+                                 }
+                                 
+                                 if (isTRUE(missing(p)) | isTRUE(is.null(p)) | isTRUE(p < private$p1) ) {
+                                   warning("'p' must be greater than numActive. Set to 100.")
+                                  private$p <- if (100 > private$p1) {
+                                    100L
+                                  } else {
+                                    as.integer(private$p1) + 100L
+                                  }
+                                 } else {
+                                   private$p <- as.integer(p)
+                                 }
+                                 
+                                 if (isTRUE(missing(n)) | isTRUE(is.null(n))) {
+                                   private$n <- 500
+                                 } else {
+                                   private$n <- n
+                                 }
+                                 if (missing(design ) | is.null(design) ) {
+                                   private$design <- "A"
+                                 } else {
+                                   private$design <- match.arg(design, c("A","B"))
+                                 }
+                                 private$set_param(beta_z = param$beta_z, beta_y = param$beta_y,
+                                             sigma_y = param$sigma_y,
+                                             sigma_x = param$sigma_x)
+                                 
+                               },
+                               get_design = function() {
+                                 return(c(Design = private$design, "Active Coefficient Number" = private$param$p1))
+                               }
+                             ),
+                             private = list( design = "character",
+                                             p1 = "integer",
+                                             U = "numeric",
+                               set_param = function(beta_z, beta_y, sigma_y, sigma_x) {
+                                              miss.null <- function(xx) {
+                                                return(missing(xx) | is.null(xx))
+                                              }
+                                              pm1 <- private$p - 1
+                                              Sigma_x <- switch(private$design,
+                                                                "A" = diag(1, private$p, private$p),
+                                                                "B" = rbind(
+                                                                  cbind(1,t(rep(0, pm1))),
+                                                                  cbind(rep(0, pm1), 
+                                                                        matrix(0.5^(abs(matrix(1:pm1, pm1, pm1, byrow = TRUE) -
+                                                                                          matrix(1:pm1,pm1,pm1))), 
+                                                                               pm1, pm1)
+                                                                  )
+                                                                )
+                                              )
+                                              default_param <- list(
+                                                beta_y = switch(private$design,
+                                                           "A" = c(rep(1, private$p1), 
+                                                                    rep(0, private$p - private$p1)),
+                                                           "B" = c(sqrt(0.5^2/c((1 - 0.5^2) * 
+                                                                                          (t(1/(1:private$p)^2) %*%
+                                                                                             Sigma_x %*% 
+                                                                                             (1/(1:private$p)^2) )))) *
+                                                             1/(1:private$p)^2
+                                                ),
+                                                sigma_y = 1,
+                                                beta_z = switch(private$design,
+                                                                "A" = c(rep(0.5, private$p1), 
+                                                                        rep(0, private$p - private$p1)),
+                                                                "B" = c(sqrt(pi^2/3 * 0.5^2/c((1 - 0.5^2) * 
+                                                                                               (t(1/(1:private$p)^2) %*%
+                                                                                                  Sigma_x %*% 
+                                                                                                  (1/(1:private$p)^2) )))) *
+                                                                  1/(1:private$p)^2
+                                                ),
+                                                sigma_x = Sigma_x
+                                              )
+                                              temp_param <- list()
+                                              if (miss.null(beta_z)) {
+                                                temp_param$beta_z  <- default_param$beta_z
+                                              } else {
+                                                stopifnot(is.vector(param$beta_z))
+                                                temp_param$beta_z  <- param$beta_z
+                                              }
+                                              if (miss.null(beta_y)) {
+                                                temp_param$beta_y  <- default_param$beta_y
+                                              } else {
+                                                stopifnot(is.vector(beta_y))
+                                                temp_param$beta_y  <- param$beta_y
+                                              }
+                                              if (miss.null(sigma_y)) {
+                                                temp_param$sigma_y <- default_param$sigma_y
+                                              } else {
+                                                temp_param$sigma_y <- param$sigma_y
+                                              }
+                                              if (miss.null(sigma_x)) {
+                                                temp_param$sigma_x <- default_param$sigma_x
+                                              } else {
+                                                temp_param$sigma_x <- param$sigma_x
+                                              }
+                                              private$param <- temp_param
+                                            }
+                             )
+  )
+}

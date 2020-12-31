@@ -1,16 +1,15 @@
-#TODO: redo the ATE forms of these. also, make sure single trt group targeting ATE for sbw makes sense
-
 sbw_grid_search <- function(data, grid = NULL, 
                             estimand = c("ATT", "ATC","cATE","ATE","feasible"),
-                            n.boot = 100,
+                            n.boot = 100, grid.length = 10,
                             ...) 
 {
   # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
-  if (all(is.null(grid)) | all(is.na(grid))) grid <- seq(0, 1/sqrt(get_p(data)), length.out = 10)
+  if (all(is.null(grid)) | all(is.na(grid))) grid <- seq(0, 1/sqrt(get_p(data)), length.out = grid.length)
   estimand <- match.arg(estimand)
+  solver <- match.arg(list(...)$solver, c("mosek","gurobi","cplex"))
   
   args <- list(data = data, constraint = grid[1],  estimand = estimand, 
-               method = "SBW",
+               method = "SBW", solver = solver,
                ...)
   args <- args[!duplicated(names(args))]
   argn <- lapply(names(args), as.name)
@@ -32,7 +31,7 @@ sbw_grid_search <- function(data, grid = NULL,
     out <- tryCatch(eval(f.call, envir = args),
                     error = function(e) {return(list(w0 = rep(NA_real_, n0),
                                                      w1 = rep(NA_real_, n1)))})
-    if (list(...)$solver == "gurobi") Sys.sleep(0.1)
+    if (solver == "gurobi") Sys.sleep(0.1)
     return(out)
   })
   
@@ -164,7 +163,7 @@ wass_grid_search <- function(data, grid = NULL,
                              estimand = c("ATT", "ATC","cATE","ATE"),
                              n.boot = 100,
                              method = c("Wasserstein","Constrained Wasserstein"),
-                             wass.method = "shortsimplex", wass.iter = 0,
+                             wass.method = "networkflow", wass.iter = 0,
                              add.joint = FALSE,
                              verbose = FALSE,
                              ...) 
