@@ -19,7 +19,8 @@ Imports:
     rstan (>= 2.19.3),
     rstantools (>= 2.0.0),
     approxOT,
-    loo
+    loo,
+    oem
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),

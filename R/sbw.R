@@ -13,20 +13,35 @@ sbw_dual <- function(x, target, constraint) {
     S <- sqrt(x_v)
   }
   
-  XtY <- (x_m - target) #* 1/S)
-  # XtX <- crossprod(scale(x, center = FALSE, scale = S))
-  XtX <- crossprod(x)
+  if ( constraint == 0) {
+    # equivalent to (x'x)^(-1) (x' 1_n - target)
+    QR <- qr(x)
+    R <- qr.R(QR)
+    
+    beta <- qr.coef(QR, rep(1,ncol(x))) - backsolve(R, forwardsolve(l = R, target,
+                                                         transpose = TRUE))
+    
+  } else {
+    # use lasso in oem that can take xtx and xty
+    
+    XtY <- (x_m - target) #* 1/S)
+    # XtX <- crossprod(scale(x, center = FALSE, scale = S))
+    XtX <- crossprod(x)
+    
+    fit <- oem::oem.xtx(xtx = XtX, xty = XtY, family = "gaussian",
+                        penalty = "lasso", lambda = constraint
+                        , penalty.factor = S
+    )
+    beta <- fit$beta$lasso
+  }
   
-  fit <- oem::oem.xtx(xtx = XtX, xty = XtY, family = "gaussian",
-               penalty = "lasso", lambda = constraint
-               , penalty.factor = S
-               )
+ 
   
-  unconst_wt  <- dual_to_wt(x, lambda = fit$beta$lasso, n = n)
+  unconst_wt  <- dual_to_wt(x, lambda = beta, n = n)
   
   return(list(weight = simplex_proj(unconst_wt), 
               unconstrained_weight = unconst_wt,
-              lambda = fit$beta$lasso))
+              lambda = beta))
 }
 
 dual_to_wt <- function(x, lambda, n) {

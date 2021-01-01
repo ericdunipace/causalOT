@@ -1,13 +1,15 @@
 gp_pred <- function(formula = NULL, data, weights=NULL,
-                    param, estimand = c("ATE","ATT","ATC","cATE"),...) {
+                    param, estimand = c("ATE","ATT","ATC","cATE"), ...) {
   
   test_pos_def_inv <- function(x,y) {
-    e <- eigen(x)
-    if(any(e$values <=0)) {
+    e <- eigen(x, symmetric = TRUE)
+    if (any(e$values <= 0)) {
       min.e <- min(e$values)
       e$values <- e$values - min.e
     }
-    return(e$vectors %*% diag(1/e$values) %*% crossprod(e$vectors, y))
+    p <- length(e$values)
+    return(e$vectors %*% diag(1 / e$values, nrow = p, ncol = p) %*% 
+             crossprod(e$vectors, y))
   }
   # w0 <- weights$w0
   # w1 <- weights$w1
@@ -16,7 +18,7 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   
   z <- prep.data$z
   y <- prep.data$df$y
-  x <- as.matrix(prep.data$df[,-which(colnames(prep.data$df)=="y")])
+  x <- as.matrix(prep.data$df[,-which(colnames(prep.data$df) == "y")])
   
   n <- length(z)
   n1 <- sum(z)
@@ -152,7 +154,9 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
   n  <- length(z)
   n1 <- sum(z)
   n0 <- n - n1
-  if(weights$method %in% ot.methods()) {
+  runMap <- isTRUE(weights$method %in% ot.methods())
+  
+  if (runMap) {
     bal.cov <- colnames(data)[colnames(data) != "y"]
     data$z  <- z
     data$f1 <- f1
@@ -178,7 +182,7 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
       bproj_f1 <- list(control = rep(NA_real_,n),
                        treated = rep(NA_real_,n))
     }
-    if(estimand == "ATE" | estimand == "ATT") {
+    if (estimand == "ATE" | estimand == "ATT") {
       bproj_f0<- barycentric_projection(data, weights, 
                                            treatment.indicator = "z", 
                                            outcome = "f0",
@@ -361,46 +365,62 @@ outcome_calc_model <- function(data, z, weights, formula, model.fun, matched, es
 
   n <- length(z)
   w <- rep(NA,n)
-  w[z==1] <- w1
-  w[z==0] <- w0
+  w[z == 1] <- w1
+  w[z == 0] <- w0
+  
 
-  fit <- model.fun(formula, data = cbind(data,z=z), weights = w, ...)
-
+  environment(formula) <- environment()
+  
+  fit <- model.fun(formula, 
+                   data =  cbind(data, 
+                                 z = z), 
+                   weights = w, 
+                   ...)
 
   tx_effect <- coef(fit)["z"]
 
   return(tx_effect)
 }
 
-calc_form <- function(formula, doubly.robust, target) {
-  if(!is.null(formula)){
-    stopifnot(isTRUE(all(names(formula) %in% c("treated","control"))))
-    formula$treated <- as.formula(formula$treated)
-    formula$control <- as.formula(formula$control)
+calc_form <- function(formula, doubly.robust, target, split.model) {
+  if (!is.null(formula)) {
+    if ( isTRUE(split.model) ) {
+      stopifnot(isTRUE(all(names(formula) %in% c("treated","control"))))
+      formula$treated <- as.formula(formula$treated)
+      formula$control <- as.formula(formula$control)
+      
+    } else {
+      formula <= as.formula(formula)
+    }
     return(formula)
   }
   form_mod <- formula(y~.)
   form_obs <- formula(y~1)
   
-  formula$treated <- form_obs
-  formula$control <- form_obs
-  
-  if (doubly.robust) {
-      if(target == "ATT") {
+  if (isTRUE(split.model) ) {
+    formula$treated <- form_obs
+    formula$control <- form_obs
+    
+    if (doubly.robust) {
+      if (target == "ATT") {
         formula$control <- form_mod
-      } else if(target == "ATC") {
+      } else if (target == "ATC") {
         formula$treated <- form_mod
       } else if (target == "ATE" | target == "feasible") {
         formula$treated <- form_mod
         formula$control <- form_mod
       }
-  }
+    }
+  } else {
+    formula <- formula(y ~ z + .)
+  } 
+  
   return(formula)
 }
 
 calc_model <- function(model.fun) {
-  if(!is.null(model.fun)) {
-    if(is.character(model.fun)) {
+  if (!is.null(model.fun)) {
+    if (is.character(model.fun)) {
       model.fun <- match.fun(model.fun)
     }
     stopifnot(is.function(model.fun))
@@ -411,19 +431,19 @@ calc_model <- function(model.fun) {
 }
 
 calc_hajek <- function(weights, target, hajek) {
-  if(hajek) {
+  if (hajek) {
     weights$w0 <- renormalize(weights$w0)
     weights$w1 <- renormalize(weights$w1)
   }
   
-  if(inherits(weights, "causalWeights")) {
+  if (inherits(weights, "causalWeights")) {
     estimand <- switch(weights$estimand,
                        "ATT" = "ATT",
                        "ATC" = "ATC",
                        "ATE" = "ATE",
                        "cATE" = "ATE",
                        "feasible" = "feasible")
-    if(estimand != target) stop("Weights not estimating the target")
+    if (estimand != target) stop("Weights do not estimating the target estimand")
   }
   return(weights)
 }
@@ -464,14 +484,14 @@ estimate_effect <- function(data, formula = NULL, weights,
   
   #set up model structures
   model.fun <- calc_model(model)
-  formula <- calc_form(formula, dr, target)
+  formula <- calc_form(formula, dr, target, split.model)
   weights <- calc_hajek(weights, target, hajek)
   
   #setup data
   prep.data <- prep_data(data,...)
   
   #get estimate
-  estimate <- if(split.model) {
+  estimate <- if (split.model) {
     outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun,
                            matched, target)
   } else {

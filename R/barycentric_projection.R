@@ -10,34 +10,34 @@ barycentric_projection <- function(data, weight,
   gamma <- weight$gamma
   dots <- list(...)
   
-  if(is.null(est)) {
-    est <- match.arg(dots$estimand)
+  if (is.null(est)) {
+    est <- match.arg(dots$estimand, choices = c("ATT","ATC","ATE"))
     warning("Weights didn't have estimand flag. Make sure weights aligned with desired estimand")
   }
-  if(is.null(met)) {
-    met <- match.arg(dots$metric)
+  if (is.null(met)) {
+    met <- match.arg(dots$metric, choices = c("mahalanobis","sdLp","Lp", "RKHS"))
   }
-  if(is.null(pow)) {
+  if (is.null(pow)) {
     pow <- as.double(dots$p)
   }
-  if(is.null(rkhs.args)) {
+  if (is.null(rkhs.args)) {
     rkhs.args <- as.double(dots$rkhs.args)
   }
-  if(is.null(pow)) stop("weights must have `p` parameter (power) or must be specified in function arguments")
-  if(is.null(met)) stop("weights must have `metric` parameter or must be specified in function arguments")
-  if(is.null(est)) stop("weights must have `estimand` parameter or must be specified in function arguments")
+  if (is.null(pow)) stop("weights must have `p` parameter (power) or must be specified in function arguments")
+  if (is.null(met)) stop("weights must have `metric` parameter or must be specified in function arguments")
+  if (is.null(est)) stop("weights must have `estimand` parameter or must be specified in function arguments")
   
   # met <- "Lp"
   prep.data <- prep_data(data, ...)
   
   z <- prep.data$z
   y <- prep.data$df$y
-  y0 <- y[z==0]
-  y1 <- y[z==1]
+  y0 <- y[z == 0]
+  y1 <- y[z == 1]
   
-  x <- as.matrix(prep.data$df[,-which(colnames(prep.data$df)=="y")])
-  x0 <- x[z==0,]
-  x1 <- x[z==1,]
+  x <- as.matrix(prep.data$df[,-which(colnames(prep.data$df) == "y")])
+  x0 <- x[z == 0,]
+  x1 <- x[z == 1,]
   
   n <- length(z)
   n1 <- sum(z)
@@ -122,26 +122,26 @@ barycentric_projection <- function(data, weight,
 
 barycenter_estimation <- function(gamma,x0,x1,y0,y1,
                                   estimand = c("ATT","ATC"),
-                                  metric = c("Lp", "mahalanobis"),
+                                  metric = c("mahalanobis","sdLp","Lp"),
                                   power = 2, ...) {
   
-  stopifnot(power >=1)
+  stopifnot(power >= 1)
   estimand <- match.arg(estimand)
   metric <- match.arg(metric)
   # metric <- "Lp"
   
   # check if all outcomes are the same
   
-  if(estimand == "ATT" | estimand == "ATE") {
-    if(all(y0[1] == y0)) {
+  if (estimand == "ATT" | estimand == "ATE") {
+    if (all(y0[1] == y0)) {
       y_out <- list(y0 = rep(NA_real_, length(y1)),
                     y1 = rep(NA_real_, length(y0)))
       y_out$y0 <- y0[1]
       return(y_out)
     }
   }
-  if(estimand == "ATC" | estimand == "ATE") {
-    if(all(y1[1] == y1)) {
+  if (estimand == "ATC" | estimand == "ATE") {
+    if (all(y1[1] == y1)) {
       y_out <- list(y0 = rep(NA_real_, length(y1)),
                     y1 = rep(NA_real_, length(y0)))
       y_out$y1 <- y1[1]
@@ -149,7 +149,7 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
     }
   }
   
-  if(power == 2) {
+  if (power == 2) {
     return(barycenter_pow2(gamma,x0,x1,y0,y1,estimand,metric))
   } else if (power == 1) {
     return(barycenter_pow1(gamma,x0,x1,y0,y1,estimand,metric))
@@ -160,7 +160,7 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
   data <- list()
   data$p <- power
   
-  if(metric == "Lp") {
+  if (metric == "Lp") {
     y0t <- as.matrix(y0)
     y1t <- as.matrix(y1)
   } else if (metric == "mahalanobis") {
@@ -175,15 +175,20 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
     y0t <- d_0 %*% U_inv
 
     y1t <- d_1 %*% U_inv
+  } else if (metric == "sdLp") {
+    s0 <- sd(y0)
+    s1 <- sd(y1)
+    y0t <- as.matrix(y0)/s0
+    y1t <- as.matrix(y1)/s1
   }
   
-  if(estimand == "ATT") {
+  if (estimand == "ATT") {
     data$N <- n0
     data$M <- n1
     data$y <- y0t
     data$D <- ncol(y0t)
     data$gamma <- apply(gamma,2,renormalize)
-  } else if (estimand == "ATC"){
+  } else if (estimand == "ATC") {
     data$M <- n0
     data$N <- n1
     data$y <- y1t
@@ -263,16 +268,22 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
   
   if (metric == "mahalanobis") {
     
-    if(estimand == "ATT") {
+    if (estimand == "ATT") {
       y_out$y0 <- c((zmat %*% U)[,d+1])
     } else if (estimand == "ATC") {
       y_out$y1 <- c((zmat %*% U)[,d+1])
     }
   } else if (metric == "Lp") {
-    if(estimand == "ATT") {
+    if (estimand == "ATT") {
       y_out$y0 <- c(zmat)
     } else if (estimand == "ATC") {
       y_out$y1 <- c(zmat)
+    }
+  } else if (metric == "sdLp") {
+    if (estimand == "ATT") {
+      y_out$y0 <- c(zmat) * s0
+    } else if (estimand == "ATC") {
+      y_out$y1 <- c(zmat) * s1
     }
   }
   return(y_out)
@@ -281,9 +292,9 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
 barycenter_pow2 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
   y_out <- list(y0 = rep(NA, length(y1)),
                y1 = rep(NA, length(y0)))
-  if(metric != "Lp") warning("With p = 2 the mahalanobis and Lp metrics give the same answer.")
+  if (metric != "Lp") warning("With p = 2 the mahalanobis, sdLp, and Lp metrics give the same answer.")
   # metric <- "Lp"
-  if(metric == "Lp") {
+  if(metric == "Lp" | metric == "sdLp") {
     if(estimand == "ATT") {
       y_out$y0 <-  c(crossprod(gamma,y0) * 1/colSums(gamma))
     } else if (estimand == "ATC") {
@@ -339,6 +350,15 @@ barycenter_pow1 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
       y_out$y0 <- c(apply(gamma,2,function(w) matrixStats::weightedMedian(x=y0, w=w)))
     } else if (estimand == "ATC") {
       y_out$y1 <- c(apply(gamma,1,function(w) matrixStats::weightedMedian(x=y1, w=w)))
+    }
+  } else if (metric == "sdLp") {
+    
+    if (estimand == "ATT") {
+      s0 <- sd(y0)
+      y_out$y0 <- c(apply(gamma,2,function(w) matrixStats::weightedMedian(x = y0/s0, w = w))) * s0
+    } else if (estimand == "ATC") {
+      s1 <- sd(y1)
+      y_out$y1 <- c(apply(gamma,1,function(w) matrixStats::weightedMedian(x = y1/s1, w = w))) * s1
     }
   } else if (metric == "mahalanobis") {
     d <- ncol(x0)

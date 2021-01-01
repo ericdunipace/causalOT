@@ -1087,14 +1087,15 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  return(1794)
                                },
                                gen_x = function() {
+                                 form <- as.formula("~. + I(as.numeric(re74 == 0)) + I(as.numeric(re75 == 0)) + + 0")
                                  if (private$design == "Full") {
                                    cn <- colnames(lalonde_full)
                                    
-                                   private$x <- model.matrix(object = as.formula("~.+0"), 
+                                   private$x <- model.matrix(object = form, 
                                                              data = lalonde_full[,-match(c("data_id","treat","re78"),cn)])
                                  } else if (private$design == "NSW") {
                                    cn <- colnames(lalonde_nsw)
-                                   private$x <- model.matrix(object = as.formula("~.+0"), 
+                                   private$x <- model.matrix(object = form, 
                                                              data = lalonde_nsw[,-match(c("data_id","treat","re78"),cn)])
                                  } else {
                                    stop("Design not found")
@@ -1108,10 +1109,10 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  if (private$design == "Full") {
                                    cn <- colnames(lalonde_full)
                                    
-                                   private$y <- c(unlist(lalonde_full[,match("re78",cn)]))
+                                   private$y <- c( unlist(lalonde_full[,match("re78",cn)]) )
                                  } else if (private$design == "NSW") {
                                    cn <- colnames(lalonde_nsw)
-                                   private$y <- c(unlist(lalonde_nsw[,match("re78",cn)]))
+                                   private$y <- c( unlist(lalonde_nsw[,match("re78",cn)]) )
                                  } else {
                                    stop("Design not found")
                                  }

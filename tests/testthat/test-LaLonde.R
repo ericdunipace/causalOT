@@ -9,8 +9,8 @@ testthat::test_that("function works as would expect", {
   testthat::expect_silent(ns <- causalOT:::get_n.DataSim(data))
   testthat::expect_silent(ps <- causalOT:::get_p.DataSim(data))
   
-  testthat::expect_equal(ps, 7)
-  testthat::expect_equal(ns, c(n0 = 425,n1 = 297))
+  testthat::expect_equal(ps, 8)
+  testthat::expect_equal(ns, c(n0 = 260,n1 = 185))
   
   data <- causalOT::LaLonde$new(design = "Full")
   data$gen_data()
@@ -20,8 +20,8 @@ testthat::test_that("function works as would expect", {
   testthat::expect_silent(ns <- causalOT:::get_n.DataSim(data))
   testthat::expect_silent(ps <- causalOT:::get_p.DataSim(data))
   
-  testthat::expect_equal(ps, 7)
-  testthat::expect_equal(ns, c(n0 = 15992, n1 = 297))
+  testthat::expect_equal(ps, 8)
+  testthat::expect_equal(ns, c(n0 = 15992, n1 = 185))
   
   testthat::expect_equal(data$get_tau(), 1794)
 })
