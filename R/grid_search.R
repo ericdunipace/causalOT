@@ -248,8 +248,11 @@ wass_grid_search <- function(data, grid = NULL,
   names(argn) <- names(args)
   
   f.call <- as.call(setNames(c(as.name("calc_weight_bal"), argn), c("", names(args))))
-  if (verbose) message("\nEstimating Wasserstein values for each constraint")
-  weight.list <- lapply(grid, function(delta) {
+  if (verbose) {
+    message("\nEstimating Wasserstein values for each constraint")
+    pbapply::pboptions(type = "timer", style = 3, char = "=")
+  }
+  weight.list <- pbapply::pblapply(grid, function(delta) {
     args$constraint <- delta
     out <- tryCatch(eval(f.call, envir = args),
                     error = function(e) {return(list(w0 = rep(NA_real_, n0),
@@ -266,8 +269,7 @@ wass_grid_search <- function(data, grid = NULL,
   if (estimand != "ATE") {
     bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
     bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    output <- rep(NA, length(grid))
-    names(output) <- as.character(grid)
+    
     tx_idx <- which(pd$z == 1)
     boot.args <- list(FUN = wass_grid, 
                       bootIdx.row = bootIdx.rows, 
@@ -289,17 +291,25 @@ wass_grid_search <- function(data, grid = NULL,
     boot.n <- lapply(names(boot.args), as.name)
     names(boot.n) <- names(boot.args)
     b.call <- as.call(c(list(quote(mapply)), boot.n))
+    
+    output <- rep(NA, length(grid))
+    names(output) <- as.character(grid)
+    
     if (verbose ) {
       message("\nCalculating out of sample balance")
-      pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
-      
+      # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
+      pbapply::pboptions(type = "timer", style = 3, char = "=")
     }
-    
-    for (g in seq_along(grid)) {
-      boot.args$MoreArgs$weight <- weight.list[[g]]
-      output[g] <- mean(eval(b.call, envir = boot.args))
-      if (verbose) setTxtProgressBar(pb, g)
-    }
+    output <- pbapply::pbsapply(weight.list, function(ww) {
+      boot.args$MoreArgs$weight <- ww
+      return(mean(eval(b.call, envir = boot.args)))
+    })
+    # for (g in seq_along(grid)) {
+    #   boot.args$MoreArgs$weight <- weight.list[[g]]
+    #   output[g] <- mean(eval(b.call, envir = boot.args))
+    #   if (verbose) setTxtProgressBar(pb, g)
+    # }
+    pbapply::pboptions(type = "none")
     if (all(is.na(output))) stop("wass_grid_search: All grid values generated errors")
     
     min.idx <- which(output == min(output, na.rm = TRUE))
@@ -737,8 +747,8 @@ wass_grid_default <- function(x, z, p, data, cost, estimand, method, metric, was
 
 wass_grid <- function(bootIdx.row, bootIdx.col, weight, cost, wass.method, wass.iter, ...) {
   if (all(is.na(weight$w1) | all(is.na(weight$w0)))) return(NA)
-  # n1 <- length(weight$w1)
-  # n0 <- length(weight$w0)
+  n1 <- length(weight$w1)
+  n0 <- length(weight$w0)
   # ord.idx <- rep(NA_integer_, n1 + n0)
   # ord.idx[tx_idx] <- 1:n1
   # ord.idx[-tx_idx] <- 1:n0
@@ -747,8 +757,13 @@ wass_grid <- function(bootIdx.row, bootIdx.col, weight, cost, wass.method, wass.
   # n1 <- length(tx_boot)
   # n0 <- length(cn_boot)
   # n <- n0 + n1
-  weight$w0 <- renormalize(weight$w0[bootIdx.row])
-  weight$w1 <- renormalize(weight$w1[bootIdx.col])
+  tab.row <- tabulate(bootIdx.row, nbins = n0)
+  tab.col <- tabulate(bootIdx.col, nbins = n0)
+  row.idx <- which(tab.row != 0)
+  col.idx <- which(tab.col != 0)
+  
+  weight$w0 <- renormalize(weight$w0[row.idx] * tab.row[row.idx])
+  weight$w1 <- renormalize(weight$w1[col.idx] * tab.col[col.idx])
   p.temp <- weight$args$power
   if (is.null(p.temp)) {
     p <- list(...)$p
@@ -778,9 +793,9 @@ wass_grid <- function(bootIdx.row, bootIdx.col, weight, cost, wass.method, wass.
   # } else {
     # if(!is.null(weight$gamma)) weight$gamma <- weight$gamma[cn_boot, tx_boot]
     if ( is.list(cost) ) {
-      cc <- cost[[length(cost)]][bootIdx.row, bootIdx.col]
+      cc <- cost[[length(cost)]][row.idx, col.idx]
     } else {
-      cc <- cost[bootIdx.row, bootIdx.col]
+      cc <- cost[row.idx, col.idx]
     }
     return(wass_dist_helper(a = weight, b = NULL,
                          cost = cc,
