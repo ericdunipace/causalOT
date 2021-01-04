@@ -8,8 +8,21 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
   
   form <- dots$formula
   if (isTRUE(!is.null(form)) & isTRUE(!is.na(form))) {
-    form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
+    if (is.character(form)) {
+      form.temp <- strsplit(form, "~")[[1]][2]
+      
+    } else if (inherits(form,"formula")) {
+      form.temp <- as.character(form[3])
+    }
+    if (grepl("I\\(\\s*\\.\\^2\\s*\\)",form.temp)) {
+      square.terms <- paste0("I(",colnames(data$get_x()), "^2)", collapse = " + ")
+      form.temp <- strsplit(form.temp, "I\\(\\s*\\.\\^2\\s*\\)")
+      form.temp <- paste0(form.temp, square.terms, collapse = " + ")
+    }
+    form <- as.formula(paste0("~ 0 + ", form.temp))
+    
     mm <- model.matrix(form, data = data.frame(data$get_x()))
+    if ( all(mm[,1] == 1)) mm <- mm[,-1]
     if (method == "Wasserstein" | method == "Constrained Wasserstein") {
       bf <- list(mm = mm,
                  K = dots$balance.constraints)
@@ -199,9 +212,23 @@ quadprog.data.frame <- function(data, constraint,
   
   dots <- list(...)
   form <- dots$formula
+  
   if (isTRUE(!is.null(form)) & isTRUE(!is.na(form))) {
-    form <- as.formula(paste0("~", strsplit(form, "~")[[1]][2]))
+    if (is.character(form)) {
+      form.temp <- strsplit(form, "~")[[1]][2]
+      
+    } else if (inherits(form,"formula")) {
+      form.temp <- as.character(form[3])
+    }
+    if (grepl("I\\(\\s*\\.\\^2\\s*\\)",form.temp)) {
+      square.terms <- paste0("I(",colnames(x.df), "^2)", collapse = " + ")
+      form.temp <- strsplit(form.temp, "I\\(\\s*\\.\\^2\\s*\\)")
+      form.temp <- paste0(form.temp, square.terms, collapse = " + ")
+    }
+    form <- as.formula(paste0("~ 0 + ", form.temp))
+    
     mm <- model.matrix(form, data = x.df)
+    if ( all(mm[,1] == 1)) mm <- mm[,-1]
     if (method == "Wasserstein" | method == "Constrained Wasserstein") {
       bf <- list(mm = mm,
                  K = dots$balance.constraints)

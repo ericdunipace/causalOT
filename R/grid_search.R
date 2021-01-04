@@ -1,6 +1,6 @@
 sbw_grid_search <- function(data, grid = NULL, 
                             estimand = c("ATT", "ATC","cATE","ATE","feasible"),
-                            n.boot = 100, grid.length = 10,
+                            n.boot = 1000, grid.length = 10,
                             ...) 
 {
   # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
@@ -161,7 +161,7 @@ RKHS_grid_search <- function(data, grid = NULL,
 
 wass_grid_search <- function(data, grid = NULL, 
                              estimand = c("ATT", "ATC","cATE","ATE"),
-                             n.boot = 100,
+                             n.boot = 1000,
                              method = c("Wasserstein","Constrained Wasserstein"),
                              sample_weight = NULL,
                              wass.method = "networkflow", wass.iter = 0,
