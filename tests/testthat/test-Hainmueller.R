@@ -26,13 +26,13 @@ testthat::test_that("optimal weighting works, no augmentation", {
     names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
-                                              doubly.robust = FALSE, target = "ATE")$estimate,
+                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = FALSE, target = "ATE")$estimate,
+                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
-                                              doubly.robust = FALSE, target = "ATE")$estimate,
+                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
 })
 
@@ -65,13 +65,13 @@ testthat::test_that("optimal weighting works, augmentation", {
     names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
-                                              doubly.robust = augment, target = "ATE")$estimate,
+                                              doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = augment, target = "ATE")$estimate,
+                                              doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
-                                              doubly.robust = augment, target = "ATE")$estimate,
+                                              doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
 })
 

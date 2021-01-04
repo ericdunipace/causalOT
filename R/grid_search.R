@@ -163,6 +163,7 @@ wass_grid_search <- function(data, grid = NULL,
                              estimand = c("ATT", "ATC","cATE","ATE"),
                              n.boot = 100,
                              method = c("Wasserstein","Constrained Wasserstein"),
+                             sample_weight = NULL,
                              wass.method = "networkflow", wass.iter = 0,
                              add.joint = FALSE,
                              verbose = FALSE,
@@ -181,6 +182,7 @@ wass_grid_search <- function(data, grid = NULL,
   
   pd <- prep_data(data, ...)
   z  <- pd$z
+  sample_weight <- get_sample_weight(sample_weight, z)
   
   if (!is.null(pd$df$y)) {
     pd$df$y <- NULL
@@ -249,8 +251,10 @@ wass_grid_search <- function(data, grid = NULL,
   
   f.call <- as.call(setNames(c(as.name("calc_weight_bal"), argn), c("", names(args))))
   if (verbose) {
-    message("\nEstimating Wasserstein values for each constraint")
+    message("\nEstimating Optimal Transport weights for each constraint")
     pbapply::pboptions(type = "timer", style = 3, char = "=")
+  } else {
+    pbapply::pboptions(type = "none")
   }
   weight.list <- pbapply::pblapply(grid, function(delta) {
     args$constraint <- delta
@@ -267,13 +271,17 @@ wass_grid_search <- function(data, grid = NULL,
   })
   
   if (estimand != "ATE") {
-    bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
-    bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
+    # bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
+    # bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
+    rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
+    colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
     
     tx_idx <- which(pd$z == 1)
     boot.args <- list(FUN = wass_grid, 
-                      bootIdx.row = bootIdx.rows, 
-                      bootIdx.col = bootIdx.cols,
+                      # bootIdx.row = bootIdx.rows, 
+                      # bootIdx.col = bootIdx.cols,
+                      rowCount = rowCount, 
+                      colCount = colCount,
                       MoreArgs    = list(weight = weight.list[[1]], 
                           data = wass.dat, 
                           # tx_idx = tx_idx, 
@@ -296,9 +304,11 @@ wass_grid_search <- function(data, grid = NULL,
     names(output) <- as.character(grid)
     
     if (verbose ) {
-      message("\nCalculating out of sample balance")
+      message("\nCalculating out of sample balance:")
       # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
       pbapply::pboptions(type = "timer", style = 3, char = "=")
+    } else {
+      pbapply::pboptions(type = "none")
     }
     output <- pbapply::pbsapply(weight.list, function(ww) {
       boot.args$MoreArgs$weight <- ww
@@ -316,9 +326,12 @@ wass_grid_search <- function(data, grid = NULL,
 
     return(weight.list[[min.idx]])
   } else {
-    bootIdx.cols    <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
-    bootIdx.rows.0  <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
-    bootIdx.rows.1  <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
+    # bootIdx.cols    <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
+    # bootIdx.rows.0  <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
+    # bootIdx.rows.1  <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
+    rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
+    rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
+    colCount   <- replicate(n.boot, c(rmultinom(1,  n, prob = sample_weight$total)), simplify = FALSE)
     
     output_0        <- output_1 <- rep(NA, length(grid))
     names(output_0) <- names(output_1) <- as.character(grid)
@@ -326,8 +339,10 @@ wass_grid_search <- function(data, grid = NULL,
     full.sample.weight <- rep(1/n, n)
     
     boot.args <- list(FUN = wass_grid,
-                      bootIdx.row  = bootIdx.rows.0,  
-                      bootIdx.col = bootIdx.cols,
+                      # bootIdx.row  = bootIdx.rows.0,  
+                      # bootIdx.col = bootIdx.cols,
+                      rowCount  = rowCount.0,  
+                      colCount = colCount,
                       MoreArgs = list(
                         weight = weight.list[[1]], 
                         data = wass.dat, 
@@ -354,8 +369,10 @@ wass_grid_search <- function(data, grid = NULL,
     boot.args0$MoreArgs$cost   <- cost[[1]]
     boot.args1$MoreArgs$cost   <- cost[[2]]
     
-    boot.args0$bootIdx.row     <- bootIdx.rows.0
-    boot.args1$bootIdx.row     <- bootIdx.rows.1
+    # boot.args0$bootIdx.row     <- bootIdx.rows.0
+    # boot.args1$bootIdx.row     <- bootIdx.rows.1
+    boot.args0$rowCount     <- rowCount.0
+    boot.args1$rowCount     <- rowCount.1
     
     w0 <- w1 <- weight.list[[length(weight.list)]]
     w0$w1 <- w1$w1 <- full.sample.weight
@@ -745,7 +762,7 @@ wass_grid_default <- function(x, z, p, data, cost, estimand, method, metric, was
   return(eval(f.call, envir = args))
 }
 
-wass_grid <- function(bootIdx.row, bootIdx.col, weight, cost, wass.method, wass.iter, ...) {
+wass_grid <- function(rowCount, colCount, weight, cost, wass.method, wass.iter, ...) {
   if (all(is.na(weight$w1) | all(is.na(weight$w0)))) return(NA)
   n1 <- length(weight$w1)
   n0 <- length(weight$w0)
@@ -757,13 +774,16 @@ wass_grid <- function(bootIdx.row, bootIdx.col, weight, cost, wass.method, wass.
   # n1 <- length(tx_boot)
   # n0 <- length(cn_boot)
   # n <- n0 + n1
-  tab.row <- tabulate(bootIdx.row, nbins = n0)
-  tab.col <- tabulate(bootIdx.col, nbins = n0)
-  row.idx <- which(tab.row != 0)
-  col.idx <- which(tab.col != 0)
   
-  weight$w0 <- renormalize(weight$w0[row.idx] * tab.row[row.idx])
-  weight$w1 <- renormalize(weight$w1[col.idx] * tab.col[col.idx])
+  # tab.row <- tabulate(bootIdx.row, nbins = n0)
+  # tab.col <- tabulate(bootIdx.col, nbins = n0)
+  # row.idx <- which(tab.row != 0)
+  # col.idx <- which(tab.col != 0)
+  # weight$w0 <- renormalize(weight$w0[row.idx] * tab.row[row.idx])
+  # weight$w1 <- renormalize(weight$w1[col.idx] * tab.col[col.idx])
+  
+  weight$w0 <- renormalize(weight$w0 * rowCount)
+  weight$w1 <- renormalize(weight$w1 * colCount)
   p.temp <- weight$args$power
   if (is.null(p.temp)) {
     p <- list(...)$p
@@ -793,9 +813,9 @@ wass_grid <- function(bootIdx.row, bootIdx.col, weight, cost, wass.method, wass.
   # } else {
     # if(!is.null(weight$gamma)) weight$gamma <- weight$gamma[cn_boot, tx_boot]
     if ( is.list(cost) ) {
-      cc <- cost[[length(cost)]][row.idx, col.idx]
+      cc <- cost[[length(cost)]]#[rowCount > 0, colCount > 0]
     } else {
-      cc <- cost[row.idx, col.idx]
+      cc <- cost#[rowCount > 0, colCount > 0]
     }
     return(wass_dist_helper(a = weight, b = NULL,
                          cost = cc,

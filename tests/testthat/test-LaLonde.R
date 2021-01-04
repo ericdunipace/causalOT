@@ -9,8 +9,8 @@ testthat::test_that("function works as would expect", {
   testthat::expect_silent(ns <- causalOT:::get_n.DataSim(data))
   testthat::expect_silent(ps <- causalOT:::get_p.DataSim(data))
   
-  testthat::expect_equal(ps, 8)
-  testthat::expect_equal(ns, c(n0 = 260,n1 = 185))
+  testthat::expect_equal(ps, 10)
+  testthat::expect_equal(ns, c(n0 = 260, n1 = 185))
   
   data <- causalOT::LaLonde$new(design = "Full")
   data$gen_data()
@@ -20,7 +20,7 @@ testthat::test_that("function works as would expect", {
   testthat::expect_silent(ns <- causalOT:::get_n.DataSim(data))
   testthat::expect_silent(ps <- causalOT:::get_p.DataSim(data))
   
-  testthat::expect_equal(ps, 8)
+  testthat::expect_equal(ps, 10)
   testthat::expect_equal(ns, c(n0 = 15992, n1 = 185))
   
   testthat::expect_equal(data$get_tau(), 1794)
@@ -44,21 +44,21 @@ testthat::test_that("optimal weighting works, no augmentation", {
   data$gen_data()
   
   # debugonce( data$opt_weight)
-  opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-  opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
-  opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
+  opt_weights_mosek  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
+  opt_weights_gurobi <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
+  opt_weights_cplex  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
   names(opt_weights_mosek) <-
     names(opt_weights_gurobi) <- 
     names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
-                                              doubly.robust = FALSE, target = "ATE")$estimate,
+                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = FALSE, target = "ATE")$estimate,
+                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
-                                              doubly.robust = FALSE, target = "ATE")$estimate,
+                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
 })
 
@@ -90,13 +90,13 @@ testthat::test_that("optimal weighting works, augmentation", {
     names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
-                                              doubly.robust = augment, target = "ATE")$estimate,
+                                              doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = augment, target = "ATE")$estimate,
+                                              doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
-                                              doubly.robust = augment, target = "ATE")$estimate,
+                                              doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
 })
 

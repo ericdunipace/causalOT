@@ -1,4 +1,4 @@
-#include "causalOT_types.h"
+#include "cost_lp.h"
 
 void cost_calculation_Lp(const refMatConst & A, const refMatConst & B, matrix & cost_matrix, double p) {
   double p_inv = 1.0/p;

@@ -42,7 +42,7 @@ testthat::test_that("grid search actually works, cwass", {
                            estimand = estimand, n.boot = 10, method = "Constrained Wasserstein",
                            metric = metric, p = power, solver = "mosek",
                            wass.method = "networkflow", wass.iter = 0))
-  testthat::expect_lte(wsel2$args$constraint - 1.917939, 1e-3)
+  testthat::expect_lte(wsel2$args$constraint - 2.054565, 1e-3)
   
   estimand <- "ATC"
   testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
@@ -95,7 +95,7 @@ testthat::test_that("grid search actually works, cwass mahal", {
                                                    metric = metric, p = power, solver = "mosek",
                                                    wass.method = "networkflow", wass.iter = 0))
   
-  testthat::expect_lte(wsel$args$constraint - 2.054565, 1e-3)
+  testthat::expect_lte(wsel$args$constraint - 2.057709, 1e-3)
   
   #don't specify grid
   # debugonce(wass_grid_search)
@@ -217,7 +217,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
     
   )
   
-  testthat::expect_lte(wsel$args$constraint[1] - c(0.845143), 1e-3)
+  testthat::expect_lte(wsel$args$constraint[1] - c(0.857032), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)

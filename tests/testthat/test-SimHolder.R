@@ -192,7 +192,7 @@ testthat::test_that("SimHolder runs with formula options", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^6
+  n <- 2^5
   p <- 6
   nsims <- 1
   overlap <- "high"
@@ -272,7 +272,7 @@ testthat::test_that("SimHolder runs,verbose", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^6
+  n <- 2^5
   p <- 6
   nsims <- 2
   overlap <- "high"
@@ -343,7 +343,7 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^6
+  n <- 2^5
   p <- 6
   nsims <- 2
   overlap <- "high"
@@ -409,7 +409,7 @@ testthat::test_that("SimHolder with grid works", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^6
+  n <- 2^5
   p <- 6
   nsims <- 2
   overlap <- "high"
@@ -494,7 +494,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^6
+  n <- 2^5
   p <- 6
   nsims <- 2
   overlap <- "high"

@@ -17,7 +17,7 @@ testthat::test_that("sim.function works", {
   library(causalOT)
 
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 1
   overlap <- "low"
@@ -101,7 +101,7 @@ testthat::test_that("sim.function works, propsensity formula", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 1
   overlap <- "low"
@@ -162,7 +162,7 @@ testthat::test_that("sim.function works, sonabend2020", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 1
   overlap <- "low"
@@ -245,7 +245,7 @@ testthat::test_that("sim.function works with RKHS", {
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 1
   overlap <- "low"

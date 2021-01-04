@@ -1100,6 +1100,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  } else {
                                    stop("Design not found")
                                  }
+                                 colnames(private$x) <- c(colnames(private$x)[1:8], "u74", "u75")
                                  private$p <- ncol(private$x)
                                  private$n <- nrow(private$x)
                                  private$check_data()

@@ -132,6 +132,7 @@
                                                                         "Wasserstein" = NULL),
                                                  model.augmentation = "both",
                                                  match = "both",
+                                                 split.models = "both",
                                                  calculate.feasible = FALSE,
                                                  solver = "gurobi",
                                                  cluster = FALSE,
@@ -348,6 +349,7 @@
                              private$nmethod <- length(private$method)
                              private$model.augmentation <- match.arg(model.augmentation, c("both", "yes", "no"))
                              private$match <- match.arg(match, c("both", "yes", "no"))
+                             private$split <- match.arg(split.models, c("both", "yes", "no"))
                              # private$cost.setup()
                              
                              private$temp.output <- vector("list", length = private$nmethod)
@@ -371,6 +373,7 @@
                                model = character(private$max.conditions),
                                model.augmentation = logical(private$max.conditions),
                                match = logical(private$max.conditions),
+                               split.model = logical(private$max.conditions),
                                solver = character(private$max.conditions),
                                delta = numeric(private$max.conditions),
                                options = lapply(1:private$max.conditions, function(i) list(NA)), #vector("list", private$max.conditions),
@@ -408,6 +411,7 @@
                                           RKHS.opt = "list",
                                           simulator = "DataSim",
                                           solver = "character",
+                                          split = "character",
                                           standardized.difference.means = "vector",
                                           temp.output = "list",
                                           truncations = "vector",
@@ -570,35 +574,46 @@
                                                                                                          estimand = est, augment = aug, 
                                                                                                          solver = private$solver[1]))
                                                       for (match in cur$match[[1]]) {
-                                                        data.table::set(private$output.dt, i = iter, j = "estimand" , value = est)
-                                                        data.table::set(private$output.dt, i = iter, j = "model" , value = mods)
-                                                        data.table::set(private$output.dt, i = iter, j = "model.augmentation" , value = aug)
-                                                        data.table::set(private$output.dt, i = iter, j = "match" , value = match)
-                                                        data.table::set(private$output.dt, i = iter, j = "solver" , value = solver)
-                                                        data.table::set(private$output.dt, i = iter, j = "delta" , value = if(!is.null(o$delta)){o$delta} else {NA_real_})
-                                                        data.table::set(private$output.dt, i = iter, j = "options" , value = list(list(o)))
-                                                        private$wass.calc(iter, est)
-                                                        data.table::set(private$output.dt, i = iter, j = "ess.frac", value = ess.frac)
-                                                        #PSIS
-                                                        data.table::set(private$output.dt, i = iter, j = "psis.ess.frac", value = psis.ess.frac)
-                                                        data.table::set(private$output.dt, i = iter, j = "psis.k", value = psis.k)
-                                                        #opt wt dist
-                                                        data.table::set(private$output.dt, i = iter, j = "opt.dist", value = opt.dist)
-                                                        esteff <- estimate_effect(private$simulator, 
-                                                                               formula = cur$outcome.formula[[1]][[aug + 1]],
-                                                                               weights = private$weights[[est]],
-                                                                               hajek = TRUE,
-                                                                               doubly.robust = aug,
-                                                                               matched = match,
-                                                                               target = est,
-                                                                               model = match.fun(mods))
-                                                        data.table::set(private$output.dt, i = iter, j = "estimate", 
-                                                                        value = esteff$estimate
-                                                        )
-                                                        # data.table::set(private$output.dt, i = iter, j = "conf.int", 
-                                                        #                 value = confint(esteff)
-                                                        # )
-                                                        iter <- iter + 1L
+                                                        for (split in cur$split[[1]]) {
+                                                          if (split) {
+                                                            mn <- which(cur$match[[1]] == match)
+                                                            an <- which(cur$model.aug[[1]] == aug)
+                                                            if (mn >1 & an > 1) next
+                                                          }
+                                                          data.table::set(private$output.dt, i = iter, j = "estimand" , value = est)
+                                                          data.table::set(private$output.dt, i = iter, j = "model" , value = mods)
+                                                          data.table::set(private$output.dt, i = iter, j = "model.augmentation" , value = aug)
+                                                          data.table::set(private$output.dt, i = iter, j = "match" , value = match)
+                                                          data.table::set(private$output.dt, i = iter, j = "split.model" , value = split)
+                                                          
+                                                          data.table::set(private$output.dt, i = iter, j = "solver" , value = solver)
+                                                          data.table::set(private$output.dt, i = iter, j = "delta" , value = if(!is.null(o$delta)){o$delta} else {NA_real_})
+                                                          data.table::set(private$output.dt, i = iter, j = "options" , value = list(list(o)))
+                                                          private$wass.calc(iter, est)
+                                                          data.table::set(private$output.dt, i = iter, j = "ess.frac", value = ess.frac)
+                                                          #PSIS
+                                                          data.table::set(private$output.dt, i = iter, j = "psis.ess.frac", value = psis.ess.frac)
+                                                          data.table::set(private$output.dt, i = iter, j = "psis.k", value = psis.k)
+                                                          #opt wt dist
+                                                          data.table::set(private$output.dt, i = iter, j = "opt.dist", value = opt.dist)
+                                                          esteff <- estimate_effect(private$simulator, 
+                                                                                    formula = cur$outcome.formula[[1]][[aug + 1]],
+                                                                                    weights = private$weights[[est]],
+                                                                                    hajek = TRUE,
+                                                                                    doubly.robust = aug,
+                                                                                    matched = match,
+                                                                                    split.model = split,
+                                                                                    estimand = est,
+                                                                                    model = match.fun(mods))
+                                                          data.table::set(private$output.dt, i = iter, j = "estimate", 
+                                                                          value = esteff$estimate
+                                                          )
+                                                          # data.table::set(private$output.dt, i = iter, j = "conf.int", 
+                                                          #                 value = confint(esteff)
+                                                          # )
+                                                          iter <- iter + 1L
+                                                        }
+                                                        
                                                       }
                                                     }
                                                   }
@@ -784,19 +799,19 @@
                                             }
                                           },
                                           get_cost = function(opt, method, estimand) {
-                                            if(grepl("Wasserstein", method)){
-                                              cost <- if(is.null(opt$metric) | is.null(opt$ground_p)){
+                                            if (grepl("Wasserstein", method) | method == "NNM") {
+                                              cost <- if (is.null(opt$metric) | is.null(opt$ground_p)) {
                                                 NULL
                                                 # } else if (!is.null(opt$theta) & !is.null(opt$gamma)) {
                                                 #   private$kernel
                                               } else {
-                                                if(opt$metric != "RKHS") {
+                                                if (opt$metric != "RKHS") {
                                                   private$costs[[opt$metric]][[as.character(opt$ground_p)]][[estimand]]
                                                 } else {
                                                   private$costs[["RKHS"]][[estimand]]
                                                 }
                                               }
-                                            } else if (method == "RKHS"){
+                                            } else if (method == "RKHS") {
                                               # cost <- private$costs[["RKHS"]][[estimand]]
                                               cost <- NULL
                                             } else {
@@ -842,6 +857,10 @@
                                                                                                               "both" = c(FALSE, TRUE),
                                                                                                               "yes" = TRUE,
                                                                                                               "no" = FALSE))
+                                            private$method.lookup$split <- lapply(1:nrows, function(i) switch(private$split, 
+                                                                                                              "both" = c(FALSE, TRUE),
+                                                                                                              "yes" = TRUE,
+                                                                                                              "no" = FALSE))
                                             private$method.lookup$solver <- sapply(private$method, function(mm) switch(mm,
                                                                                                                        Logistic = "glm",
                                                                                                                        NNM = NA_character_,
@@ -883,6 +902,11 @@
                                                                                 opt = private$RKHS$opt,
                                                                                 opt.method = private$RKHS$opt.method)
                                             RKHS_list$delta <- NULL
+                                            nnm_list <- list(metric = private$metric,
+                                                                        ground_p = private$ground_powers,
+                                                                        wass_p = private$wass_powers,
+                                                                        delta = NA
+                                            )
                                             Cwass_list <- list(metric = private$metric,
                                                                ground_p = private$ground_powers,
                                                                wass_p = private$wass_powers,
@@ -912,7 +936,7 @@
                                             private$method.lookup$options <- sapply(private$method, function(mm) switch(mm,
                                                                                                                         Logistic = list(delta = private$truncations,
                                                                                                                                         formula = private$ps.formula$logistic),
-                                                                                                                        NNM = list(delta = NA),
+                                                                                                                        NNM = nnm_list,
                                                                                                                         SBW = list(grid.search = private$grid.search,
                                                                                                                                    delta = sdm,
                                                                                                                                    formula = private$ps.formula$sbw),   
@@ -1102,7 +1126,7 @@
                                                             estimand = estimand, 
                                                             method = method,
                                                             cost = cost, p = power,
-                                                            transport.matrix = FALSE,
+                                                            transport.matrix = TRUE,
                                                             solver = solver,
                                                             opt.hyperparam = opt.hyperparam,
                                                             opt.method = opt.method,

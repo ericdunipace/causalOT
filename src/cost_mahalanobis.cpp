@@ -1,4 +1,5 @@
 #include "causalOT_types.h"
+#include "cost_lp.h"
 
 matrix covariance(const refMatConst & samples) {
   int S = samples.cols();
@@ -78,12 +79,22 @@ Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix & A_,
   
   matrix cost_matrix(N,M);
   
+  // more memory efficient:
+  // if(p == 2.0) {
+  //   cost_mahal_L2(A, B, L_inv, cost_matrix);
+  // } else if (p == 1.0){
+  //   cost_mahal_L1(A, B, L_inv, cost_matrix);
+  // } else {
+  //   cost_mahal_Lp(A, B, L_inv, cost_matrix, p);
+  // }
+  matrix AL = L_inv * A;
+  matrix BL = L_inv * B;
   if(p == 2.0) {
-    cost_mahal_L2(A, B, L_inv, cost_matrix);
+    cost_calculation_L2(AL, BL, cost_matrix);
   } else if (p == 1.0){
-    cost_mahal_L1(A, B, L_inv, cost_matrix);
+    cost_calculation_L1(AL, BL, cost_matrix);
   } else {
-    cost_mahal_Lp(A, B, L_inv, cost_matrix, p);
+    cost_calculation_Lp(AL, BL, cost_matrix, p);
   }
   
   return Rcpp::wrap(cost_matrix);

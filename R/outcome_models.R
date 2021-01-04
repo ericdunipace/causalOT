@@ -301,15 +301,18 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
   return(tx_effect)
 }
 
-outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand) {
+outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand,
+                         sample_weight) {
   
   w0 <- weights$w0
   w1 <- weights$w1
-  t_ind <- z==1
-  c_ind <- z==0
+  t_ind <- z == 1
+  c_ind <- z == 0
   
-  fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
-  fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
+  environment(formula$treated) <- environment(formula$control) <- environment()
+  
+  fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
+  fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
   f_1   <- predict(fit_1, data)
   f_0   <- predict(fit_0, data)
   
@@ -343,8 +346,8 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
     tx_effect <- mean(maps$y1 - maps$y0)
       
   } else {
-    mu_1  <- mean(f_1)
-    mu_0  <- mean(f_0)
+    mu_1  <- weighted.mean(f_1, sample_weight$total)
+    mu_0  <- weighted.mean(f_0, sample_weight$total)
     e_1   <- fit_1$residuals
     e_0   <- fit_0$residuals
     
@@ -359,7 +362,8 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
 }
 
 
-outcome_calc_model <- function(data, z, weights, formula, model.fun, matched, estimand,...) {
+outcome_calc_model <- function(data, z, weights, formula, model.fun, matched, estimand,
+                               ...) {
   w0 <- weights$w0
   w1 <- weights$w1
 
@@ -455,14 +459,16 @@ estimate_effect <- function(data, formula = NULL, weights,
                                   estimand = c("ATT", "ATC", "ATE", "feasible"),
                                   target = c("ATT", "ATC", "ATE", "feasible"), 
                                   model = NULL, 
-                                  split.model = TRUE, ...) {
+                                  split.model = TRUE, 
+                                  sample_weight = NULL,
+                                  ...) {
   #get args
-  dots <- list(...)
+  # dots <- list(...)
   
   # hajek <- match.arg(hajek)
   dr <- isTRUE(doubly.robust[1])
   matched <- isTRUE(matched[1])
-  
+  hajek   <- isTRUE(hajek)
   split.model <- isTRUE(split.model)
   
   if (is.null(estimand)) {
@@ -476,6 +482,7 @@ estimate_effect <- function(data, formula = NULL, weights,
                        "feasible" = "feasible")
     }
   } else {
+    if (missing(estimand) & !missing(target)) estimand <- target
     estimand <- switch(estimand,
                        "ATT" = "ATT",
                        "ATC" = "ATC",
@@ -494,11 +501,12 @@ estimate_effect <- function(data, formula = NULL, weights,
   
   #setup data
   prep.data <- prep_data(data,...)
+  sample_weight <- get_sample_weight(sample_weight, prep.data$z)
   
   #get estimate
   estimate <- if (split.model) {
     outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun,
-                           matched, estimand)
+                           matched, estimand, sample_weight)
   } else {
     outcome_calc_model(prep.data$df, prep.data$z, weights, formula, model.fun,
                        matched, estimand)
@@ -540,7 +548,9 @@ confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstr
   
 }
 
-ci_boot_ce <- function(object, parm, level, n.boot = 1000, balance.covariates = NULL,
+ci_boot_ce <- function(object, parm, level, n.boot = 1000, 
+                       boot.method = NULL,
+                       balance.covariates = NULL,
                        treatment.indicator = NULL, outcome = NULL, 
                        verbose = FALSE, ...) {
   
@@ -605,11 +615,25 @@ ci_boot_ce <- function(object, parm, level, n.boot = 1000, balance.covariates = 
     return(est)
   }
   
+  if (is.null(boot.method)) {
+    boot.method <- switch(object$weights$method,
+                          "SBW" = "n-out-of-n",
+                          "Logistic" = "n-out-of-n",
+                          "NNM" = "m-out-of-n",
+                          "Wasserstein" = "m-out-of-n",
+                          "Constrained Wasserstein" = "m-out-of-n",
+                          "m-out-of-n"
+                          )
+  } else {
+    boot.method <- match.arg(boot.method, choices = c("m-out-of-n", "n-out-of-n"))
+  } 
+  
   ns <- get_n(object$data, balance.covariates = object$options$balance.covariates,
               treatment.indicator = object$options$treatment.indicator, ...)
   # N  <- sum(ns)
   
   boot.idx <- cot_boot_samples(n.boot = n.boot,
+                               boot.method = boot.method,
                                estimand = object$estimand,
                                method = object$weights$method,
                                n0 = ns[1],
@@ -621,6 +645,12 @@ ci_boot_ce <- function(object, parm, level, n.boot = 1000, balance.covariates = 
   } else {
     pbapply::pboptions(type = "none")
   }
+  # if (boot.method == "m-out-of-n") {
+  #   nSamp <- c(adjust_m_of_n_btstrp(ns[1]),
+  #              adjust_m_of_n_btstrp(ns[2]))
+  # } else {
+  #   nSamp <- ns
+  # }
   boots <- pbapply::pbsapply(boot.idx, boot.fun, data = data, object = object, 
                   n0 = ns[1], n1 = ns[2],
                   ...)
@@ -628,33 +658,72 @@ ci_boot_ce <- function(object, parm, level, n.boot = 1000, balance.covariates = 
   
   ci <- quantile(boots, probs = c(level/2, (1 - level/2)))
   # names(ci) <- c("lower", "upper")
+  sd_boot <- sd(boots)
   
-  return(list(CI = ci, SD = sd(boots)))
+  output <- list(CI = ci, SD = sd_boot)
+  if (boot.method == "m-out-of-n") {
+    ci_raw <- ci
+    sd_raw <- sd_boot
+    
+    m <- sum(c(adjust_m_of_n_btstrp(ns[1]),
+             adjust_m_of_n_btstrp(ns[2])))
+    n <- sum(ns)
+    
+    theta_hat <- object$estimate
+    theta_hat_m <- mean(boots)
+    l <- ci[1]
+    u <- ci[2]
+    ci_names <- names(ci)
+    output$CI <- c(theta_hat + sqrt(m / n) * (l - theta_hat_m),
+            theta_hat + sqrt(m / n) * (u - theta_hat_m))
+    names(output$CI) <- ci_names
+    output$SD <- sd_boot * sqrt(m / n)
+    output$unadjusted = list(CI = ci_raw,
+                             SD = sd_raw)
+  }
+  
+  return(output)
   
 }
 
-cot_boot_samples <- function(n.boot, estimand, method, n0, n1, ...) {
+adjust_m_of_n_btstrp <- function(n, scale = 0.75) {
+  return(ceiling(n * 0.75))
+}
+
+cot_boot_samples <- function(n.boot, boot.method, estimand, method, n0, n1, ...) {
   n <- n0 + n1
-  boot.idx <- replicate(n = n.boot, sample.int(n,n,replace = TRUE),
-                        simplify = FALSE)
-  return(boot.idx)
+  if (boot.method == "m-out-of-n") {
+    n0samp <- adjust_m_of_n_btstrp(n0)
+    n1samp <- adjust_m_of_n_btstrp(n1)
+    nsamp  <- n0samp + n1samp
+  } else {
+    n0samp <- n0
+    n1samp <- n1
+    nsamp  <- n
+  }
+  # boot.idx <- replicate(n = n.boot, sample.int(n,n,replace = TRUE),
+  #                       simplify = FALSE)
+  # return(boot.idx)
   # if that doesn't work then: 
   if (method == "SBW" | method == "Logistic") {
-    boot.idx <- replicate(n = n.boot, sample.int(n,n,replace = TRUE),
+    boot.idx <- replicate(n = n.boot, sample.int(n = n, size = nsamp,
+                                                 replace = TRUE),
                           simplify = FALSE)
   } else {
     if (estimand == "ATE") {
       boot.idx <- replicate(n = n.boot,
-                            function() {
-                              total.idx <- sample.int(n, n, replace = TRUE)
-                              return(list(control = c(sample.int(n0,n0, replace = TRUE), total.idx),
-                                          treated = c(sample.int(n1,n1, replace = TRUE), total.idx)))
-                            }, simplify = FALSE)
+                            list(control = c(sample.int(n0, 
+                                                        n0samp, replace = TRUE)),
+                                 treated = c(sample.int(n1, 
+                                                        n1samp, replace = TRUE)),
+                                 total   = sample.int(n, 
+                                                      nsamp, replace = TRUE)), 
+                            simplify = FALSE)
     } else if (estimand == "ATT" | estimand == "ATC") {
-      boot.idx <- replicate(n = n.boot, function() {
-        c(sample.int(n0,n0, replace = TRUE), 
-          sample.int(n1,n1, replace = TRUE))
-      }, simplify = FALSE)
+      boot.idx <- replicate(n = n.boot, 
+        list(sample.int(n0,n0samp, replace = TRUE), 
+          sample.int(n1,n1samp, replace = TRUE))
+      , simplify = FALSE)
     }
   }
   
@@ -665,6 +734,7 @@ cot_boot_samples <- function(n.boot, estimand, method, n0, n1, ...) {
 ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                               balance.covariates, treatment.indicator,
                               n0, n1, ...) {
+  weight$args$grid.search <- FALSE
   # wt.args <- c(list(data = object$data[idx,, drop = FALSE], 
   #                   constraint = weight$args$constraint,
   #                   estimand = object$estimand, method = weight$method,
@@ -693,56 +763,86 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                  weight$args,
                  ...)
     wt.args <- wt.args[!duplicated(names(wt.args))]
-    wtargn <- names(wt.args)
+    wtargn <- lapply(names(wt.args), as.name)
+    names(wtargn) <- names(wt.args)
+    wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
+    return(eval(wf.call, envir = wt.args))
     
   } else {
     if (estimand == "ATE") {
-      dat.0 <-  object$data[idx[[1]], ]
-      dat.1 <-  object$data[idx[[2]], ]
-      dat.0[, treatment.indicator] <- c(rep(0, n0), rep(1, n1 + n0))
-      dat.1[, treatment.indicator] <- c(rep(0, n1), rep(1, n1 + n0))
+      tab.0 <- tabulate(idx[[1]], n0)
+      tab.1 <- tabulate(idx[[2]], n1)
+      tab   <- tabulate(idx[[3]], n0 + n1)
+      # tab   <- tabulate(unlist(idx[1:2]), 
+      #                   n0 + n1)
+      z     <- object$data[, treatment.indicator]
+      dat.0 <-  rbind(object$data[z == 0, ],
+                      object$data)
+      dat.1 <-  rbind(object$data[z == 1, ],
+                      object$data)
+      dat.0[, treatment.indicator] <- c(rep(0, n0), 
+                                        rep(1, n1 + n0))
+      dat.1[, treatment.indicator] <- c(rep(0, n1), 
+                                        rep(1, n1 + n0))
+      
       wt.args <- list(
                   c(list(data = dat.0, constraint = weight$args$constraint,
-                        estimand = object$estimand, method = weight$method,
+                        estimand = "ATT", method = weight$method,
                         transport.matrix = !is.null(weight$gamma),
                         grid.search = isTRUE(weight$args$grid.search), 
                         formula = weight$args$formula,
                         balance.covariates = balance.covariates,
-                        treatment.indicator = treatment.indicator), 
+                        treatment.indicator = treatment.indicator,
+                        sample_weight = renormalize(c(tab.0, tab))), 
                    weight$args,
                    ...),
                    c(list(data = dat.1, constraint = weight$args$constraint,
-                          estimand = object$estimand, method = weight$method,
+                          estimand = "ATT", method = weight$method,
                           transport.matrix = !is.null(weight$gamma),
                           grid.search = isTRUE(weight$args$grid.search), 
                           formula = weight$args$formula,
                           balance.covariates = balance.covariates,
-                          treatment.indicator = treatment.indicator), 
+                          treatment.indicator = treatment.indicator, 
+                     sample_weight = renormalize(c(tab.1, tab))),
                      weight$args,
                      ...)
       )
       wt.args <- list(wt.args[[1]][!duplicated(names(wt.args[[1]]))],
                       wt.args[[2]][!duplicated(names(wt.args[[2]]))])
-      wtargn <- names(wt.args[[1]])
+      wtargn  <- lapply(names(wt.args[[1]]), as.name)
+      names(wtargn)  <- names(wt.args[[1]])
+      
+      wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
+      wts <- eval(wf.call, envir = wt.args[[1]])
+      wts$w1 <- eval(wf.call, envir = wt.args[[2]])$w0
+      wts$estimand <- "ATE"
+      return(wts)
     } else {
-      dat <- object$data[idx,]
-      dat[,treatment.indicator] <- c(rep(0, n0), rep(1,n1))
-      wt.args <- c(list(data = dat, constraint = weight$args$constraint,
+      tab.0 <- tabulate(idx[[1]], n0)
+      tab.1 <- tabulate(idx[[2]], n1)
+      sample.wt <- list(a = renormalize(tab.0),
+                        b = renormalize(tab.1))
+      
+      # dat <- object$data[idx,]
+      # dat[,treatment.indicator] <- c(rep(0, n0), rep(1,n1))
+      wt.args <- c(list(data = object$data, constraint = weight$args$constraint,
                         estimand = object$estimand, method = weight$method,
                         transport.matrix = !is.null(weight$gamma),
                         grid.search = isTRUE(weight$args$grid.search), 
                         formula = weight$args$formula,
                         balance.covariates = balance.covariates,
-                        treatment.indicator = treatment.indicator), 
+                        treatment.indicator = treatment.indicator, 
+                        sample_weight = sample.wt),
                    weight$args,
                    ...)
     }
     wt.args <- wt.args[!duplicated(names(wt.args))]
-    wtargn <- names(wt.args)
-    
+    wtargn <- lapply(names(wt.args), as.name)
+    names(wtargn) <- names(wt.args)
+    wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
+    return(eval(wf.call, envir = wt.args))
   }
-  wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-  return(eval(wf.call, envir = wt.args))
+  
 }
   
 ci_idx_to_est <- function(idx, 
@@ -752,25 +852,53 @@ ci_idx_to_est <- function(idx,
                                treatment.indicator,
                                outcome,
                                n0, n1, ...) {
-  if (!(weight$method %in% c("SBW", "Logistic")) & object$estimand == "ATE") {
-    idx <- c(idx[[1]][1:n0], idx[[2]][1:n1])
-  }
-  dat <- object$data[idx,, drop = FALSE]
+  # if (!(weight$method %in% c("SBW", "Logistic")) & object$estimand == "ATE") {
+  #   idx <- c(idx[[1]], idx[[2]])
+  # }
+  # dat <- object$data[idx,, drop = FALSE]
   environment(object$formula) <- environment()
-  est.args <- c(list(data = dat, 
-                     formula = object$formula,
-                     weights = weight,
-                     model = object$model,
-                     hajek = object$options$hajek,
-                     doubly.robust = object$options$doubly.robust,
-                     matched = object$options$matched,
-                     estimand = object$estimand,
-                     split.model = object$options$split.model,
-                     balance.covariates = balance.covariates,
-                     treatment.indicator = treatment.indicator,
-                     outcome = outcome),
-                object$options$addl.args,
-                ...)
+  
+  if (weight$method == "SBW" | weight$method == "Logistic") {
+    sample.wt <- rep(1 / (n0 + n1), n0 + n1)
+    
+    est.args <- c(list(data = object$data[idx,], 
+                       formula = object$formula,
+                       weights = weight,
+                       model = object$model,
+                       hajek = object$options$hajek,
+                       doubly.robust = object$options$doubly.robust,
+                       matched = object$options$matched,
+                       estimand = object$estimand,
+                       split.model = object$options$split.model,
+                       sample_weight = sample.wt,
+                       balance.covariates = balance.covariates,
+                       treatment.indicator = treatment.indicator,
+                       outcome = outcome),
+                  object$options$addl.args,
+                  ...)
+  } else {
+    sample.wt <- list(
+                      a = renormalize(tabulate(idx[[1]], n0)),
+                      b = renormalize(tabulate(idx[[2]], n1))
+                      )
+    
+    est.args <- c(list(data = object$data, 
+                       formula = object$formula,
+                       weights = weight,
+                       model = object$model,
+                       hajek = object$options$hajek,
+                       doubly.robust = object$options$doubly.robust,
+                       matched = object$options$matched,
+                       estimand = object$estimand,
+                       split.model = object$options$split.model,
+                       sample_weight = sample.wt,
+                       balance.covariates = balance.covariates,
+                       treatment.indicator = treatment.indicator,
+                       outcome = outcome),
+                  object$options$addl.args,
+                  ...)
+    
+  }
   
   est.args <- est.args[!duplicated(names(est.args))]
   estargn <- lapply(names(est.args), as.name)
