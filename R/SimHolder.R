@@ -1141,7 +1141,7 @@
                                                             iter = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             maxit = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             metric = metric,
-                                                            balance.constraints = 0.2,
+                                                            balance.constraints = 0.1,
                                                             add.joint = private$wass.opt$add.joint,
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
