@@ -135,7 +135,7 @@ testthat::test_that("SimHolder runs", {
   library(causalOT)
 
   #### Sim param ####
-  n <- 2^6
+  n <- 2^5
   p <- 6
   nsims <- 2
   overlap <- "high"
@@ -242,7 +242,6 @@ testthat::test_that("SimHolder runs with formula options", {
                       propensity.formula = list(Logistic = list("z ~ . + .*.",
                                                                 "z ~ . "),
                                                 SBW = list("~.+0",
-                                                           "~. + .*.+0",
                                                            "~ . + .*. + I(.^2) + 0"),
                                                 "Constrained Wasserstein" = list(NA, "~.+0"),
                                                 Wasserstein = list(NA, "~.+0")),
@@ -271,7 +270,7 @@ testthat::test_that("SimHolder runs with formula options", {
   
   out <- sh$get.output()
   testthat::expect_equal(unique(out$formula), 
-                         c("z ~ . + .*.", "z ~ . ",  "~.+0",  "~. + .*.+0",  NA ))
+                         c("z ~ . + .*.", "z ~ . ",  "~.+0",  "~ . + .*. + I(.^2) + 0",  NA ))
   outcome <- sh$get.outcome(out)
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)

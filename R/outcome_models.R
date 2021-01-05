@@ -157,20 +157,20 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
   runMap <- isTRUE(weights$method %in% ot.methods())
   
   if (runMap) {
-    bal.cov <- colnames(data)[colnames(data) != "y"]
-    data$z  <- z
-    data$f1 <- f1
-    data$f0 <- f0
-    bproj_y <- barycentric_projection(data, weights, 
+    bal.cov    <- colnames(data)[colnames(data) != "y"]
+    data$z     <- z
+    data$f1    <- f1
+    data$f0    <- f0
+    bproj_y    <- barycentric_projection(data, weights, 
                                       treatment.indicator = "z", 
                                       outcome = "y",
                                       balance.covariates = bal.cov,
                                       estimand = estimand,
                                       ...)
     
-    if(estimand == "ATE" | estimand == "ATC") {
+    if (estimand == "ATE" | estimand == "ATC") {
       # the model projection for the controls and then predicted value of E(Y|X for controls)
-      bproj_f1<- barycentric_projection(data, weights, 
+      bproj_f1 <- barycentric_projection(data, weights, 
                                         treatment.indicator = "z", 
                                         outcome = "f1",
                                         balance.covariates = bal.cov,
@@ -183,7 +183,7 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
                        treated = rep(NA_real_,n))
     }
     if (estimand == "ATE" | estimand == "ATT") {
-      bproj_f0<- barycentric_projection(data, weights, 
+      bproj_f0 <- barycentric_projection(data, weights, 
                                            treatment.indicator = "z", 
                                            outcome = "f0",
                                            balance.covariates = bal.cov,
@@ -197,8 +197,9 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
     y1 <- (bproj_y$treated - ifelse(z == 1, bproj_f0$treated, bproj_f1$treated))
     y0 <- (bproj_y$control - ifelse(z == 1, bproj_f0$control, bproj_f1$control))
     
-    y1 <- y1[!is.na(y1)]
-    y0 <- y0[!is.na(y0)]
+    keep <- !is.na(y1) & !is.na(y0)
+    y1 <- y1[keep]
+    y0 <- y0[keep]
     
   } else {
     n          <- length(z)
@@ -207,16 +208,15 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
     y1[z==1]   <- data$y[z==1] - f0[z==1]
     if(estimand == "ATE" | estimand == "ATT") {
       y0[z==1] <- (data$y[z==0] -  f0[z==0]) %*% weights$w0
-      y0 <- y0[z==1]
-      y1 <- y1[z==1]
+      y0 <- y0[z==1][weights$w1 != 0]
+      y1 <- y1[z==1][weights$w1 != 0]
     }
     if (estimand == "ATE" | estimand == "ATC") {
       y1[z==0] <- (data$y[z==1] -  f1[z==1]) %*% weights$w1
-      y0 <- y0[z==0]
-      y1 <- y1[z==0]
+      y0 <- y0[z==0][weights$w0 != 0]
+      y1 <- y1[z==0][weights$w0 != 0]
       
     }
-    
     
   }
   n1 <- length(y1)
@@ -343,7 +343,12 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
     #   
     #   tx_effect <- ( t_w * tau_t + c_w * tau_c)/(c_w + t_w)
     # }
-    tx_effect <- mean(maps$y1 - maps$y0)
+    mw        <- switch(estimand,
+                        "ATT" = sample_weight$b,
+                        "ATC" = sample_weight$a,
+                        "ATE" = sample_weight$total)
+                        
+    tx_effect <- weighted.mean(x = maps$y1 - maps$y0, w = mw[mw != 0])
       
   } else {
     mu_1  <- weighted.mean(f_1, sample_weight$total)
