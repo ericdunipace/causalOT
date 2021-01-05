@@ -33,8 +33,7 @@ testthat::test_that("function works as would expect", {
   design <- "B"
   p1 <- 4
   data <- causalOT::FanEtAl$new(n = n, p = 100, numActive = p1,
-                                    design = design,
-                                    overlap = overlap)
+                                    design = design)
   data$gen_data()
   testthat::expect_equal(class(data$get_x()), c("matrix","array"))
   testthat::expect_equal(class(data$get_z()), "numeric")

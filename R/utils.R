@@ -39,6 +39,36 @@ vec_to_col_constraints <- function(rows, cols) {
   )
 }
 
-marg_constraint_to_transport_matrix_row <- function(constraints, rows, cols) {
-  
+# marg_constraint_to_transport_matrix_row <- function(constraints, rows, cols) {
+#   
+# }
+
+form_all_squares <- function(form, data.names) {
+  if (is.character(form)) {
+    split.form   <- strsplit(form, "~")[[1]]
+    form.temp    <- split.form[2]
+    form.outcome <- split.form[1]
+    
+  } else if (inherits(form,"formula")) {
+    nform        <- length(form)
+    form.temp    <- as.character(form[nform])
+    form.outcome <- as.character(form[nform - 1])
+    if (form.outcome == "~") form.outcome <- NULL
+  }
+  form.terms <- strsplit(form.temp, "\\+")[[1]]
+  is.square  <- grepl("I\\(\\s*\\.\\^2\\s*\\)", form.terms)
+  form.terms <- form.terms[!is.square]
+  form.nsq   <- paste0(form.terms, collapse = "+")
+  square.terms <- NULL
+  if ( any(is.square) ) {
+    square.terms <- paste0("I(",data.names, "^2)", collapse = " + ")
+  }
+  form <- as.formula(paste0(form.outcome,
+                            "~",
+                            paste0(c(form.nsq, square.terms), 
+                                   collapse = " + "))
+  )
+  return(form)
 }
+
+

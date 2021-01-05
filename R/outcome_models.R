@@ -548,10 +548,8 @@ confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstr
   
 }
 
-ci_boot_ce <- function(object, parm, level, n.boot = 1000, 
+ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000, 
                        boot.method = NULL,
-                       balance.covariates = NULL,
-                       treatment.indicator = NULL, outcome = NULL, 
                        verbose = FALSE, ...) {
   
   boot.fun <- function(idx, object,  n0, n1, ...) {

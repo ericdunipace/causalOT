@@ -1,7 +1,8 @@
 warn.fun <- function() {
   warn <- warnings()
   pw <- c("Some Pareto k diagnostic values are slightly high. See help('pareto-k-diagnostic') for details.\n",
-          "Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.\n")
+          "Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.\n",
+          "Warning: Not enough tail samples to fit the generalized Pareto distribution.\n")
   if(!is.null(warn) ) {
     if(!all(names(warn) %in% pw)){
       idx <- !(names(warn) %in% pw)

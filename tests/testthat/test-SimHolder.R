@@ -1,3 +1,16 @@
+warn.fun <- function() {
+  warn <- warnings()
+  pw <- c("Some Pareto k diagnostic values are slightly high. See help('pareto-k-diagnostic') for details.\n",
+          "Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.\n",
+          "Warning: Not enough tail samples to fit the generalized Pareto distribution.\n")
+  if(!is.null(warn) ) {
+    if(!all(names(warn) %in% pw)){
+      idx <- !(names(warn) %in% pw)
+      print(warn[idx])
+    }
+  } 
+}
+
 testthat::test_that("SimHolder generates object", {
   set.seed(9867)
   
@@ -249,7 +262,7 @@ testthat::test_that("SimHolder runs with formula options", {
       warn <- warnings()
     }
   )
-  if (!is.null(warn)) print(warn)
+  warn.fun()
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -323,7 +336,8 @@ testthat::test_that("SimHolder runs,verbose", {
       file.remove("temp.txt")
     }
   )
-  if (!is.null(warn)) print(warn)
+  # if (!is.null(warn)) print(warn)
+  warn.fun()
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -389,7 +403,8 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
       warn <- warnings()
     }
   )
-  if(!is.null(warn)) print(warn)
+  # if(!is.null(warn)) print(warn)
+  warn.fun()
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -457,7 +472,8 @@ testthat::test_that("SimHolder with grid works", {
       sh$run()
       warn <- warnings()
     })
-  if(!is.null(warn)) print(warn)
+  # if(!is.null(warn)) print(warn)
+  warn.fun()
   sh2 <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
@@ -480,7 +496,8 @@ testthat::test_that("SimHolder with grid works", {
       sh2$run()
       warn <- warnings()
     })
-  if(!is.null(warn)) print(warn)
+  # if(!is.null(warn)) print(warn)
+  warn.fun()
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -540,7 +557,8 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
       sh$run()
       warn <- warnings()
     })
-  if(!is.null(warn)) print(warn)
+  # if(!is.null(warn)) print(warn)
+  warn.fun()
   # sh2 <- SimHolder$new(nsim = nsims,
   #                      dataSim = original,
   #                      grid.search = TRUE,
