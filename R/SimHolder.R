@@ -1120,7 +1120,8 @@
                                             }
                                             if (estimand != "cATE") {
                                               private$weights[[estimand]] <- 
-                                                tryCatch(calc_weight(private$simulator,  
+                                                tryCatch(
+                                                  calc_weight(private$simulator,  
                                                             constraint = delta,
                                                             formula = formula,
                                                             estimand = estimand, 

@@ -5,7 +5,7 @@ barycentric_projection <- function(data, weight,
   
   est <- weight$estimand
   pow <- weight$args$p
-  met <- weight$args$metric # seems that Lp performs fine in every case. Which makes sense since it's a linear transform
+  met <- weight$args$metric
   rkhs.args <- weight$args$rkhs.args
   gamma <- weight$gamma
   dots <- list(...)
@@ -122,13 +122,13 @@ barycentric_projection <- function(data, weight,
 
 barycenter_estimation <- function(gamma,x0,x1,y0,y1,
                                   estimand = c("ATT","ATC"),
-                                  metric = c("mahalanobis","sdLp","Lp"),
+                                  metric = c("mahalanobis","sdLp","Lp", "RKHS"),
                                   power = 2, ...) {
   
   stopifnot(power >= 1)
   estimand <- match.arg(estimand)
   metric <- match.arg(metric)
-  # metric <- "Lp"
+  if (metric == "RKHS")  metric <- "Lp"
   
   # check if all outcomes are the same
   

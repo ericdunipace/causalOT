@@ -158,28 +158,28 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
     # w1 <- w1.tab / n
   } else if (est == "ATT") {
     
-   if (dots$metric == "RKHS") {
-      # w0.tab <- tabulate(apply(cost[[1]]^p, 2, which.min), nbins = n0)
-     index <- factor(apply(cost[[1]]^p, 2, which.min), levels = 1:n0)
-     w0 <-  tapply(margmass$b, INDEX = index, FUN = "sum", default = 0)
-    } else {
+   # if (dots$metric == "RKHS") {
+   #    # w0.tab <- tabulate(apply(cost[[1]]^p, 2, which.min), nbins = n0)
+   #   index <- factor(apply(cost[[1]]^p, 2, which.min), levels = 1:n0)
+   #   w0 <-  tapply(margmass$b, INDEX = index, FUN = "sum", default = 0)
+   #  } else {
       # w0.tab <- tabulate(apply(cost^p, 2, which.min), nbins = n0)
       index <- factor(apply(cost^p, 2, which.min), levels = 1:n0)
       w0 <-  tapply(margmass$b, INDEX = index, FUN = "sum", default = 0)
-    }
+    # }
     # w0 <- w0.tab * / n1
     w1 <- margmass$b #rep(1/n1,n1)
    
   } else if (est == "ATC") {
-    if (dots$metric == "RKHS") {
-      # w1.tab <- tabulate(apply(cost[[2]]^p, 1, which.min), nbins = n1)
-      index <- factor(apply(cost[[2]]^p, 1, which.min), levels = 1:n1)
-      w1 <-  tapply(margmass$a, INDEX = index, FUN = "sum", default = 0)
-    } else {
+    # if (dots$metric == "RKHS") {
+    #   # w1.tab <- tabulate(apply(cost[[2]]^p, 1, which.min), nbins = n1)
+    #   index <- factor(apply(cost[[2]]^p, 1, which.min), levels = 1:n1)
+    #   w1 <-  tapply(margmass$a, INDEX = index, FUN = "sum", default = 0)
+    # } else {
       # w1.tab <- tabulate(apply(cost^p, 1, which.min), nbins = n1)
       index <- factor(apply(cost^p, 1, which.min), levels = 1:n1)
       w1 <-  tapply(margmass$a, INDEX = index, FUN = "sum", default = 0)
-    }
+    # }
     w0 <- margmass$a #rep(1/n0, n0)
     # w1 <- w1.tab / n0
   }
@@ -494,11 +494,12 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE, ...) {
 }
 
 calc_gamma <- function(weights, ...) {
-  if(!is.null(weights$gamma)) return(weights$gamma)
+  if (!is.null(weights$gamma)) return(weights$gamma)
   dots <- list(...)
   n1 <- length(weights$w1)
   n0 <- length(weights$w0)
   if(!is.null(dots$cost) & !is.null(dots$p)) {
+    if (length(dots$cost[[1]]) > 1) return(NULL)
     nzero_row <- weights$w0>0
     nzero_col <- weights$w1>0
     
@@ -530,7 +531,7 @@ calc_gamma <- function(weights, ...) {
       
     }
     gamma[nzero_row, nzero_col] <- temp_gamma
-    transport::transport.default
+    # transport::transport.default
     
   } else {
     gamma <- NULL

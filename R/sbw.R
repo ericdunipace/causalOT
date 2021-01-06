@@ -18,15 +18,15 @@ sbw_dual <- function(x, target, constraint) {
     QR <- qr(x)
     R <- qr.R(QR)
     
-    beta <- qr.coef(QR, rep(1,ncol(x))) - backsolve(R, forwardsolve(l = R, target,
-                                                         transpose = TRUE))
+    beta <- 2 * (qr.coef(QR, rep(1,ncol(x))) - backsolve(R, forwardsolve(l = R, target,
+                                                         transpose = TRUE)))
     
   } else {
     # use lasso in oem that can take xtx and xty
     
     XtY <- (x_m - target) #* 1/S)
     # XtX <- crossprod(scale(x, center = FALSE, scale = S))
-    XtX <- crossprod(x)
+    XtX <- crossprod(x)/4
     
     fit <- oem::oem.xtx(xtx = XtX, xty = XtY, family = "gaussian",
                         penalty = "lasso", lambda = constraint

@@ -36,12 +36,12 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   }
   
   if(param$is.standardized) {
-    m_y0   <- mean(y[z==0])
-    m_y1   <- mean(y[z==1])
-    sd_y0   <- sd(y[z==0])
-    sd_y1   <- sd(y[z==1])
-    y[z==0] <- c(scale(y[z==0]))
-    y[z==1] <- c(scale(y[z==1]))
+    m_y0   <- mean(y[z == 0])
+    m_y1   <- mean(y[z == 1])
+    sd_y0   <- sd(y[z == 0])
+    sd_y1   <- sd(y[z == 1])
+    y[z == 0] <- c(scale(y[z == 0]))
+    y[z == 1] <- c(scale(y[z == 1]))
   } else {
     m_y0   <- 0
     m_y1   <- 0
@@ -80,13 +80,13 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   #                                  estimand = as.character(estimand))
   # pred0 <- if(estimand == "ATE" | estimand == "ATT") {
   #   crossprod(Kernel_full[[1]]$cross, 
-  #             solve(Kernel_full[[1]]$cov, y[z==0]))
+  #             solve(Kernel_full[[1]]$cov, y[z == 0]))
   # } else if (estimand == "ATC") {
   #   y[sel]
   # }
   # pred1 <- if(estimand == "ATE" | estimand == "ATC") {
   #   crossprod(Kernel_full[[2]]$cross, 
-  #             solve(Kernel_full[[2]]$cov, y[z==1]))
+  #             solve(Kernel_full[[2]]$cov, y[z == 1]))
   # } else if (estimand == "ATT") {
   #   y[sel]
   # }
@@ -97,8 +97,8 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   } else {
     A <- x
   }
-  A0 <- A[z==0,]
-  A1 <- A[z==1,]
+  A0 <- A[z == 0,]
+  A1 <- A[z == 1,]
   
   if(param$kernel == "polynomial") {
     kernel_cov0 <- diag(param$sigma_2[1],n0,n0) + 
@@ -132,31 +132,32 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   }
   
   tau <- if(estimand == "ATE") {
-    pred0 <- crossprod(kernel_cross0, test_pos_def_inv(kernel_cov0, y[z==0])) * sd_y0 + m_y0
-    pred1 <- crossprod(kernel_cross1, test_pos_def_inv(kernel_cov1, y[z==1])) * sd_y1 + m_y1
+    pred0 <- crossprod(kernel_cross0, test_pos_def_inv(kernel_cov0, y[z == 0])) * sd_y0 + m_y0
+    pred1 <- crossprod(kernel_cross1, test_pos_def_inv(kernel_cov1, y[z == 1])) * sd_y1 + m_y1
     
     mean(pred1 - pred0)
   } else if (estimand == "ATT") {
-    pred0 <- crossprod(kernel_cross0, test_pos_def_inv(kernel_cov0, y[z==0])) * sd_y0 + m_y0
+    pred0 <- crossprod(kernel_cross0, test_pos_def_inv(kernel_cov0, y[z == 0])) * sd_y0 + m_y0
     
-    mean((y[z==1] * sd_y1 + m_y1) - pred0[z==1])
+    mean((y[z == 1] * sd_y1 + m_y1) - pred0[z == 1])
   } else if (estimand == "ATC") {
-    pred1 <- crossprod(kernel_cross1, test_pos_def_inv(kernel_cov1, y[z==1])) * sd_y1 + m_y1
+    pred1 <- crossprod(kernel_cross1, test_pos_def_inv(kernel_cov1, y[z == 1])) * sd_y1 + m_y1
     
-    mean(pred1[z==0] - (y[z==0] * sd_y0 + m_y0))
+    mean(pred1[z == 0] - (y[z == 0] * sd_y0 + m_y0))
   }
   
   return(tau)
 }
   
 
-mapping <- function(data, z, weights, estimand, f1, f0, ...) {
+mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
   n  <- length(z)
   n1 <- sum(z)
   n0 <- n - n1
   runMap <- isTRUE(weights$method %in% ot.methods())
   
   if (runMap) {
+    # browser()
     bal.cov    <- colnames(data)[colnames(data) != "y"]
     data$z     <- z
     data$f1    <- f1
@@ -200,31 +201,43 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
     keep <- !is.na(y1) & !is.na(y0)
     y1 <- y1[keep]
     y0 <- y0[keep]
+    new_weights <- renormalize(sw$total[keep])
     
   } else {
     n          <- length(z)
     y0         <- y1 <- rep(NA_real_, n)
-    y0[z==0]   <- data$y[z==0] - f1[z==0]
-    y1[z==1]   <- data$y[z==1] - f0[z==1]
-    if(estimand == "ATE" | estimand == "ATT") {
-      y0[z==1] <- (data$y[z==0] -  f0[z==0]) %*% weights$w0
-      y0 <- y0[z==1][weights$w1 != 0]
-      y1 <- y1[z==1][weights$w1 != 0]
-    }
-    if (estimand == "ATE" | estimand == "ATC") {
-      y1[z==0] <- (data$y[z==1] -  f1[z==1]) %*% weights$w1
-      y0 <- y0[z==0][weights$w0 != 0]
-      y1 <- y1[z==0][weights$w0 != 0]
+    y0[z == 0]   <- data$y[z == 0] - f1[z == 0]
+    y1[z == 1]   <- data$y[z == 1] - f0[z == 1]
+    if (estimand == "ATT") {
+      y0[z == 1] <- (data$y[z == 0] -  f0[z == 0]) %*% weights$w0
+      y0 <- y0[z == 1]
+      y1 <- y1[z == 1]
+      new_weights <- sw$b
+    } else if (estimand == "ATC") {
+      y1[z == 0] <- (data$y[z == 1] -  f1[z == 1]) %*% weights$w1
+      y0 <- y0[z == 0]
+      y1 <- y1[z == 0]
+      new_weights <- sw$a
+    } else if (estimand == "ATE") {
+      y0[z == 1] <- (data$y[z == 0] -  f0[z == 0]) %*% weights$w0
+      y1[z == 0] <- (data$y[z == 1] -  f1[z == 1]) %*% weights$w1
+      # y0[z == 0][weights$w0 == 0] <- 
+      # y1[z == 0][weights$w0 == 0] <- NA
+      # y0[z == 1][weights$w1 == 0] <- 
+      # y1[z == 1][weights$w1 == 0] <- NA
       
+      # y0 <- y0[!is.na(y0)]
+      # y1 <- y1[!is.na(y1)]
+      new_weights <- sw$total
     }
     
   }
-  n1 <- length(y1)
-  n0 <- length(y0)
-  new_weights <- list(w0 = rep(1/n0, n0),
-                      w1 = rep(1/n1, n1))
-  new_weights <- list(w0 = rep(1/n0, n0),
-                      w1 = rep(1/n1, n1))
+  # n1 <- length(y1)
+  # n0 <- length(y0)
+  # new_weights <- list(w0 = rep(1/n0, n0),
+  #                     w1 = rep(1/n1, n1))
+  # new_weights <- list(w0 = rep(1/n0, n0),
+  #                     w1 = rep(1/n1, n1))
   return(list(y0 = y0,
               y1 = y1,
               weights = new_weights))
@@ -234,8 +247,8 @@ mapping <- function(data, z, weights, estimand, f1, f0, ...) {
   
   w0 <- weights$w0
   w1 <- weights$w1
-  t_ind <- z==1
-  c_ind <- z==0
+  t_ind <- z == 1
+  c_ind <- z == 0
   
   fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
   fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
@@ -318,37 +331,19 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
   
   if (matched) {
 
-    maps <- mapping(data = data, z = z, weights = weights, estimand = estimand, f1 = f_1, f0 = f_0)
+    maps <- mapping(data = data, z = z, weights = weights, estimand = estimand, f1 = f_1, f0 = f_0,
+                    sw = sample_weight)
+    # browser()
+    # mw        <- switch(estimand,
+    #                     "ATT" = sample_weight$b,
+    #                     "ATC" = sample_weight$a,
+    #                     "ATE" = sample_weight$total)
+    #                     
+    # tx_effect <- weighted.mean(x = maps$y1 - maps$y0, 
+    #                            w = mw[mw != 0])
     
-    # tau_t <- 0
-    # tau_c <- 0
-    # if(estimand == "ATT" | estimand == "ATE" | estimand == "feasible") {
-    #   tau_t <- c(mean(maps$y1[z==1]) - mean(maps$y0[z==1]))
-    # }
-    # if(estimand == "ATC" | estimand == "ATE" | estimand == "feasible") {
-    #   tau_c <- c(mean(maps$y1[z==0]) - mean(maps$y0[z==0]))
-    # }
-    # if(estimand == "ATT"){
-    #   tx_effect <- tau_t
-    # } else if (estimand == "ATC") {
-    #   tx_effect <- tau_c
-    # } else if(estimand == "ATE" | estimand == "feasible") {
-    #   if(estimand == "ATE") {
-    #     t_w   <- sum(t_ind) #1/(sum(w1^2))
-    #     c_w   <- sum(c_ind) #1/(sum(w0^2))
-    #   } else if (estimand == "feasible") {
-    #     t_w   <- 1/(sum(w1^2))
-    #     c_w   <- 1/(sum(w0^2))
-    #   }
-    #   
-    #   tx_effect <- ( t_w * tau_t + c_w * tau_c)/(c_w + t_w)
-    # }
-    mw        <- switch(estimand,
-                        "ATT" = sample_weight$b,
-                        "ATC" = sample_weight$a,
-                        "ATE" = sample_weight$total)
-                        
-    tx_effect <- weighted.mean(x = maps$y1 - maps$y0, w = mw[mw != 0])
+    tx_effect <- weighted.mean(x = maps$y1 - maps$y0, 
+                               w = maps$weights)
       
   } else {
     mu_1  <- weighted.mean(f_1, sample_weight$total)

@@ -40,9 +40,11 @@ testthat::test_that("mapping works, ATT", {
   f_1   <- predict(fit_1, data)
   f_0   <- predict(fit_0, data)
   
+  sw <- get_sample_weight(NULL, z)
+  
   # debugonce(causalOT:::mapping)
   testthat::expect_warning(ys <- causalOT:::mapping(data = data, z = z, weights = weights, estimand = estimand, 
-                     f1 = f_1, f0 = f_0))
+                     f1 = f_1, f0 = f_0, sw = sw))
   
   non_map <- causalOT:::.outcome_calc_deprecated(data, z, weights, formula, model.fun, match = TRUE,
                                                  estimand = estimand)
@@ -94,9 +96,11 @@ testthat::test_that("mapping works, ATC", {
   f_1   <- predict(fit_1, data)
   f_0   <- predict(fit_0, data)
   
+  sw <- get_sample_weight(NULL, z)
+  
   # debugonce(causalOT:::mapping)
   ys <- causalOT:::mapping(data = data, z = z, weights = weights, estimand = estimand, 
-                           f1 = f_1, f0 = f_0)
+                           f1 = f_1, f0 = f_0, sw = sw)
   #map y0 0.7493255 y1 2.460151
   #f0 1.197229  f1 2.42858
   #resid y0 -0.4479032 y1 0.05772957
@@ -155,14 +159,16 @@ testthat::test_that("mapping works, ATE", {
   f_1   <- predict(fit_1, data)
   f_0   <- predict(fit_0, data)
   
+  sw <- get_sample_weight(NULL, z)
+  
   # debugonce(causalOT:::mapping)
   ys <- causalOT:::mapping(data = data, z = z, weights = weights, estimand = estimand, 
-                           f1 = f_1, f0 = f_0)
+                           f1 = f_1, f0 = f_0, sw = sw)
   
   ysATT <- causalOT:::mapping(data = data, z = z, weights = weights, estimand = "ATT", 
-                           f1 = f_1, f0 = f_0)
+                           f1 = f_1, f0 = f_0, sw = sw)
   ysATC <- causalOT:::mapping(data = data, z = z, weights = weights, estimand = "ATC", 
-                              f1 = f_1, f0 = f_0)
+                              f1 = f_1, f0 = f_0, sw = sw)
   yscate <- (sum(ysATT$y1 - ysATT$y0) + sum(ysATC$y1 - ysATC$y0))/length(z)
   #orig y0 0.7493255 y1 2.93044
   #map y0 1.451089 y1 2.460151

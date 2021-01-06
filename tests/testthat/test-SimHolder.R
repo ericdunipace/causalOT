@@ -183,7 +183,7 @@ testthat::test_that("SimHolder runs", {
         warn <- warnings()
       }
     )
-  if (!is.null(warn)) print(warn)
+  if (!is.null(warn)) warn.fun()
   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
   testthat::expect_type(original$get_x0(), "double")
   testthat::expect_type(original$get_x1(), "double")
@@ -195,7 +195,7 @@ testthat::test_that("SimHolder runs", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW', 'RKHS', 'NNM', 'Constrained Wasserstein', 'gp'))
+  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW', 'RKHS', 'NNM', "Wasserstein", 'Constrained Wasserstein', 'gp'))
 })
 
 testthat::test_that("SimHolder runs with formula options", {
