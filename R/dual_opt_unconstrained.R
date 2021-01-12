@@ -1,0 +1,1132 @@
+sbw_dual <- function(x, target, constraint) {
+  
+  n  <- nrow(x)
+  x_m <- colMeans(x)
+  x_v <- matrixStats::colVars(x)
+  
+  if (!is.null(nrow(target)) ) {
+    if (nrow(target) > 1 )  {
+      S <- sqrt(0.5 * x_v + 0.5 * matrixStats::colVars(target))
+      target <- colMeans(target)
+    }
+  } else {
+    S <- sqrt(x_v)
+  }
+  
+  if ( constraint == 0) {
+    # equivalent to (x'x)^(-1) (x' 1_n - target)
+    QR <- qr(x)
+    R <- qr.R(QR)
+    
+    beta <- 2 * (backsolve(R, forwardsolve(l = R, target,
+                                                         transpose = TRUE))
+                  - qr.coef(QR, rep(1,ncol(x))) )
+    
+  } else {
+    # use lasso in oem that can take xtx and xty
+    
+    XtY <- (target - x_m) #* 1/S)
+    # XtX <- crossprod(scale(x, center = FALSE, scale = S))
+    XtX <- crossprod(x)/2
+    
+    fit <- oem::oem.xtx(xtx = XtX, xty = XtY, family = "gaussian",
+                        penalty = "lasso", lambda = constraint
+                        , penalty.factor = S
+    )
+    beta <- fit$beta$lasso
+  }
+  
+ 
+  
+  unconst_wt  <- sbw_dual_to_wt(x, lambda = beta, n = n)
+  
+  return(list(weight = simplex_proj(unconst_wt), 
+              unconstrained_weight = unconst_wt,
+              lambda = beta))
+}
+
+sbw_dual_to_wt <- function(x, lambda, n) {
+  eta <- (x %*% lambda )
+  return(-(eta)/2.0 + 1.0 / n)
+}
+
+
+cot_const_dual <- function(x, target, sample_weights = NULL, constraint, metric, power, 
+                           add.margins = FALSE, marg.constraints = NULL,
+                           formula = NULL, balance.constraints = NULL) {
+  n <- nrow(x)
+  m <- nrow(target)
+  
+  z <- c( rep(0, n), 
+          rep(1, m))
+  Q_mat <- rbind(rep(1, n*m),
+                 vec_to_col_constraints(n,m),
+                 cost_fun(x = rbind(x, target), z = z, 
+                          metric = metric, ground_power = power, estimand = "ATT")^power
+  )
+  
+  sw    <- get_sample_weight(sample_weights, z)
+  d <- c(1, sw$b, constraint)
+  
+  if (add.margins) {
+    combined.mat <- rbind(x, target)
+    Q_mat <- do.call("rbind", c(list(c(Q_mat)),
+                                lapply( 1:ncol(x), function(d)
+                                  c(cost_fun(x = combined.mat[,d, drop = FALSE], z = z, 
+                                           metric = metric, ground_power = power, estimand = "ATT")^power
+                                  ))))
+    if (length(marg.constraints) == 1) marg.constraints <- rep(marg.constraints, ncol(x))
+    stopifnot(length(marg.constraints) == ncol(x))
+    d <- c(d, marg.constraints)
+  }
+  
+  
+  if (!is.null(form)  & !is.null(balance.constraints)) {
+    form    <- form_all_squares(formula, colnames(target))
+    targ_mm <- model.matrix(form, data = data.frame(target))
+    x_mm    <-  model.matrix(form, data = data.frame(x))
+    S       <- sqrt(0.5 * matrixStats::weightedVar(targ_mm, w = sw$b) + 
+                      0.5 * matrixStats::weightedVar(x_mm, w = sw$a))
+    t_m     <- c(rep(0, nrow(Q_mat)), matrixStats::colWeightedMeans(targ_mm, w = sw$b))
+    # x_m     <- matrixStats::colWeightedMeans(x_mm, w = sw$a)
+    Q_mat   <- rbind(Q_mat,
+                     Matrix::crossprod(x_mm, vec_to_col_constraints(n , m)))
+    d  <- c(d , balance.constraints * S)
+    
+    XtY <- rowMeans(Q_mat) - t_m
+  } else {
+    XtY <- rowMeans(Q_mat)
+  }
+  XtX <- crossprod(Q_mat)/2
+  
+  fit <- oem::oem.xtx(xtx = XtX, xty = XtY, family = "gaussian",
+                      penalty = "lasso", lambda = 1, penalty.factor = d)
+  
+  beta <- fit$beta$lasso
+  
+  unconst_wt  <- cot_const_dual_to_wt(x = x, lambda = beta, n = ncol(Q_mat))
+  
+  return(list(weight = simplex_proj(unconst_wt), 
+              unconstrained_weight = unconst_wt,
+              lambda = beta))
+}
+
+cot_const_dual_to_wt <- function(x, lambda, n) {
+  eta <- (x %*% lambda )
+  return((eta)/2.0 + 1.0 / n)
+}
+
+cot_dual <- function(x, target, sample_weights = NULL, constraint, metric, power, 
+                     add.margins = FALSE, marg.constraints = NULL,
+                     formula = NULL, balance.constraints = NULL) {
+  
+}
+
+optProblem <- R6::R6Class("optProblem", 
+                          public = list(
+                            get_xtx = function() NULL,
+                            get_xty = function() NULL
+                            # bounds = "function",
+                            # obj  = "function",
+                            # grad = "function",
+                            # get_weight = "function",
+                            # intialize = function(delta) {
+                            #   private$delta <- delta
+                            #   invisible(self)
+                            # }
+                          ),
+                          private = list(
+                            # "n" = integer
+                          )
+                          
+)
+
+sbwDualL2 <- R6::R6Class("sbwDualL2",
+                         inherit = optProblem,
+                         public = list(
+                           obj =  function(vars) {
+                              return(sum(private$delta * private$scale * abs(vars)) +
+                               sum(self$h_star_inv(vars)^2) + 
+                               sum(private$target.functions * vars))
+                           },
+                           grad = function(vars) {
+                             lambda <- private$delta * private$scale
+                             # vars <- vars * as.numeric(abs(vars) > lambda)
+                             return(sign(vars) * lambda +
+                                c(private$target.mean) -
+                               c(crossprod(private$balance.functions, self$h_star_inv(vars))))
+                           },
+                           h_star_inv = function(vars) {
+                             eta <- -0.5 * private$balance.functions %*% vars + 1.0/private$n
+                             return(eta * as.numeric(eta > 0))
+                           },
+                           get_weight = function(vars) {
+                             return( simplex_proj( as.numeric(self$h_star_inv(vars) ) ))
+                          },
+                          bounds = function() {
+                            cbind(rep(-Inf, ncol(private$balance.functions)),
+                                  rep(Inf ,  ncol(private$balance.functions)))
+                          },
+                          init = function() {
+                            rep(0, private$nvars)
+                          },
+                          get_xtx = function() {
+                            return(0.5 * crossprod(private$balance.functions))
+                          },
+                          get_xty = function() {
+                            return(
+                              c(colMeans(private$balance.functions) - private$target.mean)
+                            )
+                          },
+                          penalty.factor = function() {
+                            return(
+                              private$delta * private$scale
+                            )
+                          },
+                         initialize = function(balance.delta,
+                                               balance.functions,
+                                               target.mean = NULL,
+                                               target.sd = NULL,
+                                               ...
+                         ) {
+                           private$delta <- balance.delta
+                           private$balance.functions     <- as.matrix(balance.functions)
+                           private$n     <- nrow(private$balance.functions)
+                           private$target.mean <- colMeans(as.matrix(target.mean))
+                           
+                           private$scale <- if (missing(target.sd) | is.null(target.sd)) {
+                             sqrt(0.5 * matrixStats::colVars( private$balance.functions ) +
+                             0.5 * matrixStats::colVars( target.mean ))
+                           } else {
+                            sqrt(0.5 * matrixStats::colVars( private$balance.functions ) +
+                                 0.5 * target.sd^2) 
+                           }
+                           
+                           private$nvars <- ncol(private$balance.functions)
+                         }
+                        ),
+                      private = list(
+                        n = "integer",
+                        nvars = "integer",
+                        scale = "numeric",
+                        balance.functions = "matrix",
+                        target.mean = "numeric",
+                        delta = "numeric"
+                      )
+)
+
+cotDualL2 <- R6::R6Class("cotDualL2",
+                         inherit = optProblem,
+                         public = list(
+                             obj =  function(vars) {
+                               return(-(private$p.fun(vars) - 0.5 * sum(self$h_star_inv(vars)^2)))
+                             },
+                             grad = function(vars) {
+                               
+                               return(as.numeric(-(private$p.grad.fun(vars) - Matrix::crossprod(private$Q, 
+                                                                    self$h_star_inv(vars)))))
+                             },
+                             h_star_inv = function(vars) {
+                               eta <- (private$Q %*% vars - private$cost) / private$delta
+                               return(eta * as.numeric(eta > 0))
+                             },
+                             get_weight = function(vars) {
+                               return( simplex_proj( as.numeric(self$h_star_inv(vars) ) ))
+                             },
+                             bounds = function(vars) {
+                               l_md <- length(private$marginal.delta)
+                               l_bd <- length(private$balance.delta)
+                               bounds <- if (private$margins & private$balfun) {
+                                 rbind(
+                                   cbind(rep(-Inf, private$m ),
+                                         rep(Inf ,  private$m)),
+                                   cbind(rep(0, l_md),
+                                         rep(Inf, l_md)),
+                                   cbind(rep(-Inf, l_bd ),
+                                         rep(Inf ,  l_bd))
+                                   )
+                               } else if (private$margins & !private$balfun) {
+                                 rbind(
+                                   cbind(rep(-Inf, private$m ),
+                                       rep(Inf ,  private$m)),
+                                   cbind(rep(0, l_md),
+                                         rep(Inf, l_md)))
+                                 
+                               } else if (!private$margins & private$balfun) {
+                                 cbind(rep(-Inf, private$m + l_bd),
+                                       rep(Inf ,  private$m + l_bd))
+                               } else {
+                                 cbind(rep(-Inf, private$m ),
+                                       rep(Inf ,  private$m))
+                               }
+                               return(bounds)
+                             },
+                             get_nvars = function(){
+                               return(private$nvars)
+                             },
+                             init = function() {
+                               rep(0, private$nvars)
+                             },
+                             get_xtx = function() {
+                               neg.mass.const <- -private$Q[,private$dual.idx]
+                               cmb.Q <- cbind(neg.mass.const,
+                                              private$Q)
+                               return(Matrix::crossprod(cmb.Q) / private$delta)
+                             },
+                             get_xty = function() {
+                               neg.mass.const <- -private$Q[,private$dual.idx]
+                               cmb.Q <- cbind(neg.mass.const,
+                                              private$Q)
+                               QtC  <- as.numeric(Matrix::crossprod(cmb.Q, 
+                                                                   private$cost)) / private$delta
+                               l_t  <- length(private$target.mean)
+                               A    <- c(rep(0, length(QtC) - l_t), private$target.mean)
+                               return(QtC + A)
+                             },
+                             penalty.factor = function() {
+                               return(private$pf)
+                             },
+                           initialize = function(delta, cost, 
+                                                 b,
+                                                 marginal.costs = NULL,
+                                                 marginal.delta = NULL,
+                                                 balance.functions = NULL,
+                                                 balance.delta = NULL,
+                                                 target.mean = NULL,
+                                                 target.sd = NULL,
+                                                 ...
+                                                 ) {
+                             private$delta <- delta
+                             private$cost <- c(cost)
+                             private$n    <- nrow(cost)
+                             private$m    <- ncol(cost)
+                             private$dual.idx <- 1:private$m
+                             cur.idx <- private$m + 1
+                             
+                             private$b <- b
+                             
+                             if (!is.null(marginal.costs) & 
+                                 !is.null(marginal.delta) ) {
+                               private$margins <- TRUE
+                               private$marg.idx <- cur.idx:(cur.idx + length(marginal.costs))
+                               cur.idx <- cur.idx + length(marginal.costs) + 1
+                               private$marginal.costs <- sapply(marginal.costs, c)
+                               private$marginal.delta <- marginal.delta
+                             } else {
+                               private$margins <- FALSE
+                             } 
+                             
+                             if (!is.null(balance.functions) & 
+                                 !is.null(balance.delta)) {
+                               private$balfun <- TRUE
+                               private$bal.idx <- cur.idx:(cur.idx + ncol(balance.functions))
+                               private$balance.functions <- Matrix::crossprod(vec_to_row_constraints(private$n, private$m),
+                                                                              balance.functions)
+                               scale <- if (missing(target.sd) | is.null(target.sd)) {
+                                 sqrt(0.5 * matrixStats::colVars( balance.functions ) +
+                                        0.5 * matrixStats::colVars( target.mean ))
+                               } else {
+                                 sqrt(0.5 * matrixStats::colVars( balance.functions ) +
+                                        target.sd^2) 
+                               }
+                               private$balance.delta <- balance.delta * scale
+                               private$target.mean <- target.mean
+                             } else {
+                               private$balfun <- FALSE
+                             }
+                             
+                             fun.num <- if (private$margins & private$balfun) {
+                               4L
+                             } else if (private$balfun) {
+                               3L
+                             } else if (private$margins) {
+                               2L
+                             } else {
+                               1L
+                             }
+                             
+                             private$p.grad.fun = switch(fun.num,
+                                                 "1" = private$p.grad.fun.c,
+                                                 "2" = private$p.grad.fun.cm,
+                                                 "3" = private$p.grad.fun.cb,
+                                                 "4" = private$p.grad.fun.cmb)
+                             
+                             private$p.fun = switch(fun.num,
+                                                         "1" = private$p.fun.c,
+                                                         "2" = private$p.fun.cm,
+                                                         "3" = private$p.fun.cb,
+                                                         "4" = private$p.fun.cmb)
+                             
+                             private$Q  <- switch(fun.num,
+                                                  "1" = Matrix::t(vec_to_col_constraints(private$n,
+                                                                                             private$m)),
+                                                  "2" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                                                             private$m)),
+                                                            private$marginal.costs),
+                                                  "3" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                                                                     private$m)),
+                                                                    private$balance.functions),
+                                                  "4" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                                                                     private$m)),
+                                                                    private$marginal.costs,
+                                                                    private$balance.functions))
+                             private$nvars = switch(fun.num,
+                                                    "1" = private$m,
+                                                    "2" = private$m + ncol(private$marginal.costs),
+                                                    "3" = private$m + ncol(private$balance.functions),
+                                                    "4" = private$m +
+                                                      ncol(private$marginal.costs) + 
+                                                      ncol(private$balance.functions))
+                             private$pf <- switch(fun.num,
+                                                  "1" = c(-private$b, private$b, 
+                                                          private$delta),
+                                                  "2" = c(-private$b, private$b, private$delta, 
+                                                          private$marginal.delta),
+                                                  "3" = c(-private$b, private$b, private$delta, 
+                                                          private$balance.delta),
+                                                  "4" = c(-private$b, private$b, private$delta, 
+                                                          private$marginal.delta,
+                                                          private$balance.delta
+                                                  )
+                             )
+                             
+                           }
+                         ),
+                         private = list(
+                           b  = "numeric",
+                           n = "integer",
+                           m = "integer",
+                           nvars = "integer",
+                           cost = "numeric",
+                           delta = "numeric",
+                           margins = "logical",
+                           balfun  = "logical",
+                           marginal.costs = "list",
+                           marginal.delta = "numeric",
+                           balance.delta = "numeric",
+                           balance.functions = "matrix",
+                           Q = "matrix",
+                           pf = "numeric",
+                           dual.idx = "integer",
+                           marg.idx = "integer",
+                           bal.idx = "integer",
+                           target.mean = "numeric",
+                           p.grad.fun = "function",
+                           p.fun = "function",
+                           p.grad.fun.c = function(vars) {
+                             return(private$b)
+                           },
+                           p.grad.fun.cm = function(vars) {
+                             return( c(private$b, 
+                                       -private$marginal.delta)
+                             )
+                           },
+                           p.grad.fun.cb = function(vars) {
+                             beta_b <- vars[private$bal.idx]
+                             return( c(private$b,
+                                     -sign(beta_b) * private$balance.delta -
+                                       private$target.mean)
+                             )
+                           }, 
+                           p.grad.fun.cmb = function(vars) {
+                             beta_b <- vars[private$bal.idx]
+                             return( c(private$b,
+                                       -private$marginal.delta,
+                                       -sign(beta_b) * private$balance.delta -
+                                       private$target.mean)
+                             )
+                           },
+                           p.fun.c = function(vars) {
+                             return(sum(private$b * vars))
+                           },
+                           p.fun.cm = function(vars) {
+                             g <- vars[private$dual.idx]
+                             beta_m <- vars[private$marg.idx]
+                             return( sum(private$b * g) -
+                                       sum(private$marginal.delta * beta_m)
+                             )
+                           },
+                           p.fun.cb = function(vars) {
+                             g <- vars[private$dual.idx]
+                             beta_b <- vars[private$bal.idx]
+                             return( sum(private$b * g) -
+                                      sum(abs(beta_b) * private$balance.delta) -
+                                       sum(private$target.mean * beta_b )
+                             )
+                           }, 
+                           p.fun.cmb = function(vars) {
+                             g <- vars[private$dual.idx]
+                             beta_m <- vars[private$marg.idx]
+                             beta_b <- vars[private$bal.idx]
+                             return( sum(private$b * g) -
+                                       sum(private$marginal.delta * beta_m) -
+                                       sum(abs(beta_b) * private$balance.delta) -
+                                       sum(private$target.mean * beta_b )
+                             )
+                           },
+                           h_star_inv.c = function(vars) {
+                             eta <- rep(private$vars, each = private$n) - private$cost
+                             return(eta * as.numeric(eta > 0) / private$delta)
+                           },
+                           h_star_inv.cm = function(vars) {
+                             g <- vars[private$dual.idx]
+                             beta_m <- vars[private$marg.idx]
+                             eta <- rep(g, each = private$n) +  
+                                private$marginal.costs %*% beta_m - 
+                               private$cost
+                             return(eta * as.numeric(eta > 0) / private$delta)
+                           },
+                           h_star_inv.cb = function(vars) {
+                             g <- vars[private$dual.idx]
+                             beta_m <- vars[private$marg.idx]
+                             eta <- rep(g, each = private$n) +  
+                               private$marginal.costs %*% beta_m - 
+                               private$cost
+                             return(eta * as.numeric(eta > 0) / private$delta)
+                           },
+                           h_star_inv.cmb = function(vars) {
+                             g <- vars[private$dual.idx]
+                             beta_m <- vars[private$marg.idx]
+                             beta_b <- vars[private$bal.idx]
+                             eta <- rep(g, each = private$n) +  
+                               private$marginal.costs %*% beta_m +
+                               Matrix::crossprod(private$balance.functions, beta_b) - 
+                               private$cost
+                             return(eta * as.numeric(eta > 0) / private$delta)
+                           }
+                         )
+)
+
+cotConstDualL2 <- R6::R6Class("cotConstDualL2",
+                         inherit = optProblem,
+                         public = list(
+                           obj =  function(vars) {
+                             return(-(private$p.fun(vars) - sum(
+                               self$h_star_inv(vars)^2
+                               # (1 / (private$n * private$m) - 0.5 * private$Q %*% vars)^2
+                               )))
+                           },
+                           grad = function(vars) {
+                             
+                             return(as.numeric(-(private$p.grad.fun(vars) + Matrix::crossprod(private$Q, 
+                                                                           self$h_star_inv(vars)
+                                                                           # 1 / (private$n * private$m) - 0.5 * private$Q %*% vars
+                                                                           ))))
+                           },
+                           h_star_inv = "function",
+                           # h_star_inv = function(vars) {
+                           #   eta <-  1 / (private$n * private$m) - 0.5 * private$Q %*% vars
+                           #   return(eta)
+                           #   return(eta * as.numeric(eta > 0))
+                           # },
+                           get_weight = function(vars) {
+                             return( simplex_proj( as.numeric(self$h_star_inv(vars) ) ))
+                           },
+                           bounds = function(vars) {
+                             l_md <- length(private$marginal.delta)
+                             l_bd <- length(private$balance.delta)
+                             bounds <- if (private$margins & private$balfun) {
+                               rbind(
+                                 cbind(rep(-Inf, private$m ),
+                                       rep(Inf ,  private$m)),
+                                 cbind(0, Inf),
+                                 cbind(rep(0, l_md),
+                                       rep(Inf, l_md)),
+                                 cbind(rep(-Inf, l_bd ),
+                                       rep(Inf ,  l_bd))
+                               )
+                             } else if (private$margins & !private$balfun) {
+                               rbind(
+                                 cbind(rep(-Inf, private$m ),
+                                       rep(Inf ,  private$m)),
+                                 cbind(0, Inf),
+                                 cbind(rep(0, l_md),
+                                       rep(Inf, l_md)))
+                               
+                             } else if (!private$margins & private$balfun) {
+                               rbind(cbind(rep(-Inf, private$m ),
+                                           rep(Inf ,  private$m)),
+                                     cbind(0, Inf),
+                                     cbind(rep(-Inf, l_bd),
+                                     rep(Inf ,   l_bd)))
+                             } else {
+                               rbind(cbind(rep(-Inf, private$m ),
+                                           rep(Inf ,  private$m)),
+                               cbind(0, Inf))
+                             }
+                             return(bounds)
+                           },
+                           get_nvars = function(){
+                             return(private$nvars)
+                           },
+                           init = function() {
+                             rep(0, private$nvars)
+                           },
+                           get_xtx = function() {
+                             neg.mass.const <- -private$Q[,private$dual.idx]
+                             cmb.Q <- cbind(neg.mass.const,
+                                            private$Q)
+                             return(Matrix::crossprod(cmb.Q) * 0.5)
+                           },
+                           get_xty = function() {
+                             neg.mass.const <- -private$Q[,private$dual.idx]
+                             cmb.Q <- cbind(neg.mass.const,
+                                            private$Q)
+                             QtO  <- as.numeric(Matrix::colMeans(cmb.Q))
+                             l_t  <- length(private$target.mean)
+                             A    <- c(rep(0, length(QtO) - l_t), 
+                                       private$target.mean)
+                             return( A - QtO )
+                           },
+                           penalty.factor = function() {
+                             return(private$pf)
+                           },
+                           initialize = function(delta, cost, 
+                                                 b,
+                                                 marginal.costs = NULL,
+                                                 marginal.delta = NULL,
+                                                 balance.functions = NULL,
+                                                 balance.delta = NULL,
+                                                 target.mean = NULL,
+                                                 target.sd = NULL,
+                                                 ...
+                           ) {
+                             private$delta <- delta
+                             private$cost <- c(cost)
+                             private$n    <- nrow(cost)
+                             private$m    <- ncol(cost)
+                             private$dual.idx <- 1:private$m
+                             private$cwass.idx <- private$m + 1
+                             cur.idx <- private$m + 2
+                             
+                             private$b <- b
+                             
+                             if (!is.null(marginal.costs) & 
+                                 !is.null(marginal.delta) ) {
+                               private$margins <- TRUE
+                               private$marg.idx <- cur.idx:(cur.idx + length(marginal.costs))
+                               cur.idx <- cur.idx + length(marginal.costs) + 1
+                               private$marginal.costs <- sapply(marginal.costs, c)
+                               private$marginal.delta <- marginal.delta
+                             } else {
+                               private$margins <- FALSE
+                             } 
+                             
+                             if (!is.null(balance.functions) & 
+                                 !is.null(balance.delta)) {
+                               private$balfun <- TRUE
+                               private$bal.idx <- cur.idx:(cur.idx + ncol(balance.functions))
+                               private$balance.functions <- Matrix::crossprod(vec_to_row_constraints(private$n, private$m),
+                                                                              balance.functions)
+                               scale <- if (missing(target.sd) | is.null(target.sd)) {
+                                 sqrt(0.5 * matrixStats::colVars( balance.functions ) +
+                                        0.5 * matrixStats::colVars( target.mean ))
+                               } else {
+                                 sqrt(0.5 * matrixStats::colVars( balance.functions ) +
+                                        target.sd^2) 
+                               }
+                               private$balance.delta <- balance.delta * scale
+                               private$target.mean <- target.mean
+                             } else {
+                               private$balfun <- FALSE
+                             }
+                             
+                             fun.num <- if (private$margins & private$balfun) {
+                               4L
+                             } else if (private$balfun) {
+                               3L
+                             } else if (private$margins) {
+                               2L
+                             } else {
+                               1L
+                             }
+                             
+                             private$p.grad.fun = switch(fun.num,
+                                                         "1" = private$p.grad.fun.c,
+                                                         "2" = private$p.grad.fun.cm,
+                                                         "3" = private$p.grad.fun.cb,
+                                                         "4" = private$p.grad.fun.cmb)
+                             
+                             private$p.fun = switch(fun.num,
+                                                    "1" = private$p.fun.c,
+                                                    "2" = private$p.fun.cm,
+                                                    "3" = private$p.fun.cb,
+                                                    "4" = private$p.fun.cmb)
+                             
+                             private$Q  <- switch(fun.num,
+                                                  "1" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                                                                     private$m)),
+                                                                              private$cost),
+                                                  "2" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                                                                     private$m)),
+                                                                    private$cost,
+                                                                    private$marginal.costs),
+                                                  "3" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                                                                     private$m)),
+                                                                    private$cost,
+                                                                    private$balance.functions),
+                                                  "4" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                                                                     private$m)),
+                                                                    private$cost,
+                                                                    private$marginal.costs,
+                                                                    private$balance.functions))
+                             private$nvars = switch(fun.num,
+                                                    "1" = private$m + 1,
+                                                    "2" = private$m + 1 + ncol(private$marginal.costs),
+                                                    "3" = private$m + 1 + ncol(private$balance.functions),
+                                                    "4" = private$m + 1 +
+                                                      ncol(private$marginal.costs) + 
+                                                      ncol(private$balance.functions))
+                             
+                             private$pf <- switch(fun.num,
+                                                  "1" = c(-private$b, private$b, 
+                                                          private$delta),
+                                                  "2" = c(-private$b, private$b, private$delta, 
+                                                          private$marginal.delta),
+                                                  "3" = c(-private$b, private$b, private$delta, 
+                                                          private$balance.delta),
+                                                  "4" = c(-private$b, private$b, private$delta, 
+                                                          private$marginal.delta,
+                                                          private$balance.delta
+                                                          )
+                                                  )
+                             
+                             self$h_star_inv <- switch(fun.num,
+                                                       "1" = private$h_star_inv.c,
+                                                       "2" = private$h_star_inv.cm,
+                                                       "3" = private$h_star_inv.cb,
+                                                       "4" = private$h_star_inv.cmb
+                                                       )
+                             
+                           }
+                         ),
+                         private = list(
+                           b  = "numeric",
+                           n = "integer",
+                           m = "integer",
+                           nvars = "integer",
+                           cost = "numeric",
+                           delta = "numeric",
+                           margins = "logical",
+                           balfun  = "logical",
+                           marginal.costs = "list",
+                           marginal.delta = "numeric",
+                           balance.delta = "numeric",
+                           balance.functions = "matrix",
+                           Q = "matrix",
+                           pf = "numeric",
+                           dual.idx = "integer",
+                           cwass.idx = "integer",
+                           marg.idx = "integer",
+                           bal.idx = "integer",
+                           target.mean = "numeric",
+                           p.grad.fun = "function",
+                           p.fun = "function",
+                           p.grad.fun.c = function(vars) {
+                             return(c(-private$b, -private$delta))
+                           },
+                           p.grad.fun.cm = function(vars) {
+                             return( c(-private$b,
+                                       -private$delta,
+                                       -private$marginal.delta)
+                             )
+                           },
+                           p.grad.fun.cb = function(vars) {
+                             beta_b <- vars[private$bal.idx]
+                             return( c(-private$b , 
+                                       -private$delta,
+                                       -sign(beta_b) * private$balance.delta -
+                                       private$target.mean)
+                             )
+                           }, 
+                           p.grad.fun.cmb = function(vars) {
+                             beta_b <- vars[private$bal.idx]
+                             return( c( -private$b,
+                                     -private$delta,
+                                     -private$marginal.delta ,
+                                     -sign(beta_b) * private$balance.delta -
+                                       private$target.mean)
+                             )
+                           },
+                           p.fun.c = function(vars) {
+                             g <- vars[private$dual.idx]
+                             e <- vars[private$cwass.idx]
+                             return(sum(-private$b * g) - private$delta * e)
+                           },
+                           p.fun.cm = function(vars) {
+                             g <- vars[private$dual.idx]
+                             e <- vars[private$cwass.idx]
+                             beta_m <- vars[private$marg.idx]
+                             return( sum(-private$b * g) - private$delta * e - 
+                                       sum(private$marginal.delta * beta_m)
+                             )
+                           },
+                           p.fun.cb = function(vars) {
+                             g <- vars[private$dual.idx]
+                             e <- vars[private$cwass.idx]
+                             beta_b <- vars[private$bal.idx]
+                             return( sum(-private$b * g) - private$delta * e -
+                                       sum(abs(beta_b) * private$balance.delta) -
+                                       sum(private$target.mean * beta_b )
+                             )
+                           }, 
+                           p.fun.cmb = function(vars) {
+                             g <- vars[private$dual.idx]
+                             e <- vars[private$cwass.idx]
+                             beta_m <- vars[private$marg.idx]
+                             beta_b <- vars[private$bal.idx]
+                             return( sum(-private$b * g) - private$delta * e -
+                                       sum(private$marginal.delta * beta_m) -
+                                       sum(abs(beta_b) * private$balance.delta) -
+                                       sum(private$target.mean * beta_b )
+                             )
+                           },
+                           h_star_inv.c = function(vars) {
+                             eta <- -private$Q %*% vars * 0.5 + 
+                               1 / (private$n * private$m)
+                             return(eta)
+                             return(eta * as.numeric(eta > 0))
+                           },
+                           h_star_inv.cm = function(vars) {
+                             eta <- -private$Q %*% vars * 0.5 + 
+                               1 / (private$n * private$m)
+                             return(eta)
+                             return(eta * as.numeric(eta > 0))
+                           },
+                           h_star_inv.cb = function(vars) {
+                             eta <-  -private$Q %*% vars * 0.5 + 
+                               1 / (private$n * private$m)
+                             return(eta)
+                             return(eta * as.numeric(eta > 0))
+                           },
+                           h_star_inv.cmb = function(vars) {
+                             eta <-  -private$Q %*% vars * 0.5 + 
+                               1 / (private$n * private$m)
+                             return(eta)
+                             return(eta * as.numeric(eta > 0))
+                           }
+                           
+                         )
+)
+
+balance.options <- function(balance, x, target) {
+  if (is.null(balance)) {
+    return(list(NULL))
+  #   balance <- list()
+  #   balance$balance.functions <- model.matrix(~., data.frame(x))
+  #   target_m <- model.matrix(~., data.frame(target))
+  #   balance$target.sd <- matrixStats::colSds(target_m)
+  #   balance$target.mean <- matrix(colMeans(target_m),nrow = 1)
+  #   balance$balance.delta <- 0.2
+  }
+  
+  if (is.null(balance$formula)) {
+    balance$formula <- as.formula(~. + 0)
+  } else {
+    balance$formula <- as.formula(balance$formula)
+    environment(balance$formula) <- environment()
+  }
+  
+  if (is.null(balance$balance.functions) ) {
+    balance$balance.functions <- model.matrix(balance$formula, data.frame(x))
+  }
+  
+  if (is.null(balance$target.sd) | is.null(balance$target.mean)) target_m <- model.matrix(balance$formula, data.frame(target))
+  if (is.null(balance$target.mean))  balance$target.mean <- matrix(colMeans(target_m),nrow = 1)
+  if (is.null(balance$target.sd)) balance$target.sd <- matrixStats::colSds(target_m)
+  if (is.null(balance$balance.delta)) balance$balance.delta <- 0.2
+  
+  balance$balance.functions <- as.matrix(balance$balance.functions)
+  balance$balance.delta <- as.double(balance$balance.delta)
+  balance$target.mean <- as.matrix(balance$target.mean)
+  balance$target.sd <- as.double(balance$target.sd)
+  return(balance)
+  
+}
+wasserstein.options <- function(wasserstein, x, target, sw) {
+    if (is.null(wasserstein) | missing(wasserstein)) {
+      # return(list(NULL))
+      wasserstein        <- list(metric = "mahalanobis")
+      wasserstein$power  <- 2
+      z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
+      wasserstein$cost   <- cost_fun(rbind(x, target), z = z, 
+                                     estimand = "ATT", power = 2, 
+                                     metric = "mahalanobis")
+      wasserstein$delta  <- 1.0
+      wasserstein$b <- sw$b
+    }
+    if (is.null(wasserstein$metric)) wasserstein$metric <- match.arg(wasserstein$metric, c("mahalanobis", "sdLp", "Lp"))
+    if (is.null(wasserstein$power)) wasserstein$power <- 2
+    if (is.null(wasserstein$cost)) {
+      z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
+      wasserstein$cost <- cost_fun(rbind(x, target),
+                                   z = z,
+                                  estimand = "ATT", power = 2, 
+                                  metric = "mahalanobis")
+    }
+    if (is.null(wasserstein$delta)) wasserstein$delta <- 1.0
+    if (is.null(wasserstein$b)) wasserstein$b <- sw$b
+    
+    wasserstein$metric <- match.arg(wasserstein$metric, c("mahalanobis", "sdLp", "Lp"))
+    wasserstein$power  <- as.double(wasserstein$power)
+    wasserstein$cost   <- as.matrix(wasserstein$cost)^wasserstein$power
+    wasserstein$delta  <- as.double(wasserstein$delta)^wasserstein$power
+    wasserstein$b      <- as.double(wasserstein$b)
+    
+    stopifnot(wasserstein$power > 0)
+    stopifnot(wasserstein$delta > 0)
+    
+    return(wasserstein)
+}
+
+marginal.wass.options <- function(marg.wass, wass, x, target) {
+  if (is.null(marg.wass) | missing(marg.wass)) {
+    return(list(NULL))
+    marg.wass        <- list()
+  }
+  if (is.null(marg.wass$marginal.costs)) {
+    z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
+           
+    marg.wass$marginal.costs <- lapply(1:ncol(cost), function(i) 
+                                      cost_fun(rbind(x[,i,drop = FALSE], 
+                                               target[,i,drop = FALSE]),
+                                               z = z,
+                                          estimand = "ATT", power = wass$power, 
+                                          metric = wass$metric))
+  }
+  if (is.null(marg.wass$marginal.marginal.delta)) {
+    marg.wass$marginal.delta <- 1.0^wass$power
+  }
+  
+  marg.wass$marginal.costs  <- lapply(marg.wass$marginal.costs, function(c) c^wass$power)
+  marg.wass$marginal.delta  <- as.double(marg.wass$marginal.constraints^wass$power)
+  
+  stopifnot(marg.wass$marginal.delta > 0)
+  
+  return(marg.wass)
+}
+
+control.options <- function(control, method) {
+  if (method == "oem") {
+    if (is.null(control) | !is.list(control)) {
+      control <- list(scale.factor = numeric(0),
+                      maxit = 500L,
+                      tol = 1e-7,
+                      irls.maxit = 100L,
+                      irls.tol = 0.001,
+                      groups = numeric(0),
+                      group.weights = NULL
+                      )
+    }
+    if (is.null(control$scale.factor))  control$scale.factor <- numeric(0)
+    if (is.null(control$maxit))         control$maxit <- 500L
+    if (is.null(control$tol))           control$tol <- 1e-7
+    if (is.null(control$irls.maxit))    control$irls.maxit <- 100L
+    if (is.null(control$irls.tol))      control$irls.tol <- 0.001
+    if (is.null(control$groups))        control$groups <- numeric(0)
+    if (is.null(control$group.weights)) control$group.weights <- NULL
+    
+    control$scale.factor <- as.numeric(control$scale.factor)
+    control$maxit <- as.integer(control$maxit)
+    control$tol   <- as.double(control$tol)
+    control$irls.maxit <- as.integer(control$irls.maxit)
+    control$irls.tol   <- as.double(control$irls.tol)
+    control$groups   <- as.numeric(control$groups)
+    if (!is.null(control$group.weights)) control$group.weights   <- as.numeric(control$group.weights)
+    
+    control.names <- c("scale.factor","maxit",
+                       "tol", "irls.maxit",
+                       "irls.tol", "groups",
+                       "group.weights")
+    
+  } else if (method == "lbfgs") {
+    
+    if (is.null(control) | !is.list(control)) {
+      control <- list(trace = 0L,
+                      factr = 1e7,
+                      pgtol = 0,
+                      abstol = 0,
+                      reltol = 0,
+                      lmm = 5,
+                      maxit = 1000L,
+                      info = FALSE
+      )
+    }
+    if (is.null(control$trace))         control$trace <- 0
+    if (is.null(control$factr))         control$factr <- 1e7
+    if (is.null(control$pgtol))         control$pgtol <- 0
+    if (is.null(control$abstol))        control$abstol <- 0
+    if (is.null(control$reltol))        control$reltol <- 0
+    if (is.null(control$lmm))           control$lmm <- 5
+    if (is.null(control$maxit))         control$maxit <- 500L
+    if (is.null(control$info))          control$info <- FALSE
+    
+    control$trace <- as.numeric(control$trace)
+    control$factr <- as.numeric(control$factr)
+    control$pgtol <- as.numeric(control$abstol)
+    control$abstol <- as.numeric(control$abstol)
+    control$reltol <- as.numeric(control$reltol)
+    control$lmm   <-   as.integer(control$lmm)
+    control$maxit <- as.integer(control$maxit)
+    control$info   <- isTRUE(control$info)
+    
+    
+    control.names <- c("trace","factr",
+                       "pgtol", "abstol",
+                       "reltol", "lmm",
+                       "maxit", "info")
+
+  } else {
+    stop("Method ", method, " not found")
+  }
+  
+  return(control[names(control) %in% control.names])
+}
+
+dual_opt <- function(x, target, 
+                     init = NULL,
+                     sample_weights = NULL, 
+                     method = c("SBW", "Wasserstein",
+                                "Constrained Wasserstein"),
+                     wasserstein = list(metric = c("mahalanobis"),
+                                        power = 2,
+                                        cost = NULL,
+                                        delta = 1.0),
+                     balance = list(balance.functions = NULL,
+                                    formula = NULL,
+                                    balance.constraints = NULL),
+                     marginal.wasserstein = list(marginal.costs = NULL,
+                                                 marginal.constraints = NULL),
+                     control = list(maxit = 1e4)
+                     ) {
+  
+  method <- match.arg(method)
+  
+  sw  <- get_sample_weight(sample_weights, c(rep(0, nrow(x)), rep(1, nrow(target))))
+  if (method == "Wasserstein" | method == "Constrained Wasserstein") {
+    wasserstein <- wasserstein.options(wasserstein, x, target, sw)
+    marginal.wasserstein <- marginal.wass.options(marginal.wasserstein,
+                                                  wasserstein, x, target)
+  }
+  
+  balance <- balance.options(balance, x, target)
+  
+  if (method == "SBW" & is.null(balance$balance.functions)) stop("Balance functions must be specified for SBW")
+  if (method == "Wasserstein" & is.null(wasserstein$cost)) stop("Wasserstein list must be provided")
+  if (method == "Constrained Wasserstein" & is.null(wasserstein$cost)) stop("Wasserstein list must be provided")
+  
+  opt.class <- switch(method,
+         "SBW" = sbwDualL2,
+         "Constrained Wasserstein" = cotConstDualL2,
+         "Wasserstein" = cotDualL2)
+  
+  optimizer <- opt.class$new(delta = wasserstein$delta, cost = wasserstein$cost, 
+          b = wasserstein$b,
+          marginal.costs = marginal.wasserstein$marginal.costs,
+          marginal.delta = marginal.wasserstein$marginal.constraints,
+          balance.functions = balance$balance.functions,
+          balance.delta = balance$balance.delta,
+          target.mean = balance$target.mean,
+          target.sd = balance$target.sd)
+  
+  if (!is.null(balance$balance.functions) & !is.null(balance$balance.delta)) {
+    control <- control.options(control, method = "oem")
+    XtX <- as.matrix(optimizer$get_xtx())
+    XtY <- as.matrix(optimizer$get_xty())
+    
+    fit <- oem::oem.xtx(xtx = XtX, 
+                        xty = XtY,
+                 family = "gaussian",
+                 penalty = "lasso",
+                 lambda = 1, nlambda = 1,
+                 lambda.min.ratio = NULL,
+                 alpha = 1, gamma = 3, tau = 0.5, #not used,
+                 groups = control$groups,
+                 scale.factor = control$scale.factor,
+                 penalty.factor = optimizer$penalty.factor(),
+                 group.weights = control$group.weights,
+                 maxit = control$maxit,
+                 tol = control$tol,
+                 irls.maxit = control$irls.maxit,
+                 irls.tol = control$irls.tol
+                 )
+    beta <- c(fit$beta[[1]])
+    if (grepl("Wasserstein", method)) {
+      neg.dual.idx <- optimizer$.__enclos_env__$private$dual.idx
+      pos.dual.idx <- neg.dual.idx + length(neg.dual.idx)
+      beta_neg <- beta[neg.dual.idx]
+      beta_pos <- beta[pos.dual.idx]
+      beta <- c(beta_pos - beta_neg, beta[-c(neg.dual.idx, pos.dual.idx)])
+    }
+  } else {
+    control <- control.options(control, method = "lbfgs")
+    if (is.null(init)) init <- optimizer$init()
+    bounds <- optimizer$bounds()
+    
+    fit <- lbfgsb3c::lbfgsb3(par = init,
+                             fn = optimizer$obj,
+                             gr = optimizer$grad,
+                             lower = bounds[,1],
+                             upper = bounds[,2],
+                             control = control
+    )
+    if (is.null(fit$convergence) | isFALSE(fit$convergence == 0)) warning(fit$message)
+    beta <- c(fit$par)
+  }
+  
+  
+  
+  unconst_weight <- as.numeric(optimizer$h_star_inv(beta))
+  unconst_weight <- unconst_weight * as.numeric(unconst_weight > 0)
+  weight <- simplex_proj(unconst_weight)
+  
+  if (grepl("Wasserstein", method)) {
+    n <- nrow(wasserstein$cost)
+    m <- ncol(wasserstein$cost)
+    
+    unconst_weight <- Matrix::Matrix(data = unconst_weight,
+                                     nrow = n, ncol = m)
+    weight <- Matrix::Matrix(data = weight,
+                                     nrow = n, ncol = m)
+  }
+  
+  return(list(weight = weight, beta = beta,
+              unconstrained = list(weight = unconst_weight),
+              fit = fit))
+}
+
+convergence <- function(old, new) {
+  
+}
+
+# simplex_opt_lbfgs <- function(optimizer, control) {
+#   control <- control.options(control, method = "lbfgs")
+#   if (is.null(init)) init <- optimizer$init()
+#   bounds <- optimizer$bounds()
+#   lfit <- simp_pred <- cur_param <- old_param <- list(NULL)
+#   
+#   old_param[[1]] <- init
+#   
+#   X <- optimizer$get_Q()
+#   
+#   for (i in 1:control$maxit) {
+#     lfit[[1]] <- lbfgsb3c::lbfgsb3(par = old_param[[1]],
+#                     fn = optimizer$obj,
+#                     gr = optimizer$grad,
+#                     lower = bounds[,1],
+#                     upper = bounds[,2],
+#                     control = control
+#   )$par
+#     simp_pred[[1]] <- optimizer$get_weight(lfit[[1]])
+#     cur_param[[1]] <- lm(optimizer$get_y_pgd(simp_pred[[1]]) ~ X + 0)
+#     if (convergence(old_param[[1]], cur_param[[1]])) {
+#       break
+#     } else {
+#       old_param[[1]] <- cur_param[[1]]
+#     }
+#   }
+#   
+#   return(cur_param[[1]])
+# }
+# 
+# convergence <- function()

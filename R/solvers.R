@@ -1,7 +1,7 @@
 cplex_solver <- function(qp, ...) {
   dots <- list(...)
   
-  num_param <- length(c(qp$obj$L))
+  num_param <- length(c(as.numeric(qp$obj$L)))
   
   if(is.null(dots$control)) {
     control <- list(trace = 0L, round = 1L)
@@ -15,7 +15,7 @@ cplex_solver <- function(qp, ...) {
   
   fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
   invisible(capture.output( res <-
-                              Rcplex::Rcplex(cvec = c(qp$obj$L), Amat = qp$LC$A, 
+                              Rcplex::Rcplex(cvec = c(as.numeric(qp$obj$L)), Amat = qp$LC$A, 
                                              bvec = qp$LC$vals, Qmat = qp$obj$Q,
                                              lb = 0, ub = Inf, control=control,
                                              objsense = "min", sense = qp$LC$dir,
@@ -28,11 +28,11 @@ cplex_solver <- function(qp, ...) {
 }
 
 gurobi_solver <- function(qp, ...) {
-  num_param <- length(c(qp$ob$L))
+  num_param <- length(c(as.numeric(qp$ob$L)))
   model <- list()
   model$Q <- qp$obj$Q
   model$modelsense <- 'min'
-  model$obj <- c(qp$obj$L)
+  model$obj <- c(as.numeric(qp$obj$L))
   model$A <- qp$LC$A
   model$sense <- rep(NA, length(qp$LC$dir))
   model$sense[qp$LC$dir=="E"] <- '='
@@ -64,7 +64,7 @@ gurobi_solver <- function(qp, ...) {
 }
 
 mosek_solver <- function(qp, ...) {
-  num_param <- length(c(qp$obj$L))
+  num_param <- length(c(as.numeric(qp$obj$L)))
   model <- list()
   model$sense <- 'min'
   # Quad <- if(!inherits(qp$obj$Q, 'dgTMatrix')) {
@@ -99,7 +99,7 @@ mosek_solver <- function(qp, ...) {
       model$qobj <- list(i = trimat@i+1, j = trimat@j+1, v = trimat@x * 2)
     }
   }
-  model$c <- c(qp$obj$L)
+  model$c <- c(as.numeric(qp$obj$L))
   if(is.null(model$c)) model$c <- rep(0, num_param)
   model$A <- qp$LC$A
   model$bx <- rbind(blx = rep(0, num_param), bux = rep(Inf, num_param))
