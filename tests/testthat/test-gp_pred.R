@@ -91,14 +91,14 @@ testthat::test_that("gaussian process prediction works polynomial, mahalanobis",
                   treatment.indicator = "z",
                   outcome = "y")
   
-  Kernel_full <- kernel_calc_pred_(X_=as.matrix(x), 
+  Kernel_full <- kernel_calc_pred_(X_ = as.matrix(x), 
                                    X_test_ = as.matrix(x),
                                    z = as.integer(z), p = param$p, 
                                    theta_ = param$theta, 
                                    gamma_ = param$gamma, 
                                    sigma_2_ = param$sigma_2,
                                    calc_covariance = isTRUE(param$metric == "mahalanobis"), 
-                                   kernel = as.character(param$kernel), 
+                                   kernel_ = as.character(param$kernel), 
                                    estimand = as.character("ATE"))
   testthat::expect_equal(tau, rout$tau)
   testthat::expect_equal(Kernel_full[[1]]$cov, rout$kernels$control$cov)
@@ -274,7 +274,7 @@ testthat::test_that("gaussian process corrects non-positive def matrix rbf, Lp",
 
 
 testthat::test_that("timing is better for C code, rbf lp", {
-  testthat::skip("This test is meant to be run interactively.")
+  testthat::skip("Interactive only")
   n <- 2^9
   d <- 10
   x <- matrix(rnorm(n*d),n,d)
@@ -315,7 +315,7 @@ testthat::test_that("timing is better for C code, rbf lp", {
   
 })
 testthat::test_that("timing is better for C code, rbf mahalanobis", {
-  testthat::skip("This test is meant to be run interactively.")
+  testthat::skip("Interactive only")
   n <- 2^9
   d <- 10
   x <- matrix(rnorm(n*d),n,d)
@@ -356,7 +356,7 @@ testthat::test_that("timing is better for C code, rbf mahalanobis", {
   
 })
 testthat::test_that("timing is better for C code, polynomial lp", {
-  testthat::skip("This test is meant to be run interactively.")
+  testthat::skip("Interactive only")
   n <- 2^9
   d <- 10
   x <- matrix(rnorm(n*d),n,d)
@@ -397,7 +397,7 @@ testthat::test_that("timing is better for C code, polynomial lp", {
   
 })
 testthat::test_that("timing is better for C code, polynomial mahalanobis", {
-  testthat::skip("This test is meant to be run interactively.")
+  testthat::skip("Interactive only")
   n <- 2^9
   d <- 10
   x <- matrix(rnorm(n*d),n,d)
@@ -439,7 +439,7 @@ testthat::test_that("timing is better for C code, polynomial mahalanobis", {
 })
 
 testthat::test_that("gaussian process prediction works rbf, lp", {
-  testthat::skip("This test is meant to be run interactively.")
+  testthat::skip("Interactive only")
   set.seed(3208)
   n <- 512
   d <- 10

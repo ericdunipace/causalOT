@@ -122,7 +122,8 @@
                                                              metrics = "Lp",
                                                              constrained.wasserstein.target = c("RKHS", "SBW"),
                                                              wasserstein.distance.constraints = NULL,
-                                                             add.joint = FALSE),
+                                                             add.joint = TRUE,
+                                                             add.margins = FALSE),
                                                  outcome.model = "lm",
                                                  outcome.formula = list(none = NULL,
                                                                         augmentation = NULL),
@@ -165,17 +166,18 @@
                                            metrics = "mahalanobis",
                                            constrained.wasserstein.target = c("SBW"),
                                            wasserstein.distance.constraints = NULL,
-                                           add.joint = FALSE)
+                                           add.joint = TRUE,
+                                           add.margins = FALSE)
                              }
                              private$wass.opt <- list()
                              if(!is.null(Wass$metrics)) {
                                private$metric <- match.arg(Wass$metrics,
-                                                           c("Lp", "mahalanobis", "RKHS"), several.ok = TRUE)
+                                                           dist.metrics(), several.ok = TRUE)
                              } else {
                                private$metric <- "mahalanobis"
                              }
                              
-                             if(!is.null(Wass$wass_powers)) {
+                             if (!is.null(Wass$wass_powers)) {
                                private$wass_powers <- as.numeric(Wass$wass_powers)
                              } else {
                                private$wass_powers <- 2.0
@@ -221,7 +223,13 @@
                              if (!is.null(Wass$add.joint)) {
                                private$wass.opt$add.joint <- isTRUE(Wass$add.joint)
                              } else {
-                               private$wass.opt$add.joint <- FALSE
+                               private$wass.opt$add.joint <- TRUE
+                             }
+                             
+                             if (!is.null(Wass$add.margins)) {
+                               private$wass.opt$add.margins <- sapply(Wass$add.margins, isTRUE)
+                             } else {
+                               private$wass.opt$add.margins <- FALSE
                              }
                              # private$metric <- match.arg(Wass$metrics,
                              #                             c("Lp", "mahalanobis", "RKHS"), several.ok = TRUE)
@@ -559,7 +567,8 @@
                                                                       opt.hyperparam = isTRUE(o$opt),
                                                                       opt.method = o$opt.method,
                                                                       metric = o$metric,
-                                                                      formula = o$formula
+                                                                      formula = o$formula,
+                                                                      add.margins = isTRUE(o$add.margins)
                                                   )
                                                   if (private$check.skip(private$weights[[est]])) next
                                                   
@@ -917,7 +926,8 @@
                                                                # RKHS.metric = private$RKHS$metric,
                                                                delta = wdc,
                                                                grid.search = private$grid.search,
-                                                               formula = private$ps.formula$cwass
+                                                               formula = private$ps.formula$cwass,
+                                                               add.margins = private$wass.opt$add.margins
                                             )
                                             wass_list <- list( metric = private$metric,
                                                               ground_p = private$ground_powers,
@@ -929,7 +939,8 @@
                                                               # RKHS.metric = private$RKHS$metric,
                                                               delta = sdm,
                                                               grid.search = private$grid.search,
-                                                              formula = private$ps.formula$wass
+                                                              formula = private$ps.formula$wass,
+                                                              add.margins = private$wass.opt$add.margins
                                             )
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
@@ -1087,7 +1098,8 @@
                                                                  opt.hyperparam = TRUE,
                                                                  opt.method = c("stan", "optim", "bayesian.optimization"),
                                                                  metric = metric,
-                                                                 formula) {
+                                                                 formula,
+                                                                 add.margins = FALSE) {
                                             method <- as.character(cur$method[[1]])
                                             if (grid.search & method == "SBW") delta <- private$standardized.difference.means
                                             if (grid.search & method == "RKHS.dose") delta <- private$RKHS$lambdas
@@ -1143,7 +1155,8 @@
                                                             maxit = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             metric = metric,
                                                             balance.constraints = 0.1,
-                                                            add.joint = private$wass.opt$add.joint,
+                                                            add.joint = TRUE, #private$wass.opt$add.joint,
+                                                            add.margins = isTRUE(add.margins),
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
                                                             epsilon = private$wass.opt$epsilon,

@@ -83,7 +83,7 @@ gp_pred_fun <- function(data, param) {
 }
 
 testthat::test_that("parameter optimization for RKHS", {
-  
+  testthat::skip_on_cran()
   set.seed(290384)
   library(causalOT)
   
@@ -142,7 +142,7 @@ testthat::test_that("parameter optimization for RKHS", {
 })
 
 testthat::test_that("parameter optimization for RKHS", {
-  
+  testthat::skip_on_cran()
   set.seed(290384)
   library(causalOT)
   
@@ -226,7 +226,7 @@ testthat::test_that("parameter optimization for RKHS", {
 })
 
 testthat::test_that("parameter optimization for RKHS poly correct", {
-  testthat::skip("interactive only")
+  testthat::skip("Interactive only")
   set.seed(290384)
   library(causalOT)
   
@@ -298,7 +298,7 @@ testthat::test_that("parameter optimization for RKHS poly correct", {
 })
 
 testthat::test_that("gp pred are ok with rbf", {
-  testthat::skip("Meant to be run interactively")
+  testthat::skip("Interactive only")
   set.seed(3208)
   n <- 512
   d <- 10

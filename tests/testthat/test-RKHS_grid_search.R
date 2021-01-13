@@ -1,4 +1,5 @@
 testthat::test_that("RKHS grid works", {
+  testthat::skip_on_cran()
   set.seed(9870)
   library(causalOT)
   
@@ -33,6 +34,7 @@ testthat::test_that("RKHS grid works", {
 })
 
 testthat::test_that("RKHS grid works, opt.hyperparam", {
+  testthat::skip_on_cran()
   set.seed(9870)
   library(causalOT)
   
@@ -63,6 +65,7 @@ testthat::test_that("RKHS grid works, opt.hyperparam", {
 })
 
 testthat::test_that("RKHS grid gives expected value", {
+  testthat::skip_on_cran()
   set.seed(9870)
   library(causalOT)
   

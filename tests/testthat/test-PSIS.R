@@ -1,4 +1,5 @@
 testthat::test_that("PSIS diagnostics work", {
+  testthat::skip_on_cran()
   library(causalOT)
   set.seed(23483)
   n <- 2^7
@@ -92,6 +93,7 @@ testthat::test_that("PSIS diagnostics work", {
 })
 
 testthat::test_that("PSIS diagnostics work, feasible", {
+  testthat::skip_on_cran()
   library(causalOT)
   set.seed(23483)
   n <- 2^7

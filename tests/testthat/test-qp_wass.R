@@ -28,7 +28,7 @@ testthat::test_that("qp_wass gives error if power has length > 1 ", {
   
 })
 
-testthat::test_that("qp_wass has correct dimensions", {
+testthat::test_that("qp_wass has correct dimensions, no marginals", {
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -57,22 +57,76 @@ testthat::test_that("qp_wass has correct dimensions", {
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATT")
   
   testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
-  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n1 + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n1, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
   
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATC")
   
   testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
-  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n0 + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n0, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
   
-  qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATE")
+  qp <- qp_wass(x,z, K = constraint, p = power, estimand = "ATE")
   
   testthat::expect_equal(prod(dim(qp[[1]]$obj$Q)), (n0*n)^2, check.attributes=FALSE)
   testthat::expect_equal(prod(dim(qp[[2]]$obj$Q)), (n1*n)^2, check.attributes=FALSE)
   
-  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
-  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 1 + n , check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 1 + n , check.attributes=FALSE)
+  
+  testthat::expect_equal( dim(qp[[1]]$LC$A)[2], n0*n, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[2]]$LC$A)[2], n*n1, check.attributes=FALSE)
+  
+})
+
+testthat::test_that("qp_wass has correct dimensions, marginals", {
+  set.seed(23483)
+  n <- 2^7
+  p <- 6
+  nsims <- 1
+  overlap <- "low"
+  design <- "A"
+  distance <- c("Lp")
+  power <- c(1,2)
+  solver <- "gurobi"
+  estimates <- c("ATT", "ATC", "cATE", "ATE")
+  constraint = 1
+  power <- 2
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  
+  x <- data$get_x()
+  z <- data$get_z()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  # cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  #debugonce(qp_wass)
+  qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATT",
+                add.margins = TRUE)
+  
+  testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n1 + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
+  
+  qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATC",
+                add.margins = TRUE)
+  
+  testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n0 + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
+  
+  qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATE",
+                add.margins = TRUE)
+  
+  testthat::expect_equal(prod(dim(qp[[1]]$obj$Q)), (n0*n)^2, check.attributes=FALSE)
+  testthat::expect_equal(prod(dim(qp[[2]]$obj$Q)), (n1*n)^2, check.attributes=FALSE)
+  
+  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 1+n + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 1+n + p, check.attributes=FALSE)
   
   testthat::expect_equal( dim(qp[[1]]$LC$A)[2], n0*n, check.attributes=FALSE)
   testthat::expect_equal( dim(qp[[2]]$LC$A)[2], n*n1, check.attributes=FALSE)
@@ -112,17 +166,44 @@ testthat::test_that("qp_wass works with sample weights", {
   # cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
   #debugonce(qp_wass)
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATT",
-                sample_weight = sample_weights)
+                sample_weight = sample_weights, add.margins = TRUE)
   
   testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[1], 1 + n1 + p, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
   
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATC",
-                sample_weight = sample_weights)
+                sample_weight = sample_weights, add.margins = TRUE)
   
   testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[1], 1 + n0 + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
+  
+  qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATE",
+                sample_weight = sample_weights, add.margins = TRUE)
+  
+  testthat::expect_equal(prod(dim(qp[[1]]$obj$Q)), (n0*n)^2, check.attributes=FALSE)
+  testthat::expect_equal(prod(dim(qp[[2]]$obj$Q)), (n1*n)^2, check.attributes=FALSE)
+  
+  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
+  
+  testthat::expect_equal( dim(qp[[1]]$LC$A)[2], n0*n, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[2]]$LC$A)[2], n*n1, check.attributes=FALSE)
+  
+  
+  qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATT",
+                sample_weight = sample_weights)
+  
+  testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n1, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
+  
+  qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATC",
+                sample_weight = sample_weights)
+  
+  testthat::expect_equal(prod(dim(qp$obj$Q)), (n0*n1)^2, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp$LC$A)[1], 1 + n0, check.attributes=FALSE)
   testthat::expect_equal( dim(qp$LC$A)[2], n0*n1, check.attributes=FALSE)
   
   qp <- qp_wass(x,z,K = constraint, p = power, estimand = "ATE",
@@ -131,8 +212,8 @@ testthat::test_that("qp_wass works with sample weights", {
   testthat::expect_equal(prod(dim(qp[[1]]$obj$Q)), (n0*n)^2, check.attributes=FALSE)
   testthat::expect_equal(prod(dim(qp[[2]]$obj$Q)), (n1*n)^2, check.attributes=FALSE)
   
-  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
-  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 1 + n + p, check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[1]]$LC$A)[1], 1 + n , check.attributes=FALSE)
+  testthat::expect_equal( dim(qp[[2]]$LC$A)[1], 1 + n, check.attributes=FALSE)
   
   testthat::expect_equal( dim(qp[[1]]$LC$A)[2], n0*n, check.attributes=FALSE)
   testthat::expect_equal( dim(qp[[2]]$LC$A)[2], n*n1, check.attributes=FALSE)

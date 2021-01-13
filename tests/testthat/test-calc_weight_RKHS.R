@@ -1,4 +1,5 @@
 testthat::test_that("check RKHS kernel works", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^9
   p <- 6
@@ -33,6 +34,7 @@ testthat::test_that("check RKHS kernel works", {
 })
 
 testthat::test_that("check RKHS kernel works with hyper param opt", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^9
   p <- 6
@@ -62,6 +64,7 @@ testthat::test_that("check RKHS kernel works with hyper param opt", {
 })
 
 testthat::test_that("check RKHS kernel optimal for hainmueller", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^9
   p <- 6

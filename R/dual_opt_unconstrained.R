@@ -283,6 +283,22 @@ cotDualL2 <- R6::R6Class("cotDualL2",
                                A    <- c(rep(0, length(QtC) - l_t), private$target.mean)
                                return(QtC + A)
                              },
+                             # get_X = function() {
+                             #   neg.mass.const <- -private$Q[,private$dual.idx]
+                             #   cmb.Q <- cbind(neg.mass.const,
+                             #                  private$Q)
+                             #   A <- cbind(
+                             #     matrix(0, nrow = length(private$target.mean),
+                             #          ncol = ncol(cmb.Q) - length(private$target.mean)),
+                             #     Matrix::Diagonal(length(private$target.mean),
+                             #                      x = private$target.mean))
+                             #   return(rbind(cmb.Q / sqrt(private$delta),
+                             #                 A) )
+                             # },
+                             # get_Y = function() {
+                             #   return(c(private$cost / sqrt(private$delta), 
+                             #            rep(1, length(private$target.mean))))
+                             # },
                              penalty.factor = function() {
                                return(private$pf)
                              },
@@ -308,10 +324,12 @@ cotDualL2 <- R6::R6Class("cotDualL2",
                              if (!is.null(marginal.costs) & 
                                  !is.null(marginal.delta) ) {
                                private$margins <- TRUE
-                               private$marg.idx <- cur.idx:(cur.idx + length(marginal.costs))
-                               cur.idx <- cur.idx + length(marginal.costs) + 1
+                               private$marg.idx <- cur.idx:(cur.idx + length(marginal.costs) - 1)
+                               cur.idx <- cur.idx + length(marginal.costs)
                                private$marginal.costs <- sapply(marginal.costs, c)
                                private$marginal.delta <- marginal.delta
+                               stopifnot(length(private$marg.idx) == length(private$marginal.delta))
+                               
                              } else {
                                private$margins <- FALSE
                              } 
@@ -319,7 +337,7 @@ cotDualL2 <- R6::R6Class("cotDualL2",
                              if (!is.null(balance.functions) & 
                                  !is.null(balance.delta)) {
                                private$balfun <- TRUE
-                               private$bal.idx <- cur.idx:(cur.idx + ncol(balance.functions))
+                               private$bal.idx <- cur.idx:(cur.idx + ncol(balance.functions)-1)
                                private$balance.functions <- Matrix::crossprod(vec_to_row_constraints(private$n, private$m),
                                                                               balance.functions)
                                scale <- if (missing(target.sd) | is.null(target.sd)) {
@@ -331,6 +349,7 @@ cotDualL2 <- R6::R6Class("cotDualL2",
                                }
                                private$balance.delta <- balance.delta * scale
                                private$target.mean <- target.mean
+                               stopifnot(length(private$bal.idx) == length(private$balance.delta))
                              } else {
                                private$balfun <- FALSE
                              }
@@ -378,13 +397,12 @@ cotDualL2 <- R6::R6Class("cotDualL2",
                                                       ncol(private$marginal.costs) + 
                                                       ncol(private$balance.functions))
                              private$pf <- switch(fun.num,
-                                                  "1" = c(-private$b, private$b, 
-                                                          private$delta),
-                                                  "2" = c(-private$b, private$b, private$delta, 
+                                                  "1" = c(-private$b, private$b),
+                                                  "2" = c(-private$b, private$b,
                                                           private$marginal.delta),
-                                                  "3" = c(-private$b, private$b, private$delta, 
+                                                  "3" = c(-private$b, private$b,  
                                                           private$balance.delta),
-                                                  "4" = c(-private$b, private$b, private$delta, 
+                                                  "4" = c(-private$b, private$b,
                                                           private$marginal.delta,
                                                           private$balance.delta
                                                   )
@@ -604,8 +622,8 @@ cotConstDualL2 <- R6::R6Class("cotConstDualL2",
                              if (!is.null(marginal.costs) & 
                                  !is.null(marginal.delta) ) {
                                private$margins <- TRUE
-                               private$marg.idx <- cur.idx:(cur.idx + length(marginal.costs))
-                               cur.idx <- cur.idx + length(marginal.costs) + 1
+                               private$marg.idx <- cur.idx:(cur.idx + length(marginal.costs) - 1)
+                               cur.idx <- cur.idx + length(marginal.costs) 
                                private$marginal.costs <- sapply(marginal.costs, c)
                                private$marginal.delta <- marginal.delta
                              } else {
@@ -615,7 +633,7 @@ cotConstDualL2 <- R6::R6Class("cotConstDualL2",
                              if (!is.null(balance.functions) & 
                                  !is.null(balance.delta)) {
                                private$balfun <- TRUE
-                               private$bal.idx <- cur.idx:(cur.idx + ncol(balance.functions))
+                               private$bal.idx <- cur.idx:(cur.idx + ncol(balance.functions) - 1)
                                private$balance.functions <- Matrix::crossprod(vec_to_row_constraints(private$n, private$m),
                                                                               balance.functions)
                                scale <- if (missing(target.sd) | is.null(target.sd)) {
@@ -887,21 +905,23 @@ marginal.wass.options <- function(marg.wass, wass, x, target) {
   if (is.null(marg.wass$marginal.costs)) {
     z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
            
-    marg.wass$marginal.costs <- lapply(1:ncol(cost), function(i) 
+    marg.wass$marginal.costs <- lapply(1:ncol(x), function(i) 
                                       cost_fun(rbind(x[,i,drop = FALSE], 
                                                target[,i,drop = FALSE]),
                                                z = z,
                                           estimand = "ATT", power = wass$power, 
                                           metric = wass$metric))
   }
-  if (is.null(marg.wass$marginal.marginal.delta)) {
-    marg.wass$marginal.delta <- 1.0^wass$power
+  if (is.null(marg.wass$marginal.delta)) {
+    marg.wass$marginal.delta <- rep(1.0^wass$power, length(marg.wass$marginal.costs))
   }
   
-  marg.wass$marginal.costs  <- lapply(marg.wass$marginal.costs, function(c) c^wass$power)
-  marg.wass$marginal.delta  <- as.double(marg.wass$marginal.constraints^wass$power)
+  marg.wass$marginal.costs  <- lapply(marg.wass$marginal.costs, function(cc) cc^wass$power)
+  marg.wass$marginal.delta  <- as.double(marg.wass$marginal.delta^wass$power)
+  if (length(marg.wass$marginal.delta) != length(marg.wass$marginal.costs)) marg.wass$marginal.delta <- rep(marg.wass$marginal.delta, 
+                                                                                                           length(marg.wass$marginal.costs))
   
-  stopifnot(marg.wass$marginal.delta > 0)
+  stopifnot(all(marg.wass$marginal.delta > 0))
   
   return(marg.wass)
 }
@@ -1023,41 +1043,65 @@ dual_opt <- function(x, target,
   optimizer <- opt.class$new(delta = wasserstein$delta, cost = wasserstein$cost, 
           b = wasserstein$b,
           marginal.costs = marginal.wasserstein$marginal.costs,
-          marginal.delta = marginal.wasserstein$marginal.constraints,
+          marginal.delta = marginal.wasserstein$marginal.delta,
           balance.functions = balance$balance.functions,
           balance.delta = balance$balance.delta,
           target.mean = balance$target.mean,
           target.sd = balance$target.sd)
   
   if (!is.null(balance$balance.functions) & !is.null(balance$balance.delta)) {
-    control <- control.options(control, method = "oem")
-    XtX <- as.matrix(optimizer$get_xtx())
-    XtY <- as.matrix(optimizer$get_xty())
-    
-    fit <- oem::oem.xtx(xtx = XtX, 
-                        xty = XtY,
-                 family = "gaussian",
-                 penalty = "lasso",
-                 lambda = 1, nlambda = 1,
-                 lambda.min.ratio = NULL,
-                 alpha = 1, gamma = 3, tau = 0.5, #not used,
-                 groups = control$groups,
-                 scale.factor = control$scale.factor,
-                 penalty.factor = optimizer$penalty.factor(),
-                 group.weights = control$group.weights,
-                 maxit = control$maxit,
-                 tol = control$tol,
-                 irls.maxit = control$irls.maxit,
-                 irls.tol = control$irls.tol
-                 )
-    beta <- c(fit$beta[[1]])
-    if (grepl("Wasserstein", method)) {
-      neg.dual.idx <- optimizer$.__enclos_env__$private$dual.idx
-      pos.dual.idx <- neg.dual.idx + length(neg.dual.idx)
-      beta_neg <- beta[neg.dual.idx]
-      beta_pos <- beta[pos.dual.idx]
-      beta <- c(beta_pos - beta_neg, beta[-c(neg.dual.idx, pos.dual.idx)])
-    }
+    # if (method != "Wasserstein") {
+      control <- control.options(control, method = "oem")
+      XtX <- as.matrix(optimizer$get_xtx())
+      XtY <- as.matrix(optimizer$get_xty())
+      
+      fit <- oem::oem.xtx(xtx = XtX, 
+                          xty = XtY,
+                   family = "gaussian",
+                   penalty = "lasso",
+                   lambda = 1, nlambda = 1,
+                   lambda.min.ratio = NULL,
+                   alpha = 1, gamma = 3, tau = 0.5, #not used,
+                   groups = control$groups,
+                   scale.factor = control$scale.factor,
+                   penalty.factor = optimizer$penalty.factor(),
+                   group.weights = control$group.weights,
+                   maxit = control$maxit,
+                   tol = control$tol,
+                   irls.maxit = control$irls.maxit,
+                   irls.tol = control$irls.tol
+                   )
+      beta <- c(fit$beta[[1]])
+      if (grepl("Wasserstein", method)) {
+        neg.dual.idx <- optimizer$.__enclos_env__$private$dual.idx
+        pos.dual.idx <- neg.dual.idx + length(neg.dual.idx)
+        beta_neg <- beta[neg.dual.idx]
+        beta_pos <- beta[pos.dual.idx]
+        beta <- c(beta_pos - beta_neg, beta[-c(neg.dual.idx, pos.dual.idx)])
+      }
+    # } 
+    # else {
+    #   X <- optimizer$get_X()
+    #   Y <- optimizer$get_Y()
+    #   bounds <- optimizer$bounds()
+    #   neg.dual.idx <- optimizer$.__enclos_env__$private$dual.idx
+    #   pos.dual.idx <- neg.dual.idx + length(neg.dual.idx)
+    #   bounds[neg.dual.idx,1] <- 0
+    #   bounds <- rbind(bounds[neg.dual.idx,,drop = FALSE],
+    #                   bounds)
+    #   
+    #   fit <- glmnet::glmnet(x = X, y = Y, family = "gaussian",
+    #                  lower.limits = bounds[,1],
+    #                  upper.limits = bounds[,2],
+    #                  maxit = control$maxit, relax = FALSE,
+    #                  penalty.factor = optimizer$penalty.factor(),
+    #                  intercept = FALSE, lambda = 1)
+    #   beta <- c(fit$beta)
+    #   beta_neg <- beta[neg.dual.idx]
+    #   beta_pos <- beta[pos.dual.idx]
+    #   beta <- c(beta_pos - beta_neg, beta[-c(neg.dual.idx, pos.dual.idx)])
+    #   
+    # }
   } else {
     control <- control.options(control, method = "lbfgs")
     if (is.null(init)) init <- optimizer$init()

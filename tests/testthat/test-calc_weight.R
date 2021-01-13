@@ -1,6 +1,7 @@
 arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "args")
 
 testthat::test_that("works for Const Wass", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -63,6 +64,7 @@ testthat::test_that("works for Const Wass", {
 })
 
 testthat::test_that("works for Const Wass RKHS", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -132,6 +134,7 @@ testthat::test_that("works for Const Wass RKHS", {
 })
 
 testthat::test_that("works for Const Wass, grid/formula", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -153,7 +156,7 @@ testthat::test_that("works for Const Wass, grid/formula", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-    weight.check[["ATT"]] <- calc_weight(data = data, 
+    testthat::expect_warning(weight.check[["ATT"]] <- calc_weight(data = data, 
                                      constraint = NULL,
                                      grid.search = TRUE,
                                      estimand = "ATT", 
@@ -162,8 +165,8 @@ testthat::test_that("works for Const Wass, grid/formula", {
                                      method = "Constrained Wasserstein",
                                      solver = "mosek",
                                      wass.method = "greenkhorn",
-                                     iter = 10)
-    weight.check[["ATC"]] <- calc_weight(data = data, 
+                                     iter = 10))
+    testthat::expect_warning(weight.check[["ATC"]] <- calc_weight(data = data, 
                                          constraint = NULL,
                                          grid.search = TRUE,
                                          estimand = "ATT", 
@@ -172,8 +175,8 @@ testthat::test_that("works for Const Wass, grid/formula", {
                                          method = "Constrained Wasserstein",
                                          solver = "mosek",
                                          wass.method = "greenkhorn",
-                                         iter = 10)
-    weight.check[["ATE"]] <- calc_weight(data = data, 
+                                         iter = 10))
+    testthat::expect_warning(weight.check[["ATE"]] <- calc_weight(data = data, 
                                          constraint = NULL,
                                          grid.search = TRUE,
                                          estimand = "ATT", 
@@ -182,12 +185,13 @@ testthat::test_that("works for Const Wass, grid/formula", {
                                          method = "Constrained Wasserstein",
                                          solver = "mosek",
                                          wass.method = "greenkhorn",
-                                         iter = 10)
+                                         iter = 10))
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
 })
 
 testthat::test_that("works for Wass", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -270,11 +274,12 @@ testthat::test_that("works for Wass", {
 })
 
 testthat::test_that("works for Wass, grid/formula", {
+  testthat::skip_on_cran()
   set.seed(23483)
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 1
-  overlap <- "low"
+  overlap <- "high"
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
@@ -292,12 +297,13 @@ testthat::test_that("works for Wass, grid/formula", {
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
   for (e in estimates) {
-    testthat::expect_warning(weight.check[[e]] <- calc_weight(data = data, 
+    # print(e)
+    testthat::expect_silent(weight.check[[e]] <- calc_weight(data = data, 
              constraint = NULL,
              grid.search = TRUE,
              estimand = e, 
              formula = "~.+0",
-             balance.constraints = 0.2,
+             balance.constraints = 0.5,
              method = "Wasserstein",
              solver = "mosek",
              wass.method = "greenkhorn",
@@ -308,6 +314,7 @@ testthat::test_that("works for Wass, grid/formula", {
 })
 
 testthat::test_that("works for SBW", {
+  
   set.seed(23483)
   n <- 2^8
   p <- 6
@@ -347,6 +354,7 @@ testthat::test_that("works for SBW", {
 })
 
 testthat::test_that("works for SBW grid", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -402,6 +410,7 @@ testthat::test_that("works for SBW grid", {
 })
 
 testthat::test_that("works for Const Wass, sw", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -473,6 +482,7 @@ testthat::test_that("works for Const Wass, sw", {
 })
 
 testthat::test_that("works for Const Wass RKHS, sw", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -551,6 +561,7 @@ testthat::test_that("works for Const Wass RKHS, sw", {
 })
 
 testthat::test_that("works for Const Wass, grid/formula, sw", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -579,7 +590,7 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-  weight.check[["ATT"]] <- calc_weight(data = data, 
+  testthat::expect_warning(weight.check[["ATT"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
                                        estimand = "ATT", 
@@ -589,8 +600,8 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
-                                       sample_weight = sample_weights)
-  weight.check[["ATC"]] <- calc_weight(data = data, 
+                                       sample_weight = sample_weights))
+  testthat::expect_warning(weight.check[["ATC"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
                                        estimand = "ATT", 
@@ -600,8 +611,8 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
-                                       sample_weight = sample_weights)
-  weight.check[["ATE"]] <- calc_weight(data = data, 
+                                       sample_weight = sample_weights))
+  testthat::expect_warning(weight.check[["ATE"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
                                        estimand = "ATT", 
@@ -611,12 +622,13 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
-                                       sample_weight = sample_weights)
+                                       sample_weight = sample_weights))
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
 })
 
 testthat::test_that("works for Wass, sw", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -709,11 +721,12 @@ testthat::test_that("works for Wass, sw", {
 })
 
 testthat::test_that("works for Wass, grid/formula, sw", {
+  testthat::skip_on_cran()
   set.seed(23483)
-  n <- 2^7
+  n <- 2^6
   p <- 6
   nsims <- 1
-  overlap <- "low"
+  overlap <- "high"
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
@@ -738,12 +751,12 @@ testthat::test_that("works for Wass, grid/formula, sw", {
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
   for (e in estimates) {
-    testthat::expect_warning(weight.check[[e]] <- calc_weight(data = data, 
+    testthat::expect_silent(weight.check[[e]] <- calc_weight(data = data, 
                                                               constraint = NULL,
                                                               grid.search = TRUE,
                                                               estimand = e, 
                                                               formula = "~.+0",
-                                                              balance.constraints = 0.2,
+                                                              balance.constraints = 1,
                                                               method = "Wasserstein",
                                                               solver = "mosek",
                                                               wass.method = "greenkhorn",

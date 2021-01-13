@@ -45,10 +45,10 @@ simplex_proj <- function(y) { #simplex projection of Condat 2015
         v[v_count + 1] <- y[n]
         v_count <- v_count + 1
       } else {
-        v_tilde[(vt_count+1):(v_count + vt_count)] <- v
+        v_tilde[(vt_count+1):(v_count + vt_count)] <- v[1:v_count]
         vt_count <- vt_count + v_count
         v[[1]] <- y[n]
-        v[[2:N]] <- NA_real_
+        v[2:N] <- NA_real_
         rho <- y[n] - 1
         v_count <- 1
       }
@@ -58,7 +58,7 @@ simplex_proj <- function(y) { #simplex projection of Condat 2015
     v_tilde <- v_tilde[!is.na(v_tilde)]
     for(x in v_tilde) {
       if(x > rho) {
-        v[v_count] <- x
+        v[[v_count]] <- x
         v_count <- v_count + 1
         rho <- rho + (x - rho)/v_count
       }

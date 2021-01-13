@@ -218,7 +218,7 @@ mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
       y0 <- y0[z == 0]
       y1 <- y1[z == 0]
       new_weights <- sw$a
-    } else if (estimand == "ATE") {
+    } else if (estimand == "ATE" | estimand == "feasible") {
       y0[z == 1] <- (data$y[z == 0] -  f0[z == 0]) %*% weights$w0
       y1[z == 0] <- (data$y[z == 1] -  f1[z == 1]) %*% weights$w1
       # y0[z == 0][weights$w0 == 0] <- 

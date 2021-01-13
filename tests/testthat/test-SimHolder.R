@@ -129,6 +129,8 @@ testthat::test_that("SimHolder generates object, Sonabend2020", {
 })
 
 testthat::test_that("SimHolder runs", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(9867)
 
   #### Load Packages ####
@@ -140,9 +142,9 @@ testthat::test_that("SimHolder runs", {
   nsims <- 2
   overlap <- "high"
   design <- "A"
-  distance <- c("Lp", "mahalanobis","RKHS")
-  power <- c(1,2)
-  ground_power <- 1:2
+  distance <- c("sdLp")
+  power <- c(2)
+  ground_power <- 1
   std_mean_diff <- c(0.2,0.3)
   solver <- "gurobi"
 
@@ -172,7 +174,8 @@ testthat::test_that("SimHolder runs", {
                       Wass = list(wass_powers = power,
                         ground_powers = ground_power,
                         metrics = distance,
-                        constrained.wasserstein.target = c("SBW")
+                        constrained.wasserstein.target = c("SBW"),
+                        add.margins = c(TRUE, FALSE)
                       ))
   # the cost of one was all NA and the weights too...
   # sh$run()
@@ -199,22 +202,26 @@ testthat::test_that("SimHolder runs", {
 })
 
 testthat::test_that("SimHolder runs with formula options", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
   library(causalOT)
   
   #### Sim param ####
-  n <- 2^5
+  n <- 2^6
   p <- 6
   nsims <- 1
   overlap <- "high"
   design <- "A"
-  distance <- c("Lp", "mahalanobis","RKHS")
-  power <- c(1,2)
-  ground_power <- 1:2
+  distance <- c("sdLp")
+  power <- c(2)
+  ground_power <- 2
   std_mean_diff <- c(0.2,0.3)
-  solver <- "gurobi"
+  solver <- "mosek"
+  methods <- c("Logistic","SBW","NNM","Wasserstein",
+               "Constrained Wasserstein")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p,
@@ -231,6 +238,7 @@ testthat::test_that("SimHolder runs with formula options", {
   sh <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
+                      methods = methods,
                       truncations = std_mean_diff,
                       standardized.difference.means = std_mean_diff,
                       outcome.model = list("lm"),
@@ -238,7 +246,7 @@ testthat::test_that("SimHolder runs with formula options", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = solver,
                       propensity.formula = list(Logistic = list("z ~ . + .*.",
                                                                 "z ~ . "),
                                                 SBW = list("~.+0",
@@ -275,10 +283,12 @@ testthat::test_that("SimHolder runs with formula options", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW', 'RKHS', 'NNM', 'Wasserstein','Constrained Wasserstein', 'gp'))
+  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW',"NNM",'Wasserstein','Constrained Wasserstein'))
 })
 
 testthat::test_that("SimHolder runs,verbose", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
@@ -290,11 +300,12 @@ testthat::test_that("SimHolder runs,verbose", {
   nsims <- 2
   overlap <- "high"
   design <- "A"
-  distance <- c("Lp", "mahalanobis","RKHS")
-  power <- c(1,2)
-  ground_power <- 1:2
+  distance <- c("sdLp")
+  power <- c(1)
+  ground_power <- 1
   std_mean_diff <- c(0.2,0.3)
   solver <- "gurobi"
+  methods <- c("Logistic", "SBW", "NNM", "Wasserstein", "Constrained Wasserstein")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p,
@@ -310,6 +321,7 @@ testthat::test_that("SimHolder runs,verbose", {
   sh <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = FALSE,
+                      methods = methods,
                       truncations = std_mean_diff,
                       standardized.difference.means = std_mean_diff,
                       outcome.model = list("lm"),
@@ -343,14 +355,18 @@ testthat::test_that("SimHolder runs,verbose", {
   testthat::expect_type(original$get_z(), "double")
   testthat::expect_type(original$get_y(), "double")
   
+  testthat::expect_silent({
   out <- sh$get.output()
   outcome <- sh$get.outcome(out)
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
+  })
 })
 
 testthat::test_that("SimHolder runs while targeting RKHS", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
@@ -363,8 +379,8 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
   overlap <- "high"
   design <- "A"
   distance <- c("RKHS")
-  power <- c(1,2)
-  ground_power <- 1:2
+  power <- c(2)
+  ground_power <- 2
   std_mean_diff <- c(0.2, 0.3)
   solver <- "gurobi"
   
@@ -410,14 +426,18 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
   testthat::expect_type(original$get_z(), "double")
   testthat::expect_type(original$get_y(), "double")
   
+  testthat::expect_silent({
   out <- sh$get.output()
   outcome <- sh$get.outcome(out)
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
+  })
 })
 
 testthat::test_that("SimHolder with grid works", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(082374)
   
   #### Load Packages ####
@@ -429,11 +449,12 @@ testthat::test_that("SimHolder with grid works", {
   nsims <- 2
   overlap <- "high"
   design <- "A"
-  distance <- c("Lp", "mahalanobis", "RKHS")
-  power <- c(1,2)
-  ground_power <- 1:2
+  distance <- c( "mahalanobis")
+  power <- c(1)
+  ground_power <- 2
   std_mean_diff <- c(0, 0.1, 1)
   solver <- "mosek"
+  methods <- c("SBW","Wasserstein","Constrained Wasserstein")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -449,6 +470,7 @@ testthat::test_that("SimHolder with grid works", {
   sh <- SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
+                      methods = methods,
                       truncations = std_mean_diff,
                       standardized.difference.means = std_mean_diff,
                       outcome.model = list("lm"),
@@ -469,7 +491,7 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_warning(
     {
       sh$run()
-      warn <- warnings()
+      # warn <- warnings()
     })
   # if(!is.null(warn)) print(warn)
   warn.fun()
@@ -477,6 +499,7 @@ testthat::test_that("SimHolder with grid works", {
                       dataSim = original,
                       grid.search = TRUE,
                       truncations = std_mean_diff,
+                      methods = methods,
                       standardized.difference.means = NULL,
                       outcome.model = list("lm"),
                       outcome.formula = list(none = NULL,
@@ -505,6 +528,8 @@ testthat::test_that("SimHolder with grid works", {
 })
 
 testthat::test_that("SimHolder with grid works, opt.hyperparam", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(082374)
   
   #### Load Packages ####
@@ -516,9 +541,9 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   nsims <- 2
   overlap <- "high"
   design <- "A"
-  distance <- c("Lp", "mahalanobis", "RKHS")
-  power <- c(1,2)
-  ground_power <- 1:2
+  distance <- c("RKHS")
+  power <- c(2)
+  ground_power <- 2
   std_mean_diff <- c(0, 0.1, 1)
   solver <- "gurobi"
   
@@ -545,7 +570,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
                       model.augmentation = "both",
                       match = "both",
                       solver = "mosek",
-                      Wass = list (wass_powers = power,
+                      Wass = list(wass_powers = power,
                           ground_powers = ground_power,
                           metrics = distance,
                           method = "greenkhorn",

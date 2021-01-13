@@ -12,6 +12,8 @@ warn.fun <- function() {
 }
 
 testthat::test_that("sim.function works", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
   #### Load Packages ####
@@ -31,6 +33,7 @@ testthat::test_that("sim.function works", {
   solver <- "gurobi"
   grid.search <- TRUE
   wdc <- c(10:11)
+  methods <- c("Logistic", "SBW", "NNM")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -41,7 +44,8 @@ testthat::test_that("sim.function works", {
   testthat::expect_warning({
     output <- sim.function(dataGen = original, 
                          nsims = nsims, 
-                         ground_p = ground_power, 
+                         ground_p = ground_power,
+                         methods = methods,
                          p = power, 
                          grid.search = grid.search,
                          augmentation = agumentation,
@@ -59,17 +63,19 @@ testthat::test_that("sim.function works", {
   # if(!is.null(warn)) print(warn)
   testthat::expect_s3_class(output, "simOutput")
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
-  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.03))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.08))
   testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
   testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] >= 0))
   testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] <= 1.01))
   testthat::expect_true(is.numeric(unlist(output$PSIS[,c("psis.k.control","psis.k.treated")])))
+  testthat::expect_equal(unique(output$outcome$method), methods)
   
   # testthat::expect_silent
   testthat::expect_warning({
     output <- sim.function(dataGen = original, 
                          nsims = nsims, 
                          ground_p = ground_power, 
+                         methods = methods,
                          p = power, 
                          grid.search = grid.search,
                          augmentation = agumentation,
@@ -87,15 +93,37 @@ testthat::test_that("sim.function works", {
   warn.fun()
   testthat::expect_s3_class(output, "simOutput")
   testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
-  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.03))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.08))
   testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
   testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] >= 0))
   testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] <= 1.01))
   testthat::expect_true(is.numeric(unlist(output$PSIS[,c("psis.k.control","psis.k.treated")])))
   
+  
+  testthat::expect_warning({
+    output <- sim.function(dataGen = original, 
+                           nsims = nsims, 
+                           ground_p = ground_power,
+                           methods = c(methods, "RKHS", 
+                                       "Wasserstein", "Constrained Wasserstein"),
+                           p = power, 
+                           grid.search = grid.search,
+                           augmentation = agumentation,
+                           match = match,
+                           standardized.mean.difference = std_mean_diff,
+                           truncations = trunc,
+                           distance = distance, 
+                           calculate.feasible = FALSE,
+                           solver = solver,
+                           wass.method  = "greenkhorn",
+                           wass.niter = 5,
+                           wasserstein.distance.constraints = wdc)
+  })
 })
 
 testthat::test_that("sim.function works, propsensity formula", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
   #### Load Packages ####
@@ -115,6 +143,7 @@ testthat::test_that("sim.function works, propsensity formula", {
   solver <- "gurobi"
   grid.search <- TRUE
   wdc <- c(10:11)
+  method <- c("Logistic","SBW", "NNM")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -126,6 +155,7 @@ testthat::test_that("sim.function works, propsensity formula", {
     output <- sim.function(dataGen = original, 
                            nsims = nsims, 
                            ground_p = ground_power, 
+                           methods = method,
                            p = power, 
                            grid.search = grid.search,
                            augmentation = agumentation,
@@ -157,6 +187,8 @@ testthat::test_that("sim.function works, propsensity formula", {
 })
 
 testthat::test_that("sim.function works, sonabend2020", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
   #### Load Packages ####
@@ -176,6 +208,7 @@ testthat::test_that("sim.function works, sonabend2020", {
   solver <- "gurobi"
   grid.search <- TRUE
   wdc <- 10:11
+  methods <- c("Logistic","SBW","NNM")
   
   #### get simulation functions ####
   original <- Sonabend2020$new(n = n, p = p, 
@@ -187,6 +220,7 @@ testthat::test_that("sim.function works, sonabend2020", {
     output <- sim.function(dataGen = original, 
                            nsims = nsims, 
                            ground_p = ground_power, 
+                           methods = methods,
                            p = power, 
                            grid.search = grid.search,
                            augmentation = agumentation,
@@ -216,6 +250,7 @@ testthat::test_that("sim.function works, sonabend2020", {
                            nsims = nsims, 
                            ground_p = ground_power, 
                            p = power, 
+                           methods = methods,
                            grid.search = grid.search,
                            augmentation = agumentation,
                            match = match,
@@ -240,6 +275,8 @@ testthat::test_that("sim.function works, sonabend2020", {
 })
 
 testthat::test_that("sim.function works with RKHS", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive")
   set.seed(224893390) #from random.org
   
   #### Load Packages ####
@@ -319,7 +356,7 @@ testthat::test_that("sim.function works with RKHS", {
 
 testthat::test_that("bug in gp code",
                     {
-                      testthat::skip("Only run interactively")
+                      testthat::skip("Interactive only")
                       design <- "B"
                       overlap <- "low"
                       data <- "Hainmueller"
