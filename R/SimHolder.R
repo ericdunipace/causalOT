@@ -579,9 +579,10 @@
                                                   # if(method == "Constrained Wasserstein" & est == "ATE") if(o$metric=="RKHS") browser()
                                                   for (mods in cur$outcome.model[[1]]) {
                                                     for (aug in cur$model.aug[[1]]) {
-                                                      opt.dist <- list(private$simulator$opt_weight_dist(weight = private$weights[[est]], 
-                                                                                                         estimand = est, augment = aug, 
-                                                                                                         solver = private$solver[1]))
+                                                      # opt.dist <- list(private$simulator$opt_weight_dist(weight = private$weights[[est]], 
+                                                      #                                                    estimand = est, augment = aug, 
+                                                      #                                                    solver = private$solver[1]))
+                                                      opt.dist <- NA
                                                       for (match in cur$match[[1]]) {
                                                         for (split in cur$split[[1]]) {
                                                           if (split) {
@@ -604,7 +605,7 @@
                                                           data.table::set(private$output.dt, i = iter, j = "psis.ess.frac", value = psis.ess.frac)
                                                           data.table::set(private$output.dt, i = iter, j = "psis.k", value = psis.k)
                                                           #opt wt dist
-                                                          data.table::set(private$output.dt, i = iter, j = "opt.dist", value = opt.dist)
+                                                          # data.table::set(private$output.dt, i = iter, j = "opt.dist", value = opt.dist)
                                                           esteff <- estimate_effect(private$simulator, 
                                                                                     formula = cur$outcome.formula[[1]][[aug + 1]],
                                                                                     weights = private$weights[[est]],
@@ -677,7 +678,7 @@
                                                   data.table::set(private$output.dt, i = iter, j = "psis.k", value = list(list(w0 = NA_real_,
                                                                                                                                w1 = NA_real_)))
                                                   #opt wt dist
-                                                  data.table::set(private$output.dt, i = iter, j = "opt.dist", value = NA_real_)
+                                                  # data.table::set(private$output.dt, i = iter, j = "opt.dist", value = NA_real_)
                                                   tau <- if(est == "cATE") {
                                                     match.fun(cur$outcome.model[[1]])(data = private$simulator, 
                                                                                       formula = cur$outcome.formula[[1]][[1]],
