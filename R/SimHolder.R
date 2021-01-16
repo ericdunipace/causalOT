@@ -843,6 +843,7 @@
                                             private$method.lookup <- data.frame(method = private$method)
                                             nrows <- nrow(private$method.lookup)
                                             private$method.lookup$weight.fun <- sapply(private$method, function(mm) switch(mm,
+                                                                                                                           None = "calc_weight",
                                                                                                                            Logistic = "calc_weight",
                                                                                                                            NNM = "calc_weight",
                                                                                                                            SBW = "calc_weight",
@@ -852,11 +853,13 @@
                                                                                                                            NA_character_
                                             ))
                                             private$method.lookup$estimand <- lapply(1:nrows, function(i) private$estimand)
-                                            private$method.lookup$outcome.model <- if(length(private$outcome.model) == 1) {
-                                              lapply(1:nrows, function(i) private$outcome.model)
-                                            } else {
-                                              lapply(private$outcome.model, function(i) i)
-                                            }
+                                            private$method.lookup$outcome.model <- lapply(1:nrows, function(i) private$outcome.model)
+                                              
+                                            #   if(length(private$outcome.model) == 1) {
+                                            #   lapply(1:nrows, function(i) private$outcome.model)
+                                            # } else {
+                                            #   lapply(private$outcome.model, function(i) i)
+                                            # }
                                             private$method.lookup$outcome.model[private$method == "gp"] <-  list("gp_pred")
                                             private$method.lookup$outcome.formula <- lapply(1:nrows, function(i) private$outcome.formula) 
                                             private$method.lookup$model.aug <- lapply(1:nrows, function(i) switch(private$model.augmentation, 
@@ -879,6 +882,7 @@
                                                                                                                        RKHS.dose = private$solver,
                                                                                                                        'Constrained Wasserstein' = private$solver,    
                                                                                                                        Wasserstein = private$solver,
+                                                                                                                       None = NA_character_,
                                                                                                                        NA_character_
                                             ))
                                             sdm <- private$standardized.difference.means
@@ -946,6 +950,7 @@
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
                                             private$method.lookup$options <- sapply(private$method, function(mm) switch(mm,
+                                                                                                                        None = list(NA),
                                                                                                                         Logistic = list(delta = private$truncations,
                                                                                                                                         formula = private$ps.formula$logistic),
                                                                                                                         NNM = nnm_list,

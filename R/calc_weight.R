@@ -5,7 +5,7 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
                                    "NNM",
-                                   "Logistic"),
+                                   "Logistic", "None"),
                         formula = NULL,
                         transport.matrix = FALSE, grid.search = FALSE,
                         ...) {
@@ -55,6 +55,17 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
     # do.call("calc_weight_bal", list(data, constraint,  estimand = estimand, 
     #                                 method = method,
     #                                 ...))
+  } else if (method == "None") {
+    ns <- get_n(data, ... )
+    n0 <- ns[1]
+    n1 <- ns[2]
+    
+    output <- list(w0 = rep(1/n0, n0),
+                   w1 = rep(1/n1, n1),
+                   gamma = NULL,
+                   estimand = estimand,
+                   method = "None",
+                   args = list(NULL))
   } else {
     if (estimand == "cATE") estimand <- "ATE"
     calc_weight_glm(data = data, constraint = constraint, estimand = estimand, formula = formula, ...)

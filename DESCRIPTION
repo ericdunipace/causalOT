@@ -22,6 +22,7 @@ Imports:
     loo,
     oem,
     pbapply,
+    reticulate,
     lbfgsb3c
 LinkingTo: 
     BH (>= 1.66.0),

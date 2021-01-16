@@ -188,3 +188,418 @@ testthat::test_that("mapping works, ATE", {
   
   
 })
+
+testthat::test_that("estimate effect works lm, ATT", {
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATT"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc)
+  ee <- estimate_effect(original, weights = weights)
+  
+  pd <- causalOT:::prep_data(original)
+  data <- pd$df
+  z    <- pd$z
+  model.fun <- lm
+  formula <- list(treated = "y ~ + 1",
+                  control = "y ~.")
+  
+  w0 <- weights$w0
+  w1 <- weights$w1
+  t_ind <- z==1
+  c_ind <- z==0
+  
+  fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
+  fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
+  f_1   <- predict(fit_1, data)
+  f_0   <- predict(fit_0, data)
+  
+
+  testthat::expect_equal(ee$estimate,
+                         mean(f_1) + mean(fit_1$residuals) - 
+                           mean(f_0) - weighted.mean(fit_0$residuals, w0))
+  
+})
+
+testthat::test_that("estimate effect works lm, ATC", {
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATC"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc)
+  ee <- estimate_effect(original, weights = weights)
+  
+  pd <- causalOT:::prep_data(original)
+  data <- pd$df
+  z    <- pd$z
+  model.fun <- lm
+  formula <- list(treated = "y ~ .",
+                  control = "y ~ 1")
+  
+  w0 <- weights$w0
+  w1 <- weights$w1
+  t_ind <- z==1
+  c_ind <- z==0
+  
+  fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
+  fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
+  f_1   <- predict(fit_1, data)
+  f_0   <- predict(fit_0, data)
+  
+  
+  testthat::expect_equal(ee$estimate,
+                         mean(f_1) + weighted.mean(fit_1$residuals, w1) - 
+                           mean(f_0) - weighted.mean(fit_0$residuals, w0)
+                         )
+  
+})
+
+testthat::test_that("estimate effect works lm, ATE", {
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATE"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc)
+  ee <- estimate_effect(original, weights = weights)
+  
+  pd <- causalOT:::prep_data(original)
+  data <- pd$df
+  z    <- pd$z
+  model.fun <- lm
+  formula <- list(treated = "y ~ .",
+                  control = "y ~ .")
+  
+  w0 <- weights$w0
+  w1 <- weights$w1
+  t_ind <- z==1
+  c_ind <- z==0
+  
+  fit_1 <- model.fun(formula$treated, data[t_ind,,drop=FALSE])
+  fit_0 <- model.fun(formula$control, data[c_ind,,drop=FALSE])
+  f_1   <- predict(fit_1, data)
+  f_0   <- predict(fit_0, data)
+  
+  
+  testthat::expect_equal(ee$estimate,
+                         mean(f_1) + weighted.mean(fit_1$residuals, w1) - 
+                           mean(f_0) - weighted.mean(fit_0$residuals, w0)
+  )
+  
+})
+
+testthat::test_that("estimate effect works otimp, ATT", {
+  testthat::skip_on_cran()
+  testhat::skip("Interactive only")
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^4
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATT"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc)
+  ee <- estimate_effect(original, weights = weights, model = ot_imputer)
+  
+  # pd <- causalOT:::prep_data(original)
+  # data <- pd$df
+  # z    <- pd$z
+  # model.fun <- lm
+  # formula <- list(treated = "y ~ 1",
+  #                 control = "y ~.")
+  # 
+  # w0 <- weights$w0
+  # w1 <- weights$w1
+  # t_ind <- z==1
+  # c_ind <- z==0
+  # 
+  # fit_1 <- IDmodel(formula$treated, data[t_ind,,drop = FALSE])
+  # fit_0 <- ot_imputer(formula$control, data[c_ind,,drop=FALSE])
+  # f_1   <- predict(fit_1, data)
+  # f_0   <- predict(fit_0, data)
+  
+  
+  testthat::expect_equal( ee$estimate,
+                          1.66,
+                          tol = 1e-3)
+  
+})
+
+testthat::test_that("estimate effect works ot imp, ATC", {
+  
+  testthat::skip_on_cran()
+  testhat::skip("Interactive only")
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^4
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATC"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc)
+  ee <- estimate_effect(original, weights = weights, model = ot_imputer)
+  
+  testthat::expect_equal( ee$estimate,
+                          2.9,
+                          tol = 1e-1)
+  
+})
+
+testthat::test_that("estimate effect works otimp, ATE", {
+  testthat::skip_on_cran()
+  testhat::skip("Interactive only")
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^4
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATE"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc)
+  ee <- estimate_effect(original, weights = weights, 
+                        model = ot_imputer)
+  
+  testthat::expect_equal( ee$estimate,
+                          2.07,
+                          tol = 1e-3)
+})
+
+testthat::test_that("estimate effect works otimp sm = false, ATT", {
+  testthat::skip_on_cran()
+  testhat::skip("Interactive only")
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^4
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATT"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc_model)
+  ee <- estimate_effect(original, weights = weights, model = ot_imputer,
+                        split.model = FALSE)
+  
+  # pd <- causalOT:::prep_data(original)
+  # data <- pd$df
+  # z    <- pd$z
+  # model.fun <- lm
+  # formula <- list(treated = "y ~ 1",
+  #                 control = "y ~.")
+  # 
+  # w0 <- weights$w0
+  # w1 <- weights$w1
+  # t_ind <- z==1
+  # c_ind <- z==0
+  # 
+  # fit_1 <- IDmodel(formula$treated, data[t_ind,,drop = FALSE])
+  # fit_0 <- ot_imputer(formula$control, data[c_ind,,drop=FALSE])
+  # f_1   <- predict(fit_1, data)
+  # f_0   <- predict(fit_0, data)
+  
+  
+  testthat::expect_equivalent( ee$estimate,
+                               1.87,
+                          tol = 1e-3)
+  
+})
+
+testthat::test_that("estimate effect works ot imp, ATC", {
+  
+  testthat::skip_on_cran()
+  testhat::skip("Interactive only")
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATC"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc)
+  ee <- estimate_effect(original, weights = weights, model = ot_imputer,
+                        split.model = FALSE)
+  
+  testthat::expect_equivalent( ee$estimate,
+                               1.28,
+                          tol = 1e-3)
+  
+})
+
+testthat::test_that("estimate effect works otimp sm = false, ATE", {
+  testthat::skip_on_cran()
+  testhat::skip("Interactive only")
+  set.seed(203482308)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^4
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp", "mahalanobis", "RKHS")
+  power <- c(1,2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATE"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM", transport.matrix = TRUE)
+  
+  # debugonce(outcome_calc_model)
+  ee <- estimate_effect(original, weights = weights, model = ot_imputer,
+                        split.model = FALSE)
+  
+  testthat::expect_equivalent( ee$estimate,
+                          0.6161678 ,
+                          tol = 1e-3)
+})
+

@@ -165,7 +165,7 @@ testthat::test_that("SimHolder runs", {
                       grid.search = FALSE,
                       truncations = std_mean_diff,
                       standardized.difference.means = std_mean_diff,
-                      outcome.model = list("lm"),
+                      outcome.model = list("lm", "ot_imputer"),
                       outcome.formula = list(none = NULL,
                                              augmentation = NULL),
                       model.augmentation = "both",
@@ -198,7 +198,14 @@ testthat::test_that("SimHolder runs", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW', 'RKHS', 'NNM', "Wasserstein", 'Constrained Wasserstein', 'gp'))
+  testthat::expect_equal(unique(out$method ), c('Logistic', 
+                                                'SBW', 
+                                                'RKHS', 
+                                                'NNM', 
+                                                "Wasserstein", 
+                                                'Constrained Wasserstein', 
+                                                'gp',
+                                                'None'))
 })
 
 testthat::test_that("SimHolder runs with formula options", {

@@ -314,6 +314,27 @@ mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
   return(tx_effect)
 }
 
+
+IDmodel <- function(formula, data, weights) {
+  
+  y <- model.response( model.frame(as.formula(formula), data), "numeric")
+  m <- weighted.mean(x = y, w = weights)
+  
+  out <- list(fit = m,
+       residuals = y - m)
+  
+  class(out) <- "IDmodel"
+  
+  return(out)
+}
+
+predict.IDmodel <- function(object, newdata, ...) {
+  rep(object$fit, nrow(newdata))
+}
+
+setClass("IDmodel", slots = c(fit = "numeric", residuals = "numeric"))
+setMethod("predict", signature = c(object = "IDmodel"), definition = predict.IDmodel)
+
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand,
                          sample_weight) {
   
@@ -322,16 +343,58 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
   t_ind <- z == 1
   c_ind <- z == 0
   
+  n0 <- length(c_ind)
+  n1 <- length(t_ind)
+  
   environment(formula$treated) <- environment(formula$control) <- environment()
   
-  fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
-  fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
-  f_1   <- predict(fit_1, data)
-  f_0   <- predict(fit_0, data)
+  f1w <- sample_weight$total
+  f0w <- sample_weight$total
+  
+  nonmap_sw <- sample_weight$total
+  if (estimand == "ATT") {
+    f0w[t_ind] <- sample_weight$b
+    f0w[c_ind] <- w0
+    f0w <- renormalize(f0w)
+    nonmap_sw[c_ind] <- 0
+    nonmap_sw <- renormalize(nonmap_sw)
+    
+    fit_1 <- IDmodel(formula$treated, data[t_ind,,drop = FALSE],
+                     weights = sample_weight$b)
+    fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], 
+                       weights = sample_weight$a)
+    fit_0$weights <- w0
+  } else if (estimand == "ATC") {
+    fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
+    fit_0 <- IDmodel(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
+    
+    f1w[t_ind] <- w1
+    f1w[c_ind] <- sample_weight$a
+    f1w <- renormalize(f1w)
+    
+    nonmap_sw[t_ind] <- 0
+    nonmap_sw <- renormalize(nonmap_sw)
+    
+    fit_1$weights <- w1
+    
+  } else if (estimand == "ATE") {
+    
+    fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
+    fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
+    
+    fit_1$weights <- w1
+    fit_0$weights <- w0
+  }
+  
+  # fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
+  # fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
+  f_1   <- predict(object = fit_1, newdata = data, weights = f1w)
+  f_0   <- predict(object = fit_0, newdata = data, weights = f0w)
   
   if (matched) {
 
-    maps <- mapping(data = data, z = z, weights = weights, estimand = estimand, f1 = f_1, f0 = f_0,
+    maps <- mapping(data = data, z = z, weights = weights, 
+                    estimand = estimand, f1 = f_1, f0 = f_0,
                     sw = sample_weight)
     # browser()
     # mw        <- switch(estimand,
@@ -346,13 +409,15 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
                                w = maps$weights)
       
   } else {
-    mu_1  <- weighted.mean(f_1, sample_weight$total)
-    mu_0  <- weighted.mean(f_0, sample_weight$total)
-    e_1   <- fit_1$residuals
-    e_0   <- fit_0$residuals
+    mu_1  <- weighted.mean(f_1, nonmap_sw)
+    mu_0  <- weighted.mean(f_0, nonmap_sw)
+    e_1   <- residuals(fit_1, 
+                       pred = f_1[t_ind])
+    e_0   <- residuals(fit_0, 
+                       pred = f_0[c_ind])
     
-    y_1   <- mu_1 + e_1 %*% w1
-    y_0   <- mu_0 + e_0 %*% w0
+    y_1   <- mu_1 + weighted.mean(x = e_1, w = w1)
+    y_0   <- mu_0 + weighted.mean(x = e_0, w = w0)
     
     tx_effect <- c(y_1 - y_0)
   }
@@ -362,7 +427,8 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
 }
 
 
-outcome_calc_model <- function(data, z, weights, formula, model.fun, matched, estimand,
+outcome_calc_model <- function(data, z, weights, formula, model.fun, 
+                               matched, estimand, 
                                ...) {
   w0 <- weights$w0
   w1 <- weights$w1
@@ -381,7 +447,7 @@ outcome_calc_model <- function(data, z, weights, formula, model.fun, matched, es
                    weights = w, 
                    ...)
 
-  tx_effect <- coef(fit)["z"]
+  tx_effect <- coef(fit, tx.name = "z", estimand = estimand)["z"]
 
   return(tx_effect)
 }
@@ -439,7 +505,6 @@ calc_hajek <- function(weights, target, hajek) {
     weights$w0 <- renormalize(weights$w0)
     weights$w1 <- renormalize(weights$w1)
   }
-  
   if (inherits(weights, "causalWeights")) {
     estimand <- switch(weights$estimand,
                        "ATT" = "ATT",
@@ -447,7 +512,7 @@ calc_hajek <- function(weights, target, hajek) {
                        "ATE" = "ATE",
                        "cATE" = "ATE",
                        "feasible" = "feasible")
-    if (estimand != target) stop("Weights do not estimating the target estimand")
+    if (estimand != target) stop("Weights do not estimate the target estimand")
   }
   return(weights)
 }
@@ -481,8 +546,25 @@ estimate_effect <- function(data, formula = NULL, weights,
                        "cATE" = "ATE",
                        "feasible" = "feasible")
     }
+  } else if (missing(estimand) & !missing(target)) {
+    estimand <- target
+    estimand <- switch(estimand,
+                       "ATT" = "ATT",
+                       "ATC" = "ATC",
+                       "ATE" = "ATE",
+                       "cATE" = "ATE",
+                       "feasible" = "feasible")
+    estimand <- match.arg(estimand)
+  } else if (missing(estimand)) {
+    if (inherits(weights, "causalWeights")) {
+      estimand <- switch(weights$estimand,
+                         "ATT" = "ATT",
+                         "ATC" = "ATC",
+                         "ATE" = "ATE",
+                         "cATE" = "ATE",
+                         "feasible" = "feasible")
+    }
   } else {
-    if (missing(estimand) & !missing(target)) estimand <- target
     estimand <- switch(estimand,
                        "ATT" = "ATT",
                        "ATC" = "ATC",
@@ -491,7 +573,6 @@ estimate_effect <- function(data, formula = NULL, weights,
                        "feasible" = "feasible")
     estimand <- match.arg(estimand)
   }
-  
   # targ <- match.arg(target)
   
   #set up model structures
@@ -509,7 +590,7 @@ estimate_effect <- function(data, formula = NULL, weights,
                            matched, estimand, sample_weight)
   } else {
     outcome_calc_model(prep.data$df, prep.data$z, weights, formula, model.fun,
-                       matched, estimand)
+                       matched, estimand, ...)
   }
   output.df <- cbind(prep.data$df, z = prep.data$z)
   attr(output.df, "balance.covariates") <- attributes(prep.data$df)$balance.covariates
