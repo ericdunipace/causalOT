@@ -117,7 +117,7 @@ testthat::test_that("ot_imputer coef works", {
   # debugonce(coef.ot_imputer)
   tx_effect <- coef.ot_imputer(fit, tx.name = "z", estimand = estimand)["z"]
   
-  testthat::expect_equal(c(z = 5.081172), tx_effect, tol = 1e-5)
+  testthat::expect_equal(c(z = -0.0586), tx_effect, tol = 1e-3)
   testthat::expect_true(inherits(fit, "ot_imputer"))
   
 })

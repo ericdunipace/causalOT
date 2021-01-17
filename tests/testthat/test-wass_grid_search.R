@@ -231,8 +231,7 @@ testthat::test_that("grid search actually works, cwass lp marg", {
                               wass.method = "networkflow", wass.iter = 0,
                               add.margins = add.margins, add.joint = add.joint)
   )
-  testthat::expect_equivalent(wsel2$args$constraint, c(1.1458965, 0.8400548, 0.7867093, 
-                                                 1.3919668, 1.3016232, 0.3780663, 2.7898621), 
+  testthat::expect_equivalent(wsel2$args$constraint, c(.954913793028802, 0.700045646077501, 0.655591044438986, 1.15997231098634, 1.08468596963478, 0.315055236968164, 2.45367921448841), 
                        tol = 1e-3)
   
   # estimand <- "ATC"
@@ -354,7 +353,7 @@ testthat::test_that("grid search actually works, cwass sdlp marg", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint, 
-                              c(rep(1.202471, 6), 1.967836), tol = 1e-3)
+                              c(rep(0.8016476, 6), 3.5345295), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -562,7 +561,8 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
     
   )
   
-  testthat::expect_lte(wsel$args$constraint[1] - c(0.736207), 1e-3)
+  testthat::expect_equivalent(wsel$args$constraint,
+                              c(rep(7.005951e-01,6), 1.000000e+06), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -705,7 +705,8 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
     
   )
   
-  testthat::expect_lte(wsel$args$constraint[1] - c(0.7465635 ), 1e-3)
+  testthat::expect_equivalent(wsel$args$constraint, c(rep(0.8129247, 6),
+                                                   421.6965034), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
