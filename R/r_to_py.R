@@ -151,6 +151,12 @@ predict.ot_imputer <- function(object, newdata, subset,
   if (verbose) {
     message("Beginning python code to do OT imputation...")
   }
+  reticulate::py_set_seed(sample.int(.Machine$integer.max, size = 1), 
+                          disable_hash_randomization = TRUE)
+  
+  # np$random$seed(sample.int(.Machine$integer.max, size = 1))
+  torch$manual_seed(sample.int(.Machine$integer.max, size = 1))
+  
   otimp = imputer$fit_transform(X = X_miss, 
                                 mass = weights_py,
                                 verbose = reticulate::r_to_py(isTRUE(verbose)), 

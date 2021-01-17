@@ -160,7 +160,7 @@ RKHS_grid_search <- function(data, grid = NULL,
 
 
 wass_grid_search <- function(data, grid = NULL, 
-                             grid.length = 10,
+                             grid.length = 7,
                              estimand = c("ATT", "ATC","cATE","ATE"),
                              n.boot = 1000,
                              method = c("Wasserstein","Constrained Wasserstein"),
