@@ -301,8 +301,8 @@ testthat::test_that("grid search actually works, cwass mahal marg", {
                                                     add.margins = add.margins, add.joint = add.joint))
   testthat::expect_equivalent(wsel2$args$constraint,
                               c(0.9520001, 0.9520001, 0.9520001, 0.9520001, 
-                                0.9520001, 0.9520001, 2.0661110),
-                              1e-3)
+                                0.9520001, 0.9520001, 1.97),
+                              1e-2)
   # testthat::expect_equal(wsel, wsel2)
 })
 
@@ -353,7 +353,7 @@ testthat::test_that("grid search actually works, cwass sdlp marg", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint, 
-                              c(rep(0.8016476, 6), 3.5345295), tol = 1e-3)
+                              c(rep(0.8016476, 6), 1.86), tol = 1e-2)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -423,7 +423,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
     
     )
   
-  testthat::expect_lte(wsel$args$constraint[1] - c(177.8279), 1e-3)
+  testthat::expect_lte(wsel$args$constraint[1] - c(421.8279), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -491,7 +491,7 @@ testthat::test_that("grid search actually works,  wass mahal", {
     
   )
   
-  testthat::expect_lte(wsel$args$constraint[1] - c(115.4782), 1e-3)
+  testthat::expect_lte(wsel$args$constraint[1] - c(421.4782), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -562,7 +562,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint,
-                              c(rep(7.005951e-01,6), 1.000000e+06), tol = 1e-3)
+                              c(rep(0.802, 6), 421.697+06), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -780,7 +780,7 @@ testthat::test_that("grid search actually works, marg wass mahal bal", {
 
   )
   
-  testthat::expect_lte(wsel$args$constraint[1] - c(273.842  ), 1e-3)
+  testthat::expect_lte(wsel$args$constraint[1] - c(421.697  ), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
