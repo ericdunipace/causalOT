@@ -582,13 +582,14 @@
                                                       # opt.dist <- list(private$simulator$opt_weight_dist(weight = private$weights[[est]], 
                                                       #                                                    estimand = est, augment = aug, 
                                                       #                                                    solver = private$solver[1]))
-                                                      opt.dist <- NA
+                                                      # opt.dist <- NA
+                                                      if (mods == "ot_imputer" & !aug) next
                                                       for (match in cur$match[[1]]) {
                                                         for (split in cur$split[[1]]) {
                                                           if (split) {
                                                             mn <- which(cur$match[[1]] == match)
                                                             an <- which(cur$model.aug[[1]] == aug)
-                                                            if (mn >1 & an > 1) next
+                                                            if (mn > 1 & an > 1) next
                                                           }
                                                           data.table::set(private$output.dt, i = iter, j = "estimand" , value = est)
                                                           data.table::set(private$output.dt, i = iter, j = "model" , value = mods)
