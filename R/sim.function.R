@@ -73,7 +73,11 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
   #### Get outputs ####
   sh.output <- sh$get.output()
   outcome <- sh$get.outcome(sh.output)
-  wasserstein <- sh$get.wass(sh.output)
+  if (isFALSE(grid.search)) {
+    wasserstein <- sh$get.wass(sh.output)
+  } else {
+    wasserstein <- NULL
+  }
   ESS.frac <- sh$get.ESS.frac(sh.output)
   psis <- sh$get.psis(sh.output)
   

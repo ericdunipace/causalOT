@@ -121,6 +121,119 @@ testthat::test_that("sim.function works", {
   })
 })
 
+
+testthat::test_that("sim.function works, ATE only", {
+  testthat::skip_on_cran()
+  testthat::skip("Interactive only")
+  set.seed(224893390) #from random.org
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "low"
+  design <- "B"
+  distance <- c("Lp", "mahalanobis")
+  power <- c(1,2)
+  ground_power <- 2
+  trunc <- std_mean_diff <- c(0.001, 0.01, 1)
+  agumentation <- match <- "both"
+  solver <- "gurobi"
+  grid.search <- TRUE
+  wdc <- c(10:11)
+  methods <- c("Logistic", "SBW", "NNM")
+  estimands <- "ATE"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  
+  #### Simulations ####
+  # debugonce(sim.function)
+  testthat::expect_warning({
+    output <- sim.function(dataGen = original, 
+                           nsims = nsims, 
+                           ground_p = ground_power,
+                           methods = methods,
+                           estimands = estimands,
+                           p = power, 
+                           grid.search = grid.search,
+                           augmentation = agumentation,
+                           match = match,
+                           standardized.mean.difference = std_mean_diff,
+                           truncations = trunc,
+                           distance = distance, 
+                           calculate.feasible = FALSE,
+                           solver = solver,
+                           wass.method  = "greenkhorn",
+                           wass.niter = 5,
+                           wasserstein.distance.constraints = wdc)
+  })
+  warn.fun()
+  # if(!is.null(warn)) print(warn)
+  testthat::expect_s3_class(output, "simOutput")
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.08))
+  testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
+  testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] >= 0))
+  testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] <= 1.01))
+  testthat::expect_true(is.numeric(unlist(output$PSIS[,c("psis.k.control","psis.k.treated")])))
+  testthat::expect_equal(unique(output$outcome$method), methods)
+  
+  # testthat::expect_silent
+  testthat::expect_warning({
+    output <- sim.function(dataGen = original, 
+                           nsims = nsims, 
+                           ground_p = ground_power, 
+                           methods = methods,
+                           p = power, 
+                           grid.search = grid.search,
+                           augmentation = agumentation,
+                           match = match,
+                           standardized.mean.difference = std_mean_diff,
+                           truncations = trunc,
+                           distance = distance, 
+                           calculate.feasible = TRUE,
+                           solver = solver,
+                           wass.method  = "greenkhorn",
+                           wass.niter = 5,
+                           wasserstein.distance.constraints = wdc
+    )
+  })
+  warn.fun()
+  testthat::expect_s3_class(output, "simOutput")
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] >= 0))
+  testthat::expect_true(all(output$`ESS/N`[,c("ESS.frac.control","ESS.frac.treated")] <= 1.08))
+  testthat::expect_true(all(output$Wasserstein[,"dist"] >= 0))
+  testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] >= 0))
+  testthat::expect_true(all(output$PSIS[,c("psis.ESS.frac.control","psis.ESS.frac.treated")] <= 1.01))
+  testthat::expect_true(is.numeric(unlist(output$PSIS[,c("psis.k.control","psis.k.treated")])))
+  
+  
+  testthat::expect_warning({
+    output <- sim.function(dataGen = original, 
+                           nsims = nsims, 
+                           ground_p = ground_power,
+                           methods = c(methods, "RKHS", 
+                                       "Wasserstein", "Constrained Wasserstein"),
+                           p = power, 
+                           grid.search = grid.search,
+                           augmentation = agumentation,
+                           match = match,
+                           standardized.mean.difference = std_mean_diff,
+                           truncations = trunc,
+                           distance = distance, 
+                           calculate.feasible = FALSE,
+                           solver = solver,
+                           wass.method  = "greenkhorn",
+                           wass.niter = 5,
+                           wasserstein.distance.constraints = wdc)
+  })
+})
+
 testthat::test_that("sim.function works, propsensity formula", {
   testthat::skip_on_cran()
   testthat::skip("Interactive only")

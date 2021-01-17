@@ -78,6 +78,11 @@ barycentric_projection <- function(data, weight,
     }
     
   }
+  # remove any NA values
+  y0[weight$w0 == 0] <- 0
+  y1[weight$w1 == 1] <- 0
+  
+  
   if(est == "ATC" | est == "ATT") {
     be_args <- list(gamma = gamma,x0 = x0,
                     x1 = x1, y0 = y0, y1 = y1, estimand = est,
@@ -133,7 +138,7 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
   # check if all outcomes are the same
   
   if (estimand == "ATT" | estimand == "ATE") {
-    if (all(y0[1] == y0)) {
+    if ( length(unique(y0)) == 1)  {
       y_out <- list(y0 = rep(NA_real_, length(y1)),
                     y1 = rep(NA_real_, length(y0)))
       y_out$y0 <- y0[1]
@@ -141,7 +146,7 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
     }
   }
   if (estimand == "ATC" | estimand == "ATE") {
-    if (all(y1[1] == y1)) {
+    if (length(unique(y1)) == 1) {
       y_out <- list(y0 = rep(NA_real_, length(y1)),
                     y1 = rep(NA_real_, length(y0)))
       y_out$y1 <- y1[1]

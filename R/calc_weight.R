@@ -49,23 +49,23 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   } else if (method == "NNM" ) {
     f.call <- as.call(c(list(as.name("calc_weight_NNM")), argn))
     eval(f.call, envir = args)
+  }  else if (method == "None") {
+    ns <- get_n(data, ... )
+    n0 <- ns[1]
+    n1 <- ns[2]
+    
+    list(w0 = rep(1/n0, n0),
+                   w1 = rep(1/n1, n1),
+                   gamma = NULL,
+                   estimand = estimand,
+                   method = "None",
+                   args = list(NULL))
   } else if ( method != "Logistic") {
     f.call <- as.call(c(list(as.name("calc_weight_bal")), argn))
     eval(f.call, envir = args)
     # do.call("calc_weight_bal", list(data, constraint,  estimand = estimand, 
     #                                 method = method,
     #                                 ...))
-  } else if (method == "None") {
-    ns <- get_n(data, ... )
-    n0 <- ns[1]
-    n1 <- ns[2]
-    
-    output <- list(w0 = rep(1/n0, n0),
-                   w1 = rep(1/n1, n1),
-                   gamma = NULL,
-                   estimand = estimand,
-                   method = "None",
-                   args = list(NULL))
   } else {
     if (estimand == "cATE") estimand <- "ATE"
     calc_weight_glm(data = data, constraint = constraint, estimand = estimand, formula = formula, ...)

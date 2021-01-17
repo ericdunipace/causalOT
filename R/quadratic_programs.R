@@ -1634,6 +1634,7 @@ qp_wass_const_joint <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
     }
     
     if(length(K) >=2) {
+      if(is.list(K)) K <- unlist(K)
       K <- K[1:2]
     } else {
       K <- rep(K,2)

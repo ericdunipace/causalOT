@@ -349,7 +349,7 @@ testthat::test_that("estimate effect works lm, ATE", {
 
 testthat::test_that("estimate effect works otimp, ATT", {
   testthat::skip_on_cran()
-  testhat::skip("Interactive only")
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
@@ -404,7 +404,7 @@ testthat::test_that("estimate effect works otimp, ATT", {
 testthat::test_that("estimate effect works ot imp, ATC", {
   
   testthat::skip_on_cran()
-  testhat::skip("Interactive only")
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
@@ -440,7 +440,7 @@ testthat::test_that("estimate effect works ot imp, ATC", {
 
 testthat::test_that("estimate effect works otimp, ATE", {
   testthat::skip_on_cran()
-  testhat::skip("Interactive only")
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
@@ -476,7 +476,7 @@ testthat::test_that("estimate effect works otimp, ATE", {
 
 testthat::test_that("estimate effect works otimp sm = false, ATT", {
   testthat::skip_on_cran()
-  testhat::skip("Interactive only")
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
@@ -532,7 +532,7 @@ testthat::test_that("estimate effect works otimp sm = false, ATT", {
 testthat::test_that("estimate effect works ot imp, ATC", {
   
   testthat::skip_on_cran()
-  testhat::skip("Interactive only")
+  testthat::skip("Interactive only")
   set.seed(9867)
   
   #### Load Packages ####
@@ -569,7 +569,7 @@ testthat::test_that("estimate effect works ot imp, ATC", {
 
 testthat::test_that("estimate effect works otimp sm = false, ATE", {
   testthat::skip_on_cran()
-  testhat::skip("Interactive only")
+  testthat::skip("Interactive only")
   set.seed(203482308)
   
   #### Load Packages ####
