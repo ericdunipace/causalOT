@@ -326,14 +326,14 @@
                              if(is.null(propensity.formula)) {
                                propensity.formula <- list()
                              }
-                             private$ps.formula <- list(logistic = propensity.formula$Logistic,
-                                                        sbw = propensity.formula$SBW,
-                                                        cwass = propensity.formula$`Constrained Wasserstein`,
-                                                        wass = propensity.formula$Wasserstein)
+                             private$ps.formula <- list(logistic = unlist(propensity.formula$Logistic),
+                                                        sbw = unlist(propensity.formula$SBW),
+                                                        cwass = unlist(propensity.formula$`Constrained Wasserstein`),
+                                                        wass = unlist(propensity.formula$Wasserstein))
                              if(is.null(private$ps.formula$logistic)) private$ps.formula$logistic <- "z ~ . + 0"
                              if(is.null(private$ps.formula$sbw)) private$ps.formula$sbw <- "z ~ . + 0"
-                             if(is.null(private$ps.formula$cwass)) private$ps.formula$cwass <- "z ~ . + 0"
-                             if(is.null(private$ps.formula$wass)) private$ps.formula$wass <- "z ~ . + 0"
+                             if(is.null(private$ps.formula$cwass)) private$ps.formula$cwass <- NA #"z ~ . + 0"
+                             if(is.null(private$ps.formula$wass)) private$ps.formula$wass <- NA #"z ~ . + 0"
                              
                              private$calculate.feasible <- isTRUE(calculate.feasible)
                              options <- get_holder_options()
@@ -567,7 +567,7 @@
                                                                       opt.hyperparam = isTRUE(o$opt),
                                                                       opt.method = o$opt.method,
                                                                       metric = o$metric,
-                                                                      formula = o$formula,
+                                                                      formula = o$formula[[1]],
                                                                       add.margins = isTRUE(o$add.margins)
                                                   )
                                                   if (private$check.skip(private$weights[[est]])) next
@@ -1009,30 +1009,15 @@
                                             return(max(dims, na.rm = TRUE))
                                           },
                                           set.opts = function(cur) { #sets options for run in estimate function
-                                            lens <- sapply(cur$options[[1]], function(o) if (!is.null(o)) {return(length(o))} else {return(1)})
-                                            nrows <- prod(lens)
-                                            
-                                            iter.list <- if (cur$method == "Wasserstein") {
-                                              # private$wass_df[1:3]
-                                              lapply(cur$options[[1]], rep, length.out = nrows)
-                                            } else if (cur$method == "Constrained Wasserstein" & isFALSE(cur$options[[1]]$grid.search)) {
+                                            if (cur$method == "Constrained Wasserstein" & isFALSE(cur$options[[1]]$grid.search)) {
                                               cur$options[[1]]$delta <- cur$options[[1]]$std_diff
-                                              # temp <- list()
-                                              # if(!is.null(temp.delta)) {
-                                              #   temp$delta <- rep_len(temp.delta, length(temp[[1]]))
-                                              # } else {
-                                              #   temp["delta"] <- NA
-                                              # }
-                                              # temp <- lapply(private$wass_df[1:3], function(o) if(!is.null(temp.delta)) {rep(o, each = lens["std_diff"])} else {o})
-                                              # temp
-                                              lapply(cur$options[[1]], rep, length.out = nrows)
-                                            } else {
-                                              lapply(cur$options[[1]], rep, length.out = nrows)
                                             }
-                                            opts <- vector("list", nrows)
-                                            for (i in 1:nrows) {
-                                              opts[[i]] <- lapply(iter.list, function(o) o[[i]])
-                                            }
+                                            
+                                            df.opts <- do.call("expand.grid", c(cur$options,
+                                                               stringsAsFactors = FALSE))
+                                            
+                                            opts <- lapply(1:nrow(df.opts), function(i) df.opts[i,])
+                                            
                                             return(opts)
                                           },
                                           update = function() {
