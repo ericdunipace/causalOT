@@ -725,7 +725,7 @@ joint.cwass.fun.grid <- function(data, cost, grid.length, p, estimand, wass.iter
     
     grid <- rbind(seq(wass_nnm[[1]], wass_full[[1]], length.out = grid.length),
                   seq(wass_nnm[[2]], wass_full[[2]], length.out = grid.length))
-    grid <- lapply(1:10, function(i) grid[,i])
+    grid <- lapply(1:grid.length, function(i) grid[,i])
     
     # args <- list(data = data, constraint = grid[[1]],  estimand = estimand, 
     #              method = method,
