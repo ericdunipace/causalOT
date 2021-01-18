@@ -1777,8 +1777,11 @@ qp_wass_const_joint <- function(x, z, K, p = 2, estimand = c("ATC", "ATT",
   #nrow = 1, ncol = n0*n1) #c(rep(0, n0*n1)) #c( w = rep( -marg_mass, n0 * n1 ) )
   obj <- list(Q = Q0,
               L = L0)
-  
-  K <- K^p
+  if (is.list(K)) {
+    K <- unlist(K)
+  }
+  if (length(K) > 1) warning("K (constraints) has length greater than one and margins not added. Taking first element of vector")
+  K <- K[1]^p
   if (!is.null(bf)) {
     if (is.null( bf$K))  bf$K <- mean(sqrt(K^(1/p)))
     Kmm <- bf$K * mmse
