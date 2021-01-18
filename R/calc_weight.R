@@ -303,7 +303,6 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
       if(is.null(dots$rkhs.args$kernel)) dots$rkhs.args$kernel <- "RBF"
     }
     dots$metric <- dots$metric
-    dots$metric <- NULL
     dots$power <- dots$p
     dots$p <- NULL
   }

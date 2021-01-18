@@ -58,6 +58,31 @@ testthat::test_that("SimHolder generates object", {
                         ground_powers = 2,
                         metrics = "Lp"))
   testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
+  
+  
+  psform <-  list(Logistic = list("z~."),
+                  SBW = list("~. + 0"),
+                  Wasserstein = list(NA, "~. + 0"),
+                  "Constrained Wasserstein" = list(NA, "~. + 0"))
+  # SimHolder$debug("method.setup")
+  sh <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = TRUE,
+                      truncations = std_mean_diff,
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      propensity.formula = psform,
+                      match = "both",
+                      solver = "gurobi",
+                      Wass = list(wass_powers = 2,
+                                  ground_powers = 2,
+                                  metrics = "Lp",
+                                  add.joint = TRUE, 
+                                  add.margins = c(FALSE, TRUE)))
+  testthat::expect_equivalent(class(sh), c("SimHolder", "R6"))
 })
 
 testthat::test_that("SimHolder generates object, Kallus2018", {
