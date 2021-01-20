@@ -608,6 +608,25 @@ get_z.data.frame <- function(data,...) {
   return(z)
 }
 
+get_z.matrix <- function(data,...) {
+  
+  dots <- list(...)
+  tx_ind <- dots$treatment.indicator
+  
+  if (is.null(tx_ind)) {
+    stop("must specify treatment indicator 'treatment.indicator' either by name or column number")
+  }
+  tx.var <- if (is.character(tx_ind)) {
+    match(tx_ind, colnames(data))
+  } else {
+    tx_ind
+  }
+  
+  z <- as.integer(data[,tx.var])
+  attr(z, "treatment.indicator") <- "z"
+  return(z)
+}
+
 get_n.DataSim <- function(data,...) {
   return(data$get_n())
 }
@@ -618,11 +637,26 @@ get_n.data.frame <- function(data,...) {
   return(ns)
 }
 
+get_n.matrix <- function(data,...) {
+  df <- prep_data(data,...)
+  ns <- c(n0 = sum(df$z == 0), n1 = sum(df$z == 1))
+  return(ns)
+}
+
 get_p.DataSim <- function(data,...) {
   return(data$get_p())
 }
 
 get_p.data.frame <- function(data,...) {
+  df <- prep_data(data,...)
+  if(!is.null(df$df$y)){
+    return(ncol(df$df) - 1)
+  } else {
+    return(ncol(df$df))
+  }
+}
+
+get_p.matrix <- function(data,...) {
   df <- prep_data(data,...)
   if(!is.null(df$df$y)){
     return(ncol(df$df) - 1)
@@ -658,13 +692,18 @@ setOldClass("Sonabend2020")
 setGeneric("get_z", function(data, ...) UseMethod("get_z"))
 setMethod("get_z", "DataSim", get_z.DataSim)
 setMethod("get_z", "data.frame", get_z.data.frame)
+setMethod("get_z", "matrix", get_z.matrix)
+
 setGeneric("get_n", function(data, ...) UseMethod("get_n"))
 setMethod("get_n", "DataSim", get_n.DataSim)
 setMethod("get_n", "data.frame", get_n.data.frame)
+setMethod("get_n", "matrix", get_n.matrix)
 
 setGeneric("get_p", function(data, ...) UseMethod("get_p"))
 setMethod("get_p", "DataSim", get_p.DataSim)
 setMethod("get_p", "data.frame", get_p.data.frame)
+setMethod("get_p", "matrix", get_p.matrix)
+
 
 setGeneric("get_subset", function(data, idx, ...) UseMethod("get_subset"))
 setMethod("get_subset", "DataSim", get_subset.DataSim)

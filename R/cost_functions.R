@@ -93,9 +93,14 @@ cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise
   stopifnot(ground_p > 0)
   
   scale <- 1/(matrixStats::rowSds(X) * 0.5 + 0.5 * matrixStats::rowSds(Y))
-  
   X <-  scale * X
   Y <-  scale * Y
+  
+  if (any(scale < 0)) {
+    nonzero.idx <- scale > 0
+    X <- X[nonzero.idx, , drop = FALSE]
+    Y <- Y[nonzero.idx, , drop = FALSE]
+  }
   
   return(causalOT::cost_calculation_(X,Y,as.double(ground_p))) 
 }

@@ -6,6 +6,11 @@ prep_data.data.frame <- function(data,...) {
   cov_bal <- dots$balance.covariates
   outcome <- dots$outcome
   
+  if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
+  if (tx_ind %in% outcome) stop("treatment.indicator is outcome!")
+  if (outcome %in% cov_bal) stop("outcome in balance.covariates!")
+  if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
+  
   if(is.null(cov_bal)) {
     stop("must specify covariates for balance 'balance.covariates' either by name or column number")
   }
@@ -50,6 +55,62 @@ prep_data.data.frame <- function(data,...) {
   return(list(df = df, z = z))
 }
 
+prep_data.matrix <- function(data,...) {
+  
+  #create data.frame
+  dots <- list(...)
+  tx_ind <- dots$treatment.indicator
+  cov_bal <- dots$balance.covariates
+  outcome <- dots$outcome
+  
+  if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
+  if (tx_ind %in% outcome) stop("treatment.indicator is outcome!")
+  if (outcome %in% cov_bal) stop("outcome in balance.covariates!")
+  if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
+  
+  
+  if(is.null(cov_bal)) {
+    stop("must specify covariates for balance 'balance.covariates' either by name or column number")
+  }
+  
+  if(is.null(tx_ind)) {
+    stop("must specify treatment indicator 'treatment.indicator' either by name or column number")
+  }
+  
+  # if(is.null(outcome)) {
+  #   stop("must specify outcome 'outcome' either by name or column number")
+  # }
+  
+  tx.var <- if(is.character(tx_ind)) {
+    match(tx_ind, colnames(data))
+  } else {
+    tx_ind
+  }
+  x.vars <- if(is.character(cov_bal)) {
+    match(cov_bal, colnames(data))
+  } else {
+    cov_bal
+  }
+  if(!is.null(outcome)) {
+    y.var <- if(is.character(outcome)) {
+      match(outcome, colnames(data))
+    } else {
+      outcome
+    }
+    df <- data.frame(y = data[,y.var], data[,x.vars])
+    attr(df, "outcome") <- "y"
+    attr(df, "balance.covariates") <- colnames(df)[2:ncol(df)]
+  } else {
+    df <- data.frame(data[,x.vars])
+    attr(df, "balance.covariates") <- colnames(df)
+  }
+  
+  # df <- data[c(y.var, x.vars)]
+  z <- as.integer(data[,tx.var])
+  attr(z, "treatment.indicator") <- "z"
+  return(list(df = df, z = z))
+}
+
 prep_data.list <- function(data, ...) {
   #create data.frame
   df <- data.frame(y = data$y, data$x)
@@ -75,4 +136,5 @@ setMethod("prep_data", signature(data = "Hainmueller"), prep_data.DataSim)
 setMethod("prep_data", signature(data = "Sonabend2020"), prep_data.DataSim)
 setMethod("prep_data", signature(data = "DataSim"), prep_data.DataSim)
 setMethod("prep_data", signature(data = "data.frame"), prep_data.data.frame)
+setMethod("prep_data", signature(data = "matrix"), prep_data.matrix)
 setMethod("prep_data", signature(data = "list"), prep_data.list)

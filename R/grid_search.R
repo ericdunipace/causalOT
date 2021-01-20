@@ -4,7 +4,7 @@ sbw_grid_search <- function(data, grid = NULL,
                             ...) 
 {
   # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
-  if (all(is.null(grid)) | all(is.na(grid))) grid <- seq(0, 1/sqrt(get_p(data)), length.out = grid.length)
+  if (all(is.null(grid)) | all(is.na(grid))) grid <- seq(0, 1/sqrt(get_p(data, ...)), length.out = grid.length)
   estimand <- match.arg(estimand)
   solver <- match.arg(list(...)$solver, c("mosek","gurobi","cplex"))
   

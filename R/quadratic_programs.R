@@ -228,6 +228,9 @@ quadprog.data.frame <- function(data, constraint,
   z <- as.numeric(df$z)
   x.df <- df$df[,!(colnames(df$df) == "y")]
   x <- as.matrix(x.df)
+  cn <- colnames(x.df)
+  x.df <- as.data.frame(x.df)
+  colnames(x) <- colnames(x.df) <- cn
   # col_x <- ncol(x)
   
   dots <- list(...)
@@ -319,24 +322,24 @@ quadprog.data.frame <- function(data, constraint,
       dots$rkhs.args <- eval(f.call, args)
     }
     if(est == "cATE") {
-      list(qp_wass(x=x, z=z, 
+      list(qp_wass(x=x, z=z, K = constraint,
                    p=dots$p, estimand = "ATC", dist = dots$metric, cost = dots$cost,
                    add.margins = dots$add.margins,
                    bf = bf,
                    sample_weight = sample_weight),
-           qp_wass(x=x, z=z,
+           qp_wass(x=x, z=z, K = constraint,
                    p=dots$p, estimand = "ATT", dist = dots$metric, cost = dots$cost,
                    add.margins = dots$add.margins,
                    bf = bf,
                    sample_weight = sample_weight))
     } else if (est == "ATE") {
-      qp_wass(x=x, z=z,
+      qp_wass(x=x, z=z, K = constraint,
               p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
               add.margins = dots$add.margins,
               bf = bf,
               sample_weight = sample_weight)
     } else {
-      list(qp_wass(x=x, z=z,
+      list(qp_wass(x=x, z=z, K = constraint,
                    p=dots$p, estimand = est, dist = dots$metric, cost = dots$cost,
                    add.margins = dots$add.margins,
                    bf = bf,
@@ -437,6 +440,7 @@ quadprog.data.frame <- function(data, constraint,
   }
   return(qp)
 }
+
 
 qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC", 
                                          "ATE", "feasible")) {
@@ -2401,4 +2405,5 @@ check_wass_const <- function(opt_problem) {
 setGeneric("quadprog", function(data, ...) UseMethod("quadprog"))
 setMethod("quadprog", "DataSim", quadprog.DataSim)
 setMethod("quadprog", "data.frame", quadprog.data.frame)
+setMethod("quadprog", "matrix", quadprog.data.frame)
 

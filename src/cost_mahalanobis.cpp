@@ -16,6 +16,16 @@ matrix covariance(const refMatConst & samples) {
   return matrix(d, d).setZero().selfadjointView<Eigen::Lower>().rankUpdate(c_samples, 1.0/double(S-1));
 }
 
+matrix invsqrt(const refMatConst & A) {
+
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(A);
+  if ((es.eigenvalues().array() <= 0).any()) Rcpp::warning("Covariance matrix is not positive definite. Using approximate inverse square-root based on SVD");
+  
+  Eigen::VectorXd D_half_inv = 1.0 / es.eigenvalues().array().abs().sqrt();
+  // Rcpp::Rcout << D_half_inv << std::endl;
+  return(es.eigenvectors() * D_half_inv.asDiagonal() * es.eigenvectors().transpose());
+}
+
 void cost_mahal_Lp(const refMatConst & A, const refMatConst & B, 
                         const matrix & L, matrix & cost_matrix, double p) {
   double p_inv = 1.0/p;
@@ -72,10 +82,11 @@ Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix & A_,
   const matrix covA = covariance(A);
   const matrix covB = covariance(B);
   const matrix cov = 0.5 * covA + 0.5 * covB;
-  const matrix L = cov.selfadjointView<Eigen::Lower>().llt().matrixL();
-  const matrix L_inv = L.inverse();
-  // Rcpp::Rcout << covA(0,0)<<std::endl;
-  // Rcpp::Rcout << cov(0,0);
+  const matrix L_inv = invsqrt(cov); //cov inv sqrt
+  // Rcpp::Rcout <<std::endl<< "cov mat A: " << covA(0,0)<<std::endl;
+  // Rcpp::Rcout <<std::endl<< "cov mat A: " << covA(0,0)<<std::endl;
+  
+  // Rcpp::Rcout << L_inv(0,0)<<std::endl;;
   
   matrix cost_matrix(N,M);
   
@@ -89,6 +100,7 @@ Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix & A_,
   // }
   matrix AL = L_inv * A;
   matrix BL = L_inv * B;
+  // Rcpp::Rcout << std::endl << AL(0,0) << std::endl;
   if(p == 2.0) {
     cost_calculation_L2(AL, BL, cost_matrix);
   } else if (p == 1.0){

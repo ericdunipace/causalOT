@@ -13,8 +13,12 @@ mean_bal <- function(data, weights, ...) {
   
   pool_sd <- sqrt(sigma_x1 * 0.5 + sigma_x2 * 0.5)
   
-  mean_1 <- c(crossprod(x1, weights$w1))
-  mean_0 <- c(crossprod(x0, weights$w0))
+  mean_1 <- matrixStats::colWeightedMeans(x1, weights$w1)
+  mean_0 <- matrixStats::colWeightedMeans(x0, weights$w0)
+  
+  if (any(pool_sd == 0)) {
+    pool_sd[pool_sd == 0] <- Inf
+  }
   
   return(abs(mean_1 - mean_0) / pool_sd)
 }
