@@ -7,7 +7,7 @@ quadprog.DataSim <- function(data, constraint,  estimand = c("ATT", "ATC", "ATE"
   dots <- list(...)
   
   form <- dots$formula
-  if (isTRUE(!is.null(form)) & isTRUE(!is.na(form))) {
+  if ( isTRUE(!is.null(form)) & isTRUE(!is.na(form)) ) {
     form <- form_all_squares(form, colnames(data$get_x()))
     
     # if (is.character(form)) {

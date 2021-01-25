@@ -4,6 +4,12 @@ sqrt_mat <- function(X) {
   return(tcrossprod(decomp$vectors %*% diag(sqrt(decomp$values), p, p), decomp$vectors))
 }
 
+inv_sqrt_mat <- function(X) {
+  p <- ncol(X)
+  decomp <- eigen(X)
+  return(tcrossprod(decomp$vectors %*% diag(1/sqrt(decomp$values), p, p), decomp$vectors))
+}
+
 mahal_transform <- function(X, Y) {
   p <- ncol(X)
   decomp <- eigen(0.5 * cov(X) + 0.5 * cov(Y))
@@ -71,4 +77,8 @@ form_all_squares <- function(form, data.names) {
   return(form)
 }
 
-
+cot.model.matrix <- function(formula, object) {
+  model.matrix( formula, data=object, contrasts.arg = 
+                  lapply(data.frame(object[,sapply(data.frame(object), is.factor)]),
+                         contrasts, contrasts = FALSE))
+}

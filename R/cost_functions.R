@@ -166,3 +166,11 @@ cost_RKHS <- function(X, z,
   }
   return( dist )
 }
+
+
+cost_factor <- function(x, z) {
+  x0 <- x[z==0]
+  x1 <- x[z==1]
+  
+  return(sapply(x1, function(y1) sapply(x0, function(y0) as.numeric(y0 == y1))))
+}

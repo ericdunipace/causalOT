@@ -1,12 +1,19 @@
-mean_bal <- function(data, weights, ...) {
+mean_bal <- function(data, weights = NULL, ...) {
   
-  if (!inherits(weights, "causalWeights")) {
-    if (!any(names(weights) == "w0") & !any(names(weights) == "w1") ) stop("weights must be of class 'causalWeights' or be a list with named slots 'w0' and 'w1'.")
-  }
+  
   
   xs <- extract_x(data, ...)
   x1 <- as.matrix(xs$x1)
   x0 <- as.matrix(xs$x0)
+  
+  if (is.null(weights)) {
+    sw <- get_sample_weight(NULL, z = c(rep(1,nrow(x1)), rep(0, nrow(x0))) )
+    weights <- list(w0 = sw$a, w1 = sw$b)
+  }
+  
+  if (!inherits(weights, "causalWeights")) {
+    if (!any(names(weights) == "w0") & !any(names(weights) == "w1") ) stop("weights must be of class 'causalWeights' or be a list with named slots 'w0' and 'w1'.")
+  }
   
   sigma_x1 <- colVar(x1)
   sigma_x2 <- colVar(x0)

@@ -7,15 +7,16 @@ prep_data.data.frame <- function(data,...) {
   outcome <- dots$outcome
   
   if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
-  if (tx_ind %in% outcome) stop("treatment.indicator is outcome!")
-  if (outcome %in% cov_bal) stop("outcome in balance.covariates!")
-  if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
-  
-  if(is.null(cov_bal)) {
+  if (!is.null(outcome) ) {
+    if (tx_ind %in% outcome) stop("treatment.indicator is outcome!")
+    if (outcome %in% cov_bal) stop("outcome in balance.covariates!")
+  }
+
+  if (is.null(cov_bal)) {
     stop("must specify covariates for balance 'balance.covariates' either by name or column number")
   }
   
-  if(is.null(tx_ind)) {
+  if (is.null(tx_ind)) {
     stop("must specify treatment indicator 'treatment.indicator' either by name or column number")
   }
   
@@ -64,8 +65,10 @@ prep_data.matrix <- function(data,...) {
   outcome <- dots$outcome
   
   if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
-  if (tx_ind %in% outcome) stop("treatment.indicator is outcome!")
-  if (outcome %in% cov_bal) stop("outcome in balance.covariates!")
+  if (!is.null(outcome) ) {
+    if (tx_ind %in% outcome) stop("treatment.indicator is outcome!")
+    if (outcome %in% cov_bal) stop("outcome in balance.covariates!")
+  }
   if (tx_ind %in% cov_bal) stop("treatment.indicator in balance.covariates!")
   
   

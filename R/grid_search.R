@@ -29,7 +29,9 @@ sbw_grid_search <- function(data, grid = NULL,
   weight.list <- lapply(grid, function(delta) {
     args$constraint <- delta
     out <- tryCatch(eval(f.call, envir = args),
-                    error = function(e) {return(list(w0 = rep(NA_real_, n0),
+                    error = function(e) {
+                      warning(e$message)
+                      return(list(w0 = rep(NA_real_, n0),
                                                      w1 = rep(NA_real_, n1)))})
     if (solver == "gurobi") Sys.sleep(0.1)
     return(out)
@@ -504,7 +506,7 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
   } else {
     D
   }
-  
+  if (wass.iter < 1000) wass.iter <- wass.iter * 50
   # x0  <- x[z]
   # x <- rbind(x0, x1)
   
@@ -601,18 +603,19 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     } else {
       scales <- rep(1,D)
     }
+    keep <- scales != 0
     
     #for control
     nnm.adjusted0 <- (wass_nnm_0[1:D]^p * 1/scales)^(1/p)
     full.adjusted0 <- (wass_full_0[1:D]^p * 1/scales)^(1/p)
-    min.grid0 <- (min(nnm.adjusted0)^p * scales)^(1/p)
-    max.grid0 <- (max(full.adjusted0)^p * scales)^(1/p)
+    min.grid0 <- (min(nnm.adjusted0[keep])^p * scales)^(1/p)
+    max.grid0 <- (max(full.adjusted0[keep])^p * scales)^(1/p)
     
     #for treated
     nnm.adjusted1 <- (wass_nnm_1[1:D]^p * 1/scales)^(1/p)
     full.adjusted1 <- (wass_full_1[1:D]^p * 1/scales)^(1/p)
-    min.grid1 <- (min(nnm.adjusted1)^p * scales)^(1/p)
-    max.grid1 <- (max(full.adjusted1)^p * scales)^(1/p)
+    min.grid1 <- (min(nnm.adjusted1[keep])^p * scales[keep])^(1/p)
+    max.grid1 <- (max(full.adjusted1[keep])^p * scales[keep])^(1/p)
     
     if (add.joint) {
       jl.grid0 <- sum(min.grid0^p)^(1/p)
@@ -669,10 +672,12 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     } else {
       scales <- rep(1,D)
     }
-    nnm.adjusted <- (wass_nnm[1:D]^p * 1/scales)^(1/p)
-    full.adjusted <- (wass_full[1:D]^p * 1/scales)^(1/p)
-    min.grid <- (min(nnm.adjusted)^p * scales)^(1/p)
-    max.grid <- (max(full.adjusted)^p * scales)^(1/p)
+    keep <- scales != 0
+    
+    nnm.adjusted  <- (wass_nnm[1:D]^p / scales)^(1/p)
+    full.adjusted <- (wass_full[1:D]^p / scales)^(1/p)
+    min.grid      <- (min(nnm.adjusted[keep])^p * scales)^(1/p)
+    max.grid      <- (max(full.adjusted[keep])^p * scales)^(1/p)
     
     if (add.joint) {
       jl.grid <- sum(min.grid^p)^(1/p)
@@ -697,7 +702,7 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
 
 joint.cwass.fun.grid <- function(data, cost, grid.length, p, estimand, wass.iter, ...) {
   
-  
+  if (wass.iter < 1000) wass.iter <- wass.iter * 50
   if (estimand == "ATE") {
     n0  <- nrow(cost[[1]])
     n1  <- nrow(cost[[2]])
@@ -821,6 +826,8 @@ wass.fun.grid <- function(x, z,
     marg.grid <- eval(f.call, envir = args)
     grid <- lapply(c(0, exp(seq(log(1e-3), log(1e6), length.out = length(marg.grid) - 1))),
                    function(nn) nn)
+    # grid <- lapply(exp(seq(log(1e-3), log(1e6), length.out = length(marg.grid) )),
+    #                function(nn) nn)
     keep <- round(seq.int(1L,length(marg.grid), length.out = grid.length))
     marg.grid <- marg.grid[keep]
     grid <- grid[keep]
@@ -836,9 +843,10 @@ wass.fun.grid <- function(x, z,
     }
     
   } else {
-    grid <- lapply(c(0, exp(seq(log(1e-3), log(1e6), length.out = grid.length - 1))),
+    # grid <- lapply(c(0, exp(seq(log(1e-3), log(1e6), length.out = grid.length - 1))),
+    #                function(nn) nn)
+    grid <- lapply(exp(seq(log(1e-3), log(1e6), length.out = grid.length )),
                    function(nn) nn)
-    
     if (estimand == "ATE") {
       grid <- lapply(grid, function(gg) list(gg, gg))
     }
@@ -868,7 +876,7 @@ wass_grid_default <- function(x, z, grid.length,
   args <- args[!duplicated(names(args))]
   n.args <- lapply(names(args), as.name)
   names(n.args) <- names(args)
-  f.call <- as.call(c(list(get_defaults), args))
+  f.call <- as.call(c(list(get_defaults), n.args))
   
   return(eval(f.call, envir = args))
 }
@@ -895,6 +903,9 @@ wass_grid <- function(rowCount, colCount, weight, cost, wass.method, wass.iter, 
   
   weight$w0 <- renormalize(weight$w0 * rowCount)
   weight$w1 <- renormalize(weight$w1 * colCount)
+  
+  if (all(weight$w0 == 0) | all(weight$w1 == 0)) return(NULL)
+  
   p.temp <- weight$args$power
   if (is.null(p.temp)) {
     p <- list(...)$p

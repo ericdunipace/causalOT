@@ -1206,7 +1206,7 @@
                                                             epsilon = private$wass.opt$epsilon,
                                                             verbose = isTRUE(private$verbose)),
                                                          error = function(e) {
-                                                           warning("Error in weight method ", method, " with estimand ",estimand)
+                                                           warning("Error in weight method ", method, " with estimand ",estimand, ". ", e$message)
                                                            ns <- private$simulator$get_n()
                                                            e.out <- list(w0 = rep(NA_real_, ns[1]),
                                                                          w1 = rep(NA_real_, ns[2]),

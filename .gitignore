@@ -13,6 +13,7 @@ inst/images
 inst/output
 inst/.DS_Store
 inst/simulations/results/lalonde/CI/*.rds
+inst/simulations/results
 Output
 archive
 tables

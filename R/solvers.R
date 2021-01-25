@@ -1,33 +1,41 @@
-cplex_solver <- function(qp, ...) {
+cplex_solver <- function(qp, neg.weights = FALSE, ...) {
   dots <- list(...)
-  
+  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
   num_param <- length(c(as.numeric(qp$obj$L)))
   
-  if(is.null(dots$control)) {
+  if (is.null(dots$control)) {
     control <- list(trace = 0L, round = 1L)
   }
   
-  if(!is.null(qp$obj$Q)) {
-    if(inherits(qp$obj$Q, "ddiMatrix")) qp$obj$Q <- as(as(qp$obj$Q, "dsparseMatrix"), "dtCMatrix")
-    if(!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "dsCMatrix")
-    qp$obj$Q <-qp$obj$Q * 2
+  if (!is.null(qp$obj$Q)) {
+    if (inherits(qp$obj$Q, "ddiMatrix")) qp$obj$Q <- as(as(qp$obj$Q, "dsparseMatrix"), "dtCMatrix")
+    if (!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "dsCMatrix")
+    qp$obj$Q <- qp$obj$Q * 2
   }
-  
+  lb <- switch(neg.wt,
+               0,
+               -Inf)
   fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
   invisible(capture.output( res <-
                               Rcplex::Rcplex(cvec = c(as.numeric(qp$obj$L)), Amat = qp$LC$A, 
                                              bvec = qp$LC$vals, Qmat = qp$obj$Q,
-                                             lb = 0, ub = Inf, control=control,
+                                             lb = lb, ub = Inf, control = control,
                                              objsense = "min", sense = qp$LC$dir,
                                              vtype = "C", n = 1) , type = "message", file = fn.capt))
   invisible(capture.output(Rcplex::Rcplex.close(), type = "message", append = TRUE, file = fn.capt))
   
-  if(res$status != 1) warning("Algorithm did not converge!!!")
+  if (res$status != 1) warning("Algorithm did not converge!!!")
   
-  return(res$xopt[1:num_param])
+  sol <- res$xopt[1:num_param]
+  sol <- switch(neg.wt,
+                sol * as.numeric(sol > 0),
+                sol)
+  return(sol)
 }
 
-gurobi_solver <- function(qp, ...) {
+gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
+  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  num_param <- length(c(as.numeric(qp$obj$L)))
   num_param <- length(c(as.numeric(qp$ob$L)))
   model <- list()
   model$Q <- qp$obj$Q
@@ -40,7 +48,9 @@ gurobi_solver <- function(qp, ...) {
   model$sense[qp$LC$dir=="G"] <- '>='
   model$rhs <- qp$LC$vals
   model$vtype <- rep("C", num_param)
-  model$lb <- rep(0, num_param)
+  model$lb <- switch(neg.wt,
+                     rep(0, num_param),
+                     rep(-Inf, num_param))
   model$ub <- rep(Inf, num_param)
   params <- list(OutputFlag = 0)
   
@@ -48,13 +58,15 @@ gurobi_solver <- function(qp, ...) {
   # model$pstart <- dots$init.sol
   
   res <- gurobi::gurobi(model, params)
-  if(res$status != "OPTIMAL") {
+  if (res$status != "OPTIMAL") {
     # browser()
     warning("Algorithm did not converge!!!")
   }
   sol <- (res$x)[1:num_param]
-  sol[sol<0] <- 0
-  if(all(sol == 0)) stop("All weights are 0!")
+  sol <- switch(neg.wt,
+                sol * as.numeric(sol > 0),
+                sol)
+  if (all(sol == 0)) stop("All weights are 0!")
   # obj_total <- out$obj
   # 
   # status <- out$status
@@ -63,7 +75,9 @@ gurobi_solver <- function(qp, ...) {
   return(sol)
 }
 
-mosek_solver <- function(qp, ...) {
+mosek_solver <- function(qp, neg.weights = FALSE, ...) {
+  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  num_param <- length(c(as.numeric(qp$obj$L)))
   num_param <- length(c(as.numeric(qp$obj$L)))
   model <- list()
   model$sense <- 'min'
@@ -92,21 +106,24 @@ mosek_solver <- function(qp, ...) {
       }
       model$qobj <- list(i = 1:num_param, j =  1:num_param, v = rep(2*vals,num_param))
     } else {
-      if(!inherits(qp$obj$Q,"dgTMatrix")) {
+      if (!inherits(qp$obj$Q,"dgTMatrix")) {
         qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
       }
       trimat <- Matrix::tril(qp$obj$Q)
-      model$qobj <- list(i = trimat@i+1, j = trimat@j+1, v = trimat@x * 2)
+      model$qobj <- list(i = trimat@i + 1, j = trimat@j + 1, v = trimat@x * 2)
     }
   }
   model$c <- c(as.numeric(qp$obj$L))
-  if(is.null(model$c)) model$c <- rep(0, num_param)
+  if (is.null(model$c)) model$c <- rep(0, num_param)
   model$A <- qp$LC$A
-  model$bx <- rbind(blx = rep(0, num_param), bux = rep(Inf, num_param))
+  model$bx <- switch(neg.wt,
+    rbind(blx = rep(0, num_param), bux = rep(Inf, num_param)),
+    rbind(blx = rep(-Inf, num_param), bux = rep(Inf, num_param))
+  )
   
   #constraint bounds
   num_bounds <- sum(qp$LC$dir == "E") + sum(qp$LC$dir == "L") + sum(qp$LC$dir == "G")
-  if(num_bounds > 0) {
+  if (num_bounds > 0) {
     blc <- rep(-Inf, num_bounds)
     buc <- rep(Inf, num_bounds)
     blc[qp$LC$dir=="E"] <- buc[qp$LC$dir=="E"] <- qp$LC$vals[qp$LC$dir=="E"]
@@ -130,7 +147,9 @@ mosek_solver <- function(qp, ...) {
     warning("Algorithm did not converge!!! Mosek solver message: ", res$response$msg)
   }
   sol <- (res$sol$itr$xx)[1:num_param]
-  sol[sol < 0] <- 0
+  sol <- switch(neg.wt,
+                sol * as.numeric(sol > 0),
+                sol)
   
   if (all(sol == 0)) stop("All weights are 0!")
   # obj_total <- out$obj
@@ -143,6 +162,7 @@ mosek_solver <- function(qp, ...) {
 
 QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
   solver <- match.arg(solver)
+  # neg.weights <- isTRUE(list(...)$neg.weights)
   
   # solve.fun <- switch(solver,
   #                     "cplex" = "cplex_solver",
