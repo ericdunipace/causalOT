@@ -9,18 +9,25 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL, ...) {
   if (is.null(cost)) {
     stop("cost matrix must be specified if only masses are given")
   }
-  if (is.null(tplan)) {
-    if ( isFALSE(list(...)$neg.weights) ) {
-      nzero_row <- a > 0
-      nzero_col <- b > 0
-    } else {
-      nzero_row <- a != 0
-      nzero_col <- b != 0
-    }
-    a <- a[nzero_row]
-    b <- b[nzero_col]
-    cost <- cost[nzero_row, nzero_col, drop = FALSE]
-  }
+  # cost_a <- list(...)$cost_a
+  # cost_b <- list(...)$cost_b
+  # if (is.null(tplan)) {
+  #   if ( isFALSE(list(...)$neg.weights) ) {
+  #     nzero_row <- a > 0
+  #     nzero_col <- b > 0
+  #   } else {
+  #     nzero_row <- a != 0
+  #     nzero_col <- b != 0
+  #   }
+  #   a <- a[nzero_row]
+  #   b <- b[nzero_col]
+  #   cost <- cost[nzero_row, nzero_col, drop = FALSE]
+  #   
+  #   if (!is.null(cost_a) && !is.null(cost_b)) {
+  #     cost_a <- cost_a[nzero_row, nzero_row, drop = FALSE]
+  #     cost_b <- cost_b[nzero_col, nzero_col, drop = FALSE]
+  #   }
+  # }
   n_a <- length(a)
   n_b <- length(b)  
   if (n_a == 1) {
@@ -29,7 +36,8 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL, ...) {
     return(c((sum(c(cost^p) * c(a)))^(1/p)))
   } else {
     # return(transport::wasserstein(a = a, b = b, p = p, tplan = tplan, costm = cost, prob = TRUE,...))
-    return(approxOT::wasserstein(a = a, b = b, p = p, ground_p = p, tplan = tplan, cost = cost, ...))
+    return(approxOT::wasserstein(a = a, b = b, p = p, ground_p = p, tplan = tplan, cost = cost, 
+                                 ...))
   }
 }
 

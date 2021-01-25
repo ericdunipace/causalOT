@@ -37,6 +37,21 @@ testthat::test_that("grid search actually works, cwass", {
   
   testthat::expect_lte(wsel$args$constraint - 2.191191, 1e-3)
   
+  testthat::expect_silent(wsel <- wass_grid_search(data, grid = seq(minwass, wass_full, length.out = 10),
+                                                   estimand = estimand, n.boot = 10, method = "Constrained Wasserstein",
+                                                   metric = metric, p = power, solver = "mosek",
+                                                   wass.method = "greenkhorn", wass.iter = 1000))
+  
+  testthat::expect_lte(wsel$args$constraint - 2.054565, 1e-3)
+  
+  testthat::expect_silent(wsel <- wass_grid_search(data, grid = seq(minwass, wass_full, length.out = 10),
+                                                   estimand = estimand, n.boot = 10, method = "Constrained Wasserstein",
+                                                   metric = metric, p = power, solver = "mosek",
+                                                   wass.method = "greenkhorn", wass.iter = 1000,
+                                                   unbiased = TRUE))
+  
+  testthat::expect_lte(wsel$args$constraint - 2.054565, 1e-3)
+  
   #don't specify grid
   # debugonce(wass_grid_search)
   testthat::expect_silent(

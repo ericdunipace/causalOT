@@ -3,3 +3,12 @@
 data-raw
 ^data-raw$
 inst\simulations
+Table
+tables
+Output
+Plots
+inst\images
+inst\cluster
+inst\output
+inst\Reports
+inst\sims

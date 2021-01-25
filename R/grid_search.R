@@ -309,6 +309,16 @@ wass_grid_search <- function(data, grid = NULL,
                           wass.method = wass.method, 
                           wass.iter = wass.iter,
                           add.joint = add.joint,
+                          x0 = x0,
+                          x1 = x1,
+                          cost_a = cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+                                                            rep(0,n0)),
+                                        power = p,
+                                        metric = metric, estimand = "ATT"),
+                          cost_b = cost_fun(rbind(x1,x1), z = c(rep(1, n1),
+                                                            rep(0, n1)),
+                                        power = p,
+                                        metric = metric, estimand = "ATT"),
                           ...)
     )
     boot.args <- boot.args[!duplicated(names(boot.args))]
@@ -367,6 +377,16 @@ wass_grid_search <- function(data, grid = NULL,
                         cost = cost[[1]],
                         p = p,
                         metric = metric,
+                        x0 = x0,
+                        x1 = x,
+                        cost_a = cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+                                                              rep(0,n0)),
+                                          power = p,
+                                          metric = metric, estimand = "ATT"),
+                        cost_b = cost_fun(rbind(x,x), z = c(rep(1,n),
+                                                              rep(0,n)),
+                                          power = p,
+                                          metric = metric, estimand = "ATT"),
                         # estimand = "ATT",
                         wass.method = wass.method, wass.iter = wass.iter,
                         add.joint = add.joint,
@@ -390,6 +410,11 @@ wass_grid_search <- function(data, grid = NULL,
     # boot.args1$bootIdx.row     <- bootIdx.rows.1
     boot.args0$rowCount     <- rowCount.0
     boot.args1$rowCount     <- rowCount.1
+    boot.args1$x0           <- x1
+    boot.args1$cost_a       <- cost_fun(rbind(x1,x1), z = c(rep(1,n1),
+                                                                     rep(0,n1)),
+                                                 power = p,
+                                                 metric = metric, estimand = "ATT")
     
     w0 <- w1 <- weight.list[[length(weight.list)]]
     w0$w1 <- w1$w1 <- full.sample.weight
@@ -881,7 +906,7 @@ wass_grid_default <- function(x, z, grid.length,
   return(eval(f.call, envir = args))
 }
 
-wass_grid <- function(rowCount, colCount, weight, cost, wass.method, wass.iter, ...) {
+wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, wass.iter, ...) {
   if (all(is.na(weight$w1) | all(is.na(weight$w0)))) return(NA)
   n1 <- length(weight$w1)
   n0 <- length(weight$w0)
@@ -940,7 +965,7 @@ wass_grid <- function(rowCount, colCount, weight, cost, wass.method, wass.iter, 
       cc <- cost#[rowCount > 0, colCount > 0]
     }
     return(wass_dist_helper(a = weight, b = NULL,
-                         cost = cc,
+                         cost = cc, X = x0, Y = x1,
                          p = p, method = wass.method, niter = wass.iter, ...))
   # }
 }
