@@ -290,8 +290,33 @@ wass_grid_search <- function(data, grid = NULL,
   if (estimand != "ATE") {
     # bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
     # bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
-    colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
+    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+      rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
+      colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
+    } else {
+      rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
+      colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
+    }
+    
+    if (is.null(dots$cost_a)) {
+      cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+                                   rep(0,n0)),
+               power = p,
+               metric = metric, estimand = "ATT")
+    } else {
+      cost_a <- dots$cost_a
+      if(is.list(cost_a)) cost_a <- cost_a[[1]]
+    }
+    
+    if (is.null(dots$cost_b)) {
+      cost_b <- cost_fun(rbind(x1,x1), z = c(rep(1, n1),
+                                             rep(0, n1)),
+                         power = p,
+                         metric = metric, estimand = "ATT")
+    } else {
+      cost_b <- dots$cost_b
+      if(is.list(cost_b)) cost_b <- cost_b[[1]]
+    }
     
     tx_idx <- which(pd$z == 1)
     boot.args <- list(FUN = wass_grid, 
@@ -311,14 +336,8 @@ wass_grid_search <- function(data, grid = NULL,
                           add.joint = add.joint,
                           x0 = x0,
                           x1 = x1,
-                          cost_a = cost_fun(rbind(x0,x0), z = c(rep(1,n0),
-                                                            rep(0,n0)),
-                                        power = p,
-                                        metric = metric, estimand = "ATT"),
-                          cost_b = cost_fun(rbind(x1,x1), z = c(rep(1, n1),
-                                                            rep(0, n1)),
-                                        power = p,
-                                        metric = metric, estimand = "ATT"),
+                          cost_a = cost_a,
+                          cost_b = cost_b,
                           ...)
     )
     boot.args <- boot.args[!duplicated(names(boot.args))]
@@ -356,9 +375,42 @@ wass_grid_search <- function(data, grid = NULL,
     # bootIdx.cols    <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
     # bootIdx.rows.0  <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
     # bootIdx.rows.1  <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
-    rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
-    colCount   <- replicate(n.boot, c(rmultinom(1,  n, prob = sample_weight$total)), simplify = FALSE)
+    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+      rowCount.0 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)),     simplify = FALSE)
+      rowCount.1 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)),     simplify = FALSE)
+      colCount   <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n), prob = sample_weight$total)), simplify = FALSE)
+    } else {
+      rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
+      rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
+      colCount   <- replicate(n.boot, c(rmultinom(1, n, prob = sample_weight$total)), simplify = FALSE)
+    }
+    
+    
+    
+    if (is.null(dots$cost_a)) {
+      cost_a <- list(cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+                                             rep(0,n0)),
+                         power = p,
+                         metric = metric, estimand = "ATT"),
+                     cost_fun(rbind(x1,x1), z = c(rep(1,n1),
+                                                  rep(0,n1)),
+                              power = p,
+                              metric = metric, estimand = "ATT")
+      )
+    } else {
+      cost_a <- dots$cost_a
+      stopifnot(length(cost_a) == 2)
+    }
+    
+    if (is.null(dots$cost_b)) {
+      cost_b <- list(cost_fun(rbind(x,x), z = c(rep(1,n),
+                                                rep(0,n)),
+                              power = p,
+                              metric = metric, estimand = "ATT"))
+    } else {
+      cost_b <- dots$cost_b
+      if (is.list(cost_b)) cost_b <- cost_b[[1]]
+    }
     
     output_0        <- output_1 <- rep(NA, length(grid))
     names(output_0) <- names(output_1) <- as.character(grid)
@@ -379,14 +431,8 @@ wass_grid_search <- function(data, grid = NULL,
                         metric = metric,
                         x0 = x0,
                         x1 = x,
-                        cost_a = cost_fun(rbind(x0,x0), z = c(rep(1,n0),
-                                                              rep(0,n0)),
-                                          power = p,
-                                          metric = metric, estimand = "ATT"),
-                        cost_b = cost_fun(rbind(x,x), z = c(rep(1,n),
-                                                              rep(0,n)),
-                                          power = p,
-                                          metric = metric, estimand = "ATT"),
+                        cost_a = cost_a[[1]],
+                        cost_b = cost_b,
                         # estimand = "ATT",
                         wass.method = wass.method, wass.iter = wass.iter,
                         add.joint = add.joint,
@@ -411,10 +457,7 @@ wass_grid_search <- function(data, grid = NULL,
     boot.args0$rowCount     <- rowCount.0
     boot.args1$rowCount     <- rowCount.1
     boot.args1$x0           <- x1
-    boot.args1$cost_a       <- cost_fun(rbind(x1,x1), z = c(rep(1,n1),
-                                                                     rep(0,n1)),
-                                                 power = p,
-                                                 metric = metric, estimand = "ATT")
+    boot.args1$cost_a       <- cost_a[[2]]
     
     w0 <- w1 <- weight.list[[length(weight.list)]]
     w0$w1 <- w1$w1 <- full.sample.weight

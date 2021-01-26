@@ -699,8 +699,8 @@ ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000,
                           "SBW" = "n-out-of-n",
                           "Logistic" = "n-out-of-n",
                           "NNM" = "m-out-of-n",
-                          "Wasserstein" = "m-out-of-n",
-                          "Constrained Wasserstein" = "m-out-of-n",
+                          "Wasserstein" = "n-out-of-n",
+                          "Constrained Wasserstein" = "n-out-of-n",
                           "m-out-of-n"
                           )
   } else {
