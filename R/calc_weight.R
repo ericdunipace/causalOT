@@ -420,6 +420,17 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   return(output)
 }
 
+
+calc_weight_error <- function(n0 = NULL, n1 = NULL) {
+  
+  if (is.null(n0) || is.null(n1)) {
+    return(list(w0 = NA_real_,
+                w1 = NA_real_))
+  }
+  return(list(w0 = rep(NA_real_, n0),
+              w1 = rep(NA_real_, n1)))
+}
+
 convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   stopifnot(is.list(sol))

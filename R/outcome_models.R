@@ -619,7 +619,7 @@ estimate_effect <- function(data, formula = NULL, weights,
 }
 
 confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstrap", "asymptotic"), ...) {
-  
+  method <- match.arg(method)
   if (method == "bootstrap") {
     return(ci_boot_ce(object, parm, level, ...))
   } else {
@@ -660,8 +660,11 @@ ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000,
                             object = object,
                             balance.covariates = balance.covariates, 
                             treatment.indicator = treatment.indicator,
+                            outcome = outcome,
                             n0 = n0, n1 = n1, ...)
-    
+    if (all(is.na(weight.boot$w0)) && all(is.na(weight.boot$w1))) {
+      return(NULL)
+    }
     # est.args <- c(list(data = data, formula = object$formula,
     #                    weights = weight,
     #                    model = object$model,
@@ -696,6 +699,7 @@ ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000,
   
   if (is.null(boot.method)) {
     boot.method <- switch(object$weights$method,
+                          "None" = "n-out-of-n",
                           "SBW" = "n-out-of-n",
                           "Logistic" = "n-out-of-n",
                           "NNM" = "m-out-of-n",
@@ -812,6 +816,7 @@ cot_boot_samples <- function(n.boot, boot.method, estimand, method, n0, n1, ...)
 
 ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                               balance.covariates, treatment.indicator,
+                              outcome,
                               n0, n1, ...) {
   weight$args$grid.search <- FALSE
   # wt.args <- c(list(data = object$data[idx,, drop = FALSE], 
@@ -837,6 +842,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                       transport.matrix = !is.null(weight$gamma),
                       grid.search = isTRUE(weight$args$grid.search), 
                       formula = weight$args$formula,
+                      outcome = outcome,
                       balance.covariates = balance.covariates,
                       treatment.indicator = treatment.indicator), 
                  weight$args,
@@ -845,7 +851,11 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
     wtargn <- lapply(names(wt.args), as.name)
     names(wtargn) <- names(wt.args)
     wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-    return(eval(wf.call, envir = wt.args))
+    return( tryCatch(eval(wf.call, envir = wt.args),
+                    error = function(e) {
+                      warning(e$message)
+                      return(calc_weight_error())
+                    }) )
     
   } else {
     if (estimand == "ATE") {
@@ -892,8 +902,14 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
       names(wtargn)  <- names(wt.args[[1]])
       
       wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-      wts <- eval(wf.call, envir = wt.args[[1]])
-      wts$w1 <- eval(wf.call, envir = wt.args[[2]])$w0
+      wts <- tryCatch(eval(wf.call, envir = wt.args[[1]]),
+                      error = function(e) {
+                        warning(e$message)
+                        return(calc_weight_error()) }  )
+      wts$w1 <- tryCatch(eval(wf.call, envir = wt.args[[2]])$w0,
+                         error = function(e) {
+                           warning(e$message)
+                           return(calc_weight_error()) }  )
       wts$estimand <- "ATE"
       return(wts)
     } else {
@@ -916,6 +932,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                    ...)
     }
     wt.args <- wt.args[!duplicated(names(wt.args))]
+    wt.args <- wt.args[!sapply(wt.args, is.null)]
     wtargn <- lapply(names(wt.args), as.name)
     names(wtargn) <- names(wt.args)
     wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
