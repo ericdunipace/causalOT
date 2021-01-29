@@ -574,7 +574,7 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
   } else {
     D
   }
-  if (wass.iter < 1000) wass.iter <- wass.iter * 50
+  if (wass.iter < 1000 & wass.iter != 0) wass.iter <- wass.iter * 50
   # x0  <- x[z]
   # x <- rbind(x0, x1)
   
@@ -751,7 +751,7 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
       jl.grid <- sum(min.grid^p)^(1/p)
       ju.grid <- sum(max.grid^p)^(1/p)
       if (jl.grid < wass_nnm[[D + 1]]) jl.grid <- wass_nnm[[D + 1]]
-      if (ju.grid < wass_full[[D + 1]]) ju.grid <- wass_full[[D + 1]]
+      if (ju.grid > wass_full[[D + 1]]) ju.grid <- wass_full[[D + 1]]
       
       jgrid <- seq(jl.grid, ju.grid, length.out = grid.length)
 

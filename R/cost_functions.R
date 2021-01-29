@@ -92,12 +92,12 @@ cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise
   }
   stopifnot(ground_p > 0)
   
-  scale <- 1/(matrixStats::rowSds(X) * 0.5 + 0.5 * matrixStats::rowSds(Y))
+  scale <- 1/rowMeans(cbind(matrixStats::rowSds(X), matrixStats::rowSds(Y)), na.rm = TRUE)
   X <-  scale * X
   Y <-  scale * Y
   
-  if (any(scale < 0)) {
-    nonzero.idx <- scale > 0
+  if (any(is.infinite(scale)) ) {
+    nonzero.idx <- is.finite(scale)
     X <- X[nonzero.idx, , drop = FALSE]
     Y <- Y[nonzero.idx, , drop = FALSE]
   }

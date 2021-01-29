@@ -703,8 +703,8 @@ ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000,
                           "SBW" = "n-out-of-n",
                           "Logistic" = "n-out-of-n",
                           "NNM" = "m-out-of-n",
-                          "Wasserstein" = "n-out-of-n",
-                          "Constrained Wasserstein" = "n-out-of-n",
+                          "Wasserstein" = "m-out-of-n",
+                          "Constrained Wasserstein" = "m-out-of-n",
                           "m-out-of-n"
                           )
   } else {
@@ -734,12 +734,12 @@ ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000,
   # } else {
   #   nSamp <- ns
   # }
-  boots <- pbapply::pbsapply(boot.idx, boot.fun, data = data, object = object, 
+  boots <- unlist(pbapply::pbsapply(boot.idx, boot.fun, data = data, object = object, 
                   n0 = ns[1], n1 = ns[2],
-                  ...)
+                  ...))
   pbapply::pboptions(type = "none")
   
-  ci <- quantile(boots, probs = c(level/2, (1 - level/2)))
+  ci <- quantile(boots, probs = c((1 - level)/2, 1 - (1 - level)/2))
   # names(ci) <- c("lower", "upper")
   sd_boot <- sd(boots)
   
@@ -788,7 +788,7 @@ cot_boot_samples <- function(n.boot, boot.method, estimand, method, n0, n1, ...)
   #                       simplify = FALSE)
   # return(boot.idx)
   # if that doesn't work then: 
-  if (method == "SBW" | method == "Logistic") {
+  if (method == "SBW" | method == "Logistic" | method == "None") {
     boot.idx <- replicate(n = n.boot, sample.int(n = n, size = nsamp,
                                                  replace = TRUE),
                           simplify = FALSE)
@@ -835,7 +835,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
   # wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
   # return(eval(wf.call, envir = wt.args))
   #if this doesn't work, then try the following
-  if (method == "SBW" | method == "Logistic") {
+  if (method == "SBW" | method == "Logistic" | method == "None") {
     wt.args <- c(list(data = object$data[idx,, drop = FALSE], 
                       constraint = weight$args$constraint,
                       estimand = object$estimand, method = weight$method,
@@ -880,6 +880,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                         transport.matrix = !is.null(weight$gamma),
                         grid.search = isTRUE(weight$args$grid.search), 
                         formula = weight$args$formula,
+                        outcome = outcome,
                         balance.covariates = balance.covariates,
                         treatment.indicator = treatment.indicator,
                         sample_weight = renormalize(c(tab.0, tab))), 
@@ -890,6 +891,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                           transport.matrix = !is.null(weight$gamma),
                           grid.search = isTRUE(weight$args$grid.search), 
                           formula = weight$args$formula,
+                          outcome = outcome,
                           balance.covariates = balance.covariates,
                           treatment.indicator = treatment.indicator, 
                      sample_weight = renormalize(c(tab.1, tab))),
@@ -925,6 +927,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                         transport.matrix = !is.null(weight$gamma),
                         grid.search = isTRUE(weight$args$grid.search), 
                         formula = weight$args$formula,
+                        outcome = outcome,
                         balance.covariates = balance.covariates,
                         treatment.indicator = treatment.indicator, 
                         sample_weight = sample.wt),
@@ -936,7 +939,12 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
     wtargn <- lapply(names(wt.args), as.name)
     names(wtargn) <- names(wt.args)
     wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-    return(eval(wf.call, envir = wt.args))
+    return(tryCatch(eval(wf.call, envir = wt.args),
+                    error = function(e) {
+                      warning(e$message)
+                      return(calc_weight_error())
+                    })
+           )
   }
   
 }
@@ -954,7 +962,7 @@ ci_idx_to_est <- function(idx,
   # dat <- object$data[idx,, drop = FALSE]
   environment(object$formula) <- environment()
   
-  if (weight$method == "SBW" | weight$method == "Logistic") {
+  if (weight$method == "SBW" | weight$method == "Logistic" | weight$method == "None") {
     sample.wt <- rep(1 / (n0 + n1), n0 + n1)
     
     est.args <- c(list(data = object$data[idx,], 
