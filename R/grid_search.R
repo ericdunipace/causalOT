@@ -290,13 +290,13 @@ wass_grid_search <- function(data, grid = NULL,
   if (estimand != "ATE") {
     # bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
     # bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
-      rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
-      colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
-    } else {
+    # if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+    #   rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
+    #   colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
+    # } else {
       rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
       colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
-    }
+    # }
     
     if (is.null(dots$cost_a)) {
       cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
@@ -375,15 +375,15 @@ wass_grid_search <- function(data, grid = NULL,
     # bootIdx.cols    <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
     # bootIdx.rows.0  <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
     # bootIdx.rows.1  <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+    # if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
       rowCount.0 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)),     simplify = FALSE)
       rowCount.1 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)),     simplify = FALSE)
       colCount   <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n), prob = sample_weight$total)), simplify = FALSE)
-    } else {
-      rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
-      rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
-      colCount   <- replicate(n.boot, c(rmultinom(1, n, prob = sample_weight$total)), simplify = FALSE)
-    }
+    # } else {
+    #   rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
+    #   rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
+    #   colCount   <- replicate(n.boot, c(rmultinom(1, n, prob = sample_weight$total)), simplify = FALSE)
+    # }
     
     
     
