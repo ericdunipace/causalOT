@@ -199,6 +199,9 @@ eval.list <- lapply(1:nrow(sites), function(i) overlap.fun(csub,
                                               site2 = sites[i, 2]))
 eval <- do.call("rbind", eval.list)
 
+sites <- sites[which(eval$inci.death.ct==0 & eval$inci.time.ct == 0 & !is.na(eval$inci.death.ct) & 
+                      !is.na(eval$inci.time.ct)), , drop = FALSE]
+
 
 set.seed(824006901) #random.org
 sites$arraynum <- rep(1:nrow(sites), length.out = nrow(sites))

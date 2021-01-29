@@ -848,6 +848,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                  weight$args,
                  ...)
     wt.args <- wt.args[!duplicated(names(wt.args))]
+    wt.args <- wt.args[!sapply(wt.args, is.null)]
     wtargn <- lapply(names(wt.args), as.name)
     names(wtargn) <- names(wt.args)
     wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
