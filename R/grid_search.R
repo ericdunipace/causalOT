@@ -695,18 +695,18 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
       if (ju.grid1 < wass_full_1[[D + 1]]) ju.grid1 <- wass_full_1[[D + 1]]
       if (jl.grid1 > wass_nnm_1[[D + 1]]) jl.grid1 <- wass_nnm_1[[D + 1]]
       
-      jgrid0 <- seq(jl.grid0, ju.grid0, length.out = grid.length)
-      jgrid1 <- seq(jl.grid1, ju.grid1, length.out = grid.length)
+      jgrid0 <- exp(seq(log(jl.grid0), log(ju.grid0), length.out = grid.length))
+      jgrid1 <- exp(seq(log(jl.grid1), log(ju.grid1), length.out = grid.length))
       
-      grid_0 <- t(apply(cbind(min.grid0, max.grid0), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
-      grid_1 <- t(apply(cbind(min.grid1, max.grid1), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
+      grid_0 <- t(apply(cbind(min.grid0, max.grid0), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
+      grid_1 <- t(apply(cbind(min.grid1, max.grid1), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
       
       grid_0 <- do.call("cbind", lapply(jgrid0, function(joint) rbind(grid_1, joint)))
       grid_1 <- do.call("cbind", lapply(jgrid1, function(joint) rbind(grid_1, joint)))
       
     } else {
-      grid_0 <- t(apply(cbind(min.grid0, max.grid0), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
-      grid_1 <- t(apply(cbind(min.grid1, max.grid1), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
+      grid_0 <- t(apply(cbind(min.grid0, max.grid0), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
+      grid_1 <- t(apply(cbind(min.grid1, max.grid1), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
       
       
     }
@@ -753,14 +753,14 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
       if (jl.grid < wass_nnm[[D + 1]]) jl.grid <- wass_nnm[[D + 1]]
       if (ju.grid > wass_full[[D + 1]]) ju.grid <- wass_full[[D + 1]]
       
-      jgrid <- seq(jl.grid, ju.grid, length.out = grid.length)
+      jgrid <- exp(seq(log(jl.grid), log(ju.grid), length.out = grid.length))
 
-      grid_temp <- t(apply(cbind(min.grid, max.grid), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
+      grid_temp <- t(apply(cbind(min.grid, max.grid), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
       
       grid_temp <- do.call("cbind", lapply(jgrid, function(joint) rbind(grid_temp, joint)))
       
     } else {
-        grid_temp <- t(apply(cbind(min.grid, max.grid), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
+        grid_temp <- t(apply(cbind(min.grid, max.grid), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
         
     }
     grid <- lapply(1:ncol(grid_temp), function(i) grid_temp[,i] )
@@ -796,8 +796,8 @@ joint.cwass.fun.grid <- function(data, cost, grid.length, p, estimand, wass.iter
                        p = p, method = "networkflow", niter = wass.iter, ...)
     )
     
-    grid <- rbind(seq(wass_nnm[[1]], wass_full[[1]], length.out = grid.length),
-                  seq(wass_nnm[[2]], wass_full[[2]], length.out = grid.length))
+    grid <- rbind(exp(seq(log(wass_nnm[[1]]), log(wass_full[[1]]), length.out = grid.length)),
+                  exp(seq(log(wass_nnm[[2]]), log(wass_full[[2]]), length.out = grid.length)))
     grid <- lapply(1:grid.length, function(i) grid[,i])
     
     # args <- list(data = data, constraint = grid[[1]],  estimand = estimand, 
@@ -835,7 +835,7 @@ joint.cwass.fun.grid <- function(data, cost, grid.length, p, estimand, wass.iter
                                   p = p, method = "networkflow", niter = wass.iter, ...
     )
     
-    grid <- seq(wass_nnm, wass_full, length.out = grid.length)
+    grid <- exp(seq(log(wass_nnm), log(wass_full), length.out = grid.length))
     
   }
   return(grid)
