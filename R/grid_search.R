@@ -676,24 +676,28 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     #for control
     nnm.adjusted0 <- (wass_nnm_0[1:D]^p * 1/scales)^(1/p)
     full.adjusted0 <- (wass_full_0[1:D]^p * 1/scales)^(1/p)
-    min.grid0 <- max((min(nnm.adjusted0[keep])^p * scales)^(1/p), 1e-4)
+    min.grid0 <- max((max(nnm.adjusted0[keep])^p * scales)^(1/p), 1e-4)
     max.grid0 <- (max(full.adjusted0[keep])^p * scales)^(1/p)
     
     #for treated
     nnm.adjusted1 <- (wass_nnm_1[1:D]^p * 1/scales)^(1/p)
     full.adjusted1 <- (wass_full_1[1:D]^p * 1/scales)^(1/p)
-    min.grid1 <- max((min(nnm.adjusted1[keep])^p * scales[keep])^(1/p), 1e-4)
+    min.grid1 <- max((max(nnm.adjusted1[keep])^p * scales[keep])^(1/p), 1e-4)
     max.grid1 <- (max(full.adjusted1[keep])^p * scales[keep])^(1/p)
     
     if (add.joint) {
-      jl.grid0 <- sum(min.grid0^p)^(1/p)
-      ju.grid0 <- sum(max.grid0^p)^(1/p)
-      jl.grid1 <- sum(min.grid1^p)^(1/p)
-      ju.grid1 <- sum(max.grid1^p)^(1/p)
-      if (ju.grid0 < wass_full_0[[D + 1]]) ju.grid0 <- wass_full_0[[D + 1]]
-      if (jl.grid0 < wass_nnm_0[[D + 1]]) jl.grid0 <- wass_nnm_0[[D + 1]]
-      if (ju.grid1 < wass_full_1[[D + 1]]) ju.grid1 <- wass_full_1[[D + 1]]
-      if (jl.grid1 > wass_nnm_1[[D + 1]]) jl.grid1 <- wass_nnm_1[[D + 1]]
+      # jl.grid0 <- sum(min.grid0^p)^(1/p)
+      # ju.grid0 <- sum(max.grid0^p)^(1/p)
+      # jl.grid1 <- sum(min.grid1^p)^(1/p)
+      # ju.grid1 <- sum(max.grid1^p)^(1/p)
+      # if (ju.grid0 < wass_full_0[[D + 1]]) 
+        ju.grid0 <- wass_full_0[[D + 1]]
+      # if (jl.grid0 < wass_nnm_0[[D + 1]]) 
+        jl.grid0 <- wass_nnm_0[[D + 1]]
+      # if (ju.grid1 < wass_full_1[[D + 1]]) 
+        ju.grid1 <- wass_full_1[[D + 1]]
+      # if (jl.grid1 > wass_nnm_1[[D + 1]]) 
+        jl.grid1 <- wass_nnm_1[[D + 1]]
       
       jgrid0 <- exp(seq(log(jl.grid0), log(ju.grid0), length.out = grid.length))
       jgrid1 <- exp(seq(log(jl.grid1), log(ju.grid1), length.out = grid.length))
@@ -746,14 +750,16 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     
     nnm.adjusted  <- (wass_nnm[1:D]^p / scales)^(1/p)
     full.adjusted <- (wass_full[1:D]^p / scales)^(1/p)
-    min.grid      <- max((min(nnm.adjusted[keep])^p * scales)^(1/p), 1e-4)
+    min.grid      <- max((max(nnm.adjusted[keep])^p * scales)^(1/p), 1e-4)
     max.grid      <- (max(full.adjusted[keep])^p * scales)^(1/p)
     
     if (add.joint) {
-      jl.grid <- sum(min.grid^p)^(1/p)
-      ju.grid <- sum(max.grid^p)^(1/p)
-      if (jl.grid < wass_nnm[[D + 1]]) jl.grid <- wass_nnm[[D + 1]]
-      if (ju.grid > wass_full[[D + 1]]) ju.grid <- wass_full[[D + 1]]
+      # jl.grid <- sum(min.grid^p)^(1/p)
+      # ju.grid <- sum(max.grid^p)^(1/p)
+      # if (jl.grid < wass_nnm[[D + 1]]) 
+        jl.grid <- wass_nnm[[D + 1]]
+      # if (ju.grid > wass_full[[D + 1]]) 
+        ju.grid <- wass_full[[D + 1]]
       
       jgrid <- exp(seq(log(jl.grid), log(ju.grid), length.out = grid.length))
 
