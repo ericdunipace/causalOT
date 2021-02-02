@@ -255,6 +255,12 @@ wass_grid_search <- function(data, grid = NULL,
     grid <- eval(g.call, envir = gargs)
   }
   
+  if (!all(is.na(grid)) && isTRUE(all.equal(grid[1], grid[length(grid)], check.attributes = FALSE)) ) {
+    return(calc_weight_NNM(data = data, estimand = estimand,
+                           transport.matrix = TRUE,
+                           ...))
+  }
+  
   args <- list(data = data, constraint = grid[[1]],  estimand = estimand, 
                method = method, solver = solver, metric = metric,
                p = p, cost = cost, add.joint = add.joint,
@@ -290,13 +296,13 @@ wass_grid_search <- function(data, grid = NULL,
   if (estimand != "ATE") {
     # bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
     # bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    # if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
-    #   rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
-    #   colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
-    # } else {
+    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+      rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
+      colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
+    } else {
       rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
       colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
-    # }
+    }
     
     if (is.null(dots$cost_a)) {
       cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
@@ -305,7 +311,7 @@ wass_grid_search <- function(data, grid = NULL,
                metric = metric, estimand = "ATT")
     } else {
       cost_a <- dots$cost_a
-      if(is.list(cost_a)) cost_a <- cost_a[[1]]
+      if (is.list(cost_a)) cost_a <- cost_a[[1]]
     }
     
     if (is.null(dots$cost_b)) {
@@ -315,7 +321,7 @@ wass_grid_search <- function(data, grid = NULL,
                          metric = metric, estimand = "ATT")
     } else {
       cost_b <- dots$cost_b
-      if(is.list(cost_b)) cost_b <- cost_b[[1]]
+      if (is.list(cost_b)) cost_b <- cost_b[[1]]
     }
     
     tx_idx <- which(pd$z == 1)
@@ -375,15 +381,15 @@ wass_grid_search <- function(data, grid = NULL,
     # bootIdx.cols    <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
     # bootIdx.rows.0  <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
     # bootIdx.rows.1  <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    # if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
       rowCount.0 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)),     simplify = FALSE)
       rowCount.1 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)),     simplify = FALSE)
       colCount   <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n), prob = sample_weight$total)), simplify = FALSE)
-    # } else {
-    #   rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
-    #   rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
-    #   colCount   <- replicate(n.boot, c(rmultinom(1, n, prob = sample_weight$total)), simplify = FALSE)
-    # }
+    } else {
+      rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
+      rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
+      colCount   <- replicate(n.boot, c(rmultinom(1, n, prob = sample_weight$total)), simplify = FALSE)
+    }
     
     
     
