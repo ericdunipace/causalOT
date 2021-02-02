@@ -30,8 +30,8 @@ extract_x.data.frame <- function(data, ...) {
   }
   z <- as.integer(data[ , tx.var])
   
-  x1 <- data[z == 1, x.vars]
-  x0 <- data[z == 0, x.vars]
+  x1 <- data[z == 1, x.vars, drop = FALSE]
+  x0 <- data[z == 0, x.vars, drop = FALSE]
   return(list(x0 = x0, x1 = x1))
 }
 
