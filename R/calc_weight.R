@@ -204,7 +204,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   output <- list(w0 = c(w0), w1 = c(w1), 
                  gamma = NULL,
                  estimand = estimand,
-                 method = "RKHS", 
+                 method = "NNM", 
                  args = addl.args)
   
   if (isTRUE(transport.matrix)) {
