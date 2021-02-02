@@ -16,9 +16,17 @@ mean_bal <- function(data, weights = NULL, ...) {
   }
   
   sigma_x1 <- colVar(x1)
-  sigma_x2 <- colVar(x0)
+  sigma_x0 <- colVar(x0)
   
-  pool_sd <- sqrt(sigma_x1 * 0.5 + sigma_x2 * 0.5)
+  
+  n1 <- nrow(x1)
+  n0 <- nrow(x0)
+  
+  if (n0 > 1 && n1 > 1) {
+    pool_sd <- sqrt(sigma_x1 * 0.5 + sigma_x0 * 0.5)
+  } else {
+    pool_sd <- sqrt(colVar(rbind(x1, x0)))
+  } 
   
   mean_1 <- matrixStats::colWeightedMeans(x1, weights$w1)
   mean_0 <- matrixStats::colWeightedMeans(x0, weights$w0)
