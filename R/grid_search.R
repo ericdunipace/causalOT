@@ -680,22 +680,22 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     keep <- scales != 0
     
     #for control
-    # nnm.adjusted0 <- (wass_nnm_0[1:D]^p * 1/scales)^(1/p)
-    # full.adjusted0 <- (wass_full_0[1:D]^p * 1/scales)^(1/p)
-    # min.grid0 <- pmax((max(nnm.adjusted0[keep])^p * scales)^(1/p), 1e-4)
-    # max.grid0 <- (max(full.adjusted0[keep])^p * scales)^(1/p)
+    nnm.adjusted0 <- (wass_nnm_0[1:D]^p * 1/scales)^(1/p)
+    full.adjusted0 <- (wass_full_0[1:D]^p * 1/scales)^(1/p)
+    min.grid0 <- pmax((max(nnm.adjusted0[keep])^p * scales)^(1/p), 1e-4)
+    max.grid0 <- (max(full.adjusted0[keep])^p * scales)^(1/p)
     
-    min.grid0 <- wass_nnm_0[1:D]
-    max.grid0 <- wass_full_0[1:D]
+    # min.grid0 <- wass_nnm_0[1:D]
+    # max.grid0 <- wass_full_0[1:D]
     
     #for treated
-    # nnm.adjusted1 <- (wass_nnm_1[1:D]^p * 1/scales)^(1/p)
-    # full.adjusted1 <- (wass_full_1[1:D]^p * 1/scales)^(1/p)
-    # min.grid1 <- pmax((max(nnm.adjusted1[keep])^p * scales[keep])^(1/p), 1e-4)
-    # max.grid1 <- (max(full.adjusted1[keep])^p * scales[keep])^(1/p)
+    nnm.adjusted1 <- (wass_nnm_1[1:D]^p * 1/scales)^(1/p)
+    full.adjusted1 <- (wass_full_1[1:D]^p * 1/scales)^(1/p)
+    min.grid1 <- pmax((max(nnm.adjusted1[keep])^p * scales[keep])^(1/p), 1e-4)
+    max.grid1 <- (max(full.adjusted1[keep])^p * scales[keep])^(1/p)
 
-    min.grid1 <- wass_nnm_1[1:D]
-    max.grid1 <- wass_full_1[1:D]
+    # min.grid1 <- wass_nnm_1[1:D]
+    # max.grid1 <- wass_full_1[1:D]
     
     if (add.joint) {
       # jl.grid0 <- sum(min.grid0^p)^(1/p)
@@ -736,7 +736,7 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     
   } else {
     nnm <- lapply(cost, function(cc) calc_weight(data, estimand = estimand, method = "NNM", 
-                                                 cost = cc,
+                                                 cost = cc, p = p,
                                                  ...))
     wass_nnm <- sapply(1:(D + 1), function(d) wass_dist_helper(a = nnm[[d]], cost = cost[[d]], p = p, method = "networkflow", niter = wass.iter, ...) )
     wass_full <- 
@@ -760,13 +760,13 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     }
     keep <- scales != 0
     
-    # nnm.adjusted  <- (wass_nnm[1:D]^p / scales)^(1/p)
-    # full.adjusted <- (wass_full[1:D]^p / scales)^(1/p)
-    # min.grid      <- pmax((max(nnm.adjusted[keep])^p * scales)^(1/p), 1e-4)
-    # max.grid      <- (max(full.adjusted[keep])^p * scales)^(1/p)
+    nnm.adjusted  <- (wass_nnm[1:D]^p / scales)^(1/p)
+    full.adjusted <- (wass_full[1:D]^p / scales)^(1/p)
+    min.grid      <- pmax((max(nnm.adjusted[keep])^p * scales)^(1/p), 1e-4)
+    max.grid      <- (max(full.adjusted[keep])^p * scales)^(1/p)
     
-    min.grid <- wass_nnm[1:D]
-    max.grid <- wass_full[1:D]
+    # min.grid <- wass_nnm[1:D]
+    # max.grid <- wass_full[1:D]
     
     if (add.joint) {
       # jl.grid <- sum(min.grid^p)^(1/p)
