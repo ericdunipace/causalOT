@@ -844,9 +844,10 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                       formula = weight$args$formula,
                       outcome = outcome,
                       balance.covariates = balance.covariates,
-                      treatment.indicator = treatment.indicator), 
-                 weight$args,
-                 ...)
+                      treatment.indicator = treatment.indicator,
+                      ...), 
+                 weight$args
+                 )
     wt.args <- wt.args[!duplicated(names(wt.args))]
     wt.args <- wt.args[!sapply(wt.args, is.null)]
     wtargn <- lapply(names(wt.args), as.name)
@@ -884,9 +885,9 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                         outcome = outcome,
                         balance.covariates = balance.covariates,
                         treatment.indicator = treatment.indicator,
-                        sample_weight = renormalize(c(tab.0, tab))), 
-                   weight$args,
-                   ...),
+                        sample_weight = renormalize(c(tab.0, tab)),
+                        ...), 
+                   weight$args),
                    c(list(data = dat.1, constraint = weight$args$constraint,
                           estimand = "ATT", method = weight$method,
                           transport.matrix = !is.null(weight$gamma),
@@ -895,9 +896,9 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                           outcome = outcome,
                           balance.covariates = balance.covariates,
                           treatment.indicator = treatment.indicator, 
-                     sample_weight = renormalize(c(tab.1, tab))),
-                     weight$args,
-                     ...)
+                     sample_weight = renormalize(c(tab.1, tab)),
+                     ...),
+                     weight$args)
       )
       wt.args <- list(wt.args[[1]][!duplicated(names(wt.args[[1]]))],
                       wt.args[[2]][!duplicated(names(wt.args[[2]]))])
@@ -931,9 +932,9 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                         outcome = outcome,
                         balance.covariates = balance.covariates,
                         treatment.indicator = treatment.indicator, 
-                        sample_weight = sample.wt),
-                   weight$args,
-                   ...)
+                        sample_weight = sample.wt,
+                        ...),
+                   weight$args)
     }
     wt.args <- wt.args[!duplicated(names(wt.args))]
     wt.args <- wt.args[!sapply(wt.args, is.null)]
@@ -978,9 +979,9 @@ ci_idx_to_est <- function(idx,
                        sample_weight = sample.wt,
                        balance.covariates = balance.covariates,
                        treatment.indicator = treatment.indicator,
-                       outcome = outcome),
-                  object$options$addl.args,
-                  ...)
+                       outcome = outcome,
+                       ...),
+                  object$options$addl.args)
   } else {
     sample.wt <- list(
                       a = renormalize(tabulate(idx[[1]], n0)),
@@ -999,9 +1000,9 @@ ci_idx_to_est <- function(idx,
                        sample_weight = sample.wt,
                        balance.covariates = balance.covariates,
                        treatment.indicator = treatment.indicator,
-                       outcome = outcome),
-                  object$options$addl.args,
-                  ...)
+                       outcome = outcome,
+                       ...),
+                  object$options$addl.args)
     
   }
   
