@@ -364,7 +364,7 @@ wass_grid_search <- function(data, grid = NULL,
     }
     output <- pbapply::pbsapply(weight.list, function(ww) {
       boot.args$MoreArgs$weight <- ww
-      return(mean(eval(b.call, envir = boot.args)))
+      return(mean(eval(b.call, envir = boot.args)^p))
     })
     # for (g in seq_along(grid)) {
     #   boot.args$MoreArgs$weight <- weight.list[[g]]
@@ -477,12 +477,12 @@ wass_grid_search <- function(data, grid = NULL,
  
       boot.args0$MoreArgs$weight$w0 <- weight.list[[g]]$w0
       # boot.args$MoreArgs$cost   <- cost[[1]]
-      output_0[g]               <- mean(eval(b.call, envir = boot.args0))
+      output_0[g]               <- mean(eval(b.call, envir = boot.args0)^p)
       
      
       boot.args1$MoreArgs$weight$w0 <- weight.list[[g]]$w1
       # boot.args$MoreArgs$cost   <- cost[[2]]
-      output_1[g]               <- mean(eval(b.call, envir = boot.args1))
+      output_1[g]               <- mean(eval(b.call, envir = boot.args1)^p)
       if (verbose) setTxtProgressBar(pb, g)
     }
     if (all(is.na(output_0)) | all(is.na(output_1))) stop("wass_grid_search: All grid values generated errors")
