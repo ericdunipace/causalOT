@@ -545,11 +545,11 @@ calc_gamma <- function(weights, ...) {
     } else {
       cost <- dots$cost[nzero_row, nzero_col, drop = FALSE]
       # transp_plan <- transport::transport(a, b, p = p, costm = cost)
-      tplan <- approxOT::transport(a = a,
-                                    b = b,
-                                    # p = dots$p,
-                                    cost = cost^dots$p,
-                                   method = "exact")$tplan
+      tplan <- approxOT::transport_plan_given_C(mass_x = a,
+                                    mass_y = b,
+                                    p = dots$p,
+                                    cost = cost,
+                                   method = "exact")
       
       temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
       
