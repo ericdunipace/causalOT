@@ -51,11 +51,15 @@ barycentric_projection <- function(data, weight,
   y_out$treated[z==1] <- y1
   
   if(is.null(gamma)) {
-    cost <- causalOT::cost_fun(x, z,
-                               power = pow,
-                               metric = met, rkhs.args = rkhs.args,
-                               estimand = est
-    )
+    if(is.null(dots$cost)) {
+      cost <- causalOT::cost_fun(x, z,
+                                 power = pow,
+                                 metric = met, rkhs.args = rkhs.args,
+                                 estimand = est)
+    } else {
+      cost <- dots$cost
+    }
+    
     if(est == "ATE" ) {
       # cost <- list(causalOT::cost_fun(x[z==0,], x,
       #                            power = pow,

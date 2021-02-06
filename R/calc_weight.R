@@ -307,6 +307,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
     dots$p <- NULL
   }
   output$args <- c(list(solver = solver, constraint = constraint),
+                        # sol = sol$sol),
                         dots)
   
   return(output)
@@ -438,37 +439,38 @@ convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
   
   if ( method %in% c("Wasserstein", "Constrained Wasserstein") ) {
     if (estimand == "ATC") {
-      output$gamma <- matrix(sol[[1]], n0, n1)
+      output$gamma <- matrix(sol[[1]], n0, n1) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- sample_weight$a
       output$w1 <- colSums(output$gamma)
     } else if (estimand == "ATT") {
-      output$gamma <- matrix(sol[[1]], n0, n1)
+      output$gamma <- matrix(sol[[1]], n0, n1) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- rowSums(output$gamma)
       output$w1 <- sample_weight$b
     } else if (estimand == "cATE") {
-      output$w0 <- rowSums(matrix(sol[[2]], n0, n1))
-      output$w1 <- colSums(matrix(sol[[1]], n0, n1))
+      output$w0 <- rowSums(matrix(sol[[2]], n0, n1)) #matrix(sol[[2]]$result, n0, n1)
+      output$w1 <- colSums(matrix(sol[[1]], n0, n1)) ##matrix(sol[[1]]$result, n0, n1)
     } else if (estimand == "ATE") {
       N <- n0 + n1
-      output$w0 <-  rowSums(matrix(sol[[1]], n0, N))
-      output$w1 <-  rowSums(matrix(sol[[2]], n1, N)) #note both are rowSums here
+      output$w0 <-  rowSums(matrix(sol[[1]], n0, N)) #matrix(sol[[1]]$result, n0, n1)
+      output$w1 <-  rowSums(matrix(sol[[2]], n1, N)) #matrix(sol[[2]]$result, n0, n1)
+      #note both are rowSums here
     }
   } else {
     if (estimand == "ATT") {
-      output$w0 <- sol[[1]]
+      output$w0 <- sol[[1]] #renormalize(sol[[1]]$result)
       output$w1 <- sample_weight$b
     } else if (estimand == "ATC") {
       output$w0 <- sample_weight$a
-      output$w1 <- sol[[1]]
+      output$w1 <- sol[[1]] #renormalize(sol[[1]]$result)
     } else if (estimand == "feasible") {
-      output$w0 <- renormalize(sol[[1]][1:n0])
-      output$w1 <- renormalize(sol[[1]][n0 + 1:n1])
+      output$w0 <- renormalize(sol[[1]][1:n0]) #renormalize(sol[[1]]$result[1:n0])
+      output$w1 <- renormalize(sol[[1]][n0 + 1:n1]) #renormalize(sol[[1]][n0 + 1:n1])
     } else if (estimand == "cATE") {
-      output$w0 <- renormalize(sol[[1]])
-      output$w1 <- renormalize(sol[[2]])
+      output$w0 <- renormalize(sol[[1]]) #renormalize(sol[[1]]$result)
+      output$w1 <- renormalize(sol[[2]]) #renormalize(sol[[2]]$result)
     } else if (estimand == "ATE") {
-      output$w0 <- renormalize(sol[[1]])
-      output$w1 <- renormalize(sol[[2]])
+      output$w0 <- renormalize(sol[[1]]) #renormalize(sol[[1]]$result)
+      output$w1 <- renormalize(sol[[2]]) #renormalize(sol[[2]]$result)
     }
   }
   
@@ -543,10 +545,11 @@ calc_gamma <- function(weights, ...) {
     } else {
       cost <- dots$cost[nzero_row, nzero_col, drop = FALSE]
       # transp_plan <- transport::transport(a, b, p = p, costm = cost)
-      tplan <- transport::transport(a = a,
+      tplan <- approxOT::transport(a = a,
                                     b = b,
                                     # p = dots$p,
-                                    costm = cost^dots$p)
+                                    cost = cost^dots$p,
+                                   method = "exact")$tplan
       
       temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
       

@@ -154,7 +154,7 @@ mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
   n  <- length(z)
   n1 <- sum(z)
   n0 <- n - n1
-  runMap <- isTRUE(weights$method %in% ot.methods())
+  runMap <- TRUE # isTRUE(weights$method %in% ot.methods())
   
   if (runMap) {
     # browser()
@@ -336,7 +336,7 @@ setClass("IDmodel", slots = c(fit = "numeric", residuals = "numeric"))
 setMethod("predict", signature = c(object = "IDmodel"), definition = predict.IDmodel)
 
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand,
-                         sample_weight) {
+                         sample_weight, ...) {
   
   w0 <- weights$w0
   w1 <- weights$w1
@@ -395,7 +395,8 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
 
     maps <- mapping(data = data, z = z, weights = weights, 
                     estimand = estimand, f1 = f_1, f0 = f_0,
-                    sw = sample_weight)
+                    sw = sample_weight,
+                    ...)
     # browser()
     # mw        <- switch(estimand,
     #                     "ATT" = sample_weight$b,
@@ -587,7 +588,8 @@ estimate_effect <- function(data, formula = NULL, weights,
   #get estimate
   estimate <- if (split.model) {
     outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun,
-                           matched, estimand, sample_weight)
+                           matched, estimand, sample_weight,
+                 ...)
   } else {
     outcome_calc_model(prep.data$df, prep.data$z, weights, formula, model.fun,
                        matched, estimand, ...)

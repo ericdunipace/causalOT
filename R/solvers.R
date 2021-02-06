@@ -73,6 +73,12 @@ gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
   # 
   # dual_vars <- out$pi[-length(out$pi)]
   return(sol)
+  
+  if (dots$save.solution) {
+    return(list(result = sol, res = res))
+  } else {{
+    return(list(result = sol))
+  }}
 }
 
 mosek_solver <- function(qp, neg.weights = FALSE, ...) {
@@ -134,7 +140,21 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
                       buc = buc)
   }
   
-  opts <- list(verbose = 0L)
+  dots <- list(...)
+  
+  problem$sol <- dots$sol
+  problem$iparam <- list(OPTIMIZER = dots$OPTIMIZER)
+  
+  if(!is.null(dots$sol)) problem$param$optimizer <- "FREE_SIMPLEX" # "MSK_OPTIMIZER_FREE_SIMPLEX"
+  
+  opts$verbose <- dots$verbose
+  opts$usesol <- dots$usesol
+  opts$useparam <- dots$useparam
+  opts$soldetail <- dots$soldetail
+  opts$getinfo <- dots$getinfo
+  opts$writebefore <- dots$writebefore
+  opts$writeafter <- dots$writeafter
+  
   
   # dots <- list(...)
   # model$sol <- c(dots$init.sol)
@@ -158,6 +178,12 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
   # 
   # dual_vars <- res$sol$itr$slc - res$sol$itr$suc
   return(sol)
+  
+  if (dots$save.solution) {
+    return(list(result = sol, res = res))
+  } else {{
+    return(list(result = sol))
+  }}
 }
 
 QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
@@ -174,4 +200,7 @@ QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
                 "gurobi" = gurobi_solver(qp, ...),
                 "mosek" = mosek_solver(qp, ...))
   return(renormalize(sol))
+  
+  sol$result <- renormalize(sol$result)
+  return(sol)
 }

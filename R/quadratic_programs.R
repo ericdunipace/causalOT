@@ -2400,6 +2400,13 @@ check_wass_const <- function(opt_problem) {
   return(output)
 }
 
+# update.qp <- function(object, new, method, add.margins) {
+#   if (method == "Wasserstein") {
+#     object$obj$Q <- Matrix::Diagonal(nrow(object$obj$Q), new[length(new)] * 0.5)
+#   } if (method == "Constrained Wasserstein") {
+#     object$LC$
+#   }
+# }
 
 # setOldClass("DataSim")
 setGeneric("quadprog", function(data, ...) UseMethod("quadprog"))

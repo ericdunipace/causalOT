@@ -264,7 +264,8 @@ wass_grid_search <- function(data, grid = NULL,
   args <- list(data = data, constraint = grid[[1]],  estimand = estimand, 
                method = method, solver = solver, metric = metric,
                p = p, cost = cost, add.joint = add.joint,
-               add.margins = add.margins,
+               add.margins = add.margins, save.solution = TRUE,
+               sol = NULL,
                ...)
   args <- args[!duplicated(names(args))]
   argn <- lapply(names(args), as.name)
@@ -277,6 +278,40 @@ wass_grid_search <- function(data, grid = NULL,
   } else {
     pbapply::pboptions(type = "none")
   }
+  
+  # qp.constructor <- switch(args$method,
+  #                          "qp_wass",
+  #                          "qp_const_wass")
+  # 
+  # f.call <- as.call(setNames(c(as.name(qp.constructor), argn), c("", names(args))))
+  # qp  <- eval(f.call, envir = args)
+  # 
+  # for(g in grid) {
+  #   if (args$method == "Wasserstein") {
+  #     qp$Q <- qp$Q * g[[1]][length(g[[1]])]
+  #     if (args$add.margins) {
+  #       
+  #     } 
+  #   }
+  # }
+  
+  # out <- vector("list", length(grid))
+  # 
+  # for (g in seq_along(grid)) {
+  #   args$constraint <- unlist(grid[[g]])
+  #   out[[g]] <- tryCatch(eval(f.call, envir = args),
+  #                               error = function(e) {
+  #                                 warning(e$message)
+  #                                 return(list(w0 = rep(NA_real_, n0),
+  #                                             w1 = rep(NA_real_, n1),
+  #                                             gamma = NULL,
+  #                                             estimand = estimand,
+  #                                             method = method, args = list(constraint = delta)))})
+  #   if (!is.null(out[[g]]$args$sol)) {
+  #     args$sol <- out[[g]]$args$sol
+  #   }
+  # }
+  
   weight.list <- pbapply::pblapply(grid, function(delta) {
     args$constraint <- delta
     out <- tryCatch(eval(f.call, envir = args),
