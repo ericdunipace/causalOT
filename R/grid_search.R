@@ -264,8 +264,9 @@ wass_grid_search <- function(data, grid = NULL,
   args <- list(data = data, constraint = grid[[1]],  estimand = estimand, 
                method = method, solver = solver, metric = metric,
                p = p, cost = cost, add.joint = add.joint,
-               add.margins = add.margins, save.solution = TRUE,
-               sol = NULL,
+               add.margins = add.margins, 
+               # save.solution = TRUE,
+               # sol = NULL,
                ...)
   args <- args[!duplicated(names(args))]
   argn <- lapply(names(args), as.name)

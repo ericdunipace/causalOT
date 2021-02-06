@@ -140,14 +140,20 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
                       buc = buc)
   }
   
-  dots <- list(...)
+  # dots <- list(...)
+  # 
+  # model$sol <- dots$sol
+  # model$iparam <- list(OPTIMIZER = dots$OPTIMIZER)
+  # 
+  # if(!is.null(dots$sol)) model$iparam$OPTIMIZER <- "MSK_OPTIMIZER_FREE_SIMPLEX"#"FREE_SIMPLEX" # "MSK_OPTIMIZER_FREE_SIMPLEX"
+  # 
+  opts <- list()
+  if(is.null(dots$verbose)) {
+    opts$verbose <- 0L
+  } else {
+    opts$verbose <- as.numeric(dots$verbose)
+  }
   
-  problem$sol <- dots$sol
-  problem$iparam <- list(OPTIMIZER = dots$OPTIMIZER)
-  
-  if(!is.null(dots$sol)) problem$param$optimizer <- "FREE_SIMPLEX" # "MSK_OPTIMIZER_FREE_SIMPLEX"
-  
-  opts$verbose <- dots$verbose
   opts$usesol <- dots$usesol
   opts$useparam <- dots$useparam
   opts$soldetail <- dots$soldetail
