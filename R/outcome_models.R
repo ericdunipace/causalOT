@@ -970,7 +970,7 @@ ci_idx_to_est <- function(idx,
   # dat <- object$data[idx,, drop = FALSE]
   environment(object$formula) <- environment()
   
-  if (!object$options$matched | weight$method == "SBW" | weight$method == "Logistic" | weight$method == "None") {
+  if (!object$options$matched && (weight$method == "SBW" | weight$method == "Logistic" | weight$method == "None") ){
     sample.wt <- rep(1 / (n0 + n1), n0 + n1)
     
     est.args <- c(list(data = object$data[idx,], 
