@@ -721,6 +721,7 @@ ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000,
                                boot.method = boot.method,
                                estimand = object$estimand,
                                method = object$weights$method,
+                               matched = object$options$matched,
                                n0 = ns[1],
                                n1 = ns[2]
                                )
@@ -775,7 +776,7 @@ adjust_m_of_n_btstrp <- function(n, scale = 0.75) {
   return(ceiling(n * 0.75))
 }
 
-cot_boot_samples <- function(n.boot, boot.method, estimand, method, n0, n1, ...) {
+cot_boot_samples <- function(n.boot, boot.method, estimand, method, matched, n0, n1, ...) {
   n <- n0 + n1
   if (boot.method == "m-out-of-n") {
     n0samp <- adjust_m_of_n_btstrp(n0)
@@ -786,11 +787,13 @@ cot_boot_samples <- function(n.boot, boot.method, estimand, method, n0, n1, ...)
     n1samp <- n1
     nsamp  <- n
   }
+  matched <- isTRUE(matched)
   # boot.idx <- replicate(n = n.boot, sample.int(n,n,replace = TRUE),
   #                       simplify = FALSE)
   # return(boot.idx)
   # if that doesn't work then: 
-  if (method == "SBW" | method == "Logistic" | method == "None") {
+  if (!matched && (
+    method == "SBW" | method == "Logistic" | method == "None") ) {
     boot.idx <- replicate(n = n.boot, sample.int(n = n, size = nsamp,
                                                  replace = TRUE),
                           simplify = FALSE)
@@ -837,7 +840,8 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
   # wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
   # return(eval(wf.call, envir = wt.args))
   #if this doesn't work, then try the following
-  if (method == "SBW" | method == "Logistic" | method == "None") {
+  if (object$options$matched == FALSE &&
+    (method == "SBW" | method == "Logistic" | method == "None") ) {
     wt.args <- c(list(data = object$data[idx,, drop = FALSE], 
                       constraint = weight$args$constraint,
                       estimand = object$estimand, method = weight$method,
@@ -966,7 +970,7 @@ ci_idx_to_est <- function(idx,
   # dat <- object$data[idx,, drop = FALSE]
   environment(object$formula) <- environment()
   
-  if (weight$method == "SBW" | weight$method == "Logistic" | weight$method == "None") {
+  if (!object$options$matched | weight$method == "SBW" | weight$method == "Logistic" | weight$method == "None") {
     sample.wt <- rep(1 / (n0 + n1), n0 + n1)
     
     est.args <- c(list(data = object$data[idx,], 

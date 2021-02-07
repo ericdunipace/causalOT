@@ -140,7 +140,7 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
                       buc = buc)
   }
   
-  # dots <- list(...)
+  dots <- list(...)
   # 
   # model$sol <- dots$sol
   # model$iparam <- list(OPTIMIZER = dots$OPTIMIZER)
