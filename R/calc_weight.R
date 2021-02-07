@@ -516,13 +516,13 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE, ...) {
   return(output)
 }
 
-calc_gamma <- function(weights, ...) {
+calc_gamma <- function(weights, cost = NULL, p = null, ...) {
   if (!is.null(weights$gamma)) return(weights$gamma)
   dots <- list(...)
   n1 <- length(weights$w1)
   n0 <- length(weights$w0)
-  if(!is.null(dots$cost) & !is.null(dots$p)) {
-    if (length(dots$cost[[1]]) > 1) return(NULL)
+  if(!is.null(cost) & !is.null(p)) {
+    if (length(cost[[1]]) > 1) return(NULL)
     nzero_row <- weights$w0>0
     nzero_col <- weights$w1>0
     
@@ -543,13 +543,19 @@ calc_gamma <- function(weights, ...) {
         temp_gamma[1:n_a,1] <- a
       }
     } else {
-      cost <- dots$cost[nzero_row, nzero_col, drop = FALSE]
+      cost <- cost[nzero_row, nzero_col, drop = FALSE]
       # transp_plan <- transport::transport(a, b, p = p, costm = cost)
+      if( is.null(dots$niter)) {
+        niter <- 1e6
+      } else {
+        niter <- dots$niter
+      }
       tplan <- approxOT::transport_plan_given_C(mass_x = a,
                                     mass_y = b,
-                                    p = dots$p,
+                                    p = p,
                                     cost = cost,
-                                   method = "exact")
+                                    method = "exact", niter = niter,
+                                    ...)
       
       temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
       

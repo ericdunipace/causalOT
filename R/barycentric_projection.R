@@ -73,12 +73,12 @@ barycentric_projection <- function(data, weight,
       # )
       
       gamma <- list(calc_gamma(weights = list(w0 = weight$w0, w1 = rep(1/n,n)), 
-                               cost = cost[[1]], p = pow),
+                               cost = cost[[1]], p = pow, ...),
                     calc_gamma(weights = list(w0 = weight$w1, w1 = rep(1/n,n)), 
-                               cost = cost[[2]], p = pow))
+                               cost = cost[[2]], p = pow, ...))
     } else if(est == "ATT" | est == "ATC") {
       
-      gamma <- calc_gamma(weight, cost = cost, p = pow)
+      gamma <- calc_gamma(weight, cost = cost, p = pow, ...)
     }
     
   }
