@@ -14,6 +14,8 @@ inst/output
 inst/.DS_Store
 inst/simulations/results/lalonde/CI/*.rds
 inst/simulations/results
+inst/simulations
+inst/simulations/CRASH3/results/estimates/*.*
 Output
 archive
 tables
