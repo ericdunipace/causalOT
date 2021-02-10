@@ -167,7 +167,9 @@
                                            constrained.wasserstein.target = c("SBW"),
                                            wasserstein.distance.constraints = NULL,
                                            add.joint = TRUE,
-                                           add.margins = FALSE)
+                                           add.margins = FALSE,
+                                           penalty = "L2",
+                                           joint.mapping = FALSE)
                              }
                              private$wass.opt <- list()
                              if(!is.null(Wass$metrics)) {
@@ -230,6 +232,18 @@
                                private$wass.opt$add.margins <- sapply(Wass$add.margins, isTRUE)
                              } else {
                                private$wass.opt$add.margins <- FALSE
+                             }
+                             
+                             if (!is.null(Wass$joint.mapping)) {
+                               private$wass.opt$joint.mapping <- sapply(Wass$joint.mapping, isTRUE)
+                             } else {
+                               private$wass.opt$joint.mapping <- c(FALSE)
+                             }
+                             
+                             if (!is.null(Wass$penalty)) {
+                               private$wass.opt$penalty <- match.arg(Wass$penalty, c("L2", "variance","entropy", "none"), several.ok = TRUE)
+                             } else {
+                               private$wass.opt$penalty <- "L2"
                              }
                              # private$metric <- match.arg(Wass$metrics,
                              #                             c("Lp", "mahalanobis", "RKHS"), several.ok = TRUE)
@@ -335,7 +349,7 @@
                              if(is.null(private$ps.formula$cwass)) private$ps.formula$cwass <- NA #"z ~ . + 0"
                              if(is.null(private$ps.formula$wass)) private$ps.formula$wass <- NA #"z ~ . + 0"
                              
-                             private$calculate.feasible <- isTRUE(calculate.feasible)
+                             private$calculate.feasible <- FALSE #isTRUE(calculate.feasible)
                              options <- get_holder_options()
                              if(!is.null(estimands)) {
                                estimands <- match.arg(estimands, several.ok = TRUE)
@@ -547,6 +561,9 @@
                                             wass.df <- private$wass_df
                                             for (solver in cur$solver) {
                                               for (o in cur$options[[1]]) {
+                                                # if (method == "Wasserstein" || method == "Constrained Wasserstein") {
+                                                  # if (isTRUE(o$penalty == "entropy") && isTRUE(o$joint.mapping == TRUE) ) next
+                                                # }
                                                 for (est in cur$estimand[[1]]) {
                                                   delta <- private$get_delta(o, est, method)
                                                   if ( isTRUE(is.null(delta)) ) next
@@ -561,14 +578,16 @@
                                                                       estimand = est, 
                                                                       solver = solver,
                                                                       delta = delta,
-                                                                      cost = private$get_cost(o, method, est), 
+                                                                      # cost = private$get_cost(o, method, est), 
                                                                       p = private$get_power(o),
                                                                       grid.search = isTRUE(o$grid.search),
                                                                       opt.hyperparam = isTRUE(o$opt),
                                                                       opt.method = o$opt.method,
                                                                       metric = o$metric,
                                                                       formula = o$formula[[1]],
-                                                                      add.margins = isTRUE(o$add.margins)
+                                                                      add.margins = isTRUE(o$add.margins),
+                                                                      penalty = o$penalty,
+                                                                      joint.mapping = o$joint.mapping
                                                   )
                                                   if (private$check.skip(private$weights[[est]])) next
                                                   
@@ -611,6 +630,7 @@
                                                                                     formula = cur$outcome.formula[[1]][[aug + 1]],
                                                                                     weights = private$weights[[est]],
                                                                                     hajek = TRUE,
+                                                                                    p = 1,
                                                                                     doubly.robust = aug,
                                                                                     matched = match,
                                                                                     split.model = split,
@@ -754,7 +774,7 @@
                                               # }
                                               delta <- temp.wass$dist[[idx]]
                                               # if(is.null(delta)) delta <- NA
-                                              return(delta)
+                                              return(list(joint = delta))
                                             # } else if (method == "Wasserstein" | method == "RKHS") {
                                             } else if ( (method == "Constrained Wasserstein" |
                                                        method == "Wasserstein" ) & 
@@ -801,12 +821,14 @@
                                                   lapply(delta.joint, function(dd) rep((dd^opts$wass_p/nc)^(1/opts$wass_p), nc))
                                                 }
                                                 if (private$wass.opt$add.joint) {
-                                                  if(estimand == "ATE") {
-                                                    delta <- list(c(delta.marg[[1]], delta.joint[[1]]),
-                                                         c(delta.marg[[2]], delta.joint[[2]]))
+                                                  if (estimand == "ATE") {
+                                                    delta <- list(list(margins = delta.marg[[1]], joint =delta.joint[[1]]),
+                                                         list(margins = delta.marg[[2]], joint = delta.joint[[2]]))
+                                                  } else {
+                                                    delta <- list(margins = delta.marg, joint = delta.joint)
                                                   }
                                                 } else {
-                                                  delta <- delta.marg
+                                                  delta <- list(margins = delta.marg)
                                                 }
                                                 return(delta)
                                             } else if (method == "Wasserstein" & !private$grid.search) {
@@ -831,10 +853,16 @@
                                                                temp.wass$wass_p == opts$wass_p )
                                                 # delta <- temp.wass$dist[[idx]]
                                               } 
-                                              return(temp.wass$dist[[idx]])
+                                              return(list(penalty = temp.wass$dist[[idx]]))
                                             } else if (method == "RKHS") {
-                                              return(NA)
-                                            # } else if (method
+                                              return(NA_real_)
+                                            } else if (method == "SCM") {
+                                              if (is.null(opts$delta) ) {
+                                                return(list(penalty = 1))
+                                              } else {
+                                                list(penalty = opts$delta)
+                                              }
+                                              
                                             } else {
                                               return(opts$delta)
                                             }
@@ -879,6 +907,7 @@
                                                                                                                            NNM = "calc_weight",
                                                                                                                            SBW = "calc_weight",
                                                                                                                            RKHS = "calc_weight",
+                                                                                                                           SCM = "calc_weight",
                                                                                                                            'Constrained Wasserstein' = "calc_weight",    
                                                                                                                            Wasserstein = "calc_weight",
                                                                                                                            NA_character_
@@ -909,6 +938,7 @@
                                                                                                                        Logistic = "glm",
                                                                                                                        NNM = NA_character_,
                                                                                                                        SBW = private$solver,
+                                                                                                                       SCM = private$solver,
                                                                                                                        RKHS = private$solver,
                                                                                                                        RKHS.dose = private$solver,
                                                                                                                        'Constrained Wasserstein' = private$solver,    
@@ -963,7 +993,9 @@
                                                                delta = wdc,
                                                                grid.search = private$grid.search,
                                                                formula = private$ps.formula$cwass,
-                                                               add.margins = private$wass.opt$add.margins
+                                                               add.margins = private$wass.opt$add.margins,
+                                                               joint.mapping = private$wass.opt$joint.mapping,
+                                                               penalty = private$wass.opt$penalty
                                             )
                                             wass_list <- list( metric = private$metric,
                                                               ground_p = private$ground_powers,
@@ -976,18 +1008,27 @@
                                                               delta = sdm,
                                                               grid.search = private$grid.search,
                                                               formula = private$ps.formula$wass,
-                                                              add.margins = private$wass.opt$add.margins
+                                                              add.margins = private$wass.opt$add.margins,
+                                                              joint.mapping = private$wass.opt$joint.mapping,
+                                                              penalty = private$wass.opt$penalty
+                                            )
+                                            scm_list <- list(  delta = sdm,
+                                                               grid.search = private$grid.search,
+                                                               add.margins = private$wass.opt$add.margins,
+                                                               joint.mapping = TRUE,
+                                                               penalty = private$wass.opt$penalty
                                             )
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
                                             private$method.lookup$options <- sapply(private$method, function(mm) switch(mm,
-                                                                                                                        None = list(delta = NA_real_),
+                                                                                                                        None = list(delta = NA_real_, other = NA_character_),
                                                                                                                         Logistic = list(delta = private$truncations,
                                                                                                                                         formula = private$ps.formula$logistic),
                                                                                                                         NNM = nnm_list,
                                                                                                                         SBW = list(grid.search = private$grid.search,
                                                                                                                                    delta = sdm,
                                                                                                                                    formula = private$ps.formula$sbw),   
+                                                                                                                        SCM = scm_list,
                                                                                                                         RKHS = RKHS_list,
                                                                                                                         RKHS.dose = RKHS.dose_list,
                                                                                                                         'Constrained Wasserstein' = Cwass_list,    
@@ -1143,7 +1184,9 @@
                                                                  opt.method = c("stan", "optim", "bayesian.optimization"),
                                                                  metric = metric,
                                                                  formula,
-                                                                 add.margins = FALSE) {
+                                                                 add.margins = FALSE,
+                                                                 penalty,
+                                                                 joint.mapping) {
                                             method <- as.character(cur$method[[1]])
                                             if (grid.search & method == "SBW") delta <- private$standardized.difference.means
                                             if (grid.search & method == "RKHS.dose") delta <- private$RKHS$lambdas
@@ -1201,6 +1244,8 @@
                                                             balance.constraints = 0.1,
                                                             add.joint = TRUE, #private$wass.opt$add.joint,
                                                             add.margins = isTRUE(add.margins),
+                                                            penalty = penalty,
+                                                            joint.mapping = joint.mapping,
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
                                                             epsilon = private$wass.opt$epsilon,

@@ -272,7 +272,6 @@ testthat::test_that("gaussian process corrects non-positive def matrix rbf, Lp",
                  outcome = "y"))
 })
 
-
 testthat::test_that("timing is better for C code, rbf lp", {
   testthat::skip("Interactive only")
   n <- 2^9

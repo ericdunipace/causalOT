@@ -1,7 +1,7 @@
 library(causalOT)
 
 #### Output settings ####
-jobids      <- as.character(10446826) 
+jobids      <- as.character(10766790) 
 n           <- "512"
 p           <- "6"
 design      <- "B"

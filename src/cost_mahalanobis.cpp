@@ -76,12 +76,15 @@ Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix & A_,
   int N = A_.cols();
   int M = B_.cols();
   
+  double frac_A = double(N)/double(N + M);
+  double frac_B = double(M)/double(N + M);
+  
   const matMap A(Rcpp::as<matMap >(A_));
   const matMap B(Rcpp::as<matMap >(B_));
   
   const matrix covA = covariance(A);
   const matrix covB = covariance(B);
-  const matrix cov = 0.5 * covA + 0.5 * covB;
+  const matrix cov = frac_A * covA + frac_B * covB;
   const matrix L_inv = invsqrt(cov); //cov inv sqrt
   // Rcpp::Rcout <<std::endl<< "cov mat A: " << covA(0,0)<<std::endl;
   // Rcpp::Rcout <<std::endl<< "cov mat A: " << covA(0,0)<<std::endl;

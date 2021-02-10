@@ -1,4 +1,5 @@
 testthat::test_that("runs for current causal weights", {
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -22,7 +23,7 @@ testthat::test_that("runs for current causal weights", {
   cost <- causalOT::cost_mahalanobis(data$get_x0(), data$get_x1(), power)
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                       constraint = 3, 
+                                                       constraint = 4, 
                                                        estimand = e, 
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",

@@ -4,8 +4,9 @@ PSIS.default <- function(x, r_eff = NULL, ...) {
   
   pos <- x>0
   lx.p <- log(x[pos])
-  
-  if(is.null(r_eff)) r_eff <- 1
+  if (length(lx.p) == 1) return(list(diagnostics = list(pareto_k = NA_real_,
+                                                        n_eff = 1) ))
+  if (is.null(r_eff)) r_eff <- 1
   
   res <- loo::psis(lx.p, r_eff = r_eff, ...)
   res$weights <- rep(0, length(x))
@@ -99,7 +100,7 @@ PSIS_diag.causalPSIS <- function(x, ...) {
 
 PSIS_diag.list <- function(x, r_eff = NULL) {
   
-  if(!is.null(r_eff)) {
+  if (!is.null(r_eff)) {
     if(length(r_eff) == 1) r_eff <- rep(r_eff, length(x))
     stopifnot(length(r_eff) == length(x))
   } else {

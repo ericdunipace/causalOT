@@ -236,8 +236,8 @@ testthat::test_that("estimate effect works lm, ATT", {
   
 
   testthat::expect_equal(ee$estimate,
-                         mean(f_1) + mean(fit_1$residuals) - 
-                           mean(f_0) - weighted.mean(fit_0$residuals, w0))
+                         mean(f_1[c_ind]) + mean(fit_1$residuals) - 
+                           mean(f_0[t_ind]) - weighted.mean(fit_0$residuals, w0))
   
 })
 
@@ -288,8 +288,8 @@ testthat::test_that("estimate effect works lm, ATC", {
   
   
   testthat::expect_equal(ee$estimate,
-                         mean(f_1) + weighted.mean(fit_1$residuals, w1) - 
-                           mean(f_0) - weighted.mean(fit_0$residuals, w0)
+                         mean(f_1[c_ind]) + weighted.mean(fit_1$residuals, w1) - 
+                           mean(f_0[t_ind]) - weighted.mean(fit_0$residuals, w0)
                          )
   
 })

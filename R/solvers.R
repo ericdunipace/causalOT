@@ -9,7 +9,7 @@ cplex_solver <- function(qp, neg.weights = FALSE, ...) {
   
   if (!is.null(qp$obj$Q)) {
     if (inherits(qp$obj$Q, "ddiMatrix")) qp$obj$Q <- as(as(qp$obj$Q, "dsparseMatrix"), "dtCMatrix")
-    if (!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "dsCMatrix")
+    if (!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "symmetricMatrix")
     qp$obj$Q <- qp$obj$Q * 2
   }
   lb <- switch(neg.wt,
@@ -140,6 +140,11 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
                       buc = buc)
   }
   
+  
+  model$cones <- qp$cones$cones
+  model$F <- qp$cones$F
+  model$g <- qp$cones$g
+  
   dots <- list(...)
   # 
   # model$sol <- dots$sol
@@ -168,11 +173,11 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
   # model$dparam <- list(ANA_SOL_INFEAS_TOL = 1e-6)
   
   res <- Rmosek::mosek(problem = model, opts = opts)
-  if (res$response$code != 0) {
+  if (is.nan(res$response$code) || res$response$code != 0) {
     # browser()
     warning("Algorithm did not converge!!! Mosek solver message: ", res$response$msg)
   }
-  sol <- (res$sol$itr$xx)[1:num_param]
+  sol <- (res$sol$itr$xx)[1:qp$nvar]
   sol <- switch(neg.wt,
                 sol * as.numeric(sol > 0),
                 sol)

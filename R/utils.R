@@ -1,24 +1,24 @@
-sqrt_mat <- function(X) {
+sqrt_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
-  decomp <- eigen(X)
+  decomp <- eigen(X, symmetric = symmetric)
   return(tcrossprod(decomp$vectors %*% diag(sqrt(abs(decomp$values)), p, p), decomp$vectors))
 }
 
-inv_sqrt_mat <- function(X) {
+inv_sqrt_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
-  decomp <- eigen(X)
+  decomp <- eigen(X, symmetric = symmetric)
   return(tcrossprod(decomp$vectors %*% diag(1/sqrt(abs(decomp$values)), p, p), decomp$vectors))
 }
 
-inv_mat <- function(X) {
+inv_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
-  decomp <- eigen(X)
+  decomp <- eigen(X, symmetric = symmetric)
   return(tcrossprod(decomp$vectors %*% diag(1/abs(decomp$values), p, p), decomp$vectors))
 }
 
-mahal_transform <- function(X, Y) {
+mahal_transform <- function(X, Y, symmetric = FALSE) {
   p <- ncol(X)
-  decomp <- eigen(0.5 * cov(X) + 0.5 * cov(Y))
+  decomp <- eigen(0.5 * cov(X) + 0.5 * cov(Y), symmetric = symmetric)
   L_inv <- tcrossprod(decomp$vectors %*% diag(1/sqrt(abs(decomp$values)), p, p), decomp$vectors)
   
   return(list(X %*% L_inv, Y %*% L_inv))

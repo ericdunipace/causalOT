@@ -5,6 +5,7 @@
 src/*.o
 src/*.so
 src/*.dll
+src/deprecated
 src/deprecated/*.*
 inst/stan/deprecated/*.*
 inst/Reports
@@ -14,7 +15,14 @@ inst/output
 inst/.DS_Store
 inst/simulations/results/lalonde/CI/*.rds
 inst/simulations/results
+inst/simulations
+inst/simulations/CRASH3/results/estimates/*.*
+inst/seed_generation
+inst/cluster
+inst/stan/test
 Output
+Plots
+Table
 archive
 tables
 R/deprecated
