@@ -66,7 +66,9 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
                           epsilon = wass.epsilon,
                           wasserstein.distance.constraints = wasserstein.distance.constraints,
                           add.joint = dots$add.joint,
-                          add.margins = dots$add.margins),
+                          add.margins = dots$add.margins,
+                          joint.mapping = dots$joint.mapping,
+                          penalty = dots$penalty),
                 verbose = isTRUE(dots$verbose))
   sh$run()
   

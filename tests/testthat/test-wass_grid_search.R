@@ -835,4 +835,160 @@ testthat::test_that("grid search actually works, marg wass mahal bal", {
   
 })
 
+testthat::test_that("grid search joint.map, cwass", {
+  testthat::skip_on_cran()
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  metric <- "Lp"
+  power <- c(2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATT"
+  
+  #### get simulation functions ####
+  data <- Hainmueller$new(n = n, p = p, 
+                          design = design, overlap = overlap)
+  data$gen_data()
+  
+  #don't specify grid
+  # debugonce(wass_grid_search)
+  testthat::expect_silent(
+    wsel2 <- wass_grid_search(data, grid = NULL,
+                              estimand = estimand, n.boot = 10, method = "Constrained Wasserstein",
+                              metric = metric, p = power, solver = "mosek",
+                              wass.method = "networkflow", wass.iter = 0,
+                              joint.mapping = TRUE, penalty = "L2")
+  )
+  testthat::expect_lte(wsel2$args$constraint$joint - 2.31591, 1e-3)
+  
+  estimand <- "ATC"
+  testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
+                                                    estimand = estimand, n.boot = 10, method = "Constrained Wasserstein",
+                                                    metric = metric, p = power, solver = "mosek",
+                                                    wass.method = "networkflow", wass.iter = 0))
+  
+  estimand <- "ATE"
+  testthat::expect_silent(wsel4 <- wass_grid_search(data, grid = NULL,
+                                                    estimand = estimand, n.boot = 10, method = "Constrained Wasserstein",
+                                                    metric = metric, p = power, solver = "mosek",
+                                                    wass.method = "networkflow", wass.iter = 0))
+  
+  
+})
+
+testthat::test_that("grid search joint.map, wass", {
+  testthat::skip_on_cran()
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  metric <- "Lp"
+  power <- c(2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATT"
+  
+  #### get simulation functions ####
+  data <- Hainmueller$new(n = n, p = p, 
+                          design = design, overlap = overlap)
+  data$gen_data()
+  
+  #don't specify grid
+  # debugonce(wass_grid_search)
+  testthat::expect_silent(
+    wsel2 <- wass_grid_search(data, grid = NULL,
+                              estimand = estimand, n.boot = 10, method = "Wasserstein",
+                              metric = metric, p = power, solver = "mosek",
+                              wass.method = "networkflow", wass.iter = 0,
+                              joint.mapping = TRUE, penalty = "L2")
+  )
+  testthat::expect_equivalent(wsel2$args$constraint, list(penalty = 11.65043,
+                                                          joint = 0.5000005), 1e-3)
+  
+  estimand <- "ATC"
+  testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
+                                                    estimand = estimand, n.boot = 10, method = "Wasserstein",
+                                                    metric = metric, p = power, solver = "mosek",
+                                                    joint.mapping = TRUE,
+                                                    wass.method = "networkflow", wass.iter = 0))
+  
+  estimand <- "ATE"
+  testthat::expect_silent(wsel4 <- wass_grid_search(data, grid = NULL,
+                                                    estimand = estimand, n.boot = 10, method = "Wasserstein",
+                                                    metric = metric, p = power, solver = "mosek",
+                                                    joint.mapping = TRUE,
+                                                    wass.method = "networkflow", wass.iter = 0))
+  
+  
+})
+
+testthat::test_that("grid search scm", {
+  testthat::skip_on_cran()
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  metric <- "Lp"
+  power <- c(2)
+  ground_power <- 2
+  std_mean_diff <- c(0.001, 0.01, 0.1)
+  solver <- "gurobi"
+  estimand <- "ATT"
+  method <- "SCM"
+  
+  #### get simulation functions ####
+  data <- Hainmueller$new(n = n, p = p, 
+                          design = design, overlap = overlap)
+  data$gen_data()
+  
+  #don't specify grid
+  # debugonce(wass_grid_search)
+  testthat::expect_silent(
+    wsel2 <- wass_grid_search(data, grid = NULL,
+                              estimand = estimand, n.boot = 10, method = "SCM",
+                              metric = metric, p = power, solver = "mosek",
+                              wass.method = "networkflow", wass.iter = 0,
+                              joint.mapping = TRUE, penalty = "L2")
+  )
+  testthat::expect_lte(wsel2$args$constraint$penalty - 135.4599, 1e-3)
+  
+  estimand <- "ATC"
+  testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
+                                                    estimand = estimand, n.boot = 10, method = "SCM",
+                                                    metric = metric, p = power, solver = "mosek",
+                                                    wass.method = "networkflow", wass.iter = 0))
+  
+  estimand <- "ATE"
+  testthat::expect_silent(wsel4 <- wass_grid_search(data, grid = NULL,
+                                                    estimand = estimand, n.boot = 10, method = "SCM",
+                                                    metric = metric, p = power, solver = "mosek",
+                                                    wass.method = "networkflow", wass.iter = 0))
+  
+  
+})
 

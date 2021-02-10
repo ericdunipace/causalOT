@@ -165,7 +165,7 @@ wass_grid_search <- function(data, grid = NULL,
                              grid.length = 7,
                              estimand = c("ATT", "ATC","cATE","ATE"),
                              n.boot = 1000,
-                             method = c("Wasserstein","Constrained Wasserstein"),
+                             method = c("Wasserstein","Constrained Wasserstein", "SCM"),
                              sample_weight = NULL,
                              wass.method = "networkflow", wass.iter = 0,
                              add.joint = TRUE,
@@ -187,6 +187,10 @@ wass_grid_search <- function(data, grid = NULL,
   add.margins <- isTRUE(add.margins)
   add.joint  <- isTRUE(add.joint)
   joint.mapping <- isTRUE(joint.mapping)
+  
+  if(method == "SCM") {
+    add.margins <- add.joint <- joint.mapping <- FALSE
+  }
   
   if (!add.margins & !add.joint & method == "Constrained Wasserstein") {
     stop("Must have marginal or joint constraints or both for Constrained Wasserstein")
@@ -1091,7 +1095,7 @@ wass.fun.grid <- function(x, z,
   }
   
   if (joint.mapping) {
-    jm <- rep(seq(1e-6, 1, length.out = grid.length), each = length(grid))
+    jm <- rep(exp(seq(log(1e-3), log(1), length.out = grid.length)), each = length(grid))
     
     grid <- rep(grid, grid.length)
     
@@ -1112,6 +1116,35 @@ wass.fun.grid <- function(x, z,
   
 }
 
+
+scm.fun.grid <- function(x, z, 
+                          grid.length,
+                          p, 
+                          data, cost, estimand, metric, wass.iter, add.margins, 
+                          joint.mapping, ...) {
+  D <- ncol(x)
+  
+  n <- nrow(x)
+  
+  x0 <- x[z == 0, , drop = FALSE]
+  x1 <- x[z == 1, , drop = FALSE]
+  
+  n0 <- nrow(x0)
+  n1 <- nrow(x1)
+  
+  cost <- cost_fun(x, z, power = 2, metric = "Lp", estimand = estimand)
+  
+  grid <- pen.fun.grid(x, z, 
+                       grid.length,
+                       p = 2, 
+                       data, cost = cost, estimand, metric = "Lp", 
+                       wass.iter, add.margins = FALSE, 
+                       joint.mapping = FALSE, ...)
+    
+  return(grid)
+  
+}
+
 wass_grid_default <- function(x, z, grid.length,
                               p, data, cost, estimand, method, metric, wass.iter, 
                               add.joint, add.margins, joint.mapping, ...) {
@@ -1120,6 +1153,7 @@ wass_grid_default <- function(x, z, grid.length,
   get_defaults <- switch(method,
                          "Constrained Wasserstein" = as.name("cwass.fun.grid"),
                          "Wasserstein" = as.name("wass.fun.grid"),
+                         "SCM" = as.name("scm.fun.grid"),
                          "Sliced Wasserstein" = NULL)
   args <- list(x = x, z = z, 
                grid.length = grid.length,

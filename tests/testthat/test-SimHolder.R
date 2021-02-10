@@ -16,6 +16,7 @@ warn.fun <- function() {
 
 methods <- c('Logistic', 
              'SBW', 
+             'SCM',
              'RKHS', 
              'NNM', 
              "Wasserstein", 
@@ -213,7 +214,9 @@ testthat::test_that("SimHolder runs", {
                         ground_powers = ground_power,
                         metrics = distance,
                         constrained.wasserstein.target = c("SBW"),
-                        add.margins = c(TRUE, FALSE)
+                        add.margins = c(TRUE, FALSE),
+                        joint.mapping = c(FALSE, TRUE),
+                        penalty = c("none", "L2", "entropy", "variance")
                       ))
   # the cost of one was all NA and the weights too...
   # sh$run()
@@ -236,8 +239,9 @@ testthat::test_that("SimHolder runs", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method ), c('Logistic', 
+  testthat::expect_equal(unique(out$method), c('Logistic', 
                                                 'SBW', 
+                                                'SCM',
                                                 'RKHS', 
                                                 'NNM', 
                                                 "Wasserstein", 
@@ -683,7 +687,8 @@ testthat::test_that("SimHolder with grid works", {
   ground_power <- 2
   std_mean_diff <- c(0, 0.1, 1)
   solver <- "mosek"
-  methods <- c("SBW","Wasserstein","Constrained Wasserstein")
+  methods <- c("SBW","Wasserstein","Constrained Wasserstein",
+               "SCM")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -740,8 +745,12 @@ testthat::test_that("SimHolder with grid works", {
                         ground_powers = ground_power,
                         metrics = distance,
                         niter = 5,
-                        method = "greenkhorn",
-                        wasserstein.distance.constraints = NULL))
+                        method = "sinkhorn",
+                        wasserstein.distance.constraints = NULL,
+                        joint.mapping = TRUE,
+                        penalty = c("none","L2","variance","entropy"))
+                      , verbose = TRUE
+                      )
   testthat::expect_warning(
     {
       sh2$run()
@@ -754,6 +763,66 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_type(original$get_x1(), "double")
   testthat::expect_type(original$get_z(), "double")
   testthat::expect_type(original$get_y(), "double")
+  testthat::expect_equal(unique(sh$get.output()$method), c("SBW","Wasserstein",
+                                                           "Constrained Wasserstein",
+                                                           "SCM"))
+  testthat::expect_equal(unique(sh2$get.output()$penalty),
+                         c(NA, "none","L2","variance"))
+  
+  
+  sh3 <- SimHolder$new(nsim = nsims,
+                       dataSim = original,
+                       grid.search = TRUE,
+                       truncations = std_mean_diff,
+                       methods = methods,
+                       standardized.difference.means = NULL,
+                       outcome.model = list("lm"),
+                       outcome.formula = list(none = NULL,
+                                              augmentation = NULL),
+                       model.augmentation = "both",
+                       match = "both",
+                       solver = "mosek",
+                       Wass = list(wass_powers = power,
+                                   ground_powers = ground_power,
+                                   metrics = distance,
+                                   niter = 5,
+                                   method = "sinkhorn",
+                                   wasserstein.distance.constraints = NULL,
+                                   joint.mapping = FALSE,
+                                   penalty = c("none","entropy"))
+                       , verbose = TRUE
+  )
+  sh3$run()
+  testthat::expect_equal(unique(sh3$get.output()$penalty),
+                         c(NA, "none","entropy"))
+  testthat::expect_equal(unique(sh3$get.output()$method),
+                         c("SBW","Wasserstein","Constrained Wasserstein","SCM"))
+  
+  
+  sh4 <- SimHolder$new(nsim = 1,
+                       dataSim = original,
+                       grid.search = TRUE,
+                       truncations = std_mean_diff,
+                       methods = c("None", "SCM"),
+                       standardized.difference.means = NULL,
+                       outcome.model = list("lm"),
+                       outcome.formula = list(none = NULL,
+                                              augmentation = NULL),
+                       model.augmentation = "both",
+                       match = "both",
+                       solver = "mosek",
+                       Wass = list(wass_powers = power,
+                                   ground_powers = ground_power,
+                                   metrics = distance,
+                                   niter = 5,
+                                   method = "sinkhorn",
+                                   wasserstein.distance.constraints = NULL,
+                                   joint.mapping = TRUE,
+                                   penalty = c("none","L2"))
+                       , verbose = TRUE
+  )
+  debugonce(wass_grid_search)
+  sh4$run()
 })
 
 testthat::test_that("SimHolder with grid works, opt.hyperparam", {

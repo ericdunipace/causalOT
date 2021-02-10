@@ -838,3 +838,46 @@ testthat::test_that("works for NNM, sample weight", {
                                    weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
   
 })
+
+testthat::test_that("works for SCM grid/formula", {
+  testthat::skip_on_cran()
+  set.seed(23483)
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp")
+  power <- c(1,2)
+  solver <- "mosek"
+  estimates <- c("ATT", "ATC", "ATE")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  
+  weight.check <- vector("list", length(estimates))
+  names(weight.check) <- estimates
+  for (e in estimates) {
+    # print(e)
+    testthat::expect_silent(
+      weight.check[[e]] <- calc_weight(data = data, 
+                                       constraint = NULL,
+                                       grid.search = TRUE,
+                                       estimand = e, 
+                                       formula = "~.+0",
+                                       balance.constraints = 0.5,
+                                       method = "SCM",
+                                       solver = "mosek",
+                                       wass.method = "greenkhorn",
+                                       iter = 10)
+    )
+  }
+  for (w in weight.check) testthat::expect_equal(names(w), arg.names)
+  
+})
+

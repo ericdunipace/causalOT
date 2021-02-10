@@ -8,6 +8,18 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
   
   form <- dots[["formula"]]
   
+  sw <- get_sample_weight(sample_weight, z)
+  
+  if (est == "ATE") {
+    sw.comb <- ate_sample_weight(sw)
+    sw0 <- sw.comb[[1]]
+    sw1 <- sw.comb[[2]]
+  } else if (est == "cATE") {
+    sw0 <- switch_sample_weight(sw,z)
+    sw1 <- sw
+  } else if (est == "ATC") {
+    sw <- switch_sample_weight(sw,z)
+  }
   
   if ( isTRUE(!is.null(form)) & isTRUE(!is.na(form)) ) {
     form <- form_all_squares(form, colnames(x))
@@ -44,6 +56,98 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     } else {
       list(qp_sbw(x = mm, z = z, K = K, estimand = est))
     } 
+  } else if (meth == "SCM") {
+    if (is.null(dots[["p"]])) dots[["p"]] <- 2
+    if (is.null(dots[["metric"]])) dots[["metric"]] <- "mahalanobis"
+    if (is.null(dots[["add.margins"]])) dots[["add.margins"]] <- FALSE
+    if (is.null(dots[["penalty"]])) dots[["penalty"]] <- "L2"
+    if (is.null(dots[["joint.mapping"]])) dots[["joint.mapping"]] <- FALSE
+    
+    if (est == "cATE") {
+      if(is.list(constraint)) {
+        if(length(constraint) == 2) {
+          constraint0 <- constraint[[1]]
+          constraint1 <- constraint[[2]]
+        } else {
+          constraint0 <- constraint
+          constraint1 <- constraint
+        }
+        
+      } else {
+        constraint0 <- constraint1 <- constraint
+      }
+      list(qp_scm(x = x, z = 1 - z, K = constraint0,
+                  p=dots[["p"]], dist = dots[["metric"]], 
+                  cost = dots[["cost"]],
+                  penalty = dots[["penalty"]],
+                  joint.mapping = dots[["joint.mapping"]],
+                  rkhs.args = dots[["rkhs.args"]], 
+                  add.margins = dots[["add.margins"]], bf = bf,
+                  sample_weight = sw0),
+           qp_scm(x=x, z = z, K = constraint1,
+                  p=dots[["p"]], dist = dots[["metric"]], cost = dots[["cost"]],
+                  penalty = dots[["penalty"]],
+                  joint.mapping = dots[["joint.mapping"]],
+                  rkhs.args = dots[["rkhs.args"]], 
+                  add.margins = dots[["add.margins"]], bf = bf,
+                  sample_weight = sw1))
+    } else if (est == "ATE") {
+      bf0 <- bf1 <- bf
+      if (!is.null(bf)) {
+        bf0$mm <- rbind(bf$mm[z == 0, ,drop = FALSE], bf$mm)
+        bf1$mm <- rbind(bf$mm[z == 1, ,drop = FALSE], bf$mm)
+      }
+      if(is.list(constraint)) {
+        if(length(constraint) == 2) {
+          constraint0 <- constraint[[1]]
+          constraint1 <- constraint[[2]]
+        } else {
+          constraint0 <- constraint
+          constraint1 <- constraint
+        }
+      } else {
+        constraint0 <- constraint1 <- constraint
+      }
+      list(qp_scm(x = rbind(x[z == 0, ,drop = FALSE],x), 
+                  z = c(rep(0, sum(1 - z)), rep(1, nrow(x))),
+                  K = constraint0,
+                  p = dots[["p"]], dist = dots[["metric"]], 
+                  cost = dots[["cost"]][[1]],
+                  penalty = dots[["penalty"]],                   
+                  joint.mapping = dots[["joint.mapping"]],
+                  rkhs.args = dots[["rkhs.args"]], 
+                  add.margins = dots[["add.margins"]], bf = bf0,
+                  sample_weight = sw0),
+           qp_scm(x = rbind(x[z == 1, ,drop = FALSE],x), 
+                  z = c(rep(0, sum(z)), rep(1, nrow(x))),
+                  K = constraint1,
+                  p = dots[["p"]], dist = dots[["metric"]], 
+                  cost = dots[["cost"]][[2]],
+                  penalty = dots[["penalty"]],
+                  joint.mapping = dots[["joint.mapping"]],
+                  rkhs.args = dots[["rkhs.args"]], 
+                  add.margins = dots[["add.margins"]], bf = bf1,
+                  sample_weight = sw1))
+    } else if (est == "ATC") {
+      list(qp_scm(x=x, z=1-z, K=constraint, 
+                  p=dots[["p"]], dist = dots[["metric"]], 
+                  cost = dots[["cost"]], 
+                  add.margins = dots[["add.margins"]],
+                  penalty = dots[["penalty"]],
+                  joint.mapping = dots[["joint.mapping"]],
+                  add.joint = dots[["add.joint"]],
+                  rkhs.args = dots[["rkhs.args"]],  bf = bf,
+                  sample_weight = sw))
+    } else {
+      list(qp_scm(x = x, z = z, K = constraint,
+                  p=dots[["p"]], dist = dots[["metric"]], 
+                  cost = dots[["cost"]],
+                  rkhs.args = dots[["rkhs.args"]], 
+                  penalty = dots[["penalty"]],
+                  joint.mapping = dots[["joint.mapping"]],
+                  add.margins = dots[["add.margins"]], bf = bf,
+                  sample_weight = sw))
+    }
   } else if (meth == "Wasserstein") {
     
     if (is.null(dots[["p"]])) dots[["p"]] <- 2
@@ -79,21 +183,32 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
       dots[["rkhs.args"]] <- eval(f.call, args)
     }
     if (est == "cATE") {
-      list(qp_wass(x = x, z = 1-z, K = constraint,
+      if(is.list(constraint)) {
+        if(length(constraint) == 2) {
+          constraint0 <- constraint[[1]]
+          constraint1 <- constraint[[2]]
+        } else {
+          constraint0 <- constraint
+          constraint1 <- constraint
+        }
+      } else {
+        constraint0 <- constraint1 <- constraint
+      }
+      list(qp_wass(x = x, z = 1-z, K = constraint0,
                    p=dots[["p"]], dist = dots[["metric"]], 
-            cost = dots[["cost"]],
+                   cost = dots[["cost"]],
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
                    rkhs.args = dots[["rkhs.args"]], 
                    add.margins = dots[["add.margins"]], bf = bf,
-                   sample_weight = sample_weight),
-           qp_wass(x=x, z = z, K = constraint,
+                   sample_weight = sw0),
+           qp_wass(x=x, z = z, K = constraint1,
                    p=dots[["p"]], dist = dots[["metric"]], cost = dots[["cost"]],
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
                    rkhs.args = dots[["rkhs.args"]], 
                    add.margins = dots[["add.margins"]], bf = bf,
-                   sample_weight = sample_weight))
+                   sample_weight = sw1))
     } else if (est == "ATE") {
       bf0 <- bf1 <- bf
       if (!is.null(bf)) {
@@ -101,21 +216,26 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
         bf1$mm <- rbind(bf$mm[z == 1, ,drop = FALSE], bf$mm)
       }
       if(is.list(constraint)) {
-        constraint0 <- constraint[[1]]
-        constraint1 <- constraint[[2]]
+        if(length(constraint) == 2) {
+          constraint0 <- constraint[[1]]
+          constraint1 <- constraint[[2]]
+        } else {
+          constraint0 <- constraint
+          constraint1 <- constraint
+        }
       } else {
         constraint0 <- constraint1 <- constraint
       }
       list(qp_wass(x = rbind(x[z == 0, ,drop = FALSE],x), 
                    z = c(rep(0, sum(1 - z)), rep(1, nrow(x))),
                    K = constraint0,
-              p = dots[["p"]], dist = dots[["metric"]], 
-              cost = dots[["cost"]][[1]],
-              penalty = dots[["penalty"]],                   
-              joint.mapping = dots[["joint.mapping"]],
-              rkhs.args = dots[["rkhs.args"]], 
-              add.margins = dots[["add.margins"]], bf = bf0,
-              sample_weight = sample_weight),
+                   p = dots[["p"]], dist = dots[["metric"]], 
+                   cost = dots[["cost"]][[1]],
+                   penalty = dots[["penalty"]],                   
+                   joint.mapping = dots[["joint.mapping"]],
+                   rkhs.args = dots[["rkhs.args"]], 
+                   add.margins = dots[["add.margins"]], bf = bf0,
+                   sample_weight = sw0),
            qp_wass(x = rbind(x[z == 1, ,drop = FALSE],x), 
                    z = c(rep(0, sum(z)), rep(1, nrow(x))),
                    K = constraint1,
@@ -125,17 +245,17 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    joint.mapping = dots[["joint.mapping"]],
                    rkhs.args = dots[["rkhs.args"]], 
                    add.margins = dots[["add.margins"]], bf = bf1,
-                   sample_weight = sample_weight))
+                   sample_weight = sw1))
     } else if (est == "ATC") {
       list(qp_wass(x=x, z=1-z, K=constraint, 
-                         p=dots[["p"]], dist = dots[["metric"]], 
-                         cost = dots[["cost"]], 
-                         add.margins = dots[["add.margins"]],
-                         penalty = dots[["penalty"]],
-                         joint.mapping = dots[["joint.mapping"]],
-                         add.joint = dots[["add.joint"]],
-                         rkhs.args = dots[["rkhs.args"]],  bf = bf,
-                         sample_weight = sample_weight))
+                   p=dots[["p"]], dist = dots[["metric"]], 
+                   cost = dots[["cost"]], 
+                   add.margins = dots[["add.margins"]],
+                   penalty = dots[["penalty"]],
+                   joint.mapping = dots[["joint.mapping"]],
+                   add.joint = dots[["add.joint"]],
+                   rkhs.args = dots[["rkhs.args"]],  bf = bf,
+                   sample_weight = sw))
     } else {
       list(qp_wass(x = x, z = z, K = constraint,
                    p=dots[["p"]], dist = dots[["metric"]], 
@@ -144,7 +264,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
                    add.margins = dots[["add.margins"]], bf = bf,
-                   sample_weight = sample_weight))
+                   sample_weight = sw))
     }
     
   } else if (meth == "Constrained Wasserstein") {
@@ -184,7 +304,18 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
       dots[["rkhs.args"]] <- eval(f.call, args)
     }
     if (est == "cATE") {
-      list(qp_wass_const(x=x, z=1-z, K=constraint, 
+      if(is.list(constraint)) {
+        if(length(constraint) == 2) {
+          constraint0 <- constraint[[1]]
+          constraint1 <- constraint[[2]]
+        } else {
+          constraint0 <- constraint
+          constraint1 <- constraint
+        }
+      } else {
+        constraint0 <- constraint1 <- constraint
+      }
+      list(qp_wass_const(x=x, z=1-z, K=constraint0, 
                          p=dots[["p"]], dist = dots[["metric"]], 
                          cost = dots[["cost"]], 
                          add.margins = dots[["add.margins"]],
@@ -192,17 +323,17 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          joint.mapping = dots[["joint.mapping"]],
                          add.joint = dots[["add.joint"]],
                          rkhs.args = dots[["rkhs.args"]],  bf = bf,
-                         sample_weight = sample_weight),
-           qp_wass_const(x=x, z=z, K=constraint, 
+                         sample_weight = sw0),
+           qp_wass_const(x=x, z=z, K=constraint1, 
                          p=dots[["p"]], 
                          dist = dots[["metric"]], 
-                          cost = dots[["cost"]],
+                         cost = dots[["cost"]],
                          add.margins = dots[["add.margins"]],
                          penalty = dots[["penalty"]],
                          joint.mapping = dots[["joint.mapping"]],
                          add.joint = dots[["add.joint"]],
                          rkhs.args = dots[["rkhs.args"]],  bf = bf,
-                         sample_weight = sample_weight))
+                         sample_weight = sw1))
     } else if (est == "ATE") {
       bf0 <- bf1 <- bf
       if (!is.null(bf)) {
@@ -210,31 +341,36 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
         bf1$mm <- rbind(bf$mm[z == 1, ,drop = FALSE], bf$mm)
       }
       if(is.list(constraint)) {
-        constraint0 <- constraint[[1]]
-        constraint1 <- constraint[[2]]
+        if(length(constraint) == 2) {
+          constraint0 <- constraint[[1]]
+          constraint1 <- constraint[[2]]
+        } else {
+          constraint0 <- constraint
+          constraint1 <- constraint
+        }
       } else {
         constraint0 <- constraint1 <- constraint
       }
       list(qp_wass_const(x = rbind(x[z == 0, , drop = FALSE],x), 
-                   z = c(rep(0, sum(1 - z )), rep(1, nrow(x))),
-                   K = constraint0,
-                   p = dots[["p"]], dist = dots[["metric"]], 
-                   cost = dots[["cost"]][[1]],
-                   rkhs.args = dots[["rkhs.args"]], 
-                   penalty = dots[["penalty"]],
-                   joint.mapping = dots[["joint.mapping"]],
-                   add.margins = dots[["add.margins"]], bf = bf0,
-                   sample_weight = sample_weight),
+                         z = c(rep(0, sum(1 - z )), rep(1, nrow(x))),
+                         K = constraint0,
+                         p = dots[["p"]], dist = dots[["metric"]], 
+                         cost = dots[["cost"]][[1]],
+                         rkhs.args = dots[["rkhs.args"]], 
+                         penalty = dots[["penalty"]],
+                         joint.mapping = dots[["joint.mapping"]],
+                         add.margins = dots[["add.margins"]], bf = bf0,
+                         sample_weight = sw0),
            qp_wass_const(x = rbind(x[z == 1, ,drop = FALSE],x), 
-                   z = c(rep(0, sum(z)), rep(1, nrow(x))),
-                   K = constraint1,
-                   p = dots[["p"]], dist = dots[["metric"]], 
-                             cost = dots[["cost"]][[2]],
-                   rkhs.args = dots[["rkhs.args"]], 
-                   penalty = dots[["penalty"]],
-                   joint.mapping = dots[["joint.mapping"]],
-                   add.margins = dots[["add.margins"]], bf = bf1,
-                   sample_weight = sample_weight))
+                         z = c(rep(0, sum(z)), rep(1, nrow(x))),
+                         K = constraint1,
+                         p = dots[["p"]], dist = dots[["metric"]], 
+                         cost = dots[["cost"]][[2]],
+                         rkhs.args = dots[["rkhs.args"]], 
+                         penalty = dots[["penalty"]],
+                         joint.mapping = dots[["joint.mapping"]],
+                         add.margins = dots[["add.margins"]], bf = bf1,
+                         sample_weight = sw1))
     } else if (est == "ATC") {
       list(qp_wass_const(x=x, z=1-z, K=constraint, 
                          p=dots[["p"]], dist = dots[["metric"]], 
@@ -244,7 +380,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          joint.mapping = dots[["joint.mapping"]],
                          add.joint = dots[["add.joint"]],
                          rkhs.args = dots[["rkhs.args"]],  bf = bf,
-                         sample_weight = sample_weight))
+                         sample_weight = sw))
     } else {
       list(qp_wass_const(x=x, z=z, K=constraint, 
                          p=dots[["p"]], 
@@ -254,7 +390,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          add.margins = dots[["add.margins"]],
                          add.joint = dots[["add.joint"]],
                          rkhs.args = dots[["rkhs.args"]], bf = bf,
-                         sample_weight = sample_weight))
+                         sample_weight = sw))
     }
   } else if (meth == "RKHS" | meth == "RKHS.dose") {
     dots <- list(...)
@@ -813,9 +949,9 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
                                  x = 1,
                                  dims = c(1, n0))
     A1_1 <- Matrix::sparseMatrix(i = rep(1, n1),
-                               j = 1:n1,
-                               x = 1,
-                               dims = c(1, n1))
+                                 j = 1:n1,
+                                 x = 1,
+                                 dims = c(1, n1))
     
     x_constraint_0 <- t(x0)
     x_constraint_1 <- t(x1)
@@ -838,9 +974,9 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
     dir_1 <- c(rep("E", nrow(A1_1)),rep("G",length(K_lwr_1)), rep("L",length(K_upr_1)))
     
     program_0 <- list(obj = list(Q = Q0_0, L = L0_0),
-                    LC = list(A = A_0, dir = dir_0,
-                              vals = vals_0),
-                    nvar = n0)
+                      LC = list(A = A_0, dir = dir_0,
+                                vals = vals_0),
+                      nvar = n0)
     
     program_1 <- list(obj = list(Q = Q0_1, L = L0_1),
                       LC = list(A = A_1, dir = dir_1,
@@ -914,8 +1050,8 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
   # ROI::constraints(op) <- LC
   
   program <- list(obj = list(Q = Q0, L = L0),
-                   LC = list(A = A, dir = dir,
-                             vals = vals))
+                  LC = list(A = A, dir = dir,
+                            vals = vals))
   program$nvar <- n
   return(program)
 }
@@ -934,8 +1070,10 @@ set_K <- function(K, x1, x0, d_c, add.joint, add.margins, penalty, joint.mapping
   #      balance = NULL)
   K_joint <- K_margins <- K_penalty <- NULL
   if (is.list(K)) {
-    if (!any(names(K) %in% c("joint", "margins","penalty")) ) {
-      stop("constraint should be a list with optional named slots `joint`, `margins`, `penalty`. Specify the one needed for goal.",)
+    if(add.joint || add.margins || penalty != "none") {
+      if (!any(names(K) %in% c("joint", "margins","penalty")) ) {
+        stop("constraint should be a list with optional named slots `joint`, `margins`, and/or `penalty`. Specify the one needed for goal.",)
+      }
     }
     K_joint <- as.numeric(K$joint)
     K_margins <- as.numeric(K$margins)
@@ -951,7 +1089,7 @@ set_K <- function(K, x1, x0, d_c, add.joint, add.margins, penalty, joint.mapping
   } else if (length(K) == (d_c + 1) & is.numeric(K) & method == "Wasserstein") {
     K_penalty <- K[d_c + 1]
     K_margins <- K[1:d_c]
-  } else {
+  } else if (add.joint || add.margins || penalty != "none") {
     stop("constraint should be a list with optional named slots `joint`, `margins`, `penalty`. Specify the one needed for goal.",)
   }
   
@@ -998,11 +1136,11 @@ set_K <- function(K, x1, x0, d_c, add.joint, add.margins, penalty, joint.mapping
   if (method == "Constrained Wasserstein" & length(K_penalty) == 0) {
     K_penalty <- 1
   } else if (method == "Wasserstein") {
-    if (length(K_penalty) !=1 || !is.numeric(K_penalty)) {
+    if (penalty != "none" && (length(K_penalty) != 1 || !is.numeric(K_penalty)) ) {
       stop("slot `penalty` in constraint list has an error.")
     }
     if (joint.mapping) {
-      if(length(K_joint) != 1 || !is.numeric(K_penalty))  {
+      if (length(K_joint) != 1 || !is.numeric(K_joint))  {
         stop("Must specify slot `joint` in constraint list if using joint mapping")
       }
     }
@@ -1047,37 +1185,109 @@ add_bc <- function(op, bf, z, K) {
     
     op$LC$dir <- c(op$LC$dir, rep("L", 2 * length(Kmm_high)))
   } 
-    
+  
   return(op)
   
 }
 
 qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
   nvar <- n0 * n1
-  if(penalty == "L2") {
-    if(is.null(lambda)) stop("must specify a term in constraints list = penalty, eg contraint = list(penalty = 1)")
+  if (penalty == "L2") {
+    if (is.null(lambda)) stop("must specify a term in constraints list = penalty, eg contraint = list(penalty = 1)")
     qp$obj$Q <- if (is.null(qp$obj$Q)) {
       Matrix::Diagonal(n = nvar, x = lambda * 0.5 )
     } else {
       qp$obj$Q + Matrix::Diagonal(n = nvar, x = lambda * 0.5 )
     }
   } else if (penalty == "entropy") {
-    if(is.null(lambda)) stop("must specify a term in constraints list = penalty, eg contraint = list(penalty = 1)")
+    if (is.null(lambda)) stop("must specify a term in constraints list = penalty, eg contraint = list(penalty = 1)")
     
-    qp$obj$L <- cbind(qp$obj$L, rep(- lambda, nvar))
+    qp$obj$L <- c(as.numeric(qp$obj$L), rep(-lambda,nvar))
     
     qp$cones <- list()
-    qp$cones$F <- Matrix::sparseMatrix(i = c(seq(2,3 * nvar,by=3),
-                                       seq(3,3 * nvar,by=3)),
-                                 j = c(1:nvar, (nvar + 1) : (2 * nvar)),
-                                 x = 1)
-    qp$cones$g <- rep(c(1,0,0), nvar)
-    qp$cones$cones <- matrix(list("PEXP", 3, NULL), nrow=3, ncol=nvar)
+    qp$cones$F <- Matrix::sparseMatrix(i = c(seq(2, 3 * nvar,by=3),
+                                             seq(3, 3 * nvar,by=3)),
+                                       j = c(1:nvar, (nvar + 1) : (2 * nvar)),
+                                       x = 1)
+    qp$cones$g <- rep(c(1, 0, 0), nvar)
+    qp$cones$cones <- matrix(list("PEXP", 3, NULL), nrow = 3, ncol = nvar)
     rownames(qp$cones$cones) <- c("type","dim","conepar")
+    
     qp$LC$A    <- cbind(qp$LC$A, 
                         Matrix::sparseMatrix(i = integer(0), 
                                              j = integer(0), x = 0, 
-                                             dims = dim(qp$LC$A)))
+                                             dims = c(nrow(qp$LC$A), nvar)))
+    
+    if (!is.null(qp$obj$Q)) {
+      L <- inv_sqrt_mat(as.matrix(qp$obj$Q[1:n0,1:n0]), symmetric = TRUE)
+      Lmat <- Matrix::kronecker(X = Matrix::Diagonal(n = n1,
+                                                     x = 1),
+                                Y = L)
+      sparse0 <- Matrix::sparseMatrix(i = integer(0),
+                                      j = integer(0), x = 0,
+                                      dims = c(nvar, nvar + 1))
+      sparseL <- rbind(cbind(Lmat, sparse0),
+                       c(rep(0, nvar * 2), 1))
+      
+      qp$cones$F <- rbind(cbind(qp$cones$F, 
+                                Matrix::sparseMatrix(i = integer(0),
+                                                                 j = integer(0), x = 0,
+                                                                 dims = c(nrow(qp$cones$F), 1)))
+                          , sparseL)
+      qp$cones$g <- c(qp$cones$g, rep(0, nrow(sparseL)))
+      
+      qp$cones$cones <- cbind(qp$cones$cones, matrix(list("RQUAD", nvar + 1, NULL),
+                                                     nrow = 3, ncol=1))
+      
+      # sparse0 <- Matrix::sparseMatrix(i = integer(0),
+      #                                 j = integer(0), x = 0,
+      #                                 dims = c(nvar, nvar))
+      # sparsebottom <- Matrix::sparseMatrix(i = integer(0),
+      #                                      j = integer(0), x = 0,
+      #                                      dims = c(nvar, 2 * nvar))
+      # sparseL <- rbind(cbind(Lmat, sparse0), sparsebottom)
+      # q_ineq <- Rmosek::mosek_qptoprob(F = sparseL, f = qp$obj$L,
+      #                                  A = qp$LC$A,
+      #                                  b = qp$LC$vals,
+      #                                  lb = rep(-Inf, nvar * 2),
+      #                                  ub = rep(Inf, nvar * 2))
+      # qp$cones$cones <- cbind(qp$cones$cones, matrix(c(q_ineq$cones, list(NULL)),
+      #                                                nrow = 3, ncol=1))
+      # qp$cones$F <- cbind(qp$cones$F, Matrix::sparseMatrix(i = integer(0),
+      #                                                      j = integer(0), x = 0,
+      #                                                      dims = c(nrow(qp$cones$F), nvar * 2 + 2)))
+      # qp$obj$L <- q_ineq$c
+      qp$obj$Q <- NULL
+      qp$obj$L <- c(qp$obj$L, 1)
+      qp$LC$A <- cbind(qp$LC$A, Matrix::sparseMatrix(i = integer(0),
+                                                     j = integer(0), x = 0,
+                                                     dims = c(nrow(qp$LC$A),1)))
+      # qp$LC$vals <- c(qp$LC$vals, rep(0, nvar * 2))
+      # qp$LC$dir  <- c(qp$LC$dir, rep("E", nvar * 2))
+      # stop("mosek can't handle non-linear problems with conic constraints.")
+      
+      
+      # sparse0 <- Matrix::sparseMatrix(i = integer(0),
+      #                                 j = integer(0), x = 0,
+      #                                 dims = c(nvar, 2 * nvar))
+      # sparsebottom <- Matrix::sparseMatrix(i = integer(0),
+      #                                      j = integer(0), x = 0,
+      #                                      dims = c(2*nvar, 3*nvar))
+      # qp$obj$Q <- rbind(cbind(qp$obj$Q, sparse0), sparsebottom)
+      
+      # qp$cones$F <- rbind(cbind(qp$conesF, Matrix::sparseMatrix(i = integer(0),
+      #                                                     j = integer(0), x = 0,
+      #                                                     dims = c(nrow(F), nvar))),
+      #                     Matrix::sparseMatrix(i = integer(0),
+      #                                          j = integer(0), x = 0,
+      #                                          dims = c(nrow(F), ncol(F)))
+      # 
+      # qp$LC$A    <- cbind(qp$LC$A,
+      #                     Matrix::sparseMatrix(i = integer(0),
+      #                                          j = integer(0), x = 0,
+      #                                          dims = c(nrow(qp$LC$A), nvar)))
+    }
+    
     
   } else if (penalty == "variance") {
     if (is.null(lambda)) stop("must specify a term in constraints list = penalty, eg contraint = list(penalty = 1)")
@@ -1086,34 +1296,34 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
     qmat <- Matrix::sparseMatrix(i = rep(1:nvar, each = n1),
                                  j = rep(sapply(1:n0, function(i) c(seq(i, nvar, n0))),
                                          n1),
-                                 x = 1)
+                                 x = lambda)
     qp$obj$Q <- if (is.null(qp$obj$Q)) {
       qmat
     } else {
       qp$obj$Q + qmat
     }
     qp$obj$L <- if (is.null(qp$obj$L)) {
-      - 2 * a * lambda
+      -2 * rep(a, n1) * lambda
     } else {
-      qp$obj$L - 2 * a * lambda
+      qp$obj$L - 2 * rep(a, n1) * lambda
     }
     
   } 
-    qp$nvar <- nvar
+  qp$nvar <- nvar
   return(qp)
 }
 
 add_mapping <- function(op, x0, x1, p, lambda) {
   # currently only do p = 2
   op$obj$Q <- if (is.null(op$obj$Q) ) {
-      Matrix::kronecker(X = Matrix::Diagonal(n = nrow(x1),
-                                             x = 1),
-                        Y = tcrossprod(x0,x0)) / ncol(x0) / nrow(x0)
-    } else {
-      op$obj$Q + Matrix::kronecker(X = Matrix::Diagonal(n = nrow(x0),
-                                                        x = 1),
-                                   Y = tcrossprod(x0,x0)) / ncol(x0) / nrow(x0)
-    }
+    Matrix::kronecker(X = Matrix::Diagonal(n = nrow(x1),
+                                           x = 1),
+                      Y = tcrossprod(x0,x0)) / ncol(x0) / nrow(x0)
+  } else {
+    op$obj$Q + Matrix::kronecker(X = Matrix::Diagonal(n = nrow(x0),
+                                                      x = 1),
+                                 Y = tcrossprod(x0,x0)) / ncol(x0) / nrow(x0)
+  }
   
   op$obj$L <- if (is.null(op$obj$L) ) {
     -2 *c(tcrossprod(x0,x1)) / ncol(x0) / nrow(x0)
@@ -1127,15 +1337,15 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
                                    joint   = NULL,
                                    margins = NULL,
                                    balance = NULL), 
-                          p = 2,
-                          penalty = c("L2","entropy",
-                                      "variance","none"),
-                          dist = dist.metrics(), cost = NULL,
-                          rkhs.args = NULL, add.joint = TRUE,
-                          add.margins = FALSE,
-                          joint.mapping = FALSE,
-                          bf = NULL,
-                          sample_weight = NULL) {
+                    p = 2,
+                    penalty = c("L2","entropy",
+                                "variance","none"),
+                    dist = dist.metrics(), cost = NULL,
+                    rkhs.args = NULL, add.joint = TRUE,
+                    add.margins = FALSE,
+                    joint.mapping = FALSE,
+                    bf = NULL,
+                    sample_weight = NULL) {
   
   # estimand <- match.arg(estimand)
   stopifnot(is.numeric(p))
@@ -1182,9 +1392,9 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
     sapply(cost.marg, function(cc) stopifnot(dim(cc) %in% c(n0,n1)))
     
     marg_cost_vec <- Matrix::sparseMatrix(i = rep(1:d, each = n0 * n1),
-                                     j = rep(1:(n0 * n1), d),
-                                     x = c(sapply(cost.marg, c)^p),
-                                     dims = c(d, n0 * n1))
+                                          j = rep(1:(n0 * n1), d),
+                                          x = c(sapply(cost.marg, c)^p),
+                                          dims = c(d, n0 * n1))
   } else {
     marg_cost_vec <- cost.marg <- NULL
   }
@@ -1196,7 +1406,7 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
                                          x = c(cost)^p,
                                          dims = c(1, n0*n1))
   
-  K <- set_K(K, x0, x1, d_c = length(cost.marg), FALSE, add.margins,
+  K <- set_K(K, x0, x1, d_c = length(cost.marg), joint.mapping, add.margins,
              penalty = penalty, joint.mapping = joint.mapping,
              method = "Wasserstein")
   
@@ -1207,9 +1417,9 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   LC <- list()
   #linear constraint matrix A
   sum_const_A <- Matrix::sparseMatrix(i = rep(1, n0*n1),
-                                    j = 1:(n0*n1),
-                                    x = rep(1, n1 * n0),
-                                    dims = c(1, n0*n1))
+                                      j = 1:(n0*n1),
+                                      x = rep(1, n1 * n0),
+                                      dims = c(1, n0*n1))
   marg_const_mat_A <- vec_to_col_constraints(n0,n1)
   
   LC$A <- rbind(sum_const_A, 
@@ -1261,18 +1471,18 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
 
 
 qp_wass_const <- function(x, z, K = list(penalty = NULL,
-                                   joint   = NULL,
-                                   margins = NULL,
-                                   balance = NULL), 
-                    p = 2,
-                    penalty = c("L2","entropy",
-                                "variance", "none"),
-                    dist = dist.metrics(), cost = NULL,
-                    rkhs.args = NULL, add.joint = TRUE,
-                    add.margins = FALSE,
-                    joint.mapping = FALSE,
-                    bf = NULL,
-                    sample_weight = NULL) {
+                                         joint   = NULL,
+                                         margins = NULL,
+                                         balance = NULL), 
+                          p = 2,
+                          penalty = c("L2","entropy",
+                                      "variance", "none"),
+                          dist = dist.metrics(), cost = NULL,
+                          rkhs.args = NULL, add.joint = TRUE,
+                          add.margins = FALSE,
+                          joint.mapping = FALSE,
+                          bf = NULL,
+                          sample_weight = NULL) {
   
   # estimand <- match.arg(estimand)
   stopifnot(is.numeric(p))
@@ -1297,17 +1507,17 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   if(is.null(cost) ) {
     if(add.margins) {
       cost.marg <- lapply(1:d, function(i) cost_fun(x[,i,drop = FALSE], z, 
-                                               ground_p = p, metric = dist,
-                                               rkhs.args = rkhs.args, estimand = "ATT"))
+                                                    ground_p = p, metric = dist,
+                                                    rkhs.args = rkhs.args, estimand = "ATT"))
       if(add.joint) {
         cost.joint <- list(cost_fun(x, z, 
-                                   ground_p = p, metric = dist,
-                                   rkhs.args = rkhs.args, estimand = "ATT"))
+                                    ground_p = p, metric = dist,
+                                    rkhs.args = rkhs.args, estimand = "ATT"))
       }
     } else if (add.joint) {
       cost.joint <- cost_fun(x, z, 
-                       ground_p = p, metric = dist,
-                       rkhs.args = rkhs.args, estimand = "ATT")
+                             ground_p = p, metric = dist,
+                             rkhs.args = rkhs.args, estimand = "ATT")
     }
   } else {
     if (add.joint & add.margins) {
@@ -1336,9 +1546,9 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
     stopifnot(dim(cost.joint) %in% c(n0,n1))
     
     joint_cost_vec <- Matrix::sparseMatrix(i = rep(1, n0 * n1),
-                                         j = 1:(n0*n1),
-                                         x = c(cost.joint)^p,
-                                         dims = c(1, n0*n1))
+                                           j = 1:(n0*n1),
+                                           x = c(cost.joint)^p,
+                                           dims = c(1, n0*n1))
   } else {
     joint_cost_vec <- NULL
   }
@@ -1346,7 +1556,7 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   K <- set_K(K, x1, x0, d_c = length(cost.marg),
              add.joint, add.margins, penalty = penalty, 
              joint.mapping = joint.mapping,
-                      method = "Constrained Wasserstein")
+             method = "Constrained Wasserstein")
   
   #objective function
   obj <- list(L = rep(0, n1 * n0))
@@ -1407,6 +1617,83 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   return(op)
 }
 
+qp_scm <- function(x, z, K = list(penalty = NULL,
+                                  joint   = NULL,
+                                  margins = NULL,
+                                  balance = NULL), 
+                   p = 2,
+                   penalty = c("L2","entropy",
+                               "variance","none"),
+                   dist = dist.metrics(), cost = NULL,
+                   rkhs.args = NULL, add.joint = TRUE,
+                   add.margins = FALSE,
+                   joint.mapping = FALSE,
+                   bf = NULL,
+                   sample_weight = NULL) {
+  
+  # estimand <- match.arg(estimand)
+  stopifnot(is.numeric(p))
+  stopifnot(length(p) == 1)
+  margmass = get_sample_weight(sample_weight, z = z)
+  joint.mapping <- isTRUE(joint.mapping)
+  penalty <- match.arg(penalty)
+  
+  x1 <- x[z == 1,,drop = FALSE]
+  x0 <- x[z == 0,,drop = FALSE]
+  
+  n <- nrow(x)
+  d <- ncol(x)
+  
+  n1 <- nrow(x1)
+  n0 <- nrow(x0)
+  
+  weight.dim <- n0 * n1
+  
+  dist <- match.arg(dist)
+  
+  K <- set_K(K, x0, x1, d_c = 0, FALSE, add.margins,
+             penalty = penalty, joint.mapping = joint.mapping,
+             method = "SCM")
+  
+  #objective function
+  obj <- list(L = rep(0, n0 * n1))
+  
+  # linear constraints
+  LC <- list()
+  
+  #linear constraint matrix A
+  sum_const_A <- Matrix::sparseMatrix(i = rep(1, n0*n1),
+                                      j = 1:(n0*n1),
+                                      x = rep(1, n1 * n0),
+                                      dims = c(1, n0*n1))
+  marg_const_mat_A <- vec_to_col_constraints(n0,n1)
+  
+  LC$A <- rbind(sum_const_A, 
+                marg_const_mat_A)
+  
+  
+  # linear constraint values
+  sum_const <- 1
+  marg_const <- margmass$b 
+  
+  LC$vals <- c(1, marg_const)
+  
+  # set direction
+  LC$dir <- c(rep("E", 1 + length(marg_const)))
+  
+  # create lp/qp
+  op <- list(obj = obj, LC = LC)
+  
+  # add in mapping
+  op <- add_mapping(op, x0, x1, p, 0.0) #currently just p = 2 method
+  
+  # add in penalty functions
+  op <- qp_pen(op, n0, n1, margmass$a, penalty = penalty, K$penalty)
+  
+  
+  return(op)
+}
+
 qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
                     theta = c(1,1),
                     gamma = c(1,1), lambda = 0, 
@@ -1427,10 +1714,10 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
   
   if (is.null(cost)) { 
     kernels <- kernel_calculation(x, z, p = p, theta = theta, 
-                               gamma = gamma, sigma_2 = sigma_2, 
-                               metric = dist, kernel =  kernel,
-                               is.dose = is.dose,
-                               estimand = estimand)
+                                  gamma = gamma, sigma_2 = sigma_2, 
+                                  metric = dist, kernel =  kernel,
+                                  is.dose = is.dose,
+                                  estimand = estimand)
     cost <- list(kernels$cov_kernel, kernels$mean_kernel)
   } else {
     stopifnot(all(dim(cost) %in% n))

@@ -923,3 +923,263 @@ testthat::test_that("works for Const Wass, entropy", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
 })
 
+testthat::test_that("works for SCM", {
+  testthat::skip_on_cran()
+  set.seed(23483)
+  n <- 2^7
+  p <- 6
+  nsims <- 1
+  overlap <- "low"
+  design <- "A"
+  metric <- c("Lp")
+  power <- c(1,2)
+  solver <- "gurobi"
+  estimates <- c("ATT", "ATC", "cATE", "ATE")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = NULL, 
+                                                           estimand = e, 
+                                                           method = "SCM",
+                                                           penalty = "none",
+                                                           solver = "gurobi"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1),
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = 3, 
+                                                           estimand = e, 
+                                                           method = "Wasserstein",
+                                                           solver = "cplex"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n1,n1), 
+  #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = 3, 
+                                                           estimand = e, 
+                                                           method = "Wasserstein",
+                                                           solver = "mosek"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+})
+
+testthat::test_that("works for SCM, penalties", {
+  testthat::skip_on_cran()
+  set.seed(23483)
+  n <- 2^7
+  p <- 6
+  nsims <- 1
+  overlap <- "low"
+  design <- "A"
+  metric <- c("Lp")
+  power <- c(1,2)
+  solver <- "gurobi"
+  estimates <- c("ATT", "ATC", "cATE", "ATE")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = list(penalty = 10), 
+                                                           estimand = e, 
+                                                           method = "SCM",
+                                                           penalty = "entropy",
+                                                           solver = "mosek"))
+  for (w in weights) testthat::expect_equal(names(w), arg.names)
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1),
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = list(penalty = 3), 
+                                                           estimand = e, 
+                                                           method = "SCM",
+                                                           penalty = "L2",
+                                                           solver = "cplex"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1),
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = list(penalty = 30), 
+                                                           estimand = e, 
+                                                           method = "SCM",
+                                                           penalty = "variance",
+                                                           solver = "gurobi"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+})
+
+
+testthat::test_that("works for wass, joint mapping", {
+  testthat::skip_on_cran()
+  set.seed(23483)
+  n <- 2^7
+  p <- 6
+  nsims <- 1
+  overlap <- "low"
+  design <- "A"
+  metric <- c("Lp")
+  power <- c(1,2)
+  solver <- "gurobi"
+  estimates <- c("ATT", "ATC", "cATE", "ATE")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = list(joint = 1), 
+                                                           estimand = e, 
+                                                           method = "Wasserstein",
+                                                           joint.mapping = TRUE,
+                                                           penalty = "none",
+                                                           solver = "gurobi"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1),
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = list(joint = 1, penalty = 1), 
+                                                           estimand = e, 
+                                                           penalty = "variance",
+                                                           method = "Wasserstein",
+                                                           joint.mapping = TRUE,
+                                                           solver = "cplex"))
+  for (w in weights) testthat::expect_equal(names(w), arg.names)
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1),
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
+  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+                                                           constraint = list(joint = 0.5,
+                                                                             penalty = 10), 
+                                                           estimand = e, 
+                                                           joint.mapping = TRUE,
+                                                           penalty = "L2",
+                                                           method = "Wasserstein",
+                                                           solver = "mosek"))
+  for(w in weights) testthat::expect_equal(names(w), arg.names)
+  
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0), 
+                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1), 
+                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+})

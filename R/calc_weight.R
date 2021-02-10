@@ -3,9 +3,7 @@ setClass("causalWeights", slots = c(w0 = "numeric", w1 = "numeric", gamma = "mat
 setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numeric"))
 
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
-                        method = c("SBW", "RKHS", "RKHS.dose", "Wasserstein", "Constrained Wasserstein",
-                                   "NNM",
-                                   "Logistic", "None"),
+                        method = supported.methods(),
                         formula = NULL,
                         transport.matrix = FALSE, grid.search = FALSE,
                         ...) {
@@ -18,7 +16,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   argn <- lapply(names(args), as.name)
   names(argn) <- names(args)
   
-  output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein")) {
+  output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein","SCM")) {
     # args$method <- NULL
     # if(is.null(args$grid)) 
     if (!is.null(constraint) & is.null(args$grid)) {
@@ -31,7 +29,8 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
                        "SBW" = "sbw_grid_search",
                        "Constrained Wasserstein" = "wass_grid_search",
                        "Wasserstein" = "wass_grid_search",
-                       "RKHS.dose" = "RKHS_grid_search"
+                       "RKHS.dose" = "RKHS_grid_search",
+                       "SCM" = "wass_grid_search"
                        )
     
     f.call <- as.call(c(list(as.name(grid.fun)), argn))
@@ -260,7 +259,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
 }
 
 calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
-                            method = c("SBW","Wasserstein", "Constrained Wasserstein"),
+                            method = c("SBW","Wasserstein", "Constrained Wasserstein", "SCM"),
                             solver = c("gurobi","mosek","cplex"),
                             sample_weight = NULL,
                             ...) {
@@ -437,7 +436,7 @@ convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
   stopifnot(is.list(sol))
   stopifnot(inherits(sample_weight, "sampleWeights"))
   
-  if ( method %in% c("Wasserstein", "Constrained Wasserstein") ) {
+  if ( method %in% c("Wasserstein", "Constrained Wasserstein","SCM") ) {
     if (estimand == "ATC") {
       output$gamma <- matrix(sol[[1]], n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- sample_weight$a
@@ -447,8 +446,8 @@ convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
       output$w0 <- rowSums(output$gamma)
       output$w1 <- sample_weight$b
     } else if (estimand == "cATE") {
-      output$w0 <- rowSums(matrix(sol[[1]], n0, n1, byrow = TRUE)) #matrix(sol[[2]]$result, n0, n1)
-      output$w1 <- colSums(matrix(sol[[2]], n0, n1)) ##matrix(sol[[1]]$result, n0, n1)
+      output$w0 <- rowSums(matrix(sol[[2]], n0, n1)) #matrix(sol[[2]]$result, n0, n1)
+      output$w1 <- colSums(matrix(sol[[1]], n0, n1, byrow = TRUE)) ##matrix(sol[[1]]$result, n0, n1)
     } else if (estimand == "ATE") {
       N <- n0 + n1
       output$w0 <-  rowSums(matrix(sol[[1]], n0, N)) #matrix(sol[[1]]$result, n0, n1)
@@ -561,6 +560,37 @@ calc_gamma <- function(weights, ...) {
     gamma <- NULL
   }
   return(gamma)
+}
+
+ate_sample_weight <- function(sw, ...) {
+  if (inherits(sw, "sampleWeights")) {
+    b <- sw$total
+    a0 <- sw$a
+    a1 <- sw$b
+    
+    output0 <- list(a = a0, b = b,
+                    total = renormalize(c(a0, b)))
+    
+    output1 <- list(a = a1, b = b,
+                    total = renormalize(c(a1, b)))
+    
+    class(output1)  <- class(output0) <- "sampleWeights"
+    output <- list(output0, output1)
+    return(output)
+  } else {
+    stop("Must be of class sampleWeights")
+  }
+}
+
+switch_sample_weight <- function(sw,z) {
+  if (inherits(sw, "sampleWeights")) {
+    output <- list(a = sw$b, b = sw$a,
+                   total = sw$total)
+    class(output) <- "sampleWeights"
+    return(output)
+  } else {
+    stop("Must be of class sampleWeights")
+  }
 }
 
 get_sample_weight <- function(sw,z) {
