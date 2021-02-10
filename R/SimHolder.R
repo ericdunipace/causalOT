@@ -562,7 +562,7 @@
                                             for (solver in cur$solver) {
                                               for (o in cur$options[[1]]) {
                                                 # if (method == "Wasserstein" || method == "Constrained Wasserstein") {
-                                                  if (isTRUE(o$penalty == "entropy") && isTRUE(o$joint.mapping == TRUE) ) next
+                                                  # if (isTRUE(o$penalty == "entropy") && isTRUE(o$joint.mapping == TRUE) ) next
                                                 # }
                                                 for (est in cur$estimand[[1]]) {
                                                   delta <- private$get_delta(o, est, method)
