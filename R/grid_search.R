@@ -170,6 +170,7 @@ wass_grid_search <- function(data, grid = NULL,
                              wass.method = "networkflow", wass.iter = 0,
                              add.joint = TRUE,
                              add.margins = FALSE,
+                             joint.mapping = FALSE,
                              verbose = FALSE,
                              ...) 
 {
@@ -185,6 +186,7 @@ wass_grid_search <- function(data, grid = NULL,
   if (is.null(metric)) metric <- "mahalanobis"
   add.margins <- isTRUE(add.margins)
   add.joint  <- isTRUE(add.joint)
+  joint.mapping <- isTRUE(joint.mapping)
   
   if (!add.margins & !add.joint & method == "Constrained Wasserstein") {
     stop("Must have marginal or joint constraints or both for Constrained Wasserstein")
@@ -241,12 +243,15 @@ wass_grid_search <- function(data, grid = NULL,
     cost <- dots$cost
   }
   
+  
+  
   if (all(is.null(grid)) | all(is.na(grid))) {
     gargs <- list(x = x, z = z, 
                   grid.length = grid.length,
                   p = p, data = data, cost = cost, estimand = estimand,
                   method = method, metric = metric, wass.iter = wass.iter, 
                   add.joint = add.joint, add.margins = add.margins,
+                  joint.mapping = joint.mapping,
                   ...)
     gargs <- gargs[!duplicated(names(gargs))]
     n.gargs <- lapply(names(gargs), as.name)
@@ -265,6 +270,7 @@ wass_grid_search <- function(data, grid = NULL,
                method = method, solver = solver, metric = metric,
                p = p, cost = cost, add.joint = add.joint,
                add.margins = add.margins, 
+               joint.mapping = joint.mapping,
                # save.solution = TRUE,
                # sol = NULL,
                ...)
@@ -609,13 +615,20 @@ wass_cost_default <- function(x, z, estimand, metric, method, p, rkhs.args,
 
 
 marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metric, wass.iter, add.joint, ...) {
-  D <- ncol(x)
-  
-  D_plus <- if (add.joint) {
-    D + 1
+  if(estimand == "ATE"){
+    D <- length(cost[[1]])
+    D_plus <- D
+    if (add.joint) {
+      D <- D - 1
+    }
   } else {
-    D
+    D <- length(cost)
+    D_plus <- D
+    if (add.joint) {
+      D <- D - 1
+    }
   }
+  
   if (wass.iter < 1000 & wass.iter != 0) wass.iter <- wass.iter * 50
   # x0  <- x[z]
   # x <- rbind(x0, x1)
@@ -755,18 +768,24 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
       grid_0 <- t(apply(cbind(min.grid0, max.grid0), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
       grid_1 <- t(apply(cbind(min.grid1, max.grid1), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
       
-      grid_0 <- do.call("cbind", lapply(jgrid0, function(joint) rbind(grid_1, joint)))
+      grid_0 <- do.call("cbind", lapply(jgrid0, function(joint) rbind(grid_0, joint)))
       grid_1 <- do.call("cbind", lapply(jgrid1, function(joint) rbind(grid_1, joint)))
+      
+        
+      
+      grid_0 <- lapply(1:ncol(grid_0), function(g) list(margins = grid_0[1:D,g], joint = grid_0[D_plus,g]))
+      grid_1 <- lapply(1:ncol(grid_1), function(g) list(margins = grid_1[1:D,g], joint = grid_1[D_plus,g]))
       
     } else {
       grid_0 <- t(apply(cbind(min.grid0, max.grid0), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
       grid_1 <- t(apply(cbind(min.grid1, max.grid1), 1, function(x) exp(seq(log(x[1]), log(x[2]), length.out = grid.length))))
       
-      
+      grid_0 <- lapply(1:ncol(grid_0), function(g) list(margins = grid_0[,g]))
+      grid_1 <- lapply(1:ncol(grid_1), function(g) list(margins = grid_1[,g]))
     }
     
-    grid <- lapply(1:ncol(grid_0), function(i) list(grid_0[,i],
-                                          grid_1[,i]))
+    grid <- lapply(1:length(grid_0), function(i) list(grid_0[[i]],
+                                          grid_1[[i]]))
     
     
     
@@ -774,10 +793,10 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     nnm <- lapply(cost, function(cc) calc_weight(data, estimand = estimand, method = "NNM", 
                                                  cost = cc, p = p,
                                                  ...))
-    wass_nnm <- sapply(1:(D + 1), function(d) wass_dist_helper(a = nnm[[d]], cost = cost[[d]], p = p, method = "networkflow", niter = wass.iter, ...) )
+    wass_nnm <- sapply(1:D_plus, function(d) wass_dist_helper(a = nnm[[d]], cost = cost[[d]], p = p, method = "networkflow", niter = wass.iter, ...) )
     wass_full <- 
       # c(
-      sapply(1:(D + 1), function(d) 
+      sapply(1:D_plus, function(d) 
         # approxOT::transport_plan(X = t(x0[,d]), 
         #                                                Y = t(x1[,d]),
         #                                                method = "univariate",
@@ -818,11 +837,14 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
       
       grid_temp <- do.call("cbind", lapply(jgrid, function(joint) rbind(grid_temp, joint)))
       
+      grid <- lapply(1:ncol(grid_temp), function(i) list(margins = grid_temp[1:D,i],
+                                                         joint = grid_temp[D_plus,i]))
+      
     } else {
-        grid_temp <- t(apply(cbind(min.grid, max.grid), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
+      grid_temp <- t(apply(cbind(min.grid, max.grid), 1, function(x) seq(x[1], x[2], length.out = grid.length)))
+      grid <- lapply(1:ncol(grid_temp), function(i) list(margins = grid_temp[,i] ))
         
     }
-    grid <- lapply(1:ncol(grid_temp), function(i) grid_temp[,i] )
   }
   return(grid)
 }
@@ -857,7 +879,8 @@ joint.cwass.fun.grid <- function(data, cost, grid.length, p, estimand, wass.iter
     
     grid <- rbind(exp(seq(log(wass_nnm[[1]]), log(wass_full[[1]]), length.out = grid.length)),
                   exp(seq(log(wass_nnm[[2]]), log(wass_full[[2]]), length.out = grid.length)))
-    grid <- lapply(1:grid.length, function(i) grid[,i])
+    grid <- lapply(1:grid.length, function(i) list(list(joint = grid[1,i]),
+                                                   list(joint = grid[2,i])))
     
     # args <- list(data = data, constraint = grid[[1]],  estimand = estimand, 
     #              method = method,
@@ -895,29 +918,106 @@ joint.cwass.fun.grid <- function(data, cost, grid.length, p, estimand, wass.iter
     )
     
     grid <- exp(seq(log(wass_nnm), log(wass_full), length.out = grid.length))
-    
+    grid <- lapply(grid, function(g) list(joint = g))
   }
   return(grid)
 }
 
 cwass.fun.grid <- function(x, z, 
                            grid.length,
-                           p, data, cost, estimand, metric, wass.iter, add.margins, add.joint, ...) {
-  # D <- ncol(x)
-  # 
-  # n <- nrow(x)
-  # 
-  # x0 <- x[z == 0, , drop = FALSE]
-  # x1 <- x[z == 1, , drop = FALSE]
-  # 
-  # n0 <- nrow(x0)
-  # n1 <- nrow(x1)
+                           p, data, cost, estimand, metric, wass.iter, add.margins, add.joint, 
+                           joint.mapping, ...) {
+  
   
   
   grid <- if (add.margins) {
     marg.cwass.fun.grid(x, z, grid.length, p, data, cost, estimand, metric, wass.iter, add.joint, ...)
   } else if (add.joint & !add.margins) {
     joint.cwass.fun.grid(data, cost, grid.length, p, estimand, wass.iter, ...)
+  }
+  
+  if (joint.mapping) {
+    
+    pen.grid <- pen.fun.grid(x, z, grid.length, p, data, 
+                             cost, estimand, metric, 
+                             wass.iter, add.margins, 
+                             joint.mapping, ...)
+    
+    if (estimand == "ATE") {
+      for (i in length(grid)) {
+        grid[[i]][[1]] <- c(grid[[i]][[1]], penalty = pen.grid[[i]][[1]])
+        grid[[i]][[2]] <- c(grid[[i]][[2]], penalty = pen.grid[[i]][[2]])
+        
+      }
+    } else {
+      for (i in length(grid)) {
+        grid[[i]] <- c(grid[[i]], penalty = pen.grid[[i]])
+      }
+    }
+    
+  }
+  
+  return(grid)
+  
+}
+
+pen.fun.grid <- function(x, z, 
+                          grid.length,
+                          p, 
+                          data, cost, estimand, metric, wass.iter, add.margins, 
+                          joint.mapping, ...) {
+  
+  
+  n <- nrow(x)
+  
+  # x0 <- x[z == 0, , drop = FALSE]
+  # x1 <- x[z == 1, , drop = FALSE]
+  # 
+  # n0 <- nrow(x0)
+  # n1 <- nrow(x1)
+  
+  if (estimand == "ATE") {
+    cost1 <- cost[[1]]
+    cost0 <- cost[[2]]
+    D <- length(cost1)
+    
+    if (add.margins) {
+      cost1 <- cost1[[D]]
+      cost0 <- cost0[[D]]
+    }
+    mc1 <- median(cost1)
+    mc0 <- median(cost0)
+    
+    if (joint.mapping) {
+      mc1 <- mc1/max(cost1)
+      mc0 <- mc0/max(cost0)
+    }
+    
+    grid0 <- lapply(exp(seq(log(1e-6 * mc0), log(1e3 * mc0), length.out = grid.length )),
+                   function(nn) nn)
+    
+    grid1 <- lapply(exp(seq(log(1e-6 * mc1) , log(1e3 * mc1), length.out = grid.length )),
+                   function(nn) nn)
+    
+    grid <- lapply(1:grid.length, function(gg) list(list(penalty = grid0[[gg]]), 
+                                                    list(penalty = grid1[[gg]])))
+  } else {
+    
+    D <- length(cost)
+    
+    if (add.margins) {
+      cost <- cost[[D]]
+    }
+    mc <- median(cost)
+    
+    if (joint.mapping) {
+      mc <- mc/max(cost)
+    }
+    grid <- lapply(c(0,exp(seq(log(1e-6 * mc), 
+                               log(1e3 * mc) , 
+                               length.out = grid.length ))),
+                   function(nn) list(penalty = nn))
+    
   }
   
   return(grid)
@@ -927,7 +1027,8 @@ cwass.fun.grid <- function(x, z,
 wass.fun.grid <- function(x, z, 
                           grid.length,
                           p, 
-                          data, cost, estimand, metric, wass.iter, add.margins, ...) {
+                          data, cost, estimand, metric, wass.iter, add.margins, 
+                          joint.mapping, ...) {
   D <- ncol(x)
   
   n <- nrow(x)
@@ -951,31 +1052,59 @@ wass.fun.grid <- function(x, z,
     names(argn)  <- names(args)
     f.call <- as.call(c(list(as.name("marg.cwass.fun.grid")), argn) )
     marg.grid <- eval(f.call, envir = args)
-    grid <- lapply(c(0, exp(seq(log(1e-3), log(1e6), length.out = length(marg.grid) - 1))),
-                   function(nn) nn)
-    # grid <- lapply(exp(seq(log(1e-3), log(1e6), length.out = length(marg.grid) )),
-    #                function(nn) nn)
+    grid <- pen.fun.grid(x, z, 
+                        grid.length,
+                        p, 
+                        data, cost, estimand, 
+                        metric, wass.iter, add.margins, 
+                        joint.mapping,
+                        ...)
     keep <- round(seq.int(1L,length(marg.grid), length.out = grid.length))
     marg.grid <- marg.grid[keep]
     grid <- grid[keep]
     if (estimand == "ATE") {
+      d_c <- length(cost[[1]]) - 1
       grid <- unlist(lapply(marg.grid, function(m) 
-        lapply(grid, function(g) list(c(m[[1]],g),
-                                          c(m[[2]],g)))
+        lapply(grid, function(g) list(c(m[[1]][1:d_c], g[[1]]),
+                                      c(m[[2]][1:d_c], g[[2]])))
                ), recursive = FALSE)
     } else {
+      d_c <- length(cost) - 1
       grid <- unlist(lapply(marg.grid, function(m) 
-        lapply(grid, function(g) c(m,g))),
+        lapply(grid, function(g) c(list(margins = m$margins[1:d_c]), 
+                                   g))),
         recursive = FALSE)
     }
     
   } else {
     # grid <- lapply(c(0, exp(seq(log(1e-3), log(1e6), length.out = grid.length - 1))),
     #                function(nn) nn)
-    grid <- lapply(exp(seq(log(1e-3), log(1e6), length.out = grid.length )),
-                   function(nn) nn)
+    grid <- pen.fun.grid(x, z, 
+                         grid.length,
+                         p, 
+                         data, cost, estimand, metric, 
+                         wass.iter, add.margins, 
+                         joint.mapping, ...)
+    # if (estimand == "ATE") {
+    #   grid <- lapply(grid, function(gg) list(gg, gg))
+    # }
+  }
+  
+  if (joint.mapping) {
+    jm <- rep(seq(1e-6, 1, length.out = grid.length), each = length(grid))
+    
+    grid <- rep(grid, grid.length)
+    
     if (estimand == "ATE") {
-      grid <- lapply(grid, function(gg) list(gg, gg))
+      for (i in 1:length(grid)) {
+        grid[[i]][[1]] <- c(grid[[i]][[1]], joint = list(jm[i]))
+        grid[[i]][[2]] <- c(grid[[i]][[2]], joint = list(jm[i]))
+        
+      }
+    } else {
+      for (i in 1:length(grid)) {
+        grid[[i]] <- c(grid[[i]], joint = list(jm[i]))
+      }
     }
   }
   
@@ -985,7 +1114,7 @@ wass.fun.grid <- function(x, z,
 
 wass_grid_default <- function(x, z, grid.length,
                               p, data, cost, estimand, method, metric, wass.iter, 
-                              add.joint, add.margins, ...) {
+                              add.joint, add.margins, joint.mapping, ...) {
   
     
   get_defaults <- switch(method,
@@ -999,6 +1128,7 @@ wass_grid_default <- function(x, z, grid.length,
                wass.iter = wass.iter, 
                add.joint = add.joint,
                add.margins = add.margins,
+               joint.mapping = joint.mapping,
                ...)
   args <- args[!duplicated(names(args))]
   n.args <- lapply(names(args), as.name)

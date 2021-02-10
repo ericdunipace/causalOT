@@ -25,7 +25,10 @@ testthat::test_that("barycenter projection pow2, lp", {
   y0 <- y[z==0]
   y1 <- y[z==1]
   
-  cost <- causalOT::cost_calc_lp(data$get_x0(), data$get_x1(), power)
+  cost <- lapply(estimates, function(e)
+    cost_fun(data$get_x(), data$get_z(), power = power,
+             estimand = e, metric = "Lp"))
+  
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
@@ -33,7 +36,7 @@ testthat::test_that("barycenter projection pow2, lp", {
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
-                                                       cost = cost))
+                                                       cost = cost[[e]]))
   
   
   testthat::expect_equal(c(crossprod(weights[[1]]$gamma, y0) * 1/colSums(weights[[1]]$gamma)), 
@@ -76,15 +79,16 @@ testthat::test_that("barycenter projection pow2, mahalanobis", {
   y0 <- y[z==0]
   y1 <- y[z==1]
   
-  cost <- causalOT::cost_mahalanobis(data$get_x0(), data$get_x1(), power)
-  
+  cost <- lapply(estimates, function(e)
+    cost_fun(data$get_x(), data$get_z(), power = power,
+             estimand = e, metic = "mahalanobis"))  
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
                                                        estimand = e, 
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
-                                                       cost = cost,
+                                                       cost = cost[[e]],
                                                        transport.matrix = TRUE))
   
   
@@ -165,7 +169,9 @@ testthat::test_that("barycenter projection pow1, mahalanobis", {
   dt0 <- (cbind(x0,y0) %*% U_inv)
   dt1 <- (cbind(x1,y1) %*% U_inv)
   
-  cost <- causalOT::cost_mahalanobis(data$get_x0(), data$get_x1(), power)
+  cost <- lapply(estimates, function(e)
+    cost_fun(data$get_x(), data$get_z(), power = power,
+             estimand = e, metic = "mahalanobis")) 
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
@@ -173,7 +179,7 @@ testthat::test_that("barycenter projection pow1, mahalanobis", {
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
-                                                       cost = cost,
+                                                       cost = cost[[e]],
                                                        transport.matrix = TRUE))
   
   
@@ -250,7 +256,9 @@ testthat::test_that("barycenter projection pow1, lp", {
   y1 <- y[z==1]
   
   
-  cost <- causalOT::cost_mahalanobis(data$get_x0(), data$get_x1(), power)
+  cost <- lapply(estimates, function(e)
+    cost_fun(data$get_x(), data$get_z(), power = power,
+             estimand = e, metic = "Lp")) 
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
@@ -258,7 +266,7 @@ testthat::test_that("barycenter projection pow1, lp", {
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
-                                                       cost = cost,
+                                                       cost = cost[[e]],
                                                        transport.matrix = TRUE))
   
   
@@ -301,7 +309,9 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   y1 <- y[z==1]
   
   
-  cost <- causalOT::cost_calc_lp(data$get_x0(), data$get_x1(), power)
+  cost <- lapply(estimates, function(e)
+    cost_fun(data$get_x(), data$get_z(), power = power,
+             estimand = e, metic = "mahalanobis")) 
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
@@ -309,7 +319,7 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
-                                                       cost = cost,
+                                                       cost = cost[[e]],
                                                        transport.matrix = TRUE))
   
   # debugonce(barycenter_estimation)
@@ -345,15 +355,16 @@ testthat::test_that("barycenter projection pow3, lp", {
   y1 <- y[z==1]
   
   
-  cost <- causalOT::cost_calc_lp(data$get_x0(), data$get_x1(), power)
-  
+  cost <- lapply(estimates, function(e)
+    cost_fun(data$get_x(), data$get_z(), power = power,
+             estimand = e, metic = "Lp"))   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
                                                        estimand = e, 
                                                        method = "Constrained Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
-                                                       cost = cost,
+                                                       cost = cost[[e]],
                                                        transport.matrix = TRUE))
   
   # debugonce(barycenter_estimation)
@@ -451,3 +462,5 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   
   
 })
+
+

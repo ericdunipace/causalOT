@@ -439,7 +439,7 @@ convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
   
   if ( method %in% c("Wasserstein", "Constrained Wasserstein") ) {
     if (estimand == "ATC") {
-      output$gamma <- matrix(sol[[1]], n0, n1) #matrix(sol[[1]]$result, n0, n1)
+      output$gamma <- matrix(sol[[1]], n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- sample_weight$a
       output$w1 <- colSums(output$gamma)
     } else if (estimand == "ATT") {
@@ -447,8 +447,8 @@ convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
       output$w0 <- rowSums(output$gamma)
       output$w1 <- sample_weight$b
     } else if (estimand == "cATE") {
-      output$w0 <- rowSums(matrix(sol[[2]], n0, n1)) #matrix(sol[[2]]$result, n0, n1)
-      output$w1 <- colSums(matrix(sol[[1]], n0, n1)) ##matrix(sol[[1]]$result, n0, n1)
+      output$w0 <- rowSums(matrix(sol[[1]], n0, n1, byrow = TRUE)) #matrix(sol[[2]]$result, n0, n1)
+      output$w1 <- colSums(matrix(sol[[2]], n0, n1)) ##matrix(sol[[1]]$result, n0, n1)
     } else if (estimand == "ATE") {
       N <- n0 + n1
       output$w0 <-  rowSums(matrix(sol[[1]], n0, N)) #matrix(sol[[1]]$result, n0, n1)

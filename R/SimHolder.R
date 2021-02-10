@@ -335,7 +335,7 @@
                              if(is.null(private$ps.formula$cwass)) private$ps.formula$cwass <- NA #"z ~ . + 0"
                              if(is.null(private$ps.formula$wass)) private$ps.formula$wass <- NA #"z ~ . + 0"
                              
-                             private$calculate.feasible <- isTRUE(calculate.feasible)
+                             private$calculate.feasible <- FALSE #isTRUE(calculate.feasible)
                              options <- get_holder_options()
                              if(!is.null(estimands)) {
                                estimands <- match.arg(estimands, several.ok = TRUE)
@@ -561,7 +561,7 @@
                                                                       estimand = est, 
                                                                       solver = solver,
                                                                       delta = delta,
-                                                                      cost = private$get_cost(o, method, est), 
+                                                                      # cost = private$get_cost(o, method, est), 
                                                                       p = private$get_power(o),
                                                                       grid.search = isTRUE(o$grid.search),
                                                                       opt.hyperparam = isTRUE(o$opt),
@@ -611,6 +611,7 @@
                                                                                     formula = cur$outcome.formula[[1]][[aug + 1]],
                                                                                     weights = private$weights[[est]],
                                                                                     hajek = TRUE,
+                                                                                    p = 1,
                                                                                     doubly.robust = aug,
                                                                                     matched = match,
                                                                                     split.model = split,
@@ -801,12 +802,14 @@
                                                   lapply(delta.joint, function(dd) rep((dd^opts$wass_p/nc)^(1/opts$wass_p), nc))
                                                 }
                                                 if (private$wass.opt$add.joint) {
-                                                  if(estimand == "ATE") {
-                                                    delta <- list(c(delta.marg[[1]], delta.joint[[1]]),
-                                                         c(delta.marg[[2]], delta.joint[[2]]))
+                                                  if (estimand == "ATE") {
+                                                    delta <- list(list(margins = delta.marg[[1]], joint =delta.joint[[1]]),
+                                                         list(margins = delta.marg[[2]], joint = delta.joint[[2]]))
+                                                  } else {
+                                                    delta <- list(margins = delta.marg, joint = delta.joint)
                                                   }
                                                 } else {
-                                                  delta <- delta.marg
+                                                  delta <- list(margins = delta.marg)
                                                 }
                                                 return(delta)
                                             } else if (method == "Wasserstein" & !private$grid.search) {
@@ -981,7 +984,7 @@
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
                                             private$method.lookup$options <- sapply(private$method, function(mm) switch(mm,
-                                                                                                                        None = list(delta = NA_real_),
+                                                                                                                        None = list(delta = NA_real_, other = NA_character_),
                                                                                                                         Logistic = list(delta = private$truncations,
                                                                                                                                         formula = private$ps.formula$logistic),
                                                                                                                         NNM = nnm_list,

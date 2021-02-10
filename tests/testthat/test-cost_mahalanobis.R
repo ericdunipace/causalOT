@@ -1,12 +1,13 @@
 testthat::test_that("cost mahalanobis 2.0", {
   n0 <- 100
   n1 <- 55
+  n <- n0 + n1
   d <- 5
   
   x1 <- matrix(rnorm(n1*d), n1, d)
   x0 <- matrix(rnorm(n0*d), n0, d)
   
-  cov_mat <- 0.5*(cov(x1) + cov(x0))
+  cov_mat <- (n1 / n * cov(x1) + n0 / n * cov(x0))
   U <- solve(chol(cov_mat))
   
   mhdefault  <- matrix(NA, n0,n1)
@@ -22,12 +23,13 @@ testthat::test_that("cost mahalanobis 1.0", {
   n0 <- 100
   n1 <- 55
   d <- 5
+  n <- n0 + n1
   
   x1 <- matrix(rnorm(n1*d), n1, d)
   x0 <- matrix(rnorm(n0*d), n0, d)
   
-  cov_mat <- 0.5*(cov(x1) + cov(x0))
-  U <- solve(chol(cov_mat))
+  cov_mat <- (n1/n * cov(x1) + n0/n *cov(x0))
+  U <- inv_sqrt_mat(cov_mat)
   
   mhdefault  <- matrix(NA, n0,n1)
   for(i in 1:n0){
@@ -41,13 +43,14 @@ testthat::test_that("cost mahalanobis 1.0", {
 testthat::test_that("cost mahalanobis 3.0", {
   n0 <- 100
   n1 <- 55
+  n <- n0 + n1
   d <- 5
   
   x1 <- matrix(rnorm(n1*d), n1, d)
   x0 <- matrix(rnorm(n0*d), n0, d)
   
-  cov_mat <- 0.5*(cov(x1) + cov(x0))
-  U <- solve(chol(cov_mat))
+  cov_mat <- (n1 / n * cov(x1) + n0 / n * cov(x0))
+  U <- inv_sqrt_mat(cov_mat)
   
   mhdefault  <- matrix(NA, n0,n1)
   for(i in 1:n0){

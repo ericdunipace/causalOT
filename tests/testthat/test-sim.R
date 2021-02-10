@@ -1,3 +1,6 @@
+testthat::skip_on_cran()
+testthat::skip("Interactive only")
+
 warn.fun <- function() {
   warn <- warnings()
   pw <- c("Some Pareto k diagnostic values are slightly high. See help('pareto-k-diagnostic') for details.\n",
@@ -13,7 +16,7 @@ warn.fun <- function() {
 
 testthat::test_that("sim.function works", {
   testthat::skip_on_cran()
-  testthat::skip("Interactive only")
+  # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
   #### Load Packages ####
@@ -121,10 +124,9 @@ testthat::test_that("sim.function works", {
   })
 })
 
-
 testthat::test_that("sim.function works, ATE only", {
   testthat::skip_on_cran()
-  testthat::skip("Interactive only")
+  # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
   #### Load Packages ####

@@ -115,7 +115,8 @@ DataSim <- R6::R6Class("DataSim",
                             problem <- list(obj = list(Q = Q, L = L),
                                             LC = list(dir = "E",
                                                       vals = 1,
-                                                      A = A))
+                                                      A = A),
+                                            nvar = length(L))
                             
                             weights <- switch(solver,
                                               "mosek" =  mosek_solver(problem),
@@ -135,7 +136,8 @@ DataSim <- R6::R6Class("DataSim",
                             problem0 <- list(obj = list(Q = Q0, L = L0),
                                              LC = list(dir = "E",
                                                        vals = 1,
-                                                       A = A0))
+                                                       A = A0),
+                                             nvar = length(L0))
                             
                             Q1 <- Matrix::Matrix(tcrossprod(f1), sparse = TRUE)
                             L1 <- -2 * (mu[2] - const[2]) * t(f1)
@@ -145,7 +147,8 @@ DataSim <- R6::R6Class("DataSim",
                             problem1 <- list(obj = list(Q = Q1, L = L1),
                                              LC = list(dir = "E",
                                                        vals = 1,
-                                                       A = A1))
+                                                       A = A1),
+                                             nvar = length(L1))
                             
                             weights <- list(w0 = switch(solver,
                                                         "mosek" =  mosek_solver(problem0),

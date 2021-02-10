@@ -40,24 +40,24 @@ testthat::test_that("works for Const Wass", {
   
   
   test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1), "Mean relative difference")}
-  mapply(test_fun, w1 = weights[2:4], w2 = weights2[2:4])
+  mapply(test_fun, w1 = weights[c(2,4)], w2 = weights2[c(2,4)])
   
   test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0), "Mean relative difference")}
   # test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
   
-  mapply(test_fun2, w1 = weights[c(1,3:4)], w2 = weights2[c(1,3:4)])
+  mapply(test_fun2, w1 = weights[c(1,4)], w2 = weights2[c(1,4)])
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights2[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights2[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights2[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights2[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights2[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights2[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n1,n1), 
+  #                                  weights2[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights2[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
@@ -110,24 +110,24 @@ testthat::test_that("works for Const Wass RKHS", {
   
   
   test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1), "Mean relative difference")}
-  mapply(test_fun, w1 = weights[2:4], w2 = weights2[2:4])
+  mapply(test_fun, w1 = weights[c(2,4)], w2 = weights2[c(2,4)])
   
   test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0), "Mean relative difference")}
   # test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
   
-  mapply(test_fun2, w1 = weights[c(1,3:4)], w2 = weights2[c(1,3:4)])
+  mapply(test_fun2, w1 = weights[c(1,4)], w2 = weights2[c(1,4)])
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights2[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights2[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights2[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights2[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights2[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights2[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n1,n1), 
+  #                                  weights2[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights2[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
@@ -156,32 +156,33 @@ testthat::test_that("works for Const Wass, grid/formula", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-    testthat::expect_warning(weight.check[["ATT"]] <- calc_weight(data = data, 
+    testthat::expect_silent(weight.check[["ATT"]] <- calc_weight(data = data, 
                                      constraint = NULL,
                                      grid.search = TRUE,
                                      estimand = "ATT", 
                                      formula = "~.+0",
-                                     balance.constraints = 0.2,
+                                     balance.constraints = 0.5,
                                      method = "Constrained Wasserstein",
                                      solver = "mosek",
                                      wass.method = "greenkhorn",
+                                     joint.mapping = FALSE,
                                      iter = 10))
-    testthat::expect_warning(weight.check[["ATC"]] <- calc_weight(data = data, 
+    testthat::expect_silent(weight.check[["ATC"]] <- calc_weight(data = data, 
                                          constraint = NULL,
                                          grid.search = TRUE,
                                          estimand = "ATT", 
                                          formula = "~.+0",
-                                         balance.constraints = 0.2,
+                                         balance.constraints = 0.5,
                                          method = "Constrained Wasserstein",
                                          solver = "mosek",
                                          wass.method = "greenkhorn",
                                          iter = 10))
-    testthat::expect_warning(weight.check[["ATE"]] <- calc_weight(data = data, 
+    testthat::expect_silent(weight.check[["ATE"]] <- calc_weight(data = data, 
                                          constraint = NULL,
                                          grid.search = TRUE,
                                          estimand = "ATT", 
                                          formula = "~.+0",
-                                         balance.constraints = 0.2,
+                                         balance.constraints = 0.5,
                                          method = "Constrained Wasserstein",
                                          solver = "mosek",
                                          wass.method = "greenkhorn",
@@ -219,15 +220,15 @@ testthat::test_that("works for Wass", {
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n1,n1), 
+  #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
@@ -239,15 +240,15 @@ testthat::test_that("works for Wass", {
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n1,n1), 
+  #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
@@ -260,8 +261,8 @@ testthat::test_that("works for Wass", {
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
@@ -298,7 +299,8 @@ testthat::test_that("works for Wass, grid/formula", {
   names(weight.check) <- estimates
   for (e in estimates) {
     # print(e)
-    testthat::expect_silent(weight.check[[e]] <- calc_weight(data = data, 
+    testthat::expect_silent(
+      weight.check[[e]] <- calc_weight(data = data, 
              constraint = NULL,
              grid.search = TRUE,
              estimand = e, 
@@ -307,7 +309,8 @@ testthat::test_that("works for Wass, grid/formula", {
              method = "Wasserstein",
              solver = "mosek",
              wass.method = "greenkhorn",
-             iter = 10))
+             iter = 10)
+      )
   }
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
@@ -458,12 +461,12 @@ testthat::test_that("works for Const Wass, sw", {
   
   
   test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1), "Mean relative difference")}
-  mapply(test_fun, w1 = weights[2:4], w2 = weights2[2:4])
+  mapply(test_fun, w1 = weights[c(2,4)], w2 = weights2[c(2,4)])
   
   test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0), "Mean relative difference")}
   # test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
   
-  mapply(test_fun2, w1 = weights[c(1,3:4)], w2 = weights2[c(1,3:4)])
+  mapply(test_fun2, w1 = weights[c(1,4)], w2 = weights2[c(1,4)])
   
   testthat::expect_match(all.equal(sample_weights$w0, 
                                    weights2[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
@@ -474,8 +477,8 @@ testthat::test_that("works for Const Wass, sw", {
   
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights2[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights2[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(rep(1/n1,n1), 
+  #                                  weights2[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights2[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
@@ -537,12 +540,12 @@ testthat::test_that("works for Const Wass RKHS, sw", {
   
   
   test_fun <- function(w1,w2){testthat::expect_match(all.equal(w1$w1, w2$w1), "Mean relative difference")}
-  mapply(test_fun, w1 = weights[2:4], w2 = weights2[2:4])
+  mapply(test_fun, w1 = weights[c(2,4)], w2 = weights2[c(2,4)])
   
   test_fun2 <- function(w1,w2){testthat::expect_match(all.equal(w1$w0, w2$w0), "Mean relative difference")}
   # test_fun2 <- function(w1,w2){all.equal(w1$w0, w2$w0)}
   
-  mapply(test_fun2, w1 = weights[c(1,3:4)], w2 = weights2[c(1,3:4)])
+  mapply(test_fun2, w1 = weights[c(1,4)], w2 = weights2[c(1,4)])
   
   testthat::expect_match(all.equal(sample_weights$w0, 
                                    weights2[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
@@ -590,34 +593,34 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-  testthat::expect_warning(weight.check[["ATT"]] <- calc_weight(data = data, 
+  testthat::expect_silent(weight.check[["ATT"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
                                        estimand = "ATT", 
                                        formula = "~.+0",
-                                       balance.constraints = 0.2,
+                                       balance.constraints = 0.5,
                                        method = "Constrained Wasserstein",
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
                                        sample_weight = sample_weights))
-  testthat::expect_warning(weight.check[["ATC"]] <- calc_weight(data = data, 
+  testthat::expect_silent(weight.check[["ATC"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
                                        estimand = "ATT", 
                                        formula = "~.+0",
-                                       balance.constraints = 0.2,
+                                       balance.constraints = 0.5,
                                        method = "Constrained Wasserstein",
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
                                        sample_weight = sample_weights))
-  testthat::expect_warning(weight.check[["ATE"]] <- calc_weight(data = data, 
+  testthat::expect_silent(weight.check[["ATE"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
                                        estimand = "ATT", 
                                        formula = "~.+0",
-                                       balance.constraints = 0.2,
+                                       balance.constraints = 0.5,
                                        method = "Constrained Wasserstein",
                                        solver = "mosek",
                                        wass.method = "greenkhorn",

@@ -4,7 +4,7 @@ barycentric_projection <- function(data, weight,
   stopifnot(inherits(weight, "causalWeights"))
   
   est <- weight$estimand
-  pow <- weight$args$p
+  pow <- weight$args[["power"]]
   met <- weight$args$metric
   rkhs.args <- weight$args$rkhs.args
   gamma <- weight$gamma
@@ -18,12 +18,12 @@ barycentric_projection <- function(data, weight,
     met <- match.arg(dots$metric, choices = c("mahalanobis","sdLp","Lp", "RKHS"))
   }
   if (is.null(pow)) {
-    pow <- as.double(dots$p)
+    pow <- as.double(dots[["p"]])
   }
   if (is.null(rkhs.args)) {
     rkhs.args <- as.double(dots$rkhs.args)
   }
-  if (is.null(pow)) stop("weights must have `p` parameter (power) or must be specified in function arguments")
+  if (is.null(pow) || length(pow) == 0) stop("weights must have `p` parameter (power) or must be specified in function arguments")
   if (is.null(met)) stop("weights must have `metric` parameter or must be specified in function arguments")
   if (is.null(est)) stop("weights must have `estimand` parameter or must be specified in function arguments")
   
