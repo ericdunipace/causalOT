@@ -1005,9 +1005,9 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  if (all(dim(private$x) == 0)) gen_x()
                                  
                                  #set coefficient
-                                 beta_z <- if ( private$overlap == "low") {
+                                 beta_z <- if ( private$overlap == "high") {
                                    c(-1, 0.5, -0.25, -0.1)
-                                 } else if ( private$overlap == "high" ) {
+                                 } else if ( private$overlap == "low" ) {
                                    c(-1, -0.5, -0.25, -0.1)
                                  }
                                  

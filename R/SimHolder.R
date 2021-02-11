@@ -245,6 +245,10 @@
                              } else {
                                private$wass.opt$penalty <- "L2"
                              }
+                             private$SBW.balconst <- list("ATT" = 0.1,
+                                                          "ATC" = 0.1,
+                                                          "cATE" = 0.1,
+                                                          "ATE" = 0.1)
                              # private$metric <- match.arg(Wass$metrics,
                              #                             c("Lp", "mahalanobis", "RKHS"), several.ok = TRUE)
                              if(!is.null(RKHS) & !missing(RKHS)) {
@@ -431,6 +435,7 @@
                                           ps.formula = "list",
                                           RKHS = "list",
                                           RKHS.opt = "list",
+                                          SBW.balconst = "list",
                                           simulator = "DataSim",
                                           solver = "character",
                                           split = "character",
@@ -587,10 +592,11 @@
                                                                       formula = o$formula[[1]],
                                                                       add.margins = isTRUE(o$add.margins),
                                                                       penalty = o$penalty,
-                                                                      joint.mapping = o$joint.mapping
+                                                                      joint.mapping = isTRUE(o$joint.mapping)
                                                   )
                                                   if (private$check.skip(private$weights[[est]])) next
-                                                  
+                                                  if ((o$formula[[1]] == "~. + 0" | o$formula[[1]] == "~ . + 0" |
+                                                      o$formula[[1]] == "~.+0" | o$formula[[1]] == "~ .+ 0") && method == "SBW") private$SBW.balconst[[est]] <- private$weights[[est]]$args$constraint 
                                                   ess.frac <- list(ESS(private$weights[[est]])/ns)
                                                   psis.output <- PSIS_diag(private$weights[[est]])
                                                   psis.ess.frac <- list(sapply(psis.output, function(w) w$n_eff)/ns)
@@ -1220,7 +1226,7 @@
                                             if (estimand != "cATE") {
                                               private$weights[[estimand]] <- 
                                                 tryCatch(
-                                                  calc_weight(private$simulator,  
+                                                  calc_weight(data = private$simulator,  
                                                             constraint = delta,
                                                             formula = formula,
                                                             estimand = estimand, 
@@ -1241,7 +1247,7 @@
                                                             iter = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             maxit = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             metric = metric,
-                                                            balance.constraints = 0.1,
+                                                            balance.constraints = private$SBW.balconst[[estimand]],
                                                             add.joint = TRUE, #private$wass.opt$add.joint,
                                                             add.margins = isTRUE(add.margins),
                                                             penalty = penalty,
