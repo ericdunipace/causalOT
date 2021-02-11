@@ -579,6 +579,7 @@
                                                       next
                                                   }
                                                   if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
+                                                  if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(o$penalty == "none")) next
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
                                                                       solver = solver,
