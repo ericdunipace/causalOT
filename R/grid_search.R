@@ -172,6 +172,7 @@ wass_grid_search <- function(data, grid = NULL,
                              add.margins = FALSE,
                              joint.mapping = FALSE,
                              verbose = FALSE,
+                             neg.weights = FALSE,
                              ...) 
 {
   # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
@@ -187,6 +188,7 @@ wass_grid_search <- function(data, grid = NULL,
   add.margins <- isTRUE(add.margins)
   add.joint  <- isTRUE(add.joint)
   joint.mapping <- isTRUE(joint.mapping)
+  neg.weights <- isTRUE(neg.weights)
   
   if(method == "SCM") {
     add.margins <- add.joint <- joint.mapping <- FALSE
@@ -275,6 +277,7 @@ wass_grid_search <- function(data, grid = NULL,
                p = p, cost = cost, add.joint = add.joint,
                add.margins = add.margins, 
                joint.mapping = joint.mapping,
+               neg.weights = neg.weights,
                # save.solution = TRUE,
                # sol = NULL,
                ...)

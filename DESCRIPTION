@@ -23,7 +23,8 @@ Imports:
     oem,
     pbapply,
     reticulate,
-    lbfgsb3c
+    lbfgsb3c,
+    RSpectra
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),

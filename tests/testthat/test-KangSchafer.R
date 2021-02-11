@@ -18,7 +18,7 @@ testthat::test_that("function works as would expect", {
   testthat::expect_silent(ps <- causalOT:::get_p.DataSim(data))
   
   testthat::expect_equal(ps, 100)
-  testthat::expect_equal(ns, c(n0 = 258,n1 = 242))
+  testthat::expect_equal(ns, c(n0 = 274, n1 = 226))
   
   design <- "A"
   overlap <- "low"
@@ -46,7 +46,7 @@ testthat::test_that("function works as would expect", {
   testthat::expect_silent(ps <- causalOT:::get_p.DataSim(data))
   
   testthat::expect_equal(ps, 100)
-  testthat::expect_equal(ns, c(n0 = 255, n1 = 245))
+  testthat::expect_equal(ns, c(n0 = 257, n1 = 243))
   
   
   design <- "B"

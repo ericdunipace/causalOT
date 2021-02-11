@@ -580,6 +580,8 @@
                                                   }
                                                   if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
                                                   if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(o$penalty == "none")) next
+                                                  if ( isTRUE(o$neg.weights) && isTRUE(o$penalty != "L2")) next
+                                                  if (private$verbose && method == "Wasserstein ")
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
                                                                       solver = solver,

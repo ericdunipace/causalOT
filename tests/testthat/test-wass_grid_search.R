@@ -921,7 +921,7 @@ testthat::test_that("grid search joint.map, wass", {
                               joint.mapping = TRUE, penalty = "L2")
   )
   testthat::expect_equivalent(wsel2$args$constraint, list(penalty = 11.65043,
-                                                          joint = 0.5000005), 1e-3)
+                                                          joint = 0.3162278), 1e-3)
   
   estimand <- "ATC"
   testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
