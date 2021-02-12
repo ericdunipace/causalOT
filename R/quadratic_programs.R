@@ -1267,8 +1267,8 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
     if (!is.null(qp$obj$Q)) {
       L <- robust_sqrt_mat(as.matrix(qp$obj$Q[1:n0,1:n0]))
       Lmat <- Matrix::kronecker(X = Matrix::Diagonal(n = n1,
-                                                     x = 1),
-                                Y = L)
+                                                     x = sqrt(2)),
+                                Y = L )
       sparse0 <- Matrix::sparseMatrix(i = integer(0),
                                       j = integer(0), x = 0,
                                       dims = c(nvar, nvar + 1))
