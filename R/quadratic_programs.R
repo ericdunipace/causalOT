@@ -1267,7 +1267,7 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
     if (!is.null(qp$obj$Q)) {
       L <- robust_sqrt_mat(as.matrix(qp$obj$Q[1:n0,1:n0]))
       Lmat <- Matrix::kronecker(X = Matrix::Diagonal(n = n1,
-                                                     x = sqrt(2)),
+                                                     x = 1),
                                 Y = L )
       sparse0 <- Matrix::sparseMatrix(i = integer(0),
                                       j = integer(0), x = 0,
@@ -1282,7 +1282,7 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
                                                                  j = integer(0), x = 0,
                                                                  dims = c(nrow(qp$cones$F), 1)))
                           , sparseL)
-      qp$cones$g <- c(qp$cones$g, c(0,1,rep(0, nvar)))
+      qp$cones$g <- c(qp$cones$g, c(0, 0.5, rep(0, nvar)))
       
       qp$cones$cones <- cbind(qp$cones$cones, matrix(list("RQUAD", nvar + 2, NULL),
                                                      nrow = 3, ncol = 1))
