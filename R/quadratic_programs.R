@@ -28,7 +28,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     form <- as.formula(paste0("~ 0 +", form.temp))
     mm <- model.matrix(form, data = data.frame(x))
     if ( all(mm[,1] == 1)) mm <- mm[,-1]
-    if (method == "Wasserstein" | method == "Constrained Wasserstein") {
+    if (method == "Wasserstein" | method == "Constrained Wasserstein" | method == "SCM") {
       bf <- list(mm = mm,
                  K = dots[["balance.constraints"]])
     }
@@ -62,6 +62,8 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     if (is.null(dots[["add.margins"]])) dots[["add.margins"]] <- FALSE
     if (is.null(dots[["penalty"]])) dots[["penalty"]] <- "L2"
     if (is.null(dots[["joint.mapping"]])) dots[["joint.mapping"]] <- FALSE
+    if (is.null(dots[["neg.weights"]])) dots[["neg.weights"]] <- FALSE
+    
     
     if (est == "cATE") {
       if(is.list(constraint)) {
@@ -82,14 +84,18 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   penalty = dots[["penalty"]],
                   joint.mapping = dots[["joint.mapping"]],
                   rkhs.args = dots[["rkhs.args"]], 
-                  add.margins = dots[["add.margins"]], bf = bf,
+                  add.margins = dots[["add.margins"]], 
+                  neg.weights = dots[["neg.weights"]],
+                  bf = bf,
                   sample_weight = sw0),
            qp_scm(x=x, z = z, K = constraint1,
                   p=dots[["p"]], dist = dots[["metric"]], cost = dots[["cost"]],
                   penalty = dots[["penalty"]],
                   joint.mapping = dots[["joint.mapping"]],
                   rkhs.args = dots[["rkhs.args"]], 
-                  add.margins = dots[["add.margins"]], bf = bf,
+                  add.margins = dots[["add.margins"]], 
+                  neg.weights = dots[["neg.weights"]],
+                  bf = bf,
                   sample_weight = sw1))
     } else if (est == "ATE") {
       bf0 <- bf1 <- bf
@@ -116,7 +122,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   penalty = dots[["penalty"]],                   
                   joint.mapping = dots[["joint.mapping"]],
                   rkhs.args = dots[["rkhs.args"]], 
-                  add.margins = dots[["add.margins"]], bf = bf0,
+                  add.margins = dots[["add.margins"]], 
+                  neg.weights = dots[["neg.weights"]],
+                  bf = bf0,
                   sample_weight = sw0),
            qp_scm(x = rbind(x[z == 1, ,drop = FALSE],x), 
                   z = c(rep(0, sum(z)), rep(1, nrow(x))),
@@ -126,7 +134,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   penalty = dots[["penalty"]],
                   joint.mapping = dots[["joint.mapping"]],
                   rkhs.args = dots[["rkhs.args"]], 
-                  add.margins = dots[["add.margins"]], bf = bf1,
+                  add.margins = dots[["add.margins"]], 
+                  neg.weights = dots[["neg.weights"]],
+                  bf = bf1,
                   sample_weight = sw1))
     } else if (est == "ATC") {
       list(qp_scm(x=x, z=1-z, K=constraint, 
@@ -136,7 +146,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   penalty = dots[["penalty"]],
                   joint.mapping = dots[["joint.mapping"]],
                   add.joint = dots[["add.joint"]],
-                  rkhs.args = dots[["rkhs.args"]],  bf = bf,
+                  rkhs.args = dots[["rkhs.args"]],  
+                  neg.weights = dots[["neg.weights"]],
+                  bf = bf,
                   sample_weight = sw))
     } else {
       list(qp_scm(x = x, z = z, K = constraint,
@@ -145,7 +157,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   rkhs.args = dots[["rkhs.args"]], 
                   penalty = dots[["penalty"]],
                   joint.mapping = dots[["joint.mapping"]],
-                  add.margins = dots[["add.margins"]], bf = bf,
+                  add.margins = dots[["add.margins"]], 
+                  neg.weights = dots[["neg.weights"]],
+                  bf = bf,
                   sample_weight = sw))
     }
   } else if (meth == "Wasserstein") {
@@ -155,6 +169,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     if (is.null(dots[["add.margins"]])) dots[["add.margins"]] <- FALSE
     if (is.null(dots[["penalty"]])) dots[["penalty"]] <- "L2"
     if (is.null(dots[["joint.mapping"]])) dots[["joint.mapping"]] <- FALSE
+    if (is.null(dots[["neg.weights"]])) dots[["neg.weights"]] <- FALSE
     
     if (dots[["metric"]] == "RKHS" & is.null(dots[["rkhs.args"]])) {
       if (is.null(dots[["opt.method"]])) dots[["opt.method"]] <- "stan"
@@ -200,14 +215,18 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
                    rkhs.args = dots[["rkhs.args"]], 
-                   add.margins = dots[["add.margins"]], bf = bf,
+                   add.margins = dots[["add.margins"]], 
+                   neg.weights = dots[["neg.weights"]],
+                   bf = bf,
                    sample_weight = sw0),
            qp_wass(x=x, z = z, K = constraint1,
                    p=dots[["p"]], dist = dots[["metric"]], cost = dots[["cost"]],
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
                    rkhs.args = dots[["rkhs.args"]], 
-                   add.margins = dots[["add.margins"]], bf = bf,
+                   add.margins = dots[["add.margins"]], 
+                   neg.weights = dots[["neg.weights"]],
+                   bf = bf,
                    sample_weight = sw1))
     } else if (est == "ATE") {
       bf0 <- bf1 <- bf
@@ -234,7 +253,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    penalty = dots[["penalty"]],                   
                    joint.mapping = dots[["joint.mapping"]],
                    rkhs.args = dots[["rkhs.args"]], 
-                   add.margins = dots[["add.margins"]], bf = bf0,
+                   add.margins = dots[["add.margins"]], 
+                   neg.weights = dots[["neg.weights"]],
+                   bf = bf0,
                    sample_weight = sw0),
            qp_wass(x = rbind(x[z == 1, ,drop = FALSE],x), 
                    z = c(rep(0, sum(z)), rep(1, nrow(x))),
@@ -244,7 +265,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
                    rkhs.args = dots[["rkhs.args"]], 
-                   add.margins = dots[["add.margins"]], bf = bf1,
+                   add.margins = dots[["add.margins"]], 
+                   neg.weights = dots[["neg.weights"]],
+                   bf = bf1,
                    sample_weight = sw1))
     } else if (est == "ATC") {
       list(qp_wass(x=x, z=1-z, K=constraint, 
@@ -254,7 +277,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
                    add.joint = dots[["add.joint"]],
-                   rkhs.args = dots[["rkhs.args"]],  bf = bf,
+                   rkhs.args = dots[["rkhs.args"]],  
+                   neg.weights = dots[["neg.weights"]],
+                   bf = bf,
                    sample_weight = sw))
     } else {
       list(qp_wass(x = x, z = z, K = constraint,
@@ -263,7 +288,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    rkhs.args = dots[["rkhs.args"]], 
                    penalty = dots[["penalty"]],
                    joint.mapping = dots[["joint.mapping"]],
-                   add.margins = dots[["add.margins"]], bf = bf,
+                   add.margins = dots[["add.margins"]],
+                   neg.weights = dots[["neg.weights"]],
+                   bf = bf,
                    sample_weight = sw))
     }
     
@@ -276,6 +303,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     if(!dots[["add.joint"]] & !dots[["add.margins"]]) stop("must run margins or joint")
     if (is.null(dots[["penalty"]])) dots[["penalty"]] <- "L2"
     if (is.null(dots[["joint.mapping"]])) dots[["joint.mapping"]] <- FALSE
+    if (is.null(dots[["neg.weights"]])) dots[["neg.weights"]] <- FALSE
     
     if(dots[["metric"]] == "RKHS" & is.null(dots[["rkhs.args"]])) {
       if(is.null(dots[["opt.method"]])) dots[["opt.method"]] <- "stan"
@@ -322,7 +350,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          penalty = dots[["penalty"]],
                          joint.mapping = dots[["joint.mapping"]],
                          add.joint = dots[["add.joint"]],
-                         rkhs.args = dots[["rkhs.args"]],  bf = bf,
+                         rkhs.args = dots[["rkhs.args"]],  
+                         neg.weights = dots[["neg.weights"]],
+                         bf = bf,
                          sample_weight = sw0),
            qp_wass_const(x=x, z=z, K=constraint1, 
                          p=dots[["p"]], 
@@ -332,7 +362,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          penalty = dots[["penalty"]],
                          joint.mapping = dots[["joint.mapping"]],
                          add.joint = dots[["add.joint"]],
-                         rkhs.args = dots[["rkhs.args"]],  bf = bf,
+                         rkhs.args = dots[["rkhs.args"]],  
+                         neg.weights = dots[["neg.weights"]],
+                         bf = bf,
                          sample_weight = sw1))
     } else if (est == "ATE") {
       bf0 <- bf1 <- bf
@@ -359,7 +391,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          rkhs.args = dots[["rkhs.args"]], 
                          penalty = dots[["penalty"]],
                          joint.mapping = dots[["joint.mapping"]],
-                         add.margins = dots[["add.margins"]], bf = bf0,
+                         add.margins = dots[["add.margins"]], 
+                         neg.weights = dots[["neg.weights"]],
+                         bf = bf0,
                          sample_weight = sw0),
            qp_wass_const(x = rbind(x[z == 1, ,drop = FALSE],x), 
                          z = c(rep(0, sum(z)), rep(1, nrow(x))),
@@ -369,7 +403,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          rkhs.args = dots[["rkhs.args"]], 
                          penalty = dots[["penalty"]],
                          joint.mapping = dots[["joint.mapping"]],
-                         add.margins = dots[["add.margins"]], bf = bf1,
+                         add.margins = dots[["add.margins"]], 
+                         neg.weights = dots[["neg.weights"]],
+                         bf = bf1,
                          sample_weight = sw1))
     } else if (est == "ATC") {
       list(qp_wass_const(x=x, z=1-z, K=constraint, 
@@ -379,7 +415,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          penalty = dots[["penalty"]],
                          joint.mapping = dots[["joint.mapping"]],
                          add.joint = dots[["add.joint"]],
-                         rkhs.args = dots[["rkhs.args"]],  bf = bf,
+                         rkhs.args = dots[["rkhs.args"]],  
+                         neg.weights = dots[["neg.weights"]],
+                         bf = bf,
                          sample_weight = sw))
     } else {
       list(qp_wass_const(x=x, z=z, K=constraint, 
@@ -389,7 +427,9 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                          joint.mapping = dots[["joint.mapping"]],
                          add.margins = dots[["add.margins"]],
                          add.joint = dots[["add.joint"]],
-                         rkhs.args = dots[["rkhs.args"]], bf = bf,
+                         rkhs.args = dots[["rkhs.args"]], 
+                         neg.weights = dots[["neg.weights"]],
+                         bf = bf,
                          sample_weight = sw))
     }
   } else if (meth == "RKHS" | meth == "RKHS.dose") {
@@ -983,6 +1023,8 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
                                 vals = vals_1),
                       nvar = n1)
     
+    program_1 <- add_bounds(program_1, FALSE)
+    program_0 <- add_bounds(program_0, FALSE)
     
     return(list(program_0, program_1))
     
@@ -1053,6 +1095,8 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
                   LC = list(A = A, dir = dir,
                             vals = vals))
   program$nvar <- n
+  # add bounds
+  program <- add_bounds(program, FALSE)
   return(program)
 }
 
@@ -1218,8 +1262,10 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
                                              j = integer(0), x = 0, 
                                              dims = c(nrow(qp$LC$A), nvar)))
     
+    qp$bounds$lb <- c(qp$bounds$lb, rep(0, nvar))
+    qp$bounds$ub <- c(qp$bounds$ub, rep(Inf, nvar))
     if (!is.null(qp$obj$Q)) {
-      L <- inv_sqrt_mat(as.matrix(qp$obj$Q[1:n0,1:n0]), symmetric = TRUE)
+      L <- sqrt_mat(as.matrix(qp$obj$Q[1:n0,1:n0]), symmetric = TRUE)
       Lmat <- Matrix::kronecker(X = Matrix::Diagonal(n = n1,
                                                      x = 1),
                                 Y = L)
@@ -1259,6 +1305,8 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
       # qp$obj$L <- q_ineq$c
       qp$obj$Q <- NULL
       qp$obj$L <- c(qp$obj$L, 1)
+      qp$bounds$lb <- c(qp$bounds$lb, 0)
+      qp$bounds$ub <- c(qp$bounds$ub, Inf)
       qp$LC$A <- cbind(qp$LC$A, Matrix::sparseMatrix(i = integer(0),
                                                      j = integer(0), x = 0,
                                                      dims = c(nrow(qp$LC$A),1)))
@@ -1302,11 +1350,11 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
     } else {
       qp$obj$Q + qmat
     }
-    qp$obj$L <- if (is.null(qp$obj$L)) {
-      -2 * rep(a, n1) * lambda
-    } else {
-      qp$obj$L - 2 * rep(a, n1) * lambda
-    }
+    # qp$obj$L <- if (is.null(qp$obj$L)) {
+    #   -2 * rep(a, n1) * lambda
+    # } else {
+    #   qp$obj$L - 2 * rep(a, n1) * lambda
+    # }
     
   } 
   qp$nvar <- nvar
@@ -1333,6 +1381,17 @@ add_mapping <- function(op, x0, x1, p, lambda) {
   return(op)
 }
 
+add_bounds <- function(op, neg.weights) {
+  if (neg.weights) {
+    op$bounds <- list(lb = rep(-Inf, length(op$obj$L)),
+                      ub = rep(Inf, length(op$obj$L)))
+  } else {
+    op$bounds <- list(lb = rep(0, length(op$obj$L)),
+                      ub = rep(Inf, length(op$obj$L)))
+  }
+  return(op)
+}
+
 qp_wass <- function(x, z, K = list(penalty = NULL,
                                    joint   = NULL,
                                    margins = NULL,
@@ -1344,6 +1403,7 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
                     rkhs.args = NULL, add.joint = TRUE,
                     add.margins = FALSE,
                     joint.mapping = FALSE,
+                    neg.weights = FALSE,
                     bf = NULL,
                     sample_weight = NULL) {
   
@@ -1353,6 +1413,11 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   margmass = get_sample_weight(sample_weight, z = z)
   joint.mapping <- isTRUE(joint.mapping)
   penalty <- match.arg(penalty)
+  neg.weights <- isTRUE(neg.weights)
+  
+  if (neg.weights && penalty == "entropy") {
+    stop("Can't have negative weights with the entropy penalty!")
+  }
   
   x1 <- x[z == 1,,drop = FALSE]
   x0 <- x[z == 0,,drop = FALSE]
@@ -1426,11 +1491,15 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
                 marg_const_mat_A, 
                 marg_cost_vec)
   
-  
   # linear constraint values
   sum_const <- 1
   marg_const <- margmass$b 
   K_const  <- K$margins
+  
+  if (neg.weights) {
+    K_const <- c(K_const, 0, rep(0, length(K_const)))
+    LC$A <- rbind(LC$A, -joint_cost_vec, -1 * marg_cost_vec)
+  }
   
   LC$vals <- c(1, marg_const, K_const^p)
   
@@ -1443,6 +1512,9 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   
   # add bal constraints if necessary
   op <- add_bc(op, bf, z, K)
+  
+  # add bounds
+  op <- add_bounds(op, neg.weights)
   
   # add in mapping
   if (joint.mapping) op <- add_mapping(op, x0, x1, p, K$joint/max(cost)) #currently just p = 2 method
@@ -1481,6 +1553,7 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
                           rkhs.args = NULL, add.joint = TRUE,
                           add.margins = FALSE,
                           joint.mapping = FALSE,
+                          neg.weights = FALSE,
                           bf = NULL,
                           sample_weight = NULL) {
   
@@ -1490,6 +1563,11 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   margmass = get_sample_weight(sample_weight, z = z)
   joint.mapping <- isTRUE(joint.mapping)
   penalty <- match.arg(penalty)
+  neg.weights <- isTRUE(neg.weights)
+  
+  if (neg.weights && penalty == "entropy") {
+    stop("Can't have negative weights with the entropy penalty!")
+  }
   
   x1 <- x[z == 1,,drop = FALSE]
   x0 <- x[z == 0,,drop = FALSE]
@@ -1581,6 +1659,11 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   marg_const <- margmass$b 
   K_const  <- c(K$joint, K$margins)
   
+  if (neg.weights) {
+    K_const <- c(K_const, rep(0, length(K_const)))
+    LC$A <- rbind(LC$A, -1 * joint_cost_vec, -1 * marg_cost_vec)
+  }
+  
   LC$vals <- c(1, marg_const, K_const^p)
   
   # set direction
@@ -1592,6 +1675,9 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   
   # add bal constraints if necessary
   op <- add_bc(op, bf, z, K)
+  
+  # add bounds
+  op <- add_bounds(op, neg.weights)
   
   # add in mapping
   if (joint.mapping) op <- add_mapping(op, x0, x1, p, K$joint) #currently just p = 2 method
@@ -1628,6 +1714,7 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
                    rkhs.args = NULL, add.joint = TRUE,
                    add.margins = FALSE,
                    joint.mapping = FALSE,
+                   neg.weights = FALSE,
                    bf = NULL,
                    sample_weight = NULL) {
   
@@ -1637,6 +1724,11 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   margmass = get_sample_weight(sample_weight, z = z)
   joint.mapping <- isTRUE(joint.mapping)
   penalty <- match.arg(penalty)
+  neg.weights <- isTRUE(neg.weights)
+  
+  if (neg.weights && penalty == "entropy") {
+    stop("Can't have negative weights with the entropy penalty!")
+  }
   
   x1 <- x[z == 1,,drop = FALSE]
   x0 <- x[z == 0,,drop = FALSE]
@@ -1683,6 +1775,9 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   
   # create lp/qp
   op <- list(obj = obj, LC = LC)
+  
+  # add bounds
+  op <- add_bounds(op, neg.weights)
   
   # add in mapping
   op <- add_mapping(op, x0, x1, p, 0.0) #currently just p = 2 method
@@ -1752,6 +1847,8 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
                    LC = list(A = A, dir = dir,
                              vals = vals))
   quick_op$nvar <- length(L0)
+  quick_op$bounds <- list(lb = rep(0,   quick_op$nvar),
+                          ub = rep(Inf, quick_op$nvar))
   return(quick_op)
 }
 

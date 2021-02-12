@@ -107,7 +107,8 @@ DataSim <- R6::R6Class("DataSim",
                           #             "ATT" = f[private$z == 0],
                           #             "ATC" = f[private$z == 1])
                           if(estimand != "ATE" ) {
-                            Q <-Matrix::Matrix(tcrossprod(f), sparse = TRUE)
+                            Q <- Matrix::Matrix(tcrossprod(f), sparse = TRUE)
+                            if(solver == "mosek") Q <- as(Q, "dgCMatrix")
                             L <- -2 * (mu - const) * t(f)
                             A <- Matrix::sparseMatrix(i = rep(1, length(f)),
                                                       j = 1:length(f),
@@ -116,7 +117,9 @@ DataSim <- R6::R6Class("DataSim",
                                             LC = list(dir = "E",
                                                       vals = 1,
                                                       A = A),
-                                            nvar = length(L))
+                                            nvar = length(L),
+                                            bounds = list(lb = rep(0, length(L)),
+                                                          ub = rep(Inf, length(L))))
                             
                             weights <- switch(solver,
                                               "mosek" =  mosek_solver(problem),
@@ -129,6 +132,8 @@ DataSim <- R6::R6Class("DataSim",
                             f0 <- f[[1]]
                             
                             Q0 <- Matrix::Matrix(tcrossprod(f0), sparse = TRUE)
+                            if(solver == "mosek") Q0 <- as(Q0, "dgCMatrix")
+                            
                             L0 <- -2 * (mu[1] - const[1]) * t(f0)
                             A0 <- Matrix::sparseMatrix(i = rep(1, length(f0)),
                                                        j = 1:length(f0),
@@ -137,9 +142,13 @@ DataSim <- R6::R6Class("DataSim",
                                              LC = list(dir = "E",
                                                        vals = 1,
                                                        A = A0),
-                                             nvar = length(L0))
+                                             nvar = length(L0),
+                                             bounds = list(lb = rep(0,length(L0)),
+                                                           ub = rep(Inf, length(L0))))
                             
                             Q1 <- Matrix::Matrix(tcrossprod(f1), sparse = TRUE)
+                            if(solver == "mosek") Q1 <- as(Q1, "dgCMatrix")
+                            
                             L1 <- -2 * (mu[2] - const[2]) * t(f1)
                             A1 <- Matrix::sparseMatrix(i = rep(1, length(f1)),
                                                        j = 1:length(f1),
@@ -148,7 +157,9 @@ DataSim <- R6::R6Class("DataSim",
                                              LC = list(dir = "E",
                                                        vals = 1,
                                                        A = A1),
-                                             nvar = length(L1))
+                                             nvar = length(L1),
+                                             bounds = list(lb = rep(0,length(L1)),
+                                                           ub = rep(Inf, length(L1))))
                             
                             weights <- list(w0 = switch(solver,
                                                         "mosek" =  mosek_solver(problem0),
@@ -658,7 +669,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                            )
 )
 }
-# Kallus2019: binary tx
+# Kallus2018: binary tx
 {
   Kallus2018 <- R6::R6Class("Kallus2018", 
                             inherit = DataSim,

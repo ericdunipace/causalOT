@@ -1,3 +1,34 @@
+pos_sdef <- function(X, symmetric = FALSE) {
+  p <- ncol(X)
+   if (inherits(X, "dsTMatrix")) {
+     X <- as(as(X, "dsCMatrix"),"dgCMatrix")
+     symmetric <- TRUE
+   }
+   if (inherits(X, "dgTMatrix")) {
+     X <- as(X, "dgCMatrix")
+     symmetric <- TRUE
+   }
+  if (symmetric) {
+    # emax <- RSpectra::eigs_sym(X, k = 1, which = "LM")$values
+    emin <- RSpectra::eigs_sym(X, k = 1, which = "LA", sigma = -100,
+                               opts = list(retvec = FALSE,
+                                           maxitr = 2000,
+                                           tol = 1e-7))$values
+  } else {
+    # emax <- RSpectra::eigs(X, k = 1, which = "LM")$values
+    emin <- RSpectra::eigs(X, k = 1, which = "LA", sigma = -100,
+                           opts = list(retvec = FALSE,
+                                       maxitr = 2000,
+                                       tol = 1e-7))$values
+  }
+  if (emin < 0) {
+    adjust <- abs(emin) + 1e-6
+  } else {
+    return(X)
+  }
+  return(X + Matrix::Diagonal(n = p, x = adjust))
+}
+
 sqrt_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
   decomp <- eigen(X, symmetric = symmetric)
@@ -6,19 +37,19 @@ sqrt_mat <- function(X, symmetric = FALSE) {
 
 inv_sqrt_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
-  decomp <- eigen(X, symmetric = symmetric)
+  decomp <- eigen(as.matrix(X), symmetric = symmetric)
   return(tcrossprod(decomp$vectors %*% diag(1/sqrt(abs(decomp$values)), p, p), decomp$vectors))
 }
 
 inv_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
-  decomp <- eigen(X, symmetric = symmetric)
+  decomp <- eigen(as.matrix(X), symmetric = symmetric)
   return(tcrossprod(decomp$vectors %*% diag(1/abs(decomp$values), p, p), decomp$vectors))
 }
 
 mahal_transform <- function(X, Y, symmetric = FALSE) {
   p <- ncol(X)
-  decomp <- eigen(0.5 * cov(X) + 0.5 * cov(Y), symmetric = symmetric)
+  decomp <- eigen(as.matrix(0.5 * cov(X) + 0.5 * cov(Y)), symmetric = symmetric)
   L_inv <- tcrossprod(decomp$vectors %*% diag(1/sqrt(abs(decomp$values)), p, p), decomp$vectors)
   
   return(list(X %*% L_inv, Y %*% L_inv))

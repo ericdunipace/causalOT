@@ -12,14 +12,16 @@ cplex_solver <- function(qp, neg.weights = FALSE, ...) {
     if (!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "symmetricMatrix")
     qp$obj$Q <- qp$obj$Q * 2
   }
-  lb <- switch(neg.wt,
-               0,
-               -Inf)
+  lb <- qp$bounds$lb
+  ub <- qp$bounds$ub
+  # lb <- switch(neg.wt,
+  #              0,
+  #              -Inf)
   fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
   invisible(capture.output( res <-
                               Rcplex::Rcplex(cvec = c(as.numeric(qp$obj$L)), Amat = qp$LC$A, 
                                              bvec = qp$LC$vals, Qmat = qp$obj$Q,
-                                             lb = lb, ub = Inf, control = control,
+                                             lb = lb, ub = ub, control = control,
                                              objsense = "min", sense = qp$LC$dir,
                                              vtype = "C", n = 1) , type = "message", file = fn.capt))
   invisible(capture.output(Rcplex::Rcplex.close(), type = "message", append = TRUE, file = fn.capt))
@@ -48,10 +50,12 @@ gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
   model$sense[qp$LC$dir=="G"] <- '>='
   model$rhs <- qp$LC$vals
   model$vtype <- rep("C", num_param)
-  model$lb <- switch(neg.wt,
-                     rep(0, num_param),
-                     rep(-Inf, num_param))
-  model$ub <- rep(Inf, num_param)
+  # model$lb <- switch(neg.wt,
+  #                    rep(0, num_param),
+  #                    rep(-Inf, num_param))
+  # model$ub <- rep(Inf, num_param)
+  model$lb <- qp$bounds$lb
+  model$ub <- qp$bounds$ub
   params <- list(OutputFlag = 0)
   
   # dots <- list(...)
@@ -112,6 +116,13 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
       }
       model$qobj <- list(i = 1:num_param, j =  1:num_param, v = rep(2*vals,num_param))
     } else {
+      # M <- qp$obj$Q + Matrix::t(qp$obj$Q)
+      # not.pos.def <- tryCatch(isFALSE(is.matrix(chol(diag(10000, 10,10)))), error = function(e) TRUE)
+      # if (not.pos.def) {
+      # qp$obj$Q<- as(qp$obj$Q, "dsCMatrix")
+      qp$obj$Q <- Matrix::Matrix(pos_sdef(qp$obj$Q, symmetric = TRUE),
+                                 sparse = TRUE)
+      # }
       if (!inherits(qp$obj$Q,"dgTMatrix")) {
         qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
       }
@@ -122,10 +133,12 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
   model$c <- c(as.numeric(qp$obj$L))
   if (is.null(model$c)) model$c <- rep(0, num_param)
   model$A <- qp$LC$A
-  model$bx <- switch(neg.wt,
-    rbind(blx = rep(0, num_param), bux = rep(Inf, num_param)),
-    rbind(blx = rep(-Inf, num_param), bux = rep(Inf, num_param))
-  )
+  model$bx <- rbind(qp$bounds$lb, qp$bounds$ub)
+  
+  #   switch(neg.wt,
+  #   rbind(blx = rep(0, num_param), bux = rep(Inf, num_param)),
+  #   rbind(blx = rep(-Inf, num_param), bux = rep(Inf, num_param))
+  # )
   
   #constraint bounds
   num_bounds <- sum(qp$LC$dir == "E") + sum(qp$LC$dir == "L") + sum(qp$LC$dir == "G")

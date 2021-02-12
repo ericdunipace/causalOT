@@ -27,7 +27,7 @@ testthat::test_that("optimal weighting works, no augmentation", {
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
                                               doubly.robust = FALSE, estimand = "ATE")$estimate,
-                              mean(data$get_tau()))
+                              mean(data$get_tau()), tol = 1e-3)
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
                                               doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()))

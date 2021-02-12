@@ -839,7 +839,7 @@ testthat::test_that("works for NNM, sample weight", {
   
 })
 
-testthat::test_that("works for SCM grid/formula", {
+testthat::test_that("works for SCM grid", {
   testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^6
@@ -869,11 +869,9 @@ testthat::test_that("works for SCM grid/formula", {
                                        constraint = NULL,
                                        grid.search = TRUE,
                                        estimand = e, 
-                                       formula = "~.+0",
-                                       balance.constraints = 0.5,
                                        method = "SCM",
                                        solver = "mosek",
-                                       wass.method = "greenkhorn",
+                                       wass.method = "sinkhorn",
                                        iter = 10)
     )
   }
