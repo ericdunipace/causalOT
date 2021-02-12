@@ -1265,25 +1265,27 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda) {
     qp$bounds$lb <- c(qp$bounds$lb, rep(0, nvar))
     qp$bounds$ub <- c(qp$bounds$ub, rep(Inf, nvar))
     if (!is.null(qp$obj$Q)) {
-      L <- sqrt_mat(as.matrix(qp$obj$Q[1:n0,1:n0]), symmetric = TRUE)
+      L <- robust_sqrt_mat(as.matrix(qp$obj$Q[1:n0,1:n0]))
       Lmat <- Matrix::kronecker(X = Matrix::Diagonal(n = n1,
                                                      x = 1),
                                 Y = L)
       sparse0 <- Matrix::sparseMatrix(i = integer(0),
                                       j = integer(0), x = 0,
                                       dims = c(nvar, nvar + 1))
-      sparseL <- rbind(cbind(Lmat, sparse0),
-                       c(rep(0, nvar * 2), 1))
+      sparseL <- rbind(c(rep(0, nvar * 2), 1),
+                       c(rep(0, nvar * 2), 0),
+                       cbind(Lmat, sparse0)
+                       )
       
       qp$cones$F <- rbind(cbind(qp$cones$F, 
                                 Matrix::sparseMatrix(i = integer(0),
                                                                  j = integer(0), x = 0,
                                                                  dims = c(nrow(qp$cones$F), 1)))
                           , sparseL)
-      qp$cones$g <- c(qp$cones$g, rep(0, nrow(sparseL)))
+      qp$cones$g <- c(qp$cones$g, c(0,1,rep(0, nvar)))
       
-      qp$cones$cones <- cbind(qp$cones$cones, matrix(list("RQUAD", nvar + 1, NULL),
-                                                     nrow = 3, ncol=1))
+      qp$cones$cones <- cbind(qp$cones$cones, matrix(list("RQUAD", nvar + 2, NULL),
+                                                     nrow = 3, ncol = 1))
       
       # sparse0 <- Matrix::sparseMatrix(i = integer(0),
       #                                 j = integer(0), x = 0,
@@ -1760,8 +1762,9 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
                                       dims = c(1, n0*n1))
   marg_const_mat_A <- vec_to_col_constraints(n0,n1)
   
-  LC$A <- rbind(sum_const_A, 
-                marg_const_mat_A)
+  LC$A <- rbind(sum_const_A 
+                # , marg_const_mat_A
+                )
   
   
   # linear constraint values
@@ -1771,7 +1774,9 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   LC$vals <- c(1, marg_const)
   
   # set direction
-  LC$dir <- c(rep("E", 1 + length(marg_const)))
+  LC$dir <- c(rep("E", 1 
+                  # + length(marg_const)
+                  ))
   
   # create lp/qp
   op <- list(obj = obj, LC = LC)

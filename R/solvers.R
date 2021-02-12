@@ -169,7 +169,7 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
   if(is.null(dots$verbose)) {
     opts$verbose <- 0L
   } else {
-    opts$verbose <- as.numeric(dots$verbose)
+    opts$verbose <- as.integer(dots$verbose)
   }
   
   opts$usesol <- dots$usesol

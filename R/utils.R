@@ -29,6 +29,11 @@ pos_sdef <- function(X, symmetric = FALSE) {
   return(X + Matrix::Diagonal(n = p, x = adjust))
 }
 
+robust_sqrt_mat <- function(X) {
+  X <- pos_sdef(X, symmetric = TRUE)
+  return(Matrix::Matrix(chol(X), sparse = TRUE))
+}
+
 sqrt_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
   decomp <- eigen(X, symmetric = symmetric)

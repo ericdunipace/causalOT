@@ -586,7 +586,7 @@
                                                   }
                                                   if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
                                                   if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(o$penalty == "none")) next
-                                                  if ( isTRUE(o$neg.weights) && isTRUE(o$penalty != "L2")) next
+                                                  if ( isTRUE(o$neg.weights) && isTRUE(o$penalty == "entropy")) next
                                                   if (private$verbose && (method == "Wasserstein" | method == "Constrained Wasserstein") ) print(o)
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
