@@ -574,14 +574,14 @@
                                                   if ( isTRUE(is.null(delta)) ) next
                                                   if ( isTRUE(method == "RKHS" | method == "RKHS.dose" | method == "Wasserstein") & isTRUE(est == "feasible") ) next
                                                   if ( isTRUE(method == "RKHS.dose") & isFALSE(est == "ATE") ) next
-                                                  if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(est == "feasible")) {
+                                                  if ( isTRUE(method == "Constrained Wasserstein" | method == "Wasserstein") & isTRUE(est == "feasible")) {
                                                     # if(o$metric == "RKHS") 
                                                       next
                                                   }
                                                   if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
                                                   if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(o$penalty == "none")) next
                                                   if ( isTRUE(o$neg.weights) && isTRUE(o$penalty != "L2")) next
-                                                  if (private$verbose && method == "Wasserstein ")
+                                                  if (private$verbose && (method == "Wasserstein" | method == "Constrained Wasserstein") ) print(o)
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
                                                                       solver = solver,

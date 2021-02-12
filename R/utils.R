@@ -1,13 +1,19 @@
 pos_sdef <- function(X, symmetric = FALSE) {
   p <- ncol(X)
-   if (inherits(X, "dsTMatrix")) X <- as(as(X, "dsCMatrix"),"dgCMatrix")
-   if (inherits(X, "dgTMatrix")) X <- as(X, "dgCMatrix")
+   if (inherits(X, "dsTMatrix")) {
+     X <- as(as(X, "dsCMatrix"),"dgCMatrix")
+     symmetric <- TRUE
+   }
+   if (inherits(X, "dgTMatrix")) {
+     X <- as(X, "dgCMatrix")
+     symmetric <- TRUE
+   }
   if (symmetric) {
     # emax <- RSpectra::eigs_sym(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs_sym(X, k = 1, which = "LM", sigma = -0.1)$values
+    emin <- RSpectra::eigs_sym(X, k = 1, which = "SA")$values
   } else {
     # emax <- RSpectra::eigs(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs(X, k = 1, which = "LM", sigma = -0.1)$values
+    emin <- RSpectra::eigs(X, k = 1, which = "SA")$values
   }
   if (emin < 0) {
     adjust <- abs(emin) + 1e-6
