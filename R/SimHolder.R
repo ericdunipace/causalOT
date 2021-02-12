@@ -169,7 +169,8 @@
                                            add.joint = TRUE,
                                            add.margins = FALSE,
                                            penalty = "L2",
-                                           joint.mapping = FALSE)
+                                           joint.mapping = FALSE,
+                                           neg.weights = FALSE)
                              }
                              private$wass.opt <- list()
                              if(!is.null(Wass$metrics)) {
@@ -244,6 +245,11 @@
                                private$wass.opt$penalty <- match.arg(Wass$penalty, c("L2", "variance","entropy", "none"), several.ok = TRUE)
                              } else {
                                private$wass.opt$penalty <- "L2"
+                             }
+                             if (!is.null(Wass$neg.weights)) {
+                               private$wass.opt$neg.weights <- sapply(Wass$neg.weights, isTRUE)
+                             } else {
+                               private$wass.opt$neg.weights <- FALSE
                              }
                              private$SBW.balconst <- list("ATT" = 0.1,
                                                           "ATC" = 0.1,
@@ -614,11 +620,11 @@
                                                       if (mods == "ot_imputer" & !aug) next
                                                       for (match in cur$match[[1]]) {
                                                         for (split in cur$split[[1]]) {
-                                                          if (split) {
-                                                            mn <- which(cur$match[[1]] == match)
-                                                            an <- which(cur$model.aug[[1]] == aug)
-                                                            if (mn > 1 & an > 1) next
-                                                          }
+                                                          # if (split) {
+                                                          #   mn <- which(cur$match[[1]] == match)
+                                                          #   an <- which(cur$model.aug[[1]] == aug)
+                                                          #   if (mn > 1 & an > 1) next
+                                                          # }
                                                           data.table::set(private$output.dt, i = iter, j = "estimand" , value = est)
                                                           data.table::set(private$output.dt, i = iter, j = "model" , value = mods)
                                                           data.table::set(private$output.dt, i = iter, j = "model.augmentation" , value = aug)
@@ -1004,7 +1010,8 @@
                                                                formula = private$ps.formula$cwass,
                                                                add.margins = private$wass.opt$add.margins,
                                                                joint.mapping = private$wass.opt$joint.mapping,
-                                                               penalty = private$wass.opt$penalty
+                                                               penalty = private$wass.opt$penalty,
+                                                               neg.weights = private$wass.opt$neg.weights
                                             )
                                             wass_list <- list( metric = private$metric,
                                                               ground_p = private$ground_powers,
@@ -1019,13 +1026,17 @@
                                                               formula = private$ps.formula$wass,
                                                               add.margins = private$wass.opt$add.margins,
                                                               joint.mapping = private$wass.opt$joint.mapping,
-                                                              penalty = private$wass.opt$penalty
+                                                              penalty = private$wass.opt$penalty,
+                                                              neg.weights = private$wass.opt$neg.weights
+                                                              
                                             )
                                             scm_list <- list(  delta = sdm,
                                                                grid.search = private$grid.search,
                                                                add.margins = private$wass.opt$add.margins,
                                                                joint.mapping = TRUE,
-                                                               penalty = private$wass.opt$penalty
+                                                               penalty = private$wass.opt$penalty,
+                                                               neg.weights = private$wass.opt$neg.weights
+                                                               
                                             )
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
@@ -1250,6 +1261,7 @@
                                                             iter = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             maxit = if (is.null(private$RKHS$iter)) 2000 else private$RKHS$iter,
                                                             metric = metric,
+                                                            # balance.constraints = (2 * private$SBW.balconst[[estimand]] + 0.001),
                                                             balance.constraints = private$SBW.balconst[[estimand]],
                                                             add.joint = TRUE, #private$wass.opt$add.joint,
                                                             add.margins = isTRUE(add.margins),

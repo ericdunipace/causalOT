@@ -669,7 +669,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                            )
 )
 }
-# Kallus2019: binary tx
+# Kallus2018: binary tx
 {
   Kallus2018 <- R6::R6Class("Kallus2018", 
                             inherit = DataSim,

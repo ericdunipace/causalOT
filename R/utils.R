@@ -10,10 +10,16 @@ pos_sdef <- function(X, symmetric = FALSE) {
    }
   if (symmetric) {
     # emax <- RSpectra::eigs_sym(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs_sym(X, k = 1, which = "SA")$values
+    emin <- RSpectra::eigs_sym(X, k = 1, which = "LA", sigma = -100,
+                               opts = list(retvec = FALSE,
+                                           maxitr = 2000,
+                                           tol = 1e-7))$values
   } else {
     # emax <- RSpectra::eigs(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs(X, k = 1, which = "SA")$values
+    emin <- RSpectra::eigs(X, k = 1, which = "LA", sigma = -100,
+                           opts = list(retvec = FALSE,
+                                       maxitr = 2000,
+                                       tol = 1e-7))$values
   }
   if (emin < 0) {
     adjust <- abs(emin) + 1e-6

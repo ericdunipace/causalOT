@@ -68,7 +68,8 @@ sim.function <- function(dataGen, nsims = 100L, ground_p = 2, p = 1,
                           add.joint = dots$add.joint,
                           add.margins = dots$add.margins,
                           joint.mapping = dots$joint.mapping,
-                          penalty = dots$penalty),
+                          penalty = dots$penalty,
+                          neg.weights = dots$neg.weights),
                 verbose = isTRUE(dots$verbose))
   sh$run()
   
