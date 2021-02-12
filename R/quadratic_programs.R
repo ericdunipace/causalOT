@@ -1763,7 +1763,7 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   marg_const_mat_A <- vec_to_col_constraints(n0,n1)
   
   LC$A <- rbind(sum_const_A 
-                # , marg_const_mat_A
+                , marg_const_mat_A
                 )
   
   
@@ -1775,7 +1775,7 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   
   # set direction
   LC$dir <- c(rep("E", 1 
-                  # + length(marg_const)
+                  + length(marg_const)
                   ))
   
   # create lp/qp
