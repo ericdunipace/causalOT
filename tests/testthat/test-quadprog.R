@@ -332,12 +332,12 @@ testthat::test_that("quadprog.DataSim does mapping", {
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATC", method = method,cost = cost,
                          joint.mapping = TRUE)
   
-  testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
+  testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n1)] %*% rep(1/(n0*n1), n0*n1))@x,
                               c(1, rep(1/n0,n0), mean(cost^power)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATT", method = method, 
                          cost = cost, joint.mapping = TRUE)
-  testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
+  testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n1)] %*% rep(1/(n0*n1), n0*n1))@x,
                               c(1, rep(1/n1,n1), mean(cost^power)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATE", method = method
@@ -345,9 +345,9 @@ testthat::test_that("quadprog.DataSim does mapping", {
   
   cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
   cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
-  testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
+  testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n)] %*% rep(1/(n0*n), n0*n))@x,
                               c(1, rep(1/n,n),mean(cost_n0^power)))
-  testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
+  testthat::expect_equivalent((qp[[2]]$LC$A[,1:(n*n1)] %*% rep(1/(n*n1), n*n1))@x,
                               c(1, rep(1/n,n), mean(cost_n1^power)))
   
   
@@ -400,10 +400,10 @@ testthat::test_that("quadprog.DataSim various penalties", {
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATC", method = method,cost = cost,
                          penalty = "variance")
   
-  testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
+  testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n1)] %*% rep(1/(n0*n1), n0*n1))@x,
                               c(1, rep(1/n0,n0), mean(cost^power)))
-  testthat::expect_equivalent(qp[[1]]$obj$Q,  Matrix::Diagonal(n0*n1,1))
-  testthat::expect_equivalent(length(qp[[1]]$obj$L), n0 * n1)
+  testthat::expect_equivalent(qp[[1]]$obj$Q,  NULL)
+  testthat::expect_equivalent(length(qp[[1]]$obj$L[1:(n0*n1)]), n0 * n1)
   
   
 })

@@ -373,7 +373,7 @@ testthat::test_that("grid search actually works, cwass sdlp marg", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint, 
-                              list( margins = rep(1.442966, 6), 
+                              list( margins = rep(0.900287, 6), 
                                     joint = 1.972782), tol = 1e-2)
   
   estimand <- "ATC"
@@ -658,7 +658,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
     
   )
   
-  testthat::expect_equivalent(wsel$args$constraint, list(margins = rep(2.376389, 6), penalty = 111.1607), tol = 1e-3)
+  testthat::expect_equivalent(wsel$args$constraint, list(margins = rep(2.495172, 6), penalty = 111.1607), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -733,7 +733,7 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint, 
-                              list(margins = rep(1.654497, 6),
+                              list(margins = rep(2.037938, 6),
                                    112.4464), tol = 1e-3)
   
   estimand <- "ATC"
@@ -920,8 +920,8 @@ testthat::test_that("grid search joint.map, wass", {
                               wass.method = "networkflow", wass.iter = 0,
                               joint.mapping = TRUE, penalty = "L2")
   )
-  testthat::expect_equivalent(wsel2$args$constraint, list(penalty = 11.65043,
-                                                          joint = 0.3162278), 1e-3)
+  testthat::expect_equivalent(wsel2$args$constraint, list(penalty = 368.4189,
+                                                          joint = 0.001), 1e-3)
   
   estimand <- "ATC"
   testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
@@ -931,7 +931,7 @@ testthat::test_that("grid search joint.map, wass", {
                                                     wass.method = "networkflow", wass.iter = 0))
   
   estimand <- "ATE"
-  testthat::expect_silent(wsel4 <- wass_grid_search(data, grid = NULL,
+  testthat::expect_warning(wsel4 <- wass_grid_search(data, grid = NULL,
                                                     estimand = estimand, n.boot = 10, method = "Wasserstein",
                                                     metric = metric, p = power, solver = "mosek",
                                                     joint.mapping = TRUE,
@@ -975,7 +975,7 @@ testthat::test_that("grid search scm", {
                               wass.method = "networkflow", wass.iter = 0,
                               joint.mapping = TRUE, penalty = "L2")
   )
-  testthat::expect_lte(wsel2$args$constraint$penalty - 135.4599, 1e-3)
+  testthat::expect_lte(wsel2$args$constraint$penalty - 4283.619, 1e-3)
   
   estimand <- "ATC"
   testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,

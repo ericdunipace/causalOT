@@ -267,8 +267,12 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   estimand <- match.arg(estimand)
   sample_weight <- get_sample_weight(sample_weight, get_z(data, ...))
   
-  qp <- quadprog(data, constraint,  estimand, 
-                 method, sample_weight,
+  soc <- switch(solver,
+                "mosek" = TRUE,
+                FALSE)
+  qp <- quadprog(data = data, constraint = constraint,  estimand = estimand, 
+                 method = method, sample_weight = sample_weight,
+                 soc = soc,
                  ...)
   dots <- list(...)
   

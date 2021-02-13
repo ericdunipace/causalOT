@@ -230,15 +230,15 @@ testthat::test_that("works for Wass", {
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  # testthat::expect_match(all.equal(rep(1/n0,n0), 
-  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  # testthat::expect_match(all.equal(rep(1/n1,n1), 
-  #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1),
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
@@ -250,15 +250,15 @@ testthat::test_that("works for Wass", {
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  # testthat::expect_match(all.equal(rep(1/n0,n0), 
-  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  # testthat::expect_match(all.equal(rep(1/n1,n1), 
-  #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n1,n1),
+                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
@@ -271,8 +271,8 @@ testthat::test_that("works for Wass", {
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  # testthat::expect_match(all.equal(rep(1/n0,n0), 
-  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  testthat::expect_match(all.equal(rep(1/n0,n0),
+                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
@@ -1158,7 +1158,7 @@ testthat::test_that("works for wass, joint mapping", {
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
-  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+  weights <- lapply(estimates[1:3], function(e) calc_weight_bal(data = data, 
                                                            constraint = list(joint = 0.5,
                                                                              penalty = 10), 
                                                            estimand = e, 
@@ -1166,6 +1166,14 @@ testthat::test_that("works for wass, joint mapping", {
                                                            penalty = "L2",
                                                            method = "Wasserstein",
                                                            solver = "mosek"))
+  testthat::expect_warning(weights[4] <- lapply(estimates[4], function(e) calc_weight_bal(data = data, 
+                                                                constraint = list(joint = 0.5,
+                                                                                  penalty = 10), 
+                                                                estimand = e, 
+                                                                joint.mapping = TRUE,
+                                                                penalty = "L2",
+                                                                method = "Wasserstein",
+                                                                solver = "mosek")))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 

@@ -1,6 +1,7 @@
 cplex_solver <- function(qp, neg.weights = FALSE, ...) {
   dots <- list(...)
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  qp <- convert_cones(qp)
   num_param <- length(c(as.numeric(qp$obj$L)))
   
   if (is.null(dots$control)) {
@@ -32,13 +33,13 @@ cplex_solver <- function(qp, neg.weights = FALSE, ...) {
   sol <- switch(neg.wt,
                 sol * as.numeric(sol > 0),
                 sol)
-  return(sol)
+  return(sol[1:qp$nvar])
 }
 
 gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  qp <- convert_cones(qp)
   num_param <- length(c(as.numeric(qp$obj$L)))
-  num_param <- length(c(as.numeric(qp$ob$L)))
   model <- list()
   model$Q <- qp$obj$Q
   model$modelsense <- 'min'
@@ -58,6 +59,7 @@ gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
   model$ub <- qp$bounds$ub
   params <- list(OutputFlag = 0)
   
+  
   # dots <- list(...)
   # model$pstart <- dots$init.sol
   
@@ -76,7 +78,7 @@ gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
   # status <- out$status
   # 
   # dual_vars <- out$pi[-length(out$pi)]
-  return(sol)
+  return(sol[1:qp$nvar])
   
   if (dots$save.solution) {
     return(list(result = sol, res = res))
@@ -88,7 +90,7 @@ gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
 mosek_solver <- function(qp, neg.weights = FALSE, ...) {
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
   num_param <- length(c(as.numeric(qp$obj$L)))
-  num_param <- length(c(as.numeric(qp$obj$L)))
+  
   model <- list()
   model$sense <- 'min'
   # Quad <- if(!inherits(qp$obj$Q, 'dgTMatrix')) {
@@ -227,4 +229,59 @@ QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
   
   sol$result <- renormalize(sol$result)
   return(sol)
+}
+
+
+convert_cones <- function(qp) {
+  if (!is.null(qp$cones)) {
+    nvar <- qp$nvar
+    cones <- qp$cones$cones
+    varnums <- 1:sum(unlist(cones[2,]))
+    idx     <- unlist(sapply(1:length(cones[2,]), function(i) rep(i, cones[2,i][[1]])))
+    cumcone <- cones
+    cumcone[2,] <- lapply(1:ncol(cones), function(i) varnums[idx == i])
+    which.cones <- sapply(cumcone[1,], 
+                          function(cc) which(cc == "RQUAD"))
+    vars <- cumcone[2, which.cones]
+    # Fmat <- qp$cones$F
+    Qc.list <- lapply(vars, function(i) qp$cones$F[i,])
+    constraint.list <- lapply(vars, function(i) qp$cones$g[i])
+    
+    qc     <- vector("list", length(Qc.list))
+    idx.constraint <- rep(NA_integer_, length(Qc.list))
+    lambda.list <- vector("list", length(Qc.list))
+    for (i in seq_along(Qc.list) ) {
+      idx.constraint[[i]] <- which(diff(Qc.list[[i]][1,, drop = FALSE]@p) == 1)
+      
+      qc[[i]] <- Qc.list[[i]][-c(1:2),-idx.constraint[[i]],drop = FALSE]#,
+      lambda.list[[i]] <- rep(qp$obj$L[idx.constraint[[i]] ], nrow(qc[[i]]))
+      constraint.list[[i]] <- constraint.list[[i]][-c(1:2)]
+    }
+    qp$obj$L <- qp$obj$L[-idx.constraint]
+    qp$LC$A <- qp$LC$A[ , -idx.constraint, drop = FALSE]
+    QQ      <- do.call("rbind", qc)
+    QQ      <- cbind(QQ, Matrix::Diagonal(n = nrow(QQ), x = -1))
+    addl.varnum <- nrow(QQ)
+    qp$LC$A <- rbind(cbind(qp$LC$A, Matrix::sparseMatrix(i = integer(0),
+                                                         j = integer(0),
+                                                         x = 0,
+                                                         dims = c(nrow(qp$LC$A),
+                                                                  addl.varnum))),
+                     QQ)
+    if (is.null(qp$obj$Q)) {
+      qp$obj$Q <- Matrix::bdiag(Matrix::Diagonal(n = length(qp$obj$L), x = 0.0) ,
+                                Matrix::Diagonal(n = addl.varnum, x = unlist(lambda.list)))
+    } else {
+      qp$obj$Q <- Matrix::bdiag(qp$obj$Q[-idx.constraint, -idx.constraint], 
+                                Matrix::Diagonal(n = nrow(QQ), x = unlist(lambda.list)))
+    }
+    qp$obj$L <- c(qp$obj$L, rep(0, addl.varnum))
+    
+    qp$LC$vals <- c(qp$LC$vals, unlist(constraint.list))
+    qp$LC$dir <- c(qp$LC$dir, rep("E", addl.varnum))
+    
+    qp$bounds$lb <- c(qp$bounds$lb[-idx.constraint], rep(-Inf, addl.varnum))
+    qp$bounds$ub <- c(qp$bounds$ub[-idx.constraint], rep(Inf, addl.varnum))
+  }
+  return(qp)
 }
