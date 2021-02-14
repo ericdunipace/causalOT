@@ -862,20 +862,27 @@ testthat::test_that("works for SCM grid", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-  for (e in estimates[1:2]) {
-    # print(e)
-    testthat::expect_silent(
-      weight.check[[e]] <- calc_weight(data = data, 
-                                       constraint = NULL,
-                                       grid.search = TRUE,
-                                       estimand = e, 
-                                       method = "SCM",
-                                       solver = "mosek",
-                                       wass.method = "sinkhorn",
-                                       iter = 10)
-    )
-  }
   testthat::expect_warning(
+    weight.check[[estimates[1]]] <- calc_weight(data = data, 
+                                                constraint = NULL,
+                                                grid.search = TRUE,
+                                                estimand = estimates[1], 
+                                                method = "SCM",
+                                                solver = "mosek",
+                                                wass.method = "sinkhorn",
+                                                iter = 10)
+  )
+  testthat::expect_silent(
+    weight.check[[estimates[2]]] <- calc_weight(data = data, 
+                                                constraint = NULL,
+                                                grid.search = TRUE,
+                                                estimand = estimates[2], 
+                                                method = "SCM",
+                                                solver = "mosek",
+                                                wass.method = "sinkhorn",
+                                                iter = 10)
+  )
+  testthat::expect_silent(
     weight.check[[estimates[3]]] <- calc_weight(data = data, 
                                      constraint = NULL,
                                      grid.search = TRUE,
@@ -885,6 +892,7 @@ testthat::test_that("works for SCM grid", {
                                      wass.method = "sinkhorn",
                                      iter = 10)
   )
+  
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
 })

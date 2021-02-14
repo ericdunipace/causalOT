@@ -424,7 +424,7 @@ wass_grid_search <- function(data, grid = NULL,
     if (all(is.na(output))) stop("wass_grid_search: All grid values generated errors")
     
     min.idx <- which(output == min(output, na.rm = TRUE))[1]
-    if(length(min.idx) > 1) warning("Multiple penalties had minimum wasserstein value!")
+    if (length(min.idx) > 1) warning("Multiple penalties had minimum wasserstein value! Try increasing bootstrap number with `n.boot` parameter")
     
     return(weight.list[[min.idx[1]]])
   } else {
@@ -540,8 +540,8 @@ wass_grid_search <- function(data, grid = NULL,
     min.idx.0 <- which(output_0 == min(output_0, na.rm = TRUE))
     min.idx.1 <- which(output_1 == min(output_1, na.rm = TRUE))
     
-    if(length(min.idx.0) > 1) warning("Multiple penalties for control had minimum wasserstein value!")
-    if(length(min.idx.1) > 1) warning("Multiple penalties for treated had minimum wasserstein value!")
+    if(length(min.idx.0) > 1) warning("Multiple penalties for control had minimum wasserstein value! Try increasing bootstrap number with `n.boot` parameter")
+    if(length(min.idx.1) > 1) warning("Multiple penalties for treated had minimum wasserstein value! Try increasing bootstrap number with `n.boot` parameter")
     
     output.weight <- weight.list[[min.idx.0[1]]]
     output.weight$w1 <- weight.list[[min.idx.1[1]]]$w1

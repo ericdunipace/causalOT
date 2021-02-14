@@ -1485,7 +1485,7 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda, soc) {
   return(qp)
 }
 
-add_mapping <- function(op, x0, x1, p, lambda, penalty) {
+add_mapping <- function(op, x0, x1, p, b, lambda, penalty) {
   # currently only do p = 2
   # if (penalty == "entropy") {
   #   op$obj$Q <- if (is.null(op$obj$Q) ) {
@@ -1504,36 +1504,61 @@ add_mapping <- function(op, x0, x1, p, lambda, penalty) {
   #     op$obj$L * as.numeric(lambda) -2 *c(tcrossprod(x0,x1)) / ncol(x0) / nrow(x0)
   #   }
   # } else {
+    d <- ncol(x1)
+    n0 <- nrow(x0)
+    n1 <- nrow(x1)
+    
+    nvar <- d * n0 * n1
+    
+    # need to scale x0 and x1 so that different objectives are on the same scale
+    # and so that the weights can approx x1
+    scale_x1 <- sweep(x1, MARGIN = 1, STATS = sqrt(b)/sqrt(d), FUN = "*")
+    # scale_x0 <- sweep(x0, MARGIN = 1, STATS = 1.0/(sqrt(b) * sqrt(d)), FUN = "*")
     op$cones <- list()
     
     nvar <- length(op$obj$L)
     op$cones$F <- rbind(c(rep(0, nvar), 1),
                         rep(0, nvar + 1),
-                        cbind(Matrix::kronecker(X = Matrix::Diagonal(n = nrow(x1), x = 1),
-                                                Y = t(x0)), rep(0, ncol(x0) * nrow(x1)))
+                        cbind(Matrix::kronecker(X = Matrix::Diagonal(n = n1, x = 1.0/(sqrt(b) * sqrt(d))),
+                                                Y = t(x0)), rep(0, d * n1))
     )
-    op$cones$g <- c(0, 0.5, -c(t(x1)))
+    op$cones$g <- c(0, 0.5, -c(t(scale_x1)))
     op$cones$cones <- matrix(list("RQUAD",  nrow(op$cones$F), NULL),
                              nrow = 3, ncol = 1)
-    op$obj$L <- c(op$obj$L, 1)
+    
+    # adjust the cost objective if present and add in extra variable to all components
+    op$obj$L <- c(op$obj$L * as.numeric(lambda), 1)
     op$LC$A <- cbind(op$LC$A, Matrix::sparseMatrix(i = integer(0),
                                                    j = integer(0),
                                                    x = 0,
                                                    dims = c(nrow(op$LC$A),
                                                             1)))
+    if (!is.null(op$obj$Q)) {
+      op$obj$Q <- Matrix::bdiag(op$obj$Q, 
+                                # add in zero matrix to lower right diagonal
+                                Matrix::sparseMatrix(i = integer(0),
+                                                               j = integer(0),
+                                                               x = 0,
+                                                               dims = c(1,1)))
+    }
     
     op$bounds$lb <- c(op$bounds$lb, 0)
     op$bounds$ub <- c(op$bounds$ub, Inf) 
-  # }
-  
-  
+    
+    
+    
   return(op)
 }
 
-add_bounds <- function(op, neg.weights) {
+add_bounds <- function(op, neg.weights, add.joint) {
   if (neg.weights) {
-    op$bounds <- list(lb = rep(-Inf, length(op$obj$L)),
+    op$bounds <- if(add.joint) {
+      list(lb = rep(-Inf, length(op$obj$L)),
                       ub = rep(Inf, length(op$obj$L)))
+    } else {
+      list(lb = rep(-1, length(op$obj$L)),
+           ub = rep(1, length(op$obj$L)))
+    }
   } else {
     op$bounds <- list(lb = rep(0, length(op$obj$L)),
                       ub = rep(Inf, length(op$obj$L)))
@@ -1665,10 +1690,10 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   op <- add_bc(op, bf, z, K)
   
   # add bounds
-  op <- add_bounds(op, neg.weights)
+  op <- add_bounds(op, neg.weights, joint.mapping)
   
   # add in mapping
-  if (joint.mapping) op <- add_mapping(op, x0, x1, p, K$joint/max(cost), penalty) #currently just p = 2 method
+  if (joint.mapping) op <- add_mapping(op, x0, x1, p, margmass$b, K$joint/max(cost), penalty) #currently just p = 2 method
   
   # add in penalty functions
   op <- qp_pen(op, n0, n1, margmass$a, penalty = penalty, K$penalty, soc)
@@ -1830,10 +1855,10 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   op <- add_bc(op, bf, z, K)
   
   # add bounds
-  op <- add_bounds(op, neg.weights)
+  op <- add_bounds(op, neg.weights, joint.mapping)
   
   # add in mapping
-  if (joint.mapping) op <- add_mapping(op, x0, x1, p, K$joint, penalty) #currently just p = 2 method
+  if (joint.mapping) op <- add_mapping(op, x0, x1, p, margmass$b, K$joint, penalty) #currently just p = 2 method
   
   # add in penalty functions
   op <- qp_pen(op, n0, n1, margmass$a, penalty = penalty, K$penalty, soc)
@@ -1935,10 +1960,10 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   op <- list(obj = obj, LC = LC)
   
   # add bounds
-  op <- add_bounds(op, neg.weights)
+  op <- add_bounds(op, neg.weights, TRUE)
   
   # add in mapping
-  op <- add_mapping(op, x0, x1, p, 0.0, penalty) #currently just p = 2 method
+  op <- add_mapping(op, x0, x1, p, margmass$b, 0.0, penalty) #currently just p = 2 method
   
   # add in penalty functions
   op <- qp_pen(op, n0, n1, margmass$a, penalty = penalty, K$penalty, soc)

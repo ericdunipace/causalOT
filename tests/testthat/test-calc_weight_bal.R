@@ -1028,7 +1028,7 @@ testthat::test_that("works for SCM, penalties", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  testthat::expect_warning(weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+  testthat::expect_silent(weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
                                                            constraint = list(penalty = 10), 
                                                            estimand = e, 
                                                            method = "SCM",
@@ -1166,7 +1166,7 @@ testthat::test_that("works for wass, joint mapping", {
                                                            penalty = "L2",
                                                            method = "Wasserstein",
                                                            solver = "mosek"))
-  testthat::expect_warning(weights[4] <- lapply(estimates[4], function(e) calc_weight_bal(data = data, 
+  testthat::expect_silent(weights[4] <- lapply(estimates[4], function(e) calc_weight_bal(data = data, 
                                                                 constraint = list(joint = 0.5,
                                                                                   penalty = 10), 
                                                                 estimand = e, 
@@ -1260,13 +1260,24 @@ testthat::test_that("works for Wass, neg.weights", {
   testthat::expect_true(any(weights[[4]]$w1 < 0))
   testthat::expect_true(any(weights[[4]]$w0 < 0))
   
-  weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
+  weights <- lapply(estimates[1:3], function(e) {
+    calc_weight_bal(data = data, 
                                                            constraint = 1e-6, 
                                                            estimand = e, 
                                                            penalty = "variance",
                                                            method = "Wasserstein",
                                                            solver = "mosek",
-                                                           neg.weights = TRUE))
+                                                           neg.weights = TRUE)
+    })
+  
+  testthat::expect_silent(weights[4]<- lapply(estimates[4], function(e) calc_weight_bal(data = data, 
+                    constraint = 1e-6, 
+                    estimand = e, 
+                    penalty = "variance",
+                    method = "Wasserstein",
+                    solver = "mosek",
+                    neg.weights = TRUE)
+  ))
   for (w in weights) testthat::expect_equal(names(w), arg.names)
   
   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -1282,7 +1293,7 @@ testthat::test_that("works for Wass, neg.weights", {
                                    weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_true(any(weights[[4]]$w1 < 0))
+  testthat::expect_false(any(weights[[4]]$w1 < 0))
   testthat::expect_true(any(weights[[4]]$w0 < 0))
 })
 
@@ -1453,7 +1464,7 @@ testthat::test_that("works for SCM, neg.weights", {
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
                                                            constraint = list(penalty = 1), 
                                                            estimand = e, 
-                                                           penalty = "SCM",
+                                                           penalty = "L2",
                                                            method = "SCM",
                                                            solver = "gurobi",
                                                            neg.weights = TRUE))

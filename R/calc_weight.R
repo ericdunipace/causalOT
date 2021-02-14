@@ -267,6 +267,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   estimand <- match.arg(estimand)
   sample_weight <- get_sample_weight(sample_weight, get_z(data, ...))
   
+  solver <- match.arg(solver)
   soc <- switch(solver,
                 "mosek" = TRUE,
                 FALSE)
