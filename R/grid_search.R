@@ -625,18 +625,23 @@ wass_cost_default <- function(x, z, estimand, metric, method, p, rkhs.args,
 }
 
 
-marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metric, wass.iter, add.joint, ...) {
-  if(estimand == "ATE"){
+marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metric, wass.iter, add.joint, 
+                                remove.joint = FALSE, ...) {
+  if (estimand == "ATE"){
     D <- length(cost[[1]])
     D_plus <- D
     if (add.joint) {
       D <- D - 1
+    } else if (remove.joint) {
+      D_plus <- D <- D - 1
     }
   } else {
     D <- length(cost)
     D_plus <- D
     if (add.joint) {
       D <- D - 1
+    } else if (remove.joint) {
+      D_plus <- D <- D - 1
     }
   }
   
@@ -671,6 +676,7 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     nnm <- lapply(1:D_plus, function(d) calc_weight(data, estimand = estimand, method = "NNM", 
                                                      cost = list(cost[[1]][[d]],
                                                                  cost[[2]][[d]]),
+                                                    p = p,
                                                      ...))
     
     w0 <- w1 <- nnm
@@ -1057,7 +1063,8 @@ wass.fun.grid <- function(x, z,
                  p = p, data = data, 
                  cost = cost, 
                  estimand = estimand, metric = metric, 
-                 wass.iter = wass.iter, add.joint = FALSE, ...)
+                 wass.iter = wass.iter, add.joint = FALSE, 
+                 remove.joint = TRUE, ...)
     args <- args[!duplicated(names(args))]
     argn <- lapply(names(args), as.name)
     names(argn)  <- names(args)

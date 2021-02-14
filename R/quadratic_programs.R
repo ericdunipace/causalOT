@@ -1508,7 +1508,7 @@ add_mapping <- function(op, x0, x1, p, b, lambda, penalty) {
     n0 <- nrow(x0)
     n1 <- nrow(x1)
     
-    nvar <- d * n0 * n1
+    nvar <- n0 * n1
     
     # need to scale x0 and x1 so that different objectives are on the same scale
     # and so that the weights can approx x1

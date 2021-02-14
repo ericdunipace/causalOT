@@ -103,11 +103,11 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   margmass <- get_sample_weight(sample_weight, z)
   
   dots <- list(...)
-  cost <- dots$cost
-  p <- dots$p
+  cost <- dots[["cost"]]
+  p <- dots[["p"]]
   if (is.null(p)) p <- 2
-  if (is.null(dots$metric)) dots$metric <- "mahalanobis"
-  if (dots$metric == "RKHS" & is.null(dots$rkhs.args) & is.null(dots$cost)) {
+  if (is.null(dots[["metric"]])) dots$metric <- "mahalanobis"
+  if (dots[["metric"]] == "RKHS" & is.null(dots$rkhs.args) & is.null(dots[["cost"]])) {
     if (is.null(dots$opt.method)) dots$opt.method <- "stan"
     temp.est <- switch(estimand,
                        "ATT" = "ATT",
