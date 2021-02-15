@@ -71,10 +71,18 @@ barycentric_projection <- function(data, weight,
       #                                         estimand = est
       #              )
       # )
+      if (is.list(weight$gamma)) {
+        gam0 <- weight$gamma[[1]]
+        gam1 <- weight$gamma[[2]]
+      } else {
+        gam0 <- gam1 <- NULL
+      }
       
-      gamma <- list(calc_gamma(weights = list(w0 = weight$w0, w1 = rep(1/n,n)), 
+      gamma <- list(calc_gamma(weights = list(w0 = weight$w0, w1 = rep(1/n,n),
+                                              gamma = gam0), 
                                cost = cost[[1]], p = pow, ...),
-                    calc_gamma(weights = list(w0 = weight$w1, w1 = rep(1/n,n)), 
+                    calc_gamma(weights = list(w0 = weight$w1, w1 = rep(1/n,n),
+                                              gamma = gam1), 
                                cost = cost[[2]], p = pow, ...))
     } else if(est == "ATT" | est == "ATC") {
       

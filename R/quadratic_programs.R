@@ -70,7 +70,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     
     if (est == "cATE") {
       if(is.list(constraint)) {
-        if(length(constraint) == 2) {
+        if(length(constraint) == 2 && !any(names(constraint) %in% c("joint","penalty","margins")) ) {
           constraint0 <- constraint[[1]]
           constraint1 <- constraint[[2]]
         } else {
@@ -208,7 +208,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     }
     if (est == "cATE") {
       if(is.list(constraint)) {
-        if(length(constraint) == 2) {
+        if(length(constraint) == 2 && !any(names(constraint) %in% c("joint","penalty","margins"))) {
           constraint0 <- constraint[[1]]
           constraint1 <- constraint[[2]]
         } else {
@@ -348,7 +348,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     }
     if (est == "cATE") {
       if(is.list(constraint)) {
-        if(length(constraint) == 2) {
+        if(length(constraint) == 2 && !any(names(constraint) %in% c("joint","penalty","margins"))) {
           constraint0 <- constraint[[1]]
           constraint1 <- constraint[[2]]
         } else {
@@ -1552,7 +1552,7 @@ add_mapping <- function(op, x0, x1, p, b, lambda, penalty) {
 
 add_bounds <- function(op, neg.weights, add.joint) {
   if (neg.weights) {
-    op$bounds <- if(add.joint) {
+    op$bounds <- if (add.joint) {
       list(lb = rep(-Inf, length(op$obj$L)),
                       ub = rep(Inf, length(op$obj$L)))
     } else {

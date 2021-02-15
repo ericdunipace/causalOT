@@ -458,6 +458,8 @@ convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
       output$w0 <-  rowSums(matrix(sol[[1]], n0, N)) #matrix(sol[[1]]$result, n0, n1)
       output$w1 <-  rowSums(matrix(sol[[2]], n1, N)) #matrix(sol[[2]]$result, n0, n1)
       #note both are rowSums here
+      output$gamma <- list(w0 =  matrix(sol[[1]], n0, N),
+                           w1 =  matrix(sol[[2]], n1, N))
     }
   } else {
     if (estimand == "ATT") {

@@ -504,6 +504,7 @@ wass_grid_search <- function(data, grid = NULL,
       pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
       
     }
+    
     boot.args1 <- boot.args0 <- boot.args
     boot.args0$MoreArgs$cost   <- cost[[1]]
     boot.args1$MoreArgs$cost   <- cost[[2]]
@@ -535,6 +536,7 @@ wass_grid_search <- function(data, grid = NULL,
       output_1[g]               <- mean(eval(b.call, envir = boot.args1)^p)
       if (verbose) setTxtProgressBar(pb, g)
     }
+    if (verbose) close(pb)
     if (all(is.na(output_0)) | all(is.na(output_1))) stop("wass_grid_search: All grid values generated errors")
     
     min.idx.0 <- which(output_0 == min(output_0, na.rm = TRUE))
