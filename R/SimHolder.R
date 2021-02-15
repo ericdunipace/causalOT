@@ -1032,7 +1032,7 @@
                                             )
                                             scm_list <- list(  delta = sdm,
                                                                grid.search = private$grid.search,
-                                                               add.margins = private$wass.opt$add.margins,
+                                                               # add.margins = private$wass.opt$add.margins,
                                                                joint.mapping = TRUE,
                                                                penalty = private$wass.opt$penalty,
                                                                neg.weights = private$wass.opt$neg.weights
