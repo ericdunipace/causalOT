@@ -123,7 +123,9 @@
                                                              constrained.wasserstein.target = c("RKHS", "SBW"),
                                                              wasserstein.distance.constraints = NULL,
                                                              add.joint = TRUE,
-                                                             add.margins = FALSE),
+                                                             add.margins = FALSE,
+                                                             eval.method = "cross.validation",
+                                                             cross.val.replicates = 10),
                                                  outcome.model = "lm",
                                                  outcome.formula = list(none = NULL,
                                                                         augmentation = NULL),
@@ -170,10 +172,12 @@
                                            add.margins = FALSE,
                                            penalty = "L2",
                                            joint.mapping = FALSE,
-                                           neg.weights = FALSE)
+                                           neg.weights = FALSE,
+                                           eval.method = "cross.validation",
+                                           cross.val.replicates = 10)
                              }
                              private$wass.opt <- list()
-                             if(!is.null(Wass$metrics)) {
+                             if (!is.null(Wass$metrics)) {
                                private$metric <- match.arg(Wass$metrics,
                                                            dist.metrics(), several.ok = TRUE)
                              } else {
@@ -251,6 +255,19 @@
                              } else {
                                private$wass.opt$neg.weights <- FALSE
                              }
+                             
+                             if (!is.null(Wass$eval.method)) {
+                               private$eval.method <- match.arg(Wass$eval.method, c("cross.validation", "bootstrap"))
+                             } else {
+                               private$eval.method <- "cross.validation"
+                             }
+                             
+                             if (!is.null(Wass$cross.val.replicates)) {
+                               private$wass.opt$cross.val.replicates <- Wass$cross.val.replicates
+                             } else {
+                               private$wass.opt$cross.val.replicates <- 10
+                             }
+                             
                              private$SBW.balconst <- list("ATT" = 0.1,
                                                           "ATC" = 0.1,
                                                           "cATE" = 0.1,
@@ -625,6 +642,9 @@
                                                           #   an <- which(cur$model.aug[[1]] == aug)
                                                           #   if (mn > 1 & an > 1) next
                                                           # }
+                                                          if (!split) {
+                                                            if (match || !aug) next
+                                                          }
                                                           data.table::set(private$output.dt, i = iter, j = "estimand" , value = est)
                                                           data.table::set(private$output.dt, i = iter, j = "model" , value = mods)
                                                           data.table::set(private$output.dt, i = iter, j = "model.augmentation" , value = aug)
@@ -1270,7 +1290,11 @@
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
                                                             epsilon = private$wass.opt$epsilon,
-                                                            verbose = isTRUE(private$verbose)),
+                                                            verbose = isTRUE(private$verbose),
+                                                            eval.method = private$eval.method,
+                                                            n.boot = 1000,
+                                                            K = 10,
+                                                            R = private$cross.val.replicates),
                                                          error = function(e) {
                                                            warning("Error in weight method ", method, " with estimand ",estimand, ". ", e$message)
                                                            ns <- private$simulator$get_n()
