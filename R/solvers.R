@@ -109,14 +109,14 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
     if(Matrix::isDiagonal(qp$obj$Q)) {
       if("diag" %in% slotNames(qp$obj$Q)) {
         if(qp$obj$Q@diag == "U") {
-          vals <- 1
+          vals <- rep(1, num_param)
         } else {
-          vals <-  mean(qp$obj$Q@x)
+          vals <-  qp$obj$Q@x
         }
       } else {
-        vals <- mean(qp$obj$Q@x)
+        vals <- rep(mean(qp$obj$Q@x), num_param)
       }
-      model$qobj <- list(i = 1:num_param, j =  1:num_param, v = rep(2*vals,num_param))
+      model$qobj <- list(i = 1:num_param, j =  1:num_param, v = 2 * vals)
     } else {
       # M <- qp$obj$Q + Matrix::t(qp$obj$Q)
       # not.pos.def <- tryCatch(isFALSE(is.matrix(chol(diag(10000, 10,10)))), error = function(e) TRUE)
@@ -270,10 +270,10 @@ convert_cones <- function(qp) {
                      QQ)
     if (is.null(qp$obj$Q)) {
       qp$obj$Q <- Matrix::bdiag(Matrix::Diagonal(n = length(qp$obj$L), x = 0.0) ,
-                                Matrix::Diagonal(n = addl.varnum, x = unlist(lambda.list)))
+                                Matrix::Diagonal(n = addl.varnum, x = 0.5 * unlist(lambda.list)))
     } else {
       qp$obj$Q <- Matrix::bdiag(qp$obj$Q[-idx.constraint, -idx.constraint], 
-                                Matrix::Diagonal(n = nrow(QQ), x = unlist(lambda.list)))
+                                Matrix::Diagonal(n = nrow(QQ), x = 0.5 * unlist(lambda.list)))
     }
     qp$obj$L <- c(qp$obj$L, rep(0, addl.varnum))
     

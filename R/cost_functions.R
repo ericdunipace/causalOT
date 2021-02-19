@@ -37,16 +37,21 @@ cost_metric_calc <- function(x,z,ground_p, metric = c("mahalanobis","Lp","sdLp")
   
   if (estimand == "ATT" | estimand == "ATC") {
     return(match.fun(cost_function)(X = x[z == 0, , drop = FALSE], 
-                                    Y = x[z == 1, , drop = FALSE], ground_p = ground_p, direction = direction))
+                                    Y = x[z == 1, , drop = FALSE], ground_p = ground_p, direction = direction,
+                                    estimand = estimand))
   } else if (estimand == "ATE") {
     return(list(
-      match.fun(cost_function)(X = x[z == 0, , drop = FALSE], Y = x, ground_p = ground_p, direction = direction),
-      match.fun(cost_function)(X = x[z == 1, , drop = FALSE], Y = x, ground_p = ground_p, direction = direction)
+      match.fun(cost_function)(X = x[z == 0, , drop = FALSE], Y = x, ground_p = ground_p, 
+                               direction = direction,
+                               estimand = estimand),
+      match.fun(cost_function)(X = x[z == 1, , drop = FALSE], Y = x, ground_p = ground_p, 
+                               direction = direction,
+                               estimand = estimand)
     ))
   }
 }
 
-cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")) {
+cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"), ...) {
   
   dir <- match.arg(direction)
   if (!is.matrix(X)) {
@@ -71,7 +76,7 @@ cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")
   return(causalOT::cost_calculation_(X,Y,as.double(ground_p))) 
 }
 
-cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")) {
+cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"), estimand = "ATE") {
   dir <- match.arg(direction)
   if (!is.matrix(X)) {
     X <- as.matrix(X)
@@ -92,7 +97,12 @@ cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise
   }
   stopifnot(ground_p > 0)
   
-  scale <- 1/rowMeans(cbind(matrixStats::rowSds(X), matrixStats::rowSds(Y)), na.rm = TRUE)
+  if (estimand == "ATE") {
+    scale <- 1/matrixStats::rowSds(Y)
+  } else  {
+    scale <- 1/matrixStats::rowSds(cbind(X,Y))
+  } 
+  
   X <-  scale * X
   Y <-  scale * Y
   
@@ -105,7 +115,8 @@ cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise
   return(causalOT::cost_calculation_(X,Y,as.double(ground_p))) 
 }
 
-cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")) {
+cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"),
+                             estimand = "ATT") {
   
   dir <- match.arg(direction)
   
@@ -122,7 +133,7 @@ cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwi
     stop("Number of covariates of X and Y should be equal.")
   }
   
-  return( cost_mahal_(X, Y, ground_p) )
+  return( cost_mahal_(X, Y, ground_p, estimand = estimand) )
 }
 
 cost_RKHS <- function(X, z, 

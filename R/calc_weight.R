@@ -279,17 +279,6 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   
   sol <- lapply(qp, function(q) QPsolver(q, solver = solver, ...))
   
-  # sol <- switch(estimand,
-  #               "ATT"  = QPsolver(qp, solver = solver,...),
-  #               "ATC"  = QPsolver(qp, solver = solver,...),
-  #               "cATE" = lapply(qp, function(q) QPsolver(q, solver = solver, ...)),
-  #               "ATE"  = lapply(qp, function(q) QPsolver(q, solver = solver, ...)))
-  
-  # sol <- if( estimand == "ATE" & (method == "Wasserstein" | method == "Constrained Wasserstein") ) {
-  #   lapply(1:2, function(i) QPsolver(qp[[i]], solver = solver, ...))
-  # } else {
-  #   QPsolver(qp, solver = solver,...) # normalize to have closer to sum 1
-  # }
   ns <- get_n(data, ...)
   
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)

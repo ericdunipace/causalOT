@@ -21,15 +21,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // cost_mahal_
-Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p);
-RcppExport SEXP _causalOT_cost_mahal_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP) {
+Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p, const std::string estimand);
+RcppExport SEXP _causalOT_cost_mahal_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP, SEXP estimandSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type A_(A_SEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type B_(B_SEXP);
     Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    rcpp_result_gen = Rcpp::wrap(cost_mahal_(A_, B_, p));
+    Rcpp::traits::input_parameter< const std::string >::type estimand(estimandSEXP);
+    rcpp_result_gen = Rcpp::wrap(cost_mahal_(A_, B_, p, estimand));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -182,7 +183,7 @@ RcppExport SEXP _rcpp_module_boot_stan_fit4gp_hyper_dose_mod();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
-    {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 3},
+    {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 4},
     {"_causalOT_kernel_calc_dose_", (DL_FUNC) &_causalOT_kernel_calc_dose_, 7},
     {"_causalOT_similarity_calc_dose_", (DL_FUNC) &_causalOT_similarity_calc_dose_, 3},
     {"_causalOT_kernel_calc_", (DL_FUNC) &_causalOT_kernel_calc_, 9},

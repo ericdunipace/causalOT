@@ -243,7 +243,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                invisible(self)
                              },
                              gen_x = function() {
-                               stopifnot(length(private$n) >0 )
+                               stopifnot(length(private$n) > 0 )
                                x13 <- matrix(private$param$param_x$x_13$mean, nrow = private$n,
                                              ncol = 3, byrow = TRUE) + 
                                  matrix(rnorm(private$n * 3), 
@@ -274,7 +274,11 @@ Hainmueller <- R6::R6Class("Hainmueller",
                              gen_z = function() {
                                if(all(dim(private$x) == 0)) gen_x()
                                mean_z <- private$x %*% private$param$beta_z
-                               latent_z <- mean_z + rnorm(private$n, mean=0, sd = private$param$sigma_z)
+                               latent_z <- if(private$overlap != "medium") {
+                                 mean_z + rnorm(private$n, mean=0, sd = private$param$sigma_z)
+                               } else {
+                                 mean_z + (rchisq(private$n, df = 5) - 5) * private$param$sigma_z + 0.5
+                               }
                                private$z <- c(ifelse(latent_z < 0, 0, 1))
                                private$check_data()
                                invisible(self)
@@ -297,7 +301,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                if( missing(overlap) | is.null(overlap) ) {
                                  private$overlap <- "low"
                                } else {
-                                 private$overlap <- match.arg(overlap, c("low","high"))
+                                 private$overlap <- match.arg(overlap, c("low","medium","high"))
                                }
                                private$
                                  set_param(beta_z = param$beta_z, beta_y = param$beta_y,
@@ -466,6 +470,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                               beta_y = list(A = c(1,1,1,-1,1,1),
                                                             B = c(1,1,1)),
                                               sigma_z= list(low = sqrt(30),
+                                                            medium = sqrt(67.6/10),
                                                             high = sqrt(100)),
                                               sigma_y = 1,
                                               param_x = list(x_13 = list(mean = rep(0, 3),

@@ -26,13 +26,11 @@ void Lp_weight(const matrix & Y,
                  int D) {
   double pm2 = p - 2.0;
   weight = gamma;
-  Rcpp::Rcout <<  weight.col(0).sum()<< "\n\n";
+  
   for(int m = 0; m < M; m++) {
     weight.col(m) *= lp_norm_p(Z.col(m), Y, pm2);
   }
-  Rcpp::Rcout <<  weight.col(0).sum()<< "\n\n";
-  Rcpp::Rcout <<  weight.rows() << ", " << weight.cols()<< "\n\n";
-  Rcpp::Rcout << lp_norm_p(Z.col(0), Y, pm2)(0,0) << "\n";
+  Rcpp::Rcout << lp_norm_p(Z.col(0), Y, pm2) << "\n";
   weight.array() = weight.array().rowwise()/(weight.colwise().sum().array());
   // Rcpp::Rcout << weight.col(0).sum() << "\n";
 }

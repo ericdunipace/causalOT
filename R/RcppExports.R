@@ -5,8 +5,8 @@ cost_calculation_ <- function(A_, B_, p) {
     .Call(`_causalOT_cost_calculation_`, A_, B_, p)
 }
 
-cost_mahal_ <- function(A_, B_, p) {
-    .Call(`_causalOT_cost_mahal_`, A_, B_, p)
+cost_mahal_ <- function(A_, B_, p, estimand) {
+    .Call(`_causalOT_cost_mahal_`, A_, B_, p, estimand)
 }
 
 kernel_calc_dose_ <- function(X_, z_, p, theta_, gamma_, kernel_, calc_covariance) {

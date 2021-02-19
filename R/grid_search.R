@@ -164,7 +164,9 @@ RKHS_grid_search <- function(data, grid = NULL,
 wass_grid_search <- function(data, grid = NULL, 
                              grid.length = 7,
                              estimand = c("ATT", "ATC","cATE","ATE"),
+                             K = 10, R = 10,
                              n.boot = 1000,
+                             eval.method = c("cross.validation", "bootstrap"),
                              method = c("Wasserstein","Constrained Wasserstein", "SCM"),
                              sample_weight = NULL,
                              wass.method = "networkflow", wass.iter = 0,
@@ -173,6 +175,7 @@ wass_grid_search <- function(data, grid = NULL,
                              joint.mapping = FALSE,
                              verbose = FALSE,
                              neg.weights = FALSE,
+                             cgd = FALSE,
                              ...) 
 {
   # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
@@ -182,15 +185,19 @@ wass_grid_search <- function(data, grid = NULL,
   solver <- dots$solver
   p      <- dots$p
   metric <- dots$metric
+  penalty <- dots$penalty
+  eval.method <- match.arg(eval.method, c("cross.validation", "bootstrap"))
   if (is.null(solver)) solver <- "gurobi"
   if (is.null(p)) p <- 2
   if (is.null(metric)) metric <- "mahalanobis"
+  if (is.null(penalty)) penalty <- "L2"
   add.margins <- isTRUE(add.margins)
   add.joint  <- isTRUE(add.joint)
   joint.mapping <- isTRUE(joint.mapping)
   neg.weights <- isTRUE(neg.weights)
+  cgd <- isTRUE(cgd)
   
-  if(method == "SCM") {
+  if (method == "SCM") {
     add.margins <- add.joint <- joint.mapping <- FALSE
   }
   
@@ -216,329 +223,262 @@ wass_grid_search <- function(data, grid = NULL,
   
   wass.dat <- cbind(z = z, x)
   
-  cost <- dots$cost
-  rerun <- FALSE
-  if (add.margins) {
-    if (estimand == "ATE")  {
-      if ( length(cost[[1]]) != (ncol(x) + 1) | 
-                              length(cost[[2]]) != (ncol(x) + 1)) {
-        rerun <- TRUE 
-      }
-    } else {
-      if ( length(cost) != (ncol(x) + 1) ) {
-        rerun <- TRUE
-      }
-    }
-  }
-  if (is.null(cost) | rerun) {
-    # if(is.null(dots$p)) dots$p <- 2
-    # if(is.null(dots$metric)) dots$metric <- "mahalanobis"
-    
-    # if(estimand == "ATE" & metric != "RKHS") {
-    #   cost <- list(cost_fun(x0, x, ground_p = p, metric = metric),
-    #                cost_fun(x1, x, ground_p = p, metric = metric))
-    #     
-    # } else {
-      
-    # }
-    cost <- wass_cost_default(x = x, z = z, estimand = estimand, 
-                              metric = metric, method = method, p = p, 
-                              rkhs.args = dots$rkhs.args, 
-                              add.margins = add.margins)
-  } else {
-    cost <- dots$cost
-  }
-  
+  cost <- wg_cost_setup(cost = dots$cost, p = p,
+                        estimand = estimand, x = x, z = z,
+                        metric = metric, method = method,
+                        rkhs.args = dots$rkhs.args,
+                        add.margins = add.margins)
   
   
   if (all(is.null(grid)) | all(is.na(grid))) {
-    gargs <- list(x = x, z = z, 
+    grid <- f.call.list(fun = "wass_grid_default", 
+                list.args = list(x = x, z = z, 
                   grid.length = grid.length,
                   p = p, data = data, cost = cost, estimand = estimand,
                   method = method, metric = metric, wass.iter = wass.iter, 
                   add.joint = add.joint, add.margins = add.margins,
-                  joint.mapping = joint.mapping,
-                  ...)
-    gargs <- gargs[!duplicated(names(gargs))]
-    n.gargs <- lapply(names(gargs), as.name)
-    names(n.gargs) <- names(gargs)
-    g.call <- as.call(c(list(as.name("wass_grid_default")), n.gargs))
-    grid <- eval(g.call, envir = gargs)
+                  joint.mapping = joint.mapping, penalty = penalty,
+                  ...))
   }
   
+  # if grid values return error, give out the nearest neighbor estimate
   if (!all(is.na(grid)) && isTRUE(all.equal(grid[1], grid[length(grid)], check.attributes = FALSE)) ) {
     return(calc_weight_NNM(data = data, estimand = estimand,
                            transport.matrix = TRUE,
                            ...))
   }
   
-  args <- list(data = data, constraint = grid[[1]],  estimand = estimand, 
-               method = method, solver = solver, metric = metric,
-               p = p, cost = cost, add.joint = add.joint,
+  args <- list(data = data, 
+               x0 = x0,
+               x1 = x1,
+               x = x,
+               z = z,
+               grid = grid,  
+               n.boot = n.boot,
+               K = K, 
+               R = R,
+               eval.method = eval.method,
+               wass.method = wass.method,
+               wass.iter = wass.iter,
+               sample_weight = sample_weight,
+               estimand = estimand, 
+               method = method, 
+               solver = solver, 
+               metric = metric,
+               p = p, 
+               cost = cost, 
+               add.joint = add.joint,
                add.margins = add.margins, 
                joint.mapping = joint.mapping,
                neg.weights = neg.weights,
-               # save.solution = TRUE,
-               # sol = NULL,
+               cgd = cgd, 
+               verbose = verbose,
                ...)
-  args <- args[!duplicated(names(args))]
-  argn <- lapply(names(args), as.name)
-  names(argn) <- names(args)
   
-  f.call <- as.call(setNames(c(as.name("calc_weight_bal"), argn), c("", names(args))))
-  if (verbose) {
-    message("\nEstimating Optimal Transport weights for each constraint")
-    pbapply::pboptions(type = "timer", style = 3, char = "=")
-  } else {
-    pbapply::pboptions(type = "none")
-  }
+  weight.list <- weight_est_fun(args)
   
-  # qp.constructor <- switch(args$method,
-  #                          "qp_wass",
-  #                          "qp_const_wass")
-  # 
-  # f.call <- as.call(setNames(c(as.name(qp.constructor), argn), c("", names(args))))
-  # qp  <- eval(f.call, envir = args)
-  # 
-  # for(g in grid) {
-  #   if (args$method == "Wasserstein") {
-  #     qp$Q <- qp$Q * g[[1]][length(g[[1]])]
-  #     if (args$add.margins) {
-  #       
-  #     } 
+  output.weight <- eval_weights(weight.list, args)
+  
+  return(output.weight)
+  
+  
+  # if (estimand != "ATE") {
+  #   # bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
+  #   # bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
+  #   if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+  #     rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
+  #     colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
+  #   } else {
+  #     rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
+  #     colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
   #   }
-  # }
-  
-  # out <- vector("list", length(grid))
-  # 
-  # for (g in seq_along(grid)) {
-  #   args$constraint <- unlist(grid[[g]])
-  #   out[[g]] <- tryCatch(eval(f.call, envir = args),
-  #                               error = function(e) {
-  #                                 warning(e$message)
-  #                                 return(list(w0 = rep(NA_real_, n0),
-  #                                             w1 = rep(NA_real_, n1),
-  #                                             gamma = NULL,
-  #                                             estimand = estimand,
-  #                                             method = method, args = list(constraint = delta)))})
-  #   if (!is.null(out[[g]]$args$sol)) {
-  #     args$sol <- out[[g]]$args$sol
+  #   
+  #   if (is.null(dots$cost_a)) {
+  #     cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+  #                                  rep(0,n0)),
+  #              power = p,
+  #              metric = metric, estimand = "ATT")
+  #   } else {
+  #     cost_a <- dots$cost_a
+  #     if (is.list(cost_a)) cost_a <- cost_a[[1]]
   #   }
-  # }
-  
-  weight.list <- pbapply::pblapply(grid, function(delta) {
-    args$constraint <- delta
-    out <- tryCatch(eval(f.call, envir = args),
-                    error = function(e) {
-                      warning(e$message)
-                      return(list(w0 = rep(NA_real_, n0),
-                                                     w1 = rep(NA_real_, n1),
-                                                     gamma = NULL,
-                                                     estimand = estimand,
-                                                     method = method, args = list(constraint = delta)))})
-    # out <- do.call("calc_weight_bal", args)
-    if (solver == "gurobi") Sys.sleep(0.1)
-    class(out) <- "causalWeights"
-    return(out)
-  })
-  
-  if (estimand != "ATE") {
-    # bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
-    # bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
-      rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
-      colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
-    } else {
-      rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
-      colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
-    }
-    
-    if (is.null(dots$cost_a)) {
-      cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
-                                   rep(0,n0)),
-               power = p,
-               metric = metric, estimand = "ATT")
-    } else {
-      cost_a <- dots$cost_a
-      if (is.list(cost_a)) cost_a <- cost_a[[1]]
-    }
-    
-    if (is.null(dots$cost_b)) {
-      cost_b <- cost_fun(rbind(x1,x1), z = c(rep(1, n1),
-                                             rep(0, n1)),
-                         power = p,
-                         metric = metric, estimand = "ATT")
-    } else {
-      cost_b <- dots$cost_b
-      if (is.list(cost_b)) cost_b <- cost_b[[1]]
-    }
-    
-    tx_idx <- which(pd$z == 1)
-    boot.args <- list(FUN = wass_grid, 
-                      # bootIdx.row = bootIdx.rows, 
-                      # bootIdx.col = bootIdx.cols,
-                      rowCount = rowCount, 
-                      colCount = colCount,
-                      MoreArgs    = list(weight = weight.list[[1]], 
-                          data = wass.dat, 
-                          # tx_idx = tx_idx, 
-                          cost = cost,
-                          p = p,
-                          metric = metric,
-                      # estimand = estimand,
-                          wass.method = wass.method, 
-                          wass.iter = wass.iter,
-                          add.joint = add.joint,
-                          x0 = x0,
-                          x1 = x1,
-                          cost_a = cost_a,
-                          cost_b = cost_b,
-                          ...)
-    )
-    boot.args <- boot.args[!duplicated(names(boot.args))]
-    boot.args$MoreArgs <- boot.args$MoreArgs[!duplicated(names(boot.args$MoreArgs))]
-    boot.n <- lapply(names(boot.args), as.name)
-    names(boot.n) <- names(boot.args)
-    b.call <- as.call(c(list(quote(mapply)), boot.n))
-    
-    output <- rep(NA, length(grid))
-    names(output) <- as.character(grid)
-    
-    if (verbose ) {
-      message("\nCalculating out of sample balance:")
-      # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
-      pbapply::pboptions(type = "timer", style = 3, char = "=")
-    } else {
-      pbapply::pboptions(type = "none")
-    }
-    output <- pbapply::pbsapply(weight.list, function(ww) {
-      boot.args$MoreArgs$weight <- ww
-      return(mean(eval(b.call, envir = boot.args)^p))
-    })
-    # for (g in seq_along(grid)) {
-    #   boot.args$MoreArgs$weight <- weight.list[[g]]
-    #   output[g] <- mean(eval(b.call, envir = boot.args))
-    #   if (verbose) setTxtProgressBar(pb, g)
-    # }
-    pbapply::pboptions(type = "none")
-    if (all(is.na(output))) stop("wass_grid_search: All grid values generated errors")
-    
-    min.idx <- which(output == min(output, na.rm = TRUE))[1]
-    if (length(min.idx) > 1) warning("Multiple penalties had minimum wasserstein value! Try increasing bootstrap number with `n.boot` parameter")
-    
-    return(weight.list[[min.idx[1]]])
-  } else {
-    # bootIdx.cols    <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
-    # bootIdx.rows.0  <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
-    # bootIdx.rows.1  <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
-    if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
-      rowCount.0 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)),     simplify = FALSE)
-      rowCount.1 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)),     simplify = FALSE)
-      colCount   <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n), prob = sample_weight$total)), simplify = FALSE)
-    } else {
-      rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
-      rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
-      colCount   <- replicate(n.boot, c(rmultinom(1, n, prob = sample_weight$total)), simplify = FALSE)
-    }
-    
-    
-    
-    if (is.null(dots$cost_a)) {
-      cost_a <- list(cost_fun(rbind(x0,x0), z = c(rep(1,n0),
-                                             rep(0,n0)),
-                         power = p,
-                         metric = metric, estimand = "ATT"),
-                     cost_fun(rbind(x1,x1), z = c(rep(1,n1),
-                                                  rep(0,n1)),
-                              power = p,
-                              metric = metric, estimand = "ATT")
-      )
-    } else {
-      cost_a <- dots$cost_a
-      stopifnot(length(cost_a) == 2)
-    }
-    
-    if (is.null(dots$cost_b)) {
-      cost_b <- list(cost_fun(rbind(x,x), z = c(rep(1,n),
-                                                rep(0,n)),
-                              power = p,
-                              metric = metric, estimand = "ATT"))
-    } else {
-      cost_b <- dots$cost_b
-      if (is.list(cost_b)) cost_b <- cost_b[[1]]
-    }
-    
-    output_0        <- output_1 <- rep(NA, length(grid))
-    names(output_0) <- names(output_1) <- as.character(grid)
-    tx_idx          <- which(pd$z == 1)
-    full.sample.weight <- rep(1/n, n)
-    
-    boot.args <- list(FUN = wass_grid,
-                      # bootIdx.row  = bootIdx.rows.0,  
-                      # bootIdx.col = bootIdx.cols,
-                      rowCount  = rowCount.0,  
-                      colCount = colCount,
-                      MoreArgs = list(
-                        weight = weight.list[[1]], 
-                        data = wass.dat, 
-                        # tx_idx = tx_idx, 
-                        cost = cost[[1]],
-                        p = p,
-                        metric = metric,
-                        x0 = x0,
-                        x1 = x,
-                        cost_a = cost_a[[1]],
-                        cost_b = cost_b,
-                        # estimand = "ATT",
-                        wass.method = wass.method, wass.iter = wass.iter,
-                        add.joint = add.joint,
-                        ...)
-    )
-    boot.args <- boot.args[!duplicated(names(boot.args))]
-    boot.args$MoreArgs <- boot.args$MoreArgs[!duplicated(names(boot.args$MoreArgs))]
-    boot.n <- lapply(names(boot.args), as.name)
-    names(boot.n) <- names(boot.args)
-    b.call <- as.call(c(list(quote(mapply)), boot.n))
-    if (verbose ) {
-      message("\nCalculating out of sample balance")
-      pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
-      
-    }
-    
-    boot.args1 <- boot.args0 <- boot.args
-    boot.args0$MoreArgs$cost   <- cost[[1]]
-    boot.args1$MoreArgs$cost   <- cost[[2]]
-    
-    # boot.args0$bootIdx.row     <- bootIdx.rows.0
-    # boot.args1$bootIdx.row     <- bootIdx.rows.1
-    boot.args0$rowCount     <- rowCount.0
-    boot.args1$rowCount     <- rowCount.1
-    boot.args1$x0           <- x1
-    boot.args1$cost_a       <- cost_a[[2]]
-    
-    w0 <- w1 <- weight.list[[length(weight.list)]]
-    w0$w1 <- w1$w1 <- full.sample.weight
-    w1$w0 <- weight.list[[length(weight.list)]]$w1
-    
-    w0$args$power <- w1$args$power <- weight.list[[length(weight.list)]]$args$power
-    boot.args0$MoreArgs$weight <- w0
-    boot.args1$MoreArgs$weight <- w1
-    
-    for (g in seq_along(grid)) {
- 
-      boot.args0$MoreArgs$weight$w0 <- weight.list[[g]]$w0
-      # boot.args$MoreArgs$cost   <- cost[[1]]
-      output_0[g]               <- mean(eval(b.call, envir = boot.args0)^p)
-      
-     
-      boot.args1$MoreArgs$weight$w0 <- weight.list[[g]]$w1
-      # boot.args$MoreArgs$cost   <- cost[[2]]
-      output_1[g]               <- mean(eval(b.call, envir = boot.args1)^p)
-      if (verbose) setTxtProgressBar(pb, g)
-    }
-    if (verbose) close(pb)
-    if (all(is.na(output_0)) | all(is.na(output_1))) stop("wass_grid_search: All grid values generated errors")
-    
+  #   
+  #   if (is.null(dots$cost_b)) {
+  #     cost_b <- cost_fun(rbind(x1,x1), z = c(rep(1, n1),
+  #                                            rep(0, n1)),
+  #                        power = p,
+  #                        metric = metric, estimand = "ATT")
+  #   } else {
+  #     cost_b <- dots$cost_b
+  #     if (is.list(cost_b)) cost_b <- cost_b[[1]]
+  #   }
+  #   
+  #   tx_idx <- which(pd$z == 1)
+  #   boot.args <- list(FUN = wass_grid, 
+  #                     # bootIdx.row = bootIdx.rows, 
+  #                     # bootIdx.col = bootIdx.cols,
+  #                     rowCount = rowCount, 
+  #                     colCount = colCount,
+  #                     MoreArgs    = list(weight = weight.list[[1]], 
+  #                         data = wass.dat, 
+  #                         # tx_idx = tx_idx, 
+  #                         cost = cost,
+  #                         p = p,
+  #                         metric = metric,
+  #                     # estimand = estimand,
+  #                         wass.method = wass.method, 
+  #                         wass.iter = wass.iter,
+  #                         add.joint = add.joint,
+  #                         x0 = x0,
+  #                         x1 = x1,
+  #                         cost_a = cost_a,
+  #                         cost_b = cost_b,
+  #                         ...)
+  #   )
+  #   boot.args <- boot.args[!duplicated(names(boot.args))]
+  #   boot.args$MoreArgs <- boot.args$MoreArgs[!duplicated(names(boot.args$MoreArgs))]
+  #   boot.n <- lapply(names(boot.args), as.name)
+  #   names(boot.n) <- names(boot.args)
+  #   b.call <- as.call(c(list(quote(mapply)), boot.n))
+  #   
+  #   output <- rep(NA, length(grid))
+  #   names(output) <- as.character(grid)
+  #   
+  #   if (verbose ) {
+  #     message("\nCalculating out of sample balance:")
+  #     # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
+  #     pbapply::pboptions(type = "timer", style = 3, char = "=")
+  #   } else {
+  #     pbapply::pboptions(type = "none")
+  #   }
+  #   output <- pbapply::pbsapply(weight.list, function(ww) {
+  #     boot.args$MoreArgs$weight <- ww
+  #     return(mean(eval(b.call, envir = boot.args)^p))
+  #   })
+  #   # for (g in seq_along(grid)) {
+  #   #   boot.args$MoreArgs$weight <- weight.list[[g]]
+  #   #   output[g] <- mean(eval(b.call, envir = boot.args))
+  #   #   if (verbose) setTxtProgressBar(pb, g)
+  #   # }
+  #   pbapply::pboptions(type = "none")
+  #   if (all(is.na(output))) stop("wass_grid_search: All grid values generated errors")
+  #   
+  #   min.idx <- which(output == min(output, na.rm = TRUE))[1]
+  #   if (length(min.idx) > 1) warning("Multiple penalties had minimum wasserstein value! Try increasing bootstrap number with `n.boot` parameter")
+  #   
+  #   return(weight.list[[min.idx[1]]])
+  # } else {
+  #   # bootIdx.cols    <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
+  #   # bootIdx.rows.0  <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
+  #   # bootIdx.rows.1  <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
+  #   if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+  #     rowCount.0 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)),     simplify = FALSE)
+  #     rowCount.1 <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)),     simplify = FALSE)
+  #     colCount   <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n), prob = sample_weight$total)), simplify = FALSE)
+  #   } else {
+  #     rowCount.0 <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)),     simplify = FALSE)
+  #     rowCount.1 <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)),     simplify = FALSE)
+  #     colCount   <- replicate(n.boot, c(rmultinom(1, n, prob = sample_weight$total)), simplify = FALSE)
+  #   }
+  #   
+  #   
+  #   
+  #   if (is.null(dots$cost_a)) {
+  #     cost_a <- list(cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+  #                                            rep(0,n0)),
+  #                        power = p,
+  #                        metric = metric, estimand = "ATT"),
+  #                    cost_fun(rbind(x1,x1), z = c(rep(1,n1),
+  #                                                 rep(0,n1)),
+  #                             power = p,
+  #                             metric = metric, estimand = "ATT")
+  #     )
+  #   } else {
+  #     cost_a <- dots$cost_a
+  #     stopifnot(length(cost_a) == 2)
+  #   }
+  #   
+  #   if (is.null(dots$cost_b)) {
+  #     cost_b <- list(cost_fun(rbind(x,x), z = c(rep(1,n),
+  #                                               rep(0,n)),
+  #                             power = p,
+  #                             metric = metric, estimand = "ATT"))
+  #   } else {
+  #     cost_b <- dots$cost_b
+  #     if (is.list(cost_b)) cost_b <- cost_b[[1]]
+  #   }
+  #   
+  #   output_0        <- output_1 <- rep(NA, length(grid))
+  #   names(output_0) <- names(output_1) <- as.character(grid)
+  #   tx_idx          <- which(pd$z == 1)
+  #   full.sample.weight <- rep(1/n, n)
+  #   
+  #   boot.args <- list(FUN = wass_grid,
+  #                     # bootIdx.row  = bootIdx.rows.0,  
+  #                     # bootIdx.col = bootIdx.cols,
+  #                     rowCount  = rowCount.0,  
+  #                     colCount = colCount,
+  #                     MoreArgs = list(
+  #                       weight = weight.list[[1]], 
+  #                       data = wass.dat, 
+  #                       # tx_idx = tx_idx, 
+  #                       cost = cost[[1]],
+  #                       p = p,
+  #                       metric = metric,
+  #                       x0 = x0,
+  #                       x1 = x,
+  #                       cost_a = cost_a[[1]],
+  #                       cost_b = cost_b,
+  #                       # estimand = "ATT",
+  #                       wass.method = wass.method, wass.iter = wass.iter,
+  #                       add.joint = add.joint,
+  #                       ...)
+  #   )
+  #   boot.args <- boot.args[!duplicated(names(boot.args))]
+  #   boot.args$MoreArgs <- boot.args$MoreArgs[!duplicated(names(boot.args$MoreArgs))]
+  #   boot.n <- lapply(names(boot.args), as.name)
+  #   names(boot.n) <- names(boot.args)
+  #   b.call <- as.call(c(list(quote(mapply)), boot.n))
+  #   if (verbose ) {
+  #     message("\nCalculating out of sample balance")
+  #     pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
+  #     
+  #   }
+  #   
+  #   boot.args1 <- boot.args0 <- boot.args
+  #   boot.args0$MoreArgs$cost   <- cost[[1]]
+  #   boot.args1$MoreArgs$cost   <- cost[[2]]
+  #   
+  #   # boot.args0$bootIdx.row     <- bootIdx.rows.0
+  #   # boot.args1$bootIdx.row     <- bootIdx.rows.1
+  #   boot.args0$rowCount     <- rowCount.0
+  #   boot.args1$rowCount     <- rowCount.1
+  #   boot.args1$x0           <- x1
+  #   boot.args1$cost_a       <- cost_a[[2]]
+  #   
+  #   w0 <- w1 <- weight.list[[length(weight.list)]]
+  #   w0$w1 <- w1$w1 <- full.sample.weight
+  #   w1$w0 <- weight.list[[length(weight.list)]]$w1
+  #   
+  #   w0$args$power <- w1$args$power <- weight.list[[length(weight.list)]]$args$power
+  #   boot.args0$MoreArgs$weight <- w0
+  #   boot.args1$MoreArgs$weight <- w1
+  #   
+  #   for (g in seq_along(grid)) {
+  # 
+  #     boot.args0$MoreArgs$weight$w0 <- weight.list[[g]]$w0
+  #     # boot.args$MoreArgs$cost   <- cost[[1]]
+  #     output_0[g]               <- mean(eval(b.call, envir = boot.args0)^p)
+  #     
+  #    
+  #     boot.args1$MoreArgs$weight$w0 <- weight.list[[g]]$w1
+  #     # boot.args$MoreArgs$cost   <- cost[[2]]
+  #     output_1[g]               <- mean(eval(b.call, envir = boot.args1)^p)
+  #     if (verbose) setTxtProgressBar(pb, g)
+  #   }
+  #   if (verbose) close(pb)
+  #   if (all(is.na(output_0)) | all(is.na(output_1))) stop("wass_grid_search: All grid values generated errors")
+  #   
     min.idx.0 <- which(output_0 == min(output_0, na.rm = TRUE))
     min.idx.1 <- which(output_1 == min(output_1, na.rm = TRUE))
     
@@ -551,10 +491,418 @@ wass_grid_search <- function(data, grid = NULL,
                                        weight.list[[min.idx.1[1]]]$args$constraint[2])
     # weight.list[[min.idx]]$args$standardized.mean.difference <- grid[min.idx]
     return(output.weight)
-  }
+  # }
   
 }
 
+wg_cost_setup <- function(cost, p, estimand, x, z,
+                          metric, method, rkhs.args,
+                          add.margins) {
+  rerun <- FALSE
+  if (add.margins) {
+    if (estimand == "ATE")  {
+      if ( length(cost[[1]]) != (ncol(x) + 1) | 
+           length(cost[[2]]) != (ncol(x) + 1)) {
+        rerun <- TRUE 
+      }
+    } else {
+      if ( length(cost) != (ncol(x) + 1) ) {
+        rerun <- TRUE
+      }
+    }
+  }
+  if (is.null(cost) || rerun) {
+    # if(is.null(dots$p)) dots$p <- 2
+    # if(is.null(dots$metric)) dots$metric <- "mahalanobis"
+    
+    # if(estimand == "ATE" & metric != "RKHS") {
+    #   cost <- list(cost_fun(x0, x, ground_p = p, metric = metric),
+    #                cost_fun(x1, x, ground_p = p, metric = metric))
+    #     
+    # } else {
+    
+    # }
+    cost <- wass_cost_default(x = x, z = z, estimand = estimand, 
+                              metric = metric, method = method, p = p, 
+                              rkhs.args = rkhs.args, 
+                              add.margins = add.margins)
+  } 
+  return(cost)
+}
+
+weight_est_fun <- function(args) {
+  # args = list(data = data, grid = grid,  
+  # estimand = estimand, 
+  # method = method, solver = solver, 
+  # metric = metric,
+  # p = p, cost = cost, 
+  # add.joint = add.joint,
+  # add.margins = add.margins, 
+  # joint.mapping = joint.mapping,
+  # neg.weights = neg.weights,
+  # cgd = cgd, verbose = verbose,
+  # ...)
+  
+  n0 <- nrow(args[["x0"]])
+  n1 <- nrow(args[["x1"]])
+  
+  if (args$verbose) {
+    message("\nEstimating Optimal Transport weights for each constraint")
+    pbapply::pboptions(type = "timer", style = 3, char = "=")
+  } else {
+    pbapply::pboptions(type = "none")
+  }
+  
+  if (!args[["cgd"]]) {
+    args[["x"]] <- args$z <- args$y <- args[["x1"]] <- args[["x0"]] <- NULL
+    args$constraint <- args[["grid"]][1]
+    weight.est.call <- f.call.list.no.eval("calc_weight",
+                                          list.args = args)
+    weights <-  pbapply::pblapply(args[["grid"]], function(delta) {
+      weight.est.call$envir$constraint <- delta
+      # out <- eval(weight.est.call$expr, envir = weight.est.call$envir)
+      out <- tryCatch(eval(weight.est.call$expr, envir = weight.est.call$envir),
+                      error = function(e) {
+                        warning(e$message)
+                        return(list(w0 = rep(NA_real_, n0),
+                                    w1 = rep(NA_real_, n1),
+                                    gamma = NULL,
+                                    estimand = estimand,
+                                    method = method, args = list(constraint = delta)))})
+      if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
+      class(out) <- "causalWeights"
+      return(out)
+    })
+  } else {
+    weights <- cgd_grid_fun(args)
+  }
+    
+  pbapply::pboptions(type = "none")
+  return(weights)
+}
+
+cgd_grid_fun <- function(args) {
+  # args = list(data = data, grid = grid,  
+  # estimand = estimand, 
+  # method = method, solver = solver, 
+  # metric = metric,
+  # p = p, cost = cost, 
+  # add.joint = add.joint,
+  # add.margins = add.margins, 
+  # joint.mapping = joint.mapping,
+  # neg.weights = neg.weights,
+  # cgd = cgd, verbose = verbose,
+  # ...)
+  x0 <- args[["x0"]]
+  x1 <- args[["x1"]]
+  z  <- args[["z"]]
+  
+  n0 <- nrow(x0)
+  n1 <- nrow(x1)
+  
+  pen <- args$penalty
+  if (length(pen) == 0) pen <- "none"
+  qp_pen <- switch(pen,
+                   "L2" = "L2",
+                   "variance" = "variance",
+                   "entropy" = "L2",
+                   "none")
+  
+  if (args[["estimand"]] == "ATE" || args[["estimand"]] == "cATE") {
+    x1_0 <- x0
+    x1_1 <- x1
+    x2 <- rbind(x0,x1)
+    z_0 <- c(rep(0, nrow(x0)), rep(1,nrow(x)))
+    z_1 <- c(rep(0, nrow(x1)), rep(1,nrow(x)))
+  } else if (args[["estimand"]] == "ATT") {
+    x1 <- x0
+    x2 <- x1
+    z <- z
+  } else if (args[["estimand"]] == "ATT") {
+    x1 <- x1
+    x2 <- x0
+    z <- 1 - z
+  }
+  
+  if (args[["estimand"]] == "ATE" || args[["estimand"]] == "cATE") {
+    optimizer_0 <- wassCGD$new(X1 = x1_0,
+                             X2 = x2,
+                             z = z_0,
+                             cost = args[["cost"]][[1]],
+                             qp_constraint = list(joint = args[["grid"]][[1]]$joint,
+                                                  margins = args[["grid"]][[1]]$margins,
+                                                  penalty = args[["grid"]][[1]]$penalty),
+                             qp_solver = args[["solver"]],
+                             qp_penalty = qp_pen,
+                             lambda = list(joint = args[["grid"]][[1]]$joint,
+                                           penalty = args[["grid"]][[1]]$penalty
+                             ),
+                             add.mapping = args[["joint.mapping"]],
+                             add.margins = args[["add.margins"]],
+                             penalty = pen,
+                             metric = args[["metric"]],
+                             power = args[["p"]],
+                             niter = args[["niter"]],
+                             tol = args[["tol"]],
+                             sample_weight = args[["sample_weight"]])
+    
+    optimizer_1 <- wassCGD$new(X1 = x1_1,
+                               X2 = x2,
+                               z = z_1,
+                               cost = args[["cost"]][[2]],
+                               qp_constraint = list(joint = args[["grid"]][[2]]$joint,
+                                                    margins = args[["grid"]][[2]]$margins,
+                                                    penalty = args[["grid"]][[2]]$penalty),
+                               qp_solver = args[["solver"]],
+                               qp_penalty = qp_pen,
+                               lambda = list(joint = args[["grid"]][[2]]$joint,
+                                             penalty = args[["grid"]][[2]]$penalty
+                               ),
+                               add.mapping = args[["joint.mapping"]],
+                               add.margins = args[["add.margins"]],
+                               penalty = pen,
+                               metric = args[["metric"]],
+                               power = args[["p"]],
+                               niter = args[["niter"]],
+                               tol = args[["tol"]],
+                               sample_weight = args[["sample_weight"]])
+    
+    weight0 <- pbapply::pblapply(args[["grid"]], function(delta) {
+      optimizer_0$cold_start(list(joint = delta$joint, parameters =  0,
+                                penalty = delta$penalty,
+                                margins = delta$margins))
+      out <- tryCatch(cg(optimizer_0, verbose = FALSE)$return_cw(),
+                      error = function(e) {
+                        warning(e$message)
+                        return(list(w0 = rep(NA_real_, n0),
+                                    w1 = rep(NA_real_, n1),
+                                    gamma = NULL,
+                                    estimand = estimand,
+                                    method = method, args = list(constraint = delta)))})
+      # out <- do.call("calc_weight_bal", args)
+      if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
+      class(out) <- "causalWeights"
+      return(out)
+    })
+    weight1 <- pbapply::pblapply(args[["grid"]], function(delta) {
+      optimizer_0$cold_start(list(joint = delta$joint, parameters =  0,
+                                  penalty = delta$penalty,
+                                  margins = delta$margins))
+      out <- tryCatch(cg(optimizer_0, verbose = FALSE)$return_cw(),
+                      error = function(e) {
+                        warning(e$message)
+                        return(list(w0 = rep(NA_real_, n0),
+                                    w1 = rep(NA_real_, n1),
+                                    gamma = NULL,
+                                    estimand = estimand,
+                                    method = method, args = list(constraint = delta)))})
+      # out <- do.call("calc_weight_bal", args)
+      if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
+      class(out) <- "causalWeights"
+      return(out)
+    })
+    
+    weight <- mapply(FUN = combine_weight_ATE, weight0 = weight0, weight1 = weight1, SIMPLIFY = FALSE)
+    
+  } else {
+    optimizer <- wassCGD$new(X1 = x1,
+                             X2 = x2,
+                             z = z,
+                             cost = args[["cost"]],
+                             qp_constraint = list(joint = args[["grid"]]$joint,
+                                                  margins = args[["grid"]]$margins,
+                                                  penalty = args[["grid"]]$penalty),
+                             qp_solver = args[["solver"]],
+                             qp_penalty = qp_pen,
+                             lambda = list(joint = args[["grid"]]$joint,
+                                           penalty = args[["grid"]]$penalty
+                             ),
+                             add.mapping = args[["joint.mapping"]],
+                             add.margins = args[["add.margins"]],
+                             penalty = pen,
+                             metric = args[["metric"]],
+                             power = args[["p"]],
+                             niter = args[["niter"]],
+                             tol = args[["tol"]],
+                             sample_weight = args[["sample_weight"]])
+    
+    weight <- pbapply::pblapply(args[["grid"]], function(delta) {
+      optimizer$cold_start(list(joint = delta$joint, parameters =  0,
+                                penalty = delta$penalty,
+                                margins = delta$margins))
+      out <- tryCatch(cg(optimizer, verbose = FALSE)$return_cw(),
+                      error = function(e) {
+                        warning(e$message)
+                        return(list(w0 = rep(NA_real_, n0),
+                                    w1 = rep(NA_real_, n1),
+                                    gamma = NULL,
+                                    estimand = estimand,
+                                    method = method, args = list(constraint = delta)))})
+      # out <- do.call("calc_weight_bal", args)
+      if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
+      class(out) <- "causalWeights"
+      return(out)
+    })
+    weight.out <- lapply(weight, function(w) {
+      if (all(is.na(w$w1))) {
+        return(w)
+      } else {
+        convert_sol(sol = list(c(w$gamma)), 
+                    estimand = args[["estimand"]],
+                    method = args[["method"]], 
+                    n0 = n0, n1 = n1, sample_weight = args[["sample_weight"]])
+      }
+    }
+    )
+    for (i in seq_along(weight)) {
+      weight.out[[i]]$args <- weight[[i]]$args
+      weight.out[[i]]$estimand <- args[["estimand"]]
+      weight.out[[i]]$method <- args[["method"]]
+    }
+  }
+  
+  return(weight.out)
+}
+
+eval_weights <- function(weights, args) {
+  eval.method <- match.arg(args[["eval.method"]], c("cross.validation", "bootstrap") )
+  estimand <- args[["estimand"]]
+  
+  if (estimand == "ATE") {
+    
+    weights.sep <- separate_weights_ATE(weights)
+    
+    args0 <- c(list(weights = weights.sep$w0), args)
+    args1 <- c(list(weights = weights.sep$w1), args)
+    
+    args0$cost <- args$cost[[1]]
+    args1$cost <- args$cost[[2]]
+    
+    args1$sample_weight$a  <- args1$sample_weight$b
+    
+    args0$sample_weight$b      <- args1$sample_weight$b <- args1$sample_weight$total
+    args0$sample_weight$total  <- renormalize(c(args0$sample_weight$a, args0$sample_weight$b))
+    args1$sample_weight$total  <- renormalize(c(args1$sample_weight$a, args1$sample_weight$b))
+    
+    args1$x0 <- args1$x1
+    args0$x1 <- args1$x1 <- args1$x
+    
+    if (eval.method == "cross.validation") {
+      wp0 <- f.call.list(fun = "wass_cv", list.args = args0)
+      wp1 <- f.call.list(fun = "wass_cv", list.args = args1)
+    } else if (eval.method == "bootstrap") {
+      wp0 <- f.call.list(fun = "wass_boot", list.args = args0)
+      wp1 <- f.call.list(fun = "wass_boot", list.args = args1)
+    }
+    
+    sel0 <- which(wp0 == min(wp0))
+    sel1 <- which(wp1 == min(wp1))
+    
+    sel.weights0 <- clean_up_weights(weights.sep$w0, sel0, args)
+    sel.weights1 <- clean_up_weights(weights.sep$w1, sel1, args)
+    
+    weight <- combine_weight_ATE(sel.weights0, sel.weights1)
+    
+  } else  {
+    eval.args <- args
+    if (args[["estimand"]] == "ATC") {
+      eval.args$estimand <- "ATT"
+      
+      weight.eval <- weight_list_ATT_to_ATC(weights)
+      
+      eval.args$cost <- cost_list_ATT_to_ATC(eval.args$cost)
+      
+      names(eval.args$sample_weight)[1:2] <- c("b","a")
+      eval.args$z <- 1 - eval.args$z
+      
+      temp.argn <- names(eval.args)
+      sel.args  <- grep("x1|x0", temp.argn)
+      switch.names <- temp.argn[sel.args]
+      names(eval.args)[sel.args] <- rev(switch.names)
+    } else {
+      weight.eval <- weights
+    }
+    if (eval.method == "cross.validation") {
+      cv.args <- c(list(weights = weight.eval), eval.args)
+      wp <- f.call.list(fun = "wass_cv", list.args = cv.args)
+    } else if (eval.method == "bootstrap") {
+      boot.args <- c(list(weights = weight.eval), eval.args)
+      wp <- f.call.list(fun = "wass_boot", list.args = boot.args)
+    }
+    
+    sel <- which(wp == min(wp))
+    weight <- clean_up_weights(weights, sel, args)
+  }
+  return(weight)
+}
+
+weight_list_ATT_to_ATC <- function(weights) {
+  weights.new <- weights
+  for (i in seq_along(weights)) {
+    
+    weights.new[[i]]$estimand <- "ATT"
+    weights.new[[i]]$w0 <- weights[[i]]$w1
+    weights.new[[i]]$w1 <- weights[[i]]$w0
+    weights.new[[i]]$gamma <- t(weights.new[[i]]$gamma)
+  }
+  
+  return(weights.new)
+}
+
+cost_list_ATT_to_ATC <- function(cost) {
+  
+  if(is.list(cost)) {
+    return(lapply(cost, t))
+  } else {
+    return(t(cost))
+  }
+}
+
+separate_weights_ATE <- function(weights) {
+  weights0 <- weights1 <- weights
+  
+  # separate weights
+  for (i in seq_along(weights)) {
+    weights1[[i]]$w0 <- weights1[[i]]$w1
+    weights0[[i]]$gamma <- weights0[[i]]$gamma[[1]]
+    weights1[[i]]$gamma <- weights1[[i]]$gamma[[2]]
+    
+    weights0[[i]]$args$constraint <- weights0[[i]]$args$constraint[1]
+    weights1[[i]]$args$constraint <- weights1[[i]]$args$constraint[2]
+    
+    weights0[[i]]$estimand <- "ATT"
+    weights1[[i]]$estimand <- "ATT"
+    
+    weights0[[i]]$w1 <- weights1[[i]]$w1 <- colSums(weights0[[i]]$gamma)
+  }
+  
+  return(list(w0 = weights0, w1 = weights1))
+}
+
+combine_weight_ATE <- function(weight0, weight1) {
+    weight0$w1 <- weight1$w0
+    weight0$gamma <- list(weight0$gamma,
+                          weight1$gamma)
+    weight0$args$constraint <- list(weight0$args$constraint,
+                                    weight1$args$constraint)
+    weight0$estimand <- "ATE"
+  return(weight0)
+}
+
+clean_up_weights <- function(weights, selection, args) {
+  if (isTRUE(args[["cgd"]]) ) {
+    check.weights <- weights[selection]
+    grid <- lapply(check.weights, function(w) w$args$constraint)
+    args[["cgd"]] <- FALSE
+    args[["grid"]] <- grid
+    # args[["estimand"]] <-"ATT"
+    new.weights <- weight_est_fun(args)
+    sel.weight <- eval_weights(new.weights, args)
+    return(sel.weight)
+  } else {
+    return(weights[[selection[[1]]]])
+  }
+}
 
 mean_bal_grid <- function(bootIdx, weight, data, tx_ind, ...) {
   wvec <- c(weight$w0, weight$w1 )
@@ -562,25 +910,9 @@ mean_bal_grid <- function(bootIdx, weight, data, tx_ind, ...) {
   dataResamp <- data[bootIdx,]
   weightResamp <- wvec[bootIdx]
   z <- dataResamp[,tx_ind]
-  # if (estimand == "ATE" | estimand == "cATE") {
-  #   n <- nrow(data)
-  #   w0 <- list(w0 = renormalize(weightResamp[z == 0]), w1 = rep(1/n,n))
-  #   z0 <- c(rep(0, sum(z == 0)), rep(1,n))
-  #   d0 <- rbind(dataResamp[z == 0, ], dataResamp)
-  #   d0[, tx_ind] <- z0
-  # 
-  #   w1 <- list(w0 = renormalize(weightResamp[z == 1]), w1 = rep(1/n,n))
-  #   z1 <- c(rep(0, sum(z == 1)), rep(1,n))
-  #   d1 <- rbind(dataResamp[z == 1, ], dataResamp)
-  #   d1[, tx_ind] <- z1
-  #   
-  #   bals <- c(sum(1 - z) / n * mean_bal(d0, weights = w0, treatment.indicator = tx_ind, ...),
-  #             sum(z) / n * mean_bal(d1, weights = w1, treatment.indicator = tx_ind, ...))
-  #   
-  # } else if (estimand == "ATT" | estimand == "ATC" | estimand == "feasible") {
-    wl <- list(w0 = renormalize(weightResamp[z == 0]), w1 = renormalize(weightResamp[z == 1]))
+  
+  wl <- list(w0 = renormalize(weightResamp[z == 0]), w1 = renormalize(weightResamp[z == 1]))
     bals <- mean_bal(dataResamp, weights = wl, treatment.indicator = tx_ind, ...)
-  # }
   return(mean(bals))
 }
 
@@ -626,10 +958,9 @@ wass_cost_default <- function(x, z, estimand, metric, method, p, rkhs.args,
   return(cost)
 }
 
-
 marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metric, wass.iter, add.joint, 
                                 remove.joint = FALSE, ...) {
-  if (estimand == "ATE"){
+  if (estimand == "ATE") {
     D <- length(cost[[1]])
     D_plus <- D
     if (add.joint) {
@@ -945,7 +1276,7 @@ joint.cwass.fun.grid <- function(data, cost, grid.length, p, estimand, wass.iter
 cwass.fun.grid <- function(x, z, 
                            grid.length,
                            p, data, cost, estimand, metric, wass.iter, add.margins, add.joint, 
-                           joint.mapping, ...) {
+                           joint.mapping, penalty, ...) {
   
   
   
@@ -960,7 +1291,7 @@ cwass.fun.grid <- function(x, z,
     pen.grid <- pen.fun.grid(x, z, grid.length, p, data, 
                              cost, estimand, metric, 
                              wass.iter, add.margins, 
-                             joint.mapping, ...)
+                             joint.mapping, penalty, ...)
     
     if (estimand == "ATE") {
       for (i in length(grid)) {
@@ -984,7 +1315,7 @@ pen.fun.grid <- function(x, z,
                           grid.length,
                           p, 
                           data, cost, estimand, metric, wass.iter, add.margins, 
-                          joint.mapping, ...) {
+                          joint.mapping, penalty, ...) {
   
   
   n <- nrow(x)
@@ -994,6 +1325,7 @@ pen.fun.grid <- function(x, z,
   # 
   # n0 <- nrow(x0)
   # n1 <- nrow(x1)
+  if (penalty == "none") return(0.0)
   
   if (estimand == "ATE") {
     cost1 <- cost[[1]]
@@ -1008,8 +1340,8 @@ pen.fun.grid <- function(x, z,
     mc0 <- median(cost0)
     
     if (joint.mapping) {
-      mc1 <- mc1/max(cost1)
-      mc0 <- mc0/max(cost0)
+      mc1 <- mc1/median(cost1)
+      mc0 <- mc0/median(cost0)
     }
     
     grid0 <- lapply(c(0, exp(seq(log(1e-6 * mc0), log(1e3 * mc0), length.out = grid.length ))),
@@ -1030,7 +1362,7 @@ pen.fun.grid <- function(x, z,
     mc <- median(cost)
     
     if (joint.mapping) {
-      mc <- mc/max(cost)
+      mc <- mc/median(cost)
     }
     grid <- lapply(c(0,exp(seq(log(1e-6 * mc), 
                                log(1e3 * mc) , 
@@ -1047,7 +1379,8 @@ wass.fun.grid <- function(x, z,
                           grid.length,
                           p, 
                           data, cost, estimand, metric, wass.iter, add.margins, 
-                          joint.mapping, ...) {
+                          joint.mapping, 
+                          penalty, ...) {
   D <- ncol(x)
   
   n <- nrow(x)
@@ -1077,7 +1410,7 @@ wass.fun.grid <- function(x, z,
                         p, 
                         data, cost, estimand, 
                         metric, wass.iter, add.margins, 
-                        joint.mapping,
+                        joint.mapping, penalty,
                         ...)
     keep <- round(seq.int(1L,length(marg.grid), length.out = grid.length))
     marg.grid <- marg.grid[keep]
@@ -1104,14 +1437,14 @@ wass.fun.grid <- function(x, z,
                          p, 
                          data, cost, estimand, metric, 
                          wass.iter, add.margins, 
-                         joint.mapping, ...)
+                         joint.mapping, penalty, ...)
     # if (estimand == "ATE") {
     #   grid <- lapply(grid, function(gg) list(gg, gg))
     # }
   }
   
   if (joint.mapping) {
-    jm <- rep(exp(seq(log(1e-3), log(1), length.out = grid.length)), each = length(grid))
+    jm <- rep(exp(seq(log(1e-3), log(10), length.out = grid.length)), each = length(grid))
     
     grid <- rep(grid, grid.length)
     
@@ -1132,12 +1465,11 @@ wass.fun.grid <- function(x, z,
   
 }
 
-
 scm.fun.grid <- function(x, z, 
                           grid.length,
                           p, 
                           data, cost, estimand, metric, wass.iter, add.margins, 
-                          joint.mapping, ...) {
+                          joint.mapping, penalty, ...) {
   D <- ncol(x)
   
   n <- nrow(x)
@@ -1155,7 +1487,7 @@ scm.fun.grid <- function(x, z,
                        p = 2, 
                        data, cost = cost, estimand, metric = "Lp", 
                        wass.iter, add.margins = FALSE, 
-                       joint.mapping = FALSE, ...)
+                       joint.mapping = FALSE, penalty, ...)
     
   return(grid)
   
@@ -1163,7 +1495,8 @@ scm.fun.grid <- function(x, z,
 
 wass_grid_default <- function(x, z, grid.length,
                               p, data, cost, estimand, method, metric, wass.iter, 
-                              add.joint, add.margins, joint.mapping, ...) {
+                              add.joint, add.margins, joint.mapping, 
+                              penalty, ...) {
   
     
   get_defaults <- switch(method,
@@ -1179,6 +1512,7 @@ wass_grid_default <- function(x, z, grid.length,
                add.joint = add.joint,
                add.margins = add.margins,
                joint.mapping = joint.mapping,
+               penalty = penalty,
                ...)
   args <- args[!duplicated(names(args))]
   n.args <- lapply(names(args), as.name)
@@ -1251,3 +1585,251 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
                          p = p, method = wass.method, niter = wass.iter, ...))
   # }
 }
+
+get_boot <- function(n.boot, n0, n1, sample_weight, wass.method, ...) {
+  
+  # bootIdx.rows <- lapply(1:n.boot, function(ii) {sample.int(n0,n0, replace = TRUE)})
+  # bootIdx.cols <- lapply(1:n.boot, function(ii) {sample.int(n1,n1, replace = TRUE)})
+  if (wass.method == "networkflow" | wass.method == "exact" | wass.method == "hilbert") {
+    rowCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n0), prob = sample_weight$a)), simplify = FALSE)
+    colCount <- replicate(n.boot, c(rmultinom(1, adjust_m_of_n_btstrp(n1), prob = sample_weight$b)), simplify = FALSE)
+  } else {
+    rowCount <- replicate(n.boot, c(rmultinom(1, n0, prob = sample_weight$a)), simplify = FALSE)
+    colCount <- replicate(n.boot, c(rmultinom(1, n1, prob = sample_weight$b)), simplify = FALSE)
+  }
+  
+  return(list(rowCount = rowCount, colCount = colCount))
+}
+
+setup_boot_args <- function(boot.idx, weight.list, wass.dat, cost, p,
+                      metric, wass.method, wass.iter,add.joint,
+                      x0, x1, cost_a, cost_b, unbiased, verbose, ...){
+  n0 <- nrow(x0)
+  n1 <- nrow(x1)
+  rowCount <- boot.idx$rowCount
+  colCount <- boot.idx$colCount
+  
+  if ( is.list(cost) ) {
+    cc <- cost[[length(cost)]]#[rowCount > 0, colCount > 0]
+  } else {
+    cc <- cost#[rowCount > 0, colCount > 0]
+  }
+  
+  entropy.meth.sel <- wass.method %in% c("sinkhorn","greenkhorn")
+  
+  if (is.null(cost_a) && isTRUE(unbiased) && entropy.meth.sel) {
+    cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+                                           rep(0,n0)),
+                       power = p,
+                       metric = metric, estimand = "ATT")
+  } else {
+    if (is.list(cost_a)) cost_a <- cost_a[[1]]
+  }
+  
+  if (is.null(cost_b) && isTRUE(unbiased) && entropy.meth.sel) {
+    cost_b <- cost_fun(rbind(x1,x1), z = c(rep(1, n1),
+                                           rep(0, n1)),
+                       power = p,
+                       metric = metric, estimand = "ATT")
+  } else {
+    if (is.list(cost_b)) cost_b <- cost_b[[1]]
+  }
+  
+  boot.args <- list(FUN = "wass_grid", 
+                    # bootIdx.row = bootIdx.rows, 
+                    # bootIdx.col = bootIdx.cols,
+                    rowCount = rowCount, 
+                    colCount = colCount,
+                    MoreArgs    = list(weight = weight.list[[1]], 
+                                       # data = wass.dat, 
+                                       # tx_idx = tx_idx, 
+                                       cost = cc,
+                                       p = p,
+                                       metric = metric,
+                                       # estimand = estimand,
+                                       wass.method = wass.method, 
+                                       wass.iter = wass.iter,
+                                       add.joint = add.joint,
+                                       x0 = x0,
+                                       x1 = x1,
+                                       cost_a = cost_a,
+                                       cost_b = cost_b,
+                                       unbiased = unbiased,
+                                       ...)
+  )
+  boot.args$MoreArgs <- boot.args$MoreArgs[!duplicated(names(boot.args$MoreArgs))]
+  
+  boot.f.call <- f.call.list.no.eval(fun = "mapply",
+                                     list.args = boot.args)
+  
+  return(boot.f.call)
+}
+
+wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric = metric,
+                      wass.method, wass.iter, add.joint,
+                      sample_weight, cost_a = NULL, cost_b = NULL,
+                      unbiased = FALSE,
+                      verbose, ...) {
+    
+    n0 <- nrow(x0)
+    n1 <- nrow(x1)
+    
+    boot.idx <- get_boot(n.boot, n0, n1, sample_weight, wass.method, ...)
+    
+    boot.args <- setup_boot_args(boot.idx = boot.idx, 
+                                 weight.list = weights, 
+                                 wass.dat = wass.dat, 
+                                 cost = cost, p,
+                                 metric = metric, 
+                                 wass.method = wass.method, 
+                                 wass.iter = wass.iter, add.joint = add.joint,
+                                 x0 = x0, x1 = x1, 
+                                 cost_a = cost_a, cost_b = cost_b,
+                                 unbiased = unbiased, ...)
+    
+    
+    if (verbose ) {
+      message("\nCalculating out of sample balance:")
+      # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
+      pbapply::pboptions(type = "timer", style = 3, char = "=")
+    } else {
+      pbapply::pboptions(type = "none")
+    }
+    output <- pbapply::pbsapply(weights, function(ww) {
+      boot.args$envir$MoreArgs$weight <- ww
+      return(mean(eval(boot.args$expr, envir = boot.args$envir)^p))
+    })
+    
+    pbapply::pboptions(type = "none")
+    if (all(is.na(output))) stop("wass_grid_search: All grid values generated errors")
+    
+    return(output)
+}
+
+cv_sep <- function(fold, weight, cost, p, wass.method, wass.iter, cost_a, cost_b, 
+                   unbiased, ...) {
+  
+  w0_raw    <- rowSums(weight$gamma[,-fold, drop = FALSE])
+  w1_raw    <- colSums(weight$gamma[,fold, drop = FALSE])
+  weight$w0 <- renormalize(w0_raw)
+  weight$w1 <- renormalize(w1_raw)
+  cost      <- cost[,fold, drop = FALSE]
+  
+  if (!is.null(cost_b)) {
+    cost_b <- cost_b[fold,fold, drop = FALSE]
+  }
+  
+  
+  return(wass_dist_helper(a = weight, b = NULL,
+                          cost = cost,
+                          p = p, method = wass.method, niter = wass.iter, 
+                          cost_a = cost_a, cost_b = cost_b, 
+                          unbiased = unbiased, ...))
+}
+
+cv_eval <- function(weight, cv.list, cost, p, wass.method, wass.iter, sample_weight, 
+                    cost_a, cost_b, unbiased, ...) {
+  if (all(is.na(weight$w1) | all(is.na(weight$w0)))) return(NA_real_)
+  n1 <- length(weight$w1)
+  n0 <- length(weight$w0)
+  
+  p.temp <- weight$args$power
+  if (is.null(p.temp)) {
+    p <- list(...)$p
+  } else {
+    p <- p.temp
+  }
+  
+  
+  
+  wp <- vapply(X = cv.list, FUN = cv_sep, FUN.VALUE = 1,
+               weight = weight, cost = cost, p = p, wass.method = wass.method,
+               wass.iter = wass.iter, sample_weight = sample_weight,
+               cost_a = cost_a, cost_b = cost_b, unbiased = unbiased,
+               ...)
+  return(mean(wp^p))
+}
+
+cv_get <- function(n, K, R) {
+  n <- as.integer(n)
+  K <- as.integer(K)
+  R <- as.integer(R)
+  
+  stopifnot(R >= 1)
+  stopifnot(K > 1)
+  stopifnot(n > K)
+  
+  sep.samples <- function(s, K, sets) {
+    lapply(1:K, function(k) s[sets == k])
+  }
+  
+  samples <- replicate(R, 
+                       expr = sample.int(n = n, size = n, replace = FALSE, prob = NULL, useHash = FALSE),
+                       simplify = FALSE)
+  sets <- rep(1:K, length.out = n)
+  
+  folds <- unlist(lapply(samples, sep.samples, K = K, sets = sets), recursive = FALSE)
+  
+  return(folds)
+}
+
+wass_cv <- function(weights, K, R, cost, p,
+                    wass.method, 
+                    wass.iter, 
+                    x0, x1,
+                    cost_a = NULL, cost_b = NULL, 
+                    unbiased = FALSE, verbose, 
+                     ...) {
+  
+  
+  
+  if (verbose ) {
+    message("\nCalculating out of sample balance:")
+    # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
+    pbapply::pboptions(type = "timer", style = 3, char = "=")
+  } else {
+    pbapply::pboptions(type = "none")
+  }
+  
+  if ( is.list(cost) ) {
+    cc <- cost[[length(cost)]]#[rowCount > 0, colCount > 0]
+  } else {
+    cc <- cost#[rowCount > 0, colCount > 0]
+  }
+  
+  entropy.meth.sel <- wass.method %in% c("sinkhorn","greenkhorn")
+  
+  if (is.null(cost_a) && isTRUE(unbiased) && entropy.meth.sel) {
+    n0 <- nrow(x0)
+    cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
+                                           rep(0,n0)),
+                       power = p,
+                       metric = metric, estimand = "ATT")
+  } else {
+    if (is.list(cost_a)) cost_a <- cost_a[[1]]
+  }
+  
+  if (is.null(cost_b) && isTRUE(unbiased) && entropy.meth.sel) {
+    n1 <- nrow(x1)
+    cost_b <- cost_fun(rbind(x1,x1), z = c(rep(1, n1),
+                                           rep(0, n1)),
+                       power = p,
+                       metric = metric, estimand = "ATT")
+  } else {
+    if (is.list(cost_b)) cost_b <- cost_b[[1]]
+  }
+  
+  n_cv    <- ncol(cost)
+  
+  cv.list <- cv_get(n_cv, K, R)
+  m_wp    <- pbapply::pbsapply(X = weights, FUN = cv_eval, 
+                    cv.list = cv.list, cost = cost, p = p,
+                    wass.method = wass.method, wass.iter = wass.iter, 
+                    cost_a = cost_a, cost_b = cost_b, 
+                    unbiased = unbiased, ...)
+  
+  return(m_wp)
+  
+}
+
+

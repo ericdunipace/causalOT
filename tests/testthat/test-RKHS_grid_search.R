@@ -107,3 +107,4 @@ testthat::test_that("RKHS grid gives expected value", {
   test.fun <- function(n1,n2){testthat::expect_equal(n1, n2)}
   mapply(test.fun, n1 = weight[1:3], n2 = test[1:3])
 })
+

@@ -166,7 +166,7 @@ testthat::test_that("works for Const Wass, grid/formula", {
                                      solver = "mosek",
                                      wass.method = "greenkhorn",
                                      joint.mapping = FALSE,
-                                     iter = 10))
+                                     iter = 10, eval.method = "bootstrap"))
     testthat::expect_silent(weight.check[["ATC"]] <- calc_weight(data = data, 
                                          constraint = NULL,
                                          grid.search = TRUE,
@@ -176,7 +176,7 @@ testthat::test_that("works for Const Wass, grid/formula", {
                                          method = "Constrained Wasserstein",
                                          solver = "mosek",
                                          wass.method = "greenkhorn",
-                                         iter = 10))
+                                         iter = 10, eval.method = "bootstrap"))
     testthat::expect_silent(weight.check[["ATE"]] <- calc_weight(data = data, 
                                          constraint = NULL,
                                          grid.search = TRUE,
@@ -186,7 +186,7 @@ testthat::test_that("works for Const Wass, grid/formula", {
                                          method = "Constrained Wasserstein",
                                          solver = "mosek",
                                          wass.method = "greenkhorn",
-                                         iter = 10))
+                                         iter = 10, eval.method = "bootstrap"))
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
 })
@@ -309,7 +309,7 @@ testthat::test_that("works for Wass, grid/formula", {
              method = "Wasserstein",
              solver = "mosek",
              wass.method = "greenkhorn",
-             iter = 10)
+             iter = 10, eval.method = "bootstrap")
       )
   }
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
@@ -603,7 +603,7 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
-                                       sample_weight = sample_weights))
+                                       sample_weight = sample_weights, eval.method = "bootstrap"))
   testthat::expect_silent(weight.check[["ATC"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
@@ -614,7 +614,7 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
-                                       sample_weight = sample_weights))
+                                       sample_weight = sample_weights, eval.method = "bootstrap"))
   testthat::expect_silent(weight.check[["ATE"]] <- calc_weight(data = data, 
                                        constraint = NULL,
                                        grid.search = TRUE,
@@ -625,7 +625,7 @@ testthat::test_that("works for Const Wass, grid/formula, sw", {
                                        solver = "mosek",
                                        wass.method = "greenkhorn",
                                        iter = 10,
-                                       sample_weight = sample_weights))
+                                       sample_weight = sample_weights, eval.method = "bootstrap"))
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
 })
@@ -764,7 +764,7 @@ testthat::test_that("works for Wass, grid/formula, sw", {
                                                               solver = "mosek",
                                                               wass.method = "greenkhorn",
                                                               iter = 10,
-                                                              sample_weight = sample_weights))
+                                                              sample_weight = sample_weights, eval.method = "bootstrap"))
   }
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
@@ -862,7 +862,7 @@ testthat::test_that("works for SCM grid", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-  testthat::expect_warning(
+  testthat::expect_silent(
     weight.check[[estimates[1]]] <- calc_weight(data = data, 
                                                 constraint = NULL,
                                                 grid.search = TRUE,
@@ -870,7 +870,7 @@ testthat::test_that("works for SCM grid", {
                                                 method = "SCM",
                                                 solver = "mosek",
                                                 wass.method = "sinkhorn",
-                                                iter = 10)
+                                                iter = 10, eval.method = "bootstrap")
   )
   testthat::expect_silent(
     weight.check[[estimates[2]]] <- calc_weight(data = data, 
@@ -880,7 +880,7 @@ testthat::test_that("works for SCM grid", {
                                                 method = "SCM",
                                                 solver = "mosek",
                                                 wass.method = "sinkhorn",
-                                                iter = 10)
+                                                iter = 10, eval.method = "bootstrap")
   )
   testthat::expect_silent(
     weight.check[[estimates[3]]] <- calc_weight(data = data, 
@@ -890,7 +890,7 @@ testthat::test_that("works for SCM grid", {
                                      method = "SCM",
                                      solver = "mosek",
                                      wass.method = "sinkhorn",
-                                     iter = 10)
+                                     iter = 10, eval.method = "bootstrap")
   )
   
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)

@@ -72,24 +72,45 @@ void cost_mahal_L1(const refMatConst & A, const refMatConst & B,
 //[[Rcpp::export]]
 Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix & A_, 
                                 const Rcpp::NumericMatrix & B_, 
-                                const double p) {
+                                const double p,
+                                const std::string estimand) {
   int N = A_.cols();
   int M = B_.cols();
-  
-  double frac_A = double(N)/double(N + M);
-  double frac_B = double(M)/double(N + M);
   
   const matMap A(Rcpp::as<matMap >(A_));
   const matMap B(Rcpp::as<matMap >(B_));
   
-  const matrix covA = covariance(A);
-  const matrix covB = covariance(B);
-  const matrix cov = frac_A * covA + frac_B * covB;
-  const matrix L_inv = invsqrt(cov); //cov inv sqrt
-  // Rcpp::Rcout <<std::endl<< "cov mat A: " << covA(0,0)<<std::endl;
-  // Rcpp::Rcout <<std::endl<< "cov mat A: " << covA(0,0)<<std::endl;
+  matrix cov(A.rows(), A.rows());
   
-  // Rcpp::Rcout << L_inv(0,0)<<std::endl;;
+  // if (estimand == "ATE") {
+  //   matrix C(A.rows(), A.cols() + B.cols());
+  //   C << A, B;
+  //   cov  = covariance(C);
+  // } else if (estimand == "ATT" ) {
+  //   cov = covariance(B);
+  // } else if (estimand == "ATC" ) {
+  //   cov = covariance(A);
+  // } else {
+  //   double frac_A = double(N)/double(N + M);
+  //   double frac_B = double(M)/double(N + M);
+  //   
+  //   const matrix covA = covariance(A);
+  //   const matrix covB = covariance(B);
+  //   
+  //   cov = frac_A * covA + frac_B * covB;
+  // }
+  
+  if (estimand == "ATE") {
+    cov = covariance(B);
+  } else {
+    matrix C(A.rows(), A.cols() + B.cols());
+    C << A, B;
+    cov  = covariance(C);
+  }
+  
+  
+
+  const matrix L_inv = invsqrt(cov); //cov inv sqrt
   
   matrix cost_matrix(N,M);
   

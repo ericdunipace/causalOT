@@ -125,8 +125,32 @@ cot.model.matrix <- function(formula, object) {
                          contrasts, contrasts = FALSE))
 }
 
+f.call.list <- function(fun, list.args) {
+  fun <- as.name(as.character(fun))
+  
+  list.args <- list.args[!duplicated(names(list.args))]
+  list.args <- list.args[!sapply(list.args, is.null)]
+  name.args <- lapply(names(list.args), as.name)
+  names(name.args) <- names(list.args)
+  f.call <- as.call(c(list(fun), name.args))
+  
+  return(eval(expr = f.call, envir = list.args))
+}
+
+f.call.list.no.eval <- function(fun, list.args) {
+  fun <- as.name(as.character(fun))
+  
+  list.args <- list.args[!duplicated(names(list.args))]
+  list.args <- list.args[!sapply(list.args, is.null)]
+  name.args <- lapply(names(list.args), as.name)
+  names(name.args) <- names(list.args)
+  f.call <- as.call(c(list(fun), name.args))
+  
+  return(list(expr = f.call, envir = list.args))
+}
+
 #from PropCis package
-z2stat <- function (p1x, nx, p1y, ny, dif) 
+z2stat <- function(p1x, nx, p1y, ny, dif) 
 {
   diff = p1x - p1y - dif
   if (abs(diff) == 0) {
