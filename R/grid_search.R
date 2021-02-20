@@ -178,24 +178,28 @@ wass_grid_search <- function(data, grid = NULL,
                              cgd = FALSE,
                              ...) 
 {
-  # if(is.null(grid) & !is.null(list(...)$constraint)) grid <- constraint
+  
   estimand <- match.arg(estimand)
   method <- match.arg(method)
-  dots <- list(...)
-  solver <- dots$solver
-  p      <- dots$p
-  metric <- dots$metric
-  penalty <- dots$penalty
   eval.method <- match.arg(eval.method, c("cross.validation", "bootstrap"))
-  if (is.null(solver)) solver <- "gurobi"
-  if (is.null(p)) p <- 2
-  if (is.null(metric)) metric <- "mahalanobis"
-  if (is.null(penalty)) penalty <- "L2"
+  
   add.margins <- isTRUE(add.margins)
   add.joint  <- isTRUE(add.joint)
   joint.mapping <- isTRUE(joint.mapping)
   neg.weights <- isTRUE(neg.weights)
   cgd <- isTRUE(cgd)
+  
+  # set optional arguments
+  dots <- list(...)
+  solver <- dots[["solver"]]
+  p      <- dots[["p"]]
+  metric <- dots[["metric"]]
+  penalty <- dots[["penalty"]]
+  if (is.null(solver)) solver <- "gurobi"
+  if (is.null(p)) p <- 2
+  if (is.null(metric)) metric <- "mahalanobis"
+  if (is.null(penalty)) penalty <- "L2"
+  
   
   if (method == "SCM") {
     add.margins <- add.joint <- joint.mapping <- FALSE
@@ -230,7 +234,7 @@ wass_grid_search <- function(data, grid = NULL,
                         add.margins = add.margins)
   
   
-  if (all(is.null(grid)) | all(is.na(grid))) {
+  if (all(is.null(grid)) || all(is.na(grid)) ) {
     grid <- f.call.list(fun = "wass_grid_default", 
                 list.args = list(x = x, z = z, 
                   grid.length = grid.length,
@@ -1833,3 +1837,172 @@ wass_cv <- function(weights, K, R, cost, p,
 }
 
 
+wass_grid_eval <- function(data, grid = NULL, 
+                             grid.length = 7,
+                             estimand = c("ATT", "ATC","cATE","ATE"),
+                             K = 10, R = 10,
+                             n.boot = 1000,
+                             eval.method = c("cross.validation", "bootstrap"),
+                             method = c("Wasserstein","Constrained Wasserstein", "SCM"),
+                             sample_weight = NULL,
+                             wass.method = "networkflow", wass.iter = 0,
+                             add.joint = TRUE,
+                             add.margins = FALSE,
+                             joint.mapping = FALSE,
+                             verbose = FALSE,
+                             neg.weights = FALSE,
+                             cgd = FALSE,
+                             ...) 
+{
+
+  get_calc_dist <- function(w, cost) {
+    (sum(w$gamma * cost^(w$args$power)))^(1/(w$args$power))
+  }
+  
+  estimand <- match.arg(estimand)
+  method <- match.arg(method)
+  dots <- list(...)
+  solver <- dots[["solver"]]
+  p      <- dots[["p"]]
+  metric <- dots[["metric"]]
+  penalty <- dots[["penalty"]]
+  eval.method <- match.arg(eval.method, c("cross.validation", "bootstrap"))
+  if (is.null(solver)) solver <- "gurobi"
+  if (is.null(p)) p <- 2
+  if (is.null(metric)) metric <- "mahalanobis"
+  if (is.null(penalty)) penalty <- "L2"
+  add.margins <- isTRUE(add.margins)
+  add.joint  <- isTRUE(add.joint)
+  joint.mapping <- isTRUE(joint.mapping)
+  neg.weights <- isTRUE(neg.weights)
+  cgd <- isTRUE(cgd)
+  
+  if (method == "SCM") {
+    add.margins <- add.joint <- joint.mapping <- FALSE
+  }
+  
+  if (!add.margins & !add.joint & method == "Constrained Wasserstein") {
+    stop("Must have marginal or joint constraints or both for Constrained Wasserstein")
+  }
+  
+  pd <- prep_data(data, ...)
+  z  <- pd$z
+  sample_weight <- get_sample_weight(sample_weight, z)
+  
+  if (!is.null(pd$df$y)) {
+    pd$df$y <- NULL
+  }
+  x  <- as.matrix(pd$df)
+  x1 <- x[z == 1,, drop = FALSE]
+  x0 <- x[z == 0,, drop = FALSE]
+  
+  
+  n <- nrow(x)
+  n0 <- nrow(x0)
+  n1 <- nrow(x1)
+  
+  # wass.dat <- cbind(z = z, x)
+  
+  cost <- wg_cost_setup(cost = dots$cost, p = p,
+                        estimand = estimand, x = x, z = z,
+                        metric = metric, method = method,
+                        rkhs.args = dots$rkhs.args,
+                        add.margins = add.margins)
+  
+  
+  if (all(is.null(grid)) | all(is.na(grid))) {
+    grid <- f.call.list(fun = "wass_grid_default", 
+                        list.args = list(x = x, z = z, 
+                                         grid.length = grid.length,
+                                         p = p, data = data, cost = cost, estimand = estimand,
+                                         method = method, metric = metric, wass.iter = wass.iter, 
+                                         add.joint = add.joint, add.margins = add.margins,
+                                         joint.mapping = joint.mapping, penalty = penalty,
+                                         ...))
+  }
+  
+  args <- list(data = data, 
+               x0 = x0,
+               x1 = x1,
+               x = x,
+               z = z,
+               grid = grid,  
+               n.boot = n.boot,
+               K = K, 
+               R = R,
+               eval.method = eval.method,
+               wass.method = wass.method,
+               wass.iter = wass.iter,
+               sample_weight = sample_weight,
+               estimand = estimand, 
+               method = method, 
+               solver = solver, 
+               metric = metric,
+               p = p, 
+               cost = cost, 
+               add.joint = add.joint,
+               add.margins = add.margins, 
+               joint.mapping = joint.mapping,
+               neg.weights = neg.weights,
+               cgd = cgd, 
+               verbose = verbose,
+               ...)
+  
+  weight.list <- weight_est_fun(args)
+  
+  output.weight <- eval_weights(weight.list, args)
+  
+  chosen <- output.weight$args$constraint
+  chosen$margins <- chosen$margins[1]
+  chosen$joint <- chosen$joint
+  chosen$penalty <- chosen$penalty
+  
+  if (is.null(chosen$margins)) chosen$margins <- NA_real_
+  if (is.null(chosen$joint)) chosen$joint <- NA_real_
+  if (is.null(chosen$penalty)) chosen$penalty <- NA_real_
+  
+  grid.margins <- unlist(sapply(grid, function(x) x$margins[1]))
+  grid.joint   <- unlist(sapply(grid, function(x) x$joint[1]))
+  grid.penalty <- unlist(sapply(grid, function(x) x$penalty[1]))
+  
+  if (is.null(grid.margins)) grid.margins <- NA_real_
+  if (is.null(grid.joint)) grid.joint <- NA_real_
+  if (is.null(grid.penalty)) grid.penalty <- NA_real_
+  
+  overall.cost <- if (is.list(cost)) {
+    cost[[length(cost)]]
+  } else {
+    cost
+  }
+  
+  if (verbose) message("Evaluating Wasserstein distance on full sample")
+  evaluated.distance <- vapply(X = weight.list,  FUN = function(X) wass_dist_helper(a = X,
+                                                                                    p = p,
+                                                                                    cost = overall.cost, method = wass.method,
+                                                                                    niter = wass.iter, ...)
+                               , FUN.VALUE = 1)
+  
+  wp  <- vapply(X = weight.list,  FUN = get_calc_dist,
+                FUN.VALUE = 1,
+                cost = overall.cost)
+  
+  output <- data.frame(n = n, d = ncol(x),
+                       chosen.margins = chosen$margins,
+                       chosen.joint = chosen$joint, 
+                       chosen.penalty = chosen$penalty,
+                       grid.margins = grid.margins,
+                       grid.joint  = grid.joint,
+                       grid.penalty  = grid.penalty,
+                       reg.wp = evaluated.distance, wp = wp,
+                       p = p, eval.method = eval.method,
+                       wass.method = wass.method,
+                       wass.iter = wass.iter,
+                       method = method,
+                       metric = metric,
+                       penalty = penalty,
+                       estimand = estimand)
+  
+  
+  return(output)
+  
+}

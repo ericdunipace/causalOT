@@ -16,6 +16,13 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   argn <- lapply(names(args), as.name)
   names(argn) <- names(args)
   
+  if (isTRUE(args[["penalty"]] == "none") && isTRUE(args$grid.search == TRUE) && ((
+     (args$method %in% c("Constrained Wasserstein","Wasserstein")) &&
+      (isFALSE(args$add.mapping) && isFALSE(args$joint.mapping))) ||
+     args$method == "SCM")  ) {
+    grid.search <- args$grid.search <- FALSE
+  }
+  
   output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein","SCM")) {
     # args$method <- NULL
     # if(is.null(args$grid)) 
