@@ -497,16 +497,21 @@ nojm_nooutcome <- function(method, penalty) {
                     "none" = function(G){return(0.0)},
                     "L2" = function(G) {return(0.5 * sum(G^2))},
                     "variance" = function(G) {return(0.5 * sum(rowSums(G)^2))},
-                    "entropy" = function(G) {return(sum(G * log(G)))}
+                    "entropy" = function(G) {
+                      posG <- G[G > 0]
+                      return(sum(posG * log(posG)))}
   )
   dpen.fun <- switch(penalty,
-                    "none" = function(G){return(0.0)},
-                    "L2" = function(G) {return(G)},
-                    "variance" = function(G) {return(matrix(rowSums(G), nrow(G), ncol(G)))},
-                    "entropy" = function(G) {return(matrix(1, nrow(G), ncol(G)) + 
-                              log(G)                        
-                    )
-                                                      })
+                     "none" = function(G){return(0.0)},
+                     "L2" = function(G) {return(G)},
+                     "variance" = function(G) {return(matrix(rowSums(G), nrow(G), ncol(G)))},
+                     "entropy" = function(G) {
+                       l_G <- log(G)
+                       l_G[is.infinite(l_G)] <- -1e6
+                       return(matrix(1, nrow(G), ncol(G)) + 
+                                l_G                        
+                       )
+                     })
   if (method == "Wasserstein") {
     out$f_user <- function(X1, X2,
                            Y1, Y2,
@@ -574,7 +579,7 @@ jm_nooutcome <- function(method, penalty) {
                      "variance" = function(G) {return(matrix(rowSums(G), nrow(G), ncol(G)))},
                      "entropy" = function(G) {
                        l_G <- log(G)
-                       l_G[is.infinite(l_G)] <- -800
+                       l_G[is.infinite(l_G)] <- -1e6
                        return(matrix(1, nrow(G), ncol(G)) + 
                                                        l_G                        
                      )
