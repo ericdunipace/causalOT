@@ -242,3 +242,8 @@ diffpropci <- function(x1, n1, x2, n2, conf.level)
   class(rval) <- "htest"
   return(rval)
 }
+
+entropy <- function(x) {
+  x_pos <- x[x > 0]
+  return(sum(x_pos * log(x_pos)))
+}

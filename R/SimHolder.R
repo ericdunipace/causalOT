@@ -257,9 +257,9 @@
                              }
                              
                              if (!is.null(Wass$eval.method)) {
-                               private$eval.method <- match.arg(Wass$eval.method, c("cross.validation", "bootstrap"))
+                               private$wass.opt$eval.method <- match.arg(Wass$eval.method, c("cross.validation", "bootstrap"))
                              } else {
-                               private$eval.method <- "cross.validation"
+                               private$wass.opt$eval.method <- "cross.validation"
                              }
                              
                              if (!is.null(Wass$cross.val.replicates)) {
@@ -1291,10 +1291,10 @@
                                                             wass.niter = private$wass.opt$niter,
                                                             epsilon = private$wass.opt$epsilon,
                                                             verbose = isTRUE(private$verbose),
-                                                            eval.method = private$eval.method,
+                                                            eval.method = private$wass.opt$eval.method,
                                                             n.boot = 1000,
                                                             K = 10,
-                                                            R = private$cross.val.replicates),
+                                                            R = private$wass.opt$cross.val.replicates),
                                                          error = function(e) {
                                                            warning("Error in weight method ", method, " with estimand ",estimand, ". ", e$message)
                                                            ns <- private$simulator$get_n()

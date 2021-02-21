@@ -1986,6 +1986,15 @@ wass_grid_eval <- function(data, grid = NULL,
                 FUN.VALUE = 1,
                 cost = overall.cost)
   
+  weight.var <- vapply(X = weight.list, FUN = function(w) var(c(w$gamma)), FUN.VALUE = 1)
+  weight.var.a <- vapply(X = weight.list, FUN = function(w) var(w$w0), FUN.VALUE = 1)
+  weight.var.b <- vapply(X = weight.list, FUN = function(w) var(w$w1), FUN.VALUE = 1)
+  
+  weight.ent <- vapply(X = weight.list, FUN = function(w) entropy(c(w$gamma)), FUN.VALUE = 1)
+  weight.ent.a <- vapply(X = weight.list, FUN = function(w) entropy(w$w0), FUN.VALUE = 1)
+  weight.ent.b <- vapply(X = weight.list, FUN = function(w) entropy(w$w1), FUN.VALUE = 1)
+  
+  
   output <- data.frame(n = n, d = ncol(x),
                        chosen.margins = chosen$margins,
                        chosen.joint = chosen$joint, 
@@ -1994,6 +2003,12 @@ wass_grid_eval <- function(data, grid = NULL,
                        grid.joint  = grid.joint,
                        grid.penalty  = grid.penalty,
                        reg.wp = evaluated.distance, wp = wp,
+                       var.gamma = weight.var,
+                       var.a = weight.var.a,
+                       var.b = weight.var.b,
+                       ent.gamma = weight.ent,
+                       ent.a = weight.ent.a,
+                       ent.b = weight.ent.b,
                        p = p, eval.method = eval.method,
                        wass.method = wass.method,
                        wass.iter = wass.iter,
