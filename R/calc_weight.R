@@ -16,11 +16,11 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   argn <- lapply(names(args), as.name)
   names(argn) <- names(args)
   
-  if (isTRUE(args[["penalty"]] == "none") && isTRUE(args$grid.search == TRUE) && ((
+  if (isTRUE(args[["penalty"]] == "none") && isTRUE(grid.search == TRUE) && ((
      (args$method %in% c("Constrained Wasserstein","Wasserstein")) &&
       (isFALSE(args$add.mapping) && isFALSE(args$joint.mapping))) ||
      args$method == "SCM")  ) {
-    grid.search <- args$grid.search <- FALSE
+    grid.search <- FALSE
   }
   
   output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein","SCM")) {
@@ -294,7 +294,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   output$method <- method
   if(method %in% ot.methods()) {
     dots <- list(...)
-    if(is.null(dots$p)) dots$p <- 2
+    if(is.null(dots[["p"]])) dots[["p"]] <- 2
     if(is.null(dots$metric)) dots$metric <- "mahalanobis"
     if(!is.null(dots$cost)) dots$cost <- NULL
     if(dots$metric == "RKHS") {
@@ -303,8 +303,8 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
       if(is.null(dots$rkhs.args$kernel)) dots$rkhs.args$kernel <- "RBF"
     }
     dots$metric <- dots$metric
-    dots$power <- dots$p
-    dots$p <- NULL
+    dots[["power"]] <- dots[["p"]]
+    dots[["p"]] <- NULL
   }
   output$args <- c(list(solver = solver, constraint = constraint),
                         # sol = sol$sol),
@@ -498,7 +498,7 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE, ...) {
   if(transport.matrix) {
     dots <- list(...)
     cost <- dots$cost
-    p <- dots$p
+    p <- dots[["p"]]
     if(is.null(cost) | is.null(p)) stop("To calculate transportation matrix, 'p' and 'cost' must be specified")
     # nzero_row <- output$w0>0
     # nzero_col <- output$w1>0
@@ -523,7 +523,7 @@ calc_gamma <- function(weights, ...) {
   dots <- list(...)
   n1 <- length(weights$w1)
   n0 <- length(weights$w0)
-  if(!is.null(dots$cost) & !is.null(dots$p)) {
+  if(!is.null(dots$cost) & !is.null(dots[["p"]])) {
     if (length(dots$cost[[1]]) > 1) return(NULL)
     nzero_row <- weights$w0>0
     nzero_col <- weights$w1>0
@@ -554,7 +554,7 @@ calc_gamma <- function(weights, ...) {
       }
       tplan <- approxOT::transport_plan_given_C(mass_x = a,
                                     mass_y = b,
-                                    p = dots$p,
+                                    p = dots[["p"]],
                                     cost = cost,
                                     method = "exact", niter = niter)
       

@@ -426,12 +426,7 @@ testthat::test_that("SimHolder runs ot imputer", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method ), c('Logistic', 
-                                                'SBW', 
-                                                'NNM', 
-                                                "Wasserstein", 
-                                                'Constrained Wasserstein'
-                                                ))
+  testthat::expect_equal(unique(out$method ), methods)
 })
 
 testthat::test_that("SimHolder runs with formula options", {
@@ -767,7 +762,10 @@ testthat::test_that("SimHolder with grid works", {
                                                            "Constrained Wasserstein",
                                                            "SCM"))
   testthat::expect_equal(unique(sh2$get.output()$penalty),
-                         c(NA, "none","L2","variance"))
+                         c(NA, "none","L2","variance", "entripy"))
+  testthat::expect_equal(unique(sh2$get.output()$method), c("SBW","Wasserstein",
+                                                           "Constrained Wasserstein",
+                                                           "SCM"))
   
   
   sh3 <- SimHolder$new(nsim = nsims,
@@ -792,7 +790,7 @@ testthat::test_that("SimHolder with grid works", {
                                    penalty = c("none","entropy"))
                        , verbose = TRUE
   )
-  sh3$run()
+  testthat::expect_warning(sh3$run())
   testthat::expect_equal(unique(sh3$get.output()$penalty),
                          c(NA, "none","entropy"))
   testthat::expect_equal(unique(sh3$get.output()$method),
@@ -821,8 +819,8 @@ testthat::test_that("SimHolder with grid works", {
                                    penalty = c("none","L2"))
                        , verbose = TRUE
   )
-  debugonce(wass_grid_search)
-  sh4$run()
+  # debugonce(wass_grid_search)
+  testthat::expect_warning(sh4$run())
 })
 
 testthat::test_that("SimHolder with grid works, opt.hyperparam", {

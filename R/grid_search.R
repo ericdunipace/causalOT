@@ -516,7 +516,7 @@ wg_cost_setup <- function(cost, p, estimand, x, z,
     }
   }
   if (is.null(cost) || rerun) {
-    # if(is.null(dots$p)) dots$p <- 2
+    # if(is.null(dots[["p"]])) dots[["p"]] <- 2
     # if(is.null(dots$metric)) dots$metric <- "mahalanobis"
     
     # if(estimand == "ATE" & metric != "RKHS") {
@@ -1693,7 +1693,7 @@ wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric = metric,
     
     
     if (verbose ) {
-      message("\nCalculating out of sample balance:")
+      message("\nCalculating out of sample balance via bootstrap:")
       # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
       pbapply::pboptions(type = "timer", style = 3, char = "=")
     } else {
@@ -1739,7 +1739,7 @@ cv_eval <- function(weight, cv.list, cost, p, wass.method, wass.iter, sample_wei
   
   p.temp <- weight$args$power
   if (is.null(p.temp)) {
-    p <- list(...)$p
+    p <- list(...)[["p"]]
   } else {
     p <- p.temp
   }
@@ -1788,7 +1788,7 @@ wass_cv <- function(weights, K, R, cost, p,
   
   
   if (verbose ) {
-    message("\nCalculating out of sample balance:")
+    message("\nCalculating out of sample balance via cross validation:")
     # pb <- txtProgressBar(min = 0, max = length(grid), style = 3)
     pbapply::pboptions(type = "timer", style = 3, char = "=")
   } else {

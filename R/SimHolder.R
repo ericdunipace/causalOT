@@ -589,6 +589,7 @@
                                             wass.df <- private$wass_df
                                             for (solver in cur$solver) {
                                               for (o in cur$options[[1]]) {
+                                                if (private$verbose && (method == "Wasserstein" | method == "Constrained Wasserstein"  | method == "SCM") ) print(o)
                                                 # if (method == "Wasserstein" || method == "Constrained Wasserstein") {
                                                   # if (isTRUE(o$penalty == "entropy") && isTRUE(o$joint.mapping == TRUE) ) next
                                                 # }
@@ -604,7 +605,6 @@
                                                   if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
                                                   if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(o$penalty == "none")) next
                                                   if ( isTRUE(o$neg.weights) && isTRUE(o$penalty == "entropy")) next
-                                                  if (private$verbose && (method == "Wasserstein" | method == "Constrained Wasserstein"  | method == "SCM") ) print(o)
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
                                                                       solver = solver,
@@ -808,8 +808,13 @@
                                               #                  temp.wass$wass_p == opts$wass_p )
                                               # }
                                               delta <- temp.wass$dist[[idx]]
+                                              if(estimand == "ATE") {
+                                                out <- lapply(delta, function(w) list(joint = w))
+                                              } else {
+                                                out <- list(joint = delta)
+                                              }
                                               # if(is.null(delta)) delta <- NA
-                                              return(list(joint = delta))
+                                              return(out)
                                             # } else if (method == "Wasserstein" | method == "RKHS") {
                                             } else if ( (method == "Constrained Wasserstein" |
                                                        method == "Wasserstein" ) & 
@@ -888,7 +893,12 @@
                                                                temp.wass$wass_p == opts$wass_p )
                                                 # delta <- temp.wass$dist[[idx]]
                                               } 
-                                              return(list(penalty = temp.wass$dist[[idx]]))
+                                              if(estimand == "ATE") {
+                                                out <- lapply(temp.wass$dist[[idx]], function(w) list(penalty = w) )
+                                              } else {
+                                                out <- list(penalty = temp.wass$dist[[idx]])
+                                              }
+                                              return(out)
                                             } else if (method == "RKHS") {
                                               return(NA_real_)
                                             } else if (method == "SCM") {

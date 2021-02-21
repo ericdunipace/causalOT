@@ -9,7 +9,8 @@ supported.methods <- function() {
 ot.methods <- function() {
   return(c("NNM", 
            "Wasserstein",
-           "Constrained Wasserstein"))
+           "Constrained Wasserstein",
+           "SCM"))
 }
 
 dist.metrics <- function() {

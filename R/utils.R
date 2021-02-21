@@ -245,5 +245,5 @@ diffpropci <- function(x1, n1, x2, n2, conf.level)
 
 entropy <- function(x) {
   x_pos <- x[x > 0]
-  return(sum(x_pos * log(x_pos)))
+  return(sum(-x_pos * log(x_pos)))
 }
