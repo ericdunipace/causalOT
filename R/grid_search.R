@@ -1345,7 +1345,7 @@ pen.fun.grid <- function(x, z,
   # 
   # n0 <- nrow(x0)
   # n1 <- nrow(x1)
-  if (penalty == "none") return(0.0)
+  if (penalty == "none") return(rep(0.0, grid.length))
   
   if (estimand == "ATE") {
     cost1 <- cost[[1]]
