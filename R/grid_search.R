@@ -844,7 +844,7 @@ eval_weights <- function(weights, args) {
       wp <- f.call.list(fun = "wass_boot", list.args = boot.args)
     }
     
-    sel <- which(wp == min(wp))
+    sel <- which(wp == min(wp, na.rm = TRUE))
     weight <- clean_up_weights(weights, sel, args)
   }
   return(weight)

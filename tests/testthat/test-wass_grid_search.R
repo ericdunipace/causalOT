@@ -260,9 +260,12 @@ testthat::test_that("grid search actually works, cwass lp marg", {
                               add.margins = add.margins, add.joint = add.joint,
                               eval.method = "bootstrap")
   )
-  testthat::expect_equivalent(wsel2$args$constraint, list( margins = c(1.7188448, 1.2600821, 
-                                                                       1.1800639, 2.0879501, 
-                                                                       1.9524347, 0.5670994),
+  testthat::expect_equivalent(wsel2$args$constraint, list( margins = c(1.8670195, 
+                                                                       1.3687088,
+                                                                       1.2817924,
+                                                                       2.2679439,
+                                                                       2.1207463,
+                                                                       0.6159868),
                                                           joint = c(2.31591)), 
                        tol = 1e-3)
   
@@ -390,7 +393,7 @@ testthat::test_that("grid search actually works, cwass sdlp marg", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint, 
-                              list( margins = rep(0.7430039, 6), 
+                              list( margins = rep(0.6975125, 6), 
                                     joint = 1.922442), tol = 1e-2)
   
   estimand <- "ATC"
@@ -465,7 +468,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
     
     )
   
-  testthat::expect_lte(wsel$args$constraint$penalty - c(112.4464), 1e-3)
+  testthat::expect_lte(wsel$args$constraint$penalty - c(103.4201), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -537,7 +540,7 @@ testthat::test_that("grid search actually works,  wass mahal", {
     
   )
   
-  testthat::expect_lte(wsel$args$constraint$penalty - c(111.1607), 1e-3)
+  testthat::expect_lte(wsel$args$constraint$penalty - c(106.2921), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -612,7 +615,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint,
-                              list(margins = rep(0.7430039, 6), 
+                              list(margins = rep(0.6975125, 6), 
                                    penalty = 103.4201), tol = 1e-3)
   
   estimand <- "ATC"
@@ -687,7 +690,9 @@ testthat::test_that("grid search actually works, marg wass mahal", {
     
   )
   
-  testthat::expect_equivalent(wsel$args$constraint, list(margins = rep(1.029426, 6), penalty = 106.2921), tol = 1e-3)
+  testthat::expect_equivalent(wsel$args$constraint, 
+                              list(margins = rep(1.081654, 6),
+                                   penalty = 106.2921), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -765,7 +770,7 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint, 
-                              list(margins = rep(0.7430039, 6),
+                              list(margins = rep(0.6975125, 6),
                                    penalty = 103.4201), tol = 1e-3)
   
   estimand <- "ATC"
@@ -844,7 +849,7 @@ testthat::test_that("grid search actually works, marg wass mahal bal", {
 
   )
   
-  testthat::expect_lte(wsel$args$constraint$penalty - c(111.1607  ), 1e-3)
+  testthat::expect_lte(wsel$args$constraint$penalty - c(106.2921  ), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -907,7 +912,7 @@ testthat::test_that("grid search joint.map, cwass", {
                               joint.mapping = TRUE, penalty = "L2",
                               eval.method = "bootstrap")
   )
-  testthat::expect_lte(wsel2$args$constraint$joint - 2.31591, 1e-3)
+  testthat::expect_lte(wsel2$args$constraint$joint - 2.121914, 1e-3)
   
   estimand <- "ATC"
   testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
@@ -1019,7 +1024,7 @@ testthat::test_that("grid search scm", {
                               joint.mapping = TRUE, penalty = "L2",
                               eval.method = "bootstrap")
   )
-  testthat::expect_lte(wsel2$args$constraint$penalty - 4283.619, 1e-3)
+  testthat::expect_lte(wsel2$args$constraint$penalty - 135.4599, 1e-3)
   
   estimand <- "ATC"
   testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
