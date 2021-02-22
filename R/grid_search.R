@@ -1347,9 +1347,9 @@ pen.fun.grid <- function(x, z,
   # n1 <- nrow(x1)
   if (penalty == "none") {
     if (estimand == "ATE") {
-      return(list(list(penalty = 0.0), list(penalty = 0.0)))
+      return(list(list(list(penalty = 0.0), list(penalty = 0.0))))
     } else {
-      return(list(penalty = 0.0))
+      return(list(list(penalty = 0.0)))
     }
   } 
   
@@ -1438,9 +1438,9 @@ wass.fun.grid <- function(x, z,
                         metric, wass.iter, add.margins, 
                         joint.mapping, penalty,
                         ...)
-    keep <- round(seq.int(1L,length(marg.grid), length.out = grid.length))
-    marg.grid <- marg.grid[keep]
-    grid <- grid[keep]
+    # keep <- round(seq.int(1L,length(marg.grid), length.out = grid.length))
+    # marg.grid <- marg.grid[keep]
+    # grid <- grid[keep]
     if (estimand == "ATE") {
       d_c <- length(cost[[1]]) - 1
       grid <- unlist(lapply(marg.grid, function(m) 
