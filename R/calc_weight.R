@@ -270,6 +270,14 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
                             solver = c("gurobi","mosek","cplex"),
                             sample_weight = NULL,
                             ...) {
+  solver_fun <- function(qp, solver, ...) {
+    tryCatch(QPsolver(qp, solver = solver, ...),
+             error = function(e) {
+               warning(e$message)
+               NA_real_
+             })
+  }
+  
   method <- match.arg(method)
   estimand <- match.arg(estimand)
   sample_weight <- get_sample_weight(sample_weight, get_z(data, ...))
@@ -284,7 +292,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
                  ...)
   dots <- list(...)
   
-  sol <- lapply(qp, function(q) QPsolver(q, solver = solver, ...))
+  sol <- lapply(qp, solver_fun, solver = solver, ...)
   
   ns <- get_n(data, ...)
   
@@ -576,11 +584,15 @@ ate_sample_weight <- function(sw, ...) {
     a0 <- sw$a
     a1 <- sw$b
     
+    n0 <- length(a0)
+    n1 <- length(a1)
+    n <- n0 + n1
+    
     output0 <- list(a = a0, b = b,
-                    total = renormalize(c(a0, b)))
+                    total = renormalize(c(a0 * n0, b * n)))
     
     output1 <- list(a = a1, b = b,
-                    total = renormalize(c(a1, b)))
+                    total = renormalize(c(a1 * n1, b * n)))
     
     class(output1)  <- class(output0) <- "sampleWeights"
     output <- list(output0, output1)

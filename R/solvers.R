@@ -188,10 +188,11 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
   # model$dparam <- list(ANA_SOL_INFEAS_TOL = 1e-6)
   
   res <- Rmosek::mosek(problem = model, opts = opts)
-  if (is.nan(res$response$code) || res$response$code != 0) {
+  if (is.nan(res$response$code) || res$response$code != 0 || res$sol$itr$solsta != "OPTIMAL") {
     # browser()
     warning("Algorithm did not converge!!! Mosek solver message: ", res$response$msg)
   }
+  if (res$sol$itr$solsta == "PRIMAL_INFEASIBLE_CER" || res$sol$itr$prosta == "PRIMAL_INFEASIBLE") stop("Problem infeasible")
   sol <- (res$sol$itr$xx)[1:qp$nvar]
   sol <- switch(neg.wt,
                 sol * as.numeric(sol > 0),

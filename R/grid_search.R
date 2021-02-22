@@ -547,9 +547,6 @@ weight_est_fun <- function(args) {
   # cgd = cgd, verbose = verbose,
   # ...)
   
-  n0 <- nrow(args[["x0"]])
-  n1 <- nrow(args[["x1"]])
-  
   if (args$verbose) {
     message("\nEstimating Optimal Transport weights for each constraint")
     pbapply::pboptions(type = "timer", style = 3, char = "=")
@@ -557,31 +554,44 @@ weight_est_fun <- function(args) {
     pbapply::pboptions(type = "none")
   }
   
-  if (!args[["cgd"]]) {
-    args[["x"]] <- args$z <- args$y <- args[["x1"]] <- args[["x0"]] <- NULL
-    args$constraint <- args[["grid"]][1]
-    weight.est.call <- f.call.list.no.eval("calc_weight",
-                                          list.args = args)
-    weights <-  pbapply::pblapply(args[["grid"]], function(delta) {
-      weight.est.call$envir$constraint <- delta
-      # out <- eval(weight.est.call$expr, envir = weight.est.call$envir)
-      out <- tryCatch(eval(weight.est.call$expr, envir = weight.est.call$envir),
-                      error = function(e) {
-                        warning(e$message)
-                        return(list(w0 = rep(NA_real_, n0),
-                                    w1 = rep(NA_real_, n1),
-                                    gamma = NULL,
-                                    estimand = estimand,
-                                    method = method, args = list(constraint = delta)))})
-      if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
-      class(out) <- "causalWeights"
-      return(out)
-    })
-  } else {
-    weights <- cgd_grid_fun(args)
-  }
+  # if (args[["estimand"]] == "ATE") {
+  #   args0 <- args1 <- args
+  #   
+  #   
+  # } else {
+    n0 <- nrow(args[["x0"]])
+    n1 <- nrow(args[["x1"]])
     
+    
+    
+    if (!args[["cgd"]]) {
+      args[["x"]] <- args$z <- args$y <- args[["x1"]] <- args[["x0"]] <- NULL
+      args$constraint <- args[["grid"]][1]
+      weight.est.call <- f.call.list.no.eval("calc_weight",
+                                             list.args = args)
+      weights <-  pbapply::pblapply(args[["grid"]], function(delta) {
+        weight.est.call$envir$constraint <- delta
+        out <- eval(weight.est.call$expr, envir = weight.est.call$envir)
+        # out <- tryCatch(eval(weight.est.call$expr, envir = weight.est.call$envir),
+        #                 error = function(e) {
+        #                   warning(e$message)
+        #                   return(list(w0 = rep(NA_real_, n0),
+        #                               w1 = rep(NA_real_, n1),
+        #                               gamma = NULL,
+        #                               estimand = args[["estimand"]],
+        #                               method = args[["method"]], args = list(constraint = delta)))})
+        if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
+        class(out) <- "causalWeights"
+        return(out)
+      })
+    } else {
+      weights <- cgd_grid_fun(args)
+    }
+    
+  # }
+  
   pbapply::pboptions(type = "none")
+  
   return(weights)
 }
 
@@ -799,8 +809,8 @@ eval_weights <- function(weights, args) {
       wp1 <- f.call.list(fun = "wass_boot", list.args = args1)
     }
     
-    sel0 <- which(wp0 == min(wp0))
-    sel1 <- which(wp1 == min(wp1))
+    sel0 <- which(wp0 == min(wp0, na.rm = TRUE))
+    sel1 <- which(wp1 == min(wp1, na.rm = TRUE))
     
     sel.weights0 <- clean_up_weights(weights.sep$w0, sel0, args)
     sel.weights1 <- clean_up_weights(weights.sep$w1, sel1, args)
@@ -867,6 +877,9 @@ separate_weights_ATE <- function(weights) {
   
   # separate weights
   for (i in seq_along(weights)) {
+    # if (is.na(weights1[[i]]$w0) || is.na(weights1[[i]]$w1)) {
+    #   next
+    # }
     weights1[[i]]$w0 <- weights1[[i]]$w1
     weights0[[i]]$gamma <- weights0[[i]]$gamma[[1]]
     weights1[[i]]$gamma <- weights1[[i]]$gamma[[2]]
@@ -877,7 +890,8 @@ separate_weights_ATE <- function(weights) {
     weights0[[i]]$estimand <- "ATT"
     weights1[[i]]$estimand <- "ATT"
     
-    weights0[[i]]$w1 <- weights1[[i]]$w1 <- colSums(weights0[[i]]$gamma)
+    weights0[[i]]$w1 <- colSums(weights0[[i]]$gamma)
+    weights1[[i]]$w1 <- colSums(weights1[[i]]$gamma)
   }
   
   return(list(w0 = weights0, w1 = weights1))
@@ -1081,12 +1095,13 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
       scales <- rep(1,D)
     }
     keep <- scales != 0
+    adj.factor <- 1.25
     
     #for control
     nnm.adjusted0 <- (wass_nnm_0[1:D]^p * 1/scales)^(1/p)
     full.adjusted0 <- (wass_full_0[1:D]^p * 1/scales)^(1/p)
     min.grid0 <- pmax((max(nnm.adjusted0[keep])^p * scales)^(1/p), 1e-4)
-    max.grid0 <- (max(full.adjusted0[keep])^p * scales)^(1/p)
+    max.grid0 <- (max(full.adjusted0[keep])^p * scales)^(1/p) * adj.factor
     
     # min.grid0 <- wass_nnm_0[1:D]
     # max.grid0 <- wass_full_0[1:D]
@@ -1095,7 +1110,7 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
     nnm.adjusted1 <- (wass_nnm_1[1:D]^p * 1/scales)^(1/p)
     full.adjusted1 <- (wass_full_1[1:D]^p * 1/scales)^(1/p)
     min.grid1 <- pmax((max(nnm.adjusted1[keep])^p * scales[keep])^(1/p), 1e-4)
-    max.grid1 <- (max(full.adjusted1[keep])^p * scales[keep])^(1/p)
+    max.grid1 <- (max(full.adjusted1[keep])^p * scales[keep])^(1/p) * adj.factor
 
     # min.grid1 <- wass_nnm_1[1:D]
     # max.grid1 <- wass_full_1[1:D]
@@ -1168,11 +1183,12 @@ marg.cwass.fun.grid <- function(x, z, grid.length, p, data, cost, estimand, metr
       scales <- rep(1,D)
     }
     keep <- scales != 0
+    adj.factor <- 1.25
     
     nnm.adjusted  <- (wass_nnm[1:D]^p / scales)^(1/p)
     full.adjusted <- (wass_full[1:D]^p / scales)^(1/p)
     min.grid      <- pmax((max(nnm.adjusted[keep])^p * scales)^(1/p), 1e-4)
-    max.grid      <- (max(full.adjusted[keep])^p * scales)^(1/p)
+    max.grid      <- (max(full.adjusted[keep])^p * scales)^(1/p) * adj.factor
     
     # min.grid <- wass_nnm[1:D]
     # max.grid <- wass_full[1:D]
@@ -1422,8 +1438,8 @@ wass.fun.grid <- function(x, z,
     if (estimand == "ATE") {
       d_c <- length(cost[[1]]) - 1
       grid <- unlist(lapply(marg.grid, function(m) 
-        lapply(grid, function(g) list(c(m[[1]][1:d_c], g[[1]]),
-                                      c(m[[2]][1:d_c], g[[2]])))
+        lapply(grid, function(g) list(c(m[[1]], g[[1]]),
+                                      c(m[[2]], g[[2]])))
                ), recursive = FALSE)
     } else {
       d_c <- length(cost) - 1
@@ -1823,11 +1839,11 @@ wass_cv <- function(weights, K, R, cost, p,
     if (is.list(cost_b)) cost_b <- cost_b[[1]]
   }
   
-  n_cv    <- ncol(cost)
+  n_cv    <- ncol(cc)
   
   cv.list <- cv_get(n_cv, K, R)
   m_wp    <- pbapply::pbsapply(X = weights, FUN = cv_eval, 
-                    cv.list = cv.list, cost = cost, p = p,
+                    cv.list = cv.list, cost = cc, p = p,
                     wass.method = wass.method, wass.iter = wass.iter, 
                     cost_a = cost_a, cost_b = cost_b, 
                     unbiased = unbiased, ...)
