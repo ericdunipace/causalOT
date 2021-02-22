@@ -66,6 +66,10 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
                    estimand = estimand,
                    method = "None",
                    args = list(NULL))
+  } else if (method == "CBPS") {
+    # f.call <- as.call(c(list(as.name("calc_weight_CBPS")), argn))
+    # eval(f.call, envir = args)
+    calc_weight_CBPS(data = data, estimand = estimand, ...)
   } else if ( method != "Logistic") {
     f.call <- as.call(c(list(as.name("calc_weight_bal")), argn))
     eval(f.call, envir = args)
@@ -429,6 +433,45 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   return(output)
 }
 
+calc_weight_CBPS <- function(data, formula,  estimand = c("ATE","ATT", "ATC"),
+                              niter = 1000, sample_weight = NULL, ...) {
+  
+  ATT.flag <- switch(estimand,
+                     "ATT" = 1,
+                     "ATC" = 2,
+                     "ATE" = 0)
+  
+  if (missing(formula) || is.null(formula)) {
+    formula <- "z ~."
+  }
+
+  dat <- prep_data(data, ...)
+  
+  sw <- get_sample_weight(sample_weight, dat$z)
+  
+  if ( !is.null(attr(dat$df, "outcome"))) {
+    dat$df$y <- NULL
+  }
+  z <- dat$z
+  x <- dat$df
+  
+  cbp.dat <- cbind(z = z, x)
+  
+  fit <- CBPS::CBPS(formula = formula, data = cbp.dat, 
+             ATT = ATT.flag, iterations = niter,
+             standardize = TRUE, method = "over",
+             sample.weights = sw$total,
+             twostep = TRUE, ...)
+  
+  pred <- fit$weights
+  
+  
+  output <- list(w0 = pred[z == 0], w1 = pred[z == 1], gamma = NULL, estimand = estimand, method = "CBPS",
+                 args = list(...))
+  
+  return(output)
+  
+}
 
 calc_weight_error <- function(n0 = NULL, n1 = NULL) {
   

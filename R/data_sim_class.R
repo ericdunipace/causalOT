@@ -1329,3 +1329,237 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                              )
   )
 }
+
+#### Li and Li ####
+{
+  LiLi <- R6::R6Class("LiLi", 
+         inherit = DataSim,
+         public = list(
+           gen_data = function() {
+             self$gen_x()
+             self$gen_z()
+             self$gen_y()
+             # private$\check_data()
+             invisible(self)
+           },
+           gen_x = function() {
+             stopifnot(length(private$n) > 0 )
+             
+             x4 <- rbinom(private$n, size = 1, 
+                          prob = 0.5)
+             x3 <- rbinom(private$n, size = 1, 
+                          prob = 0.6 * x4 + 0.4 (1 - x4))
+             
+             m1_2 <- cbind(rep(-x3 + x4 + 0.5 * x3 * x4,
+                               private$n),
+                           rep(x3 - x4 + x3 * x4,
+                               private$n))
+             half_vc1_2 <- sqrt_mat(x3 * matrix(c(1,0.5,0.5,1), 2, 2) + 
+               (1 - x3) * matrix(c(2,0.25,0.25,2), 2, 2))
+             x1_2 <- matrix(rnorm(private$n * 2), private$n, 2) %*% half_vc1_2 + m1_2
+                            
+             private$x <- cbind(
+               x1_2, x3, x4
+             )
+             
+             K <- private$p - 4
+             if (K > 0) {
+               x5_k2 <- matrix(rnorm(private$n * (4 + K/2), sd = sqrt(2)),
+                               nrow = private$n,
+                               ncol = 4 + K/2)
+               x5pk2_4pK <- matrix(rbinomial(private$n * ((4 + K) - (4 + K/2)),
+                                             size = 1, prob = 0.5),
+                                   nrow = private$n,
+                                   ncol = ((4 + K) - (4 + K/2)))
+               
+               private$x <- cbind(private$x,
+                                  x5_k2,
+                                  x5pk2_4pk)
+             }
+             
+             colnames(private$x) <- paste0("X",1:private$p)
+             private$check_data()
+             invisible(self)
+           },
+           gen_y = function() {
+             if (all(dim(private$x) == 0)) self$gen_x()
+             if (length(private$z) == 0) self$gen_z()
+             
+             delta_0 <- private$param$tx_effect(rep(0, private$n))
+             delta_1 <- private$param$tx_effect(rep(1, private$n))
+             
+             if (private$p == 4) {
+               design <- switch(private$pscore_design,
+                                "A" = private$x,
+                                "B" = cbind(private$x, private$x[,1]^2, private$x[,1] * private$x[,2], private$x[,2]^2))
+             } else {
+               design <- private$x
+               K <- private$p - 4
+               if (K > 0) {
+                 x5_k2 <- rowSums(private$x[, 5:(4 + K/2), drop = FALSE])
+                 
+                 x5pk2_4pK <- rowSums(private$x[, (5 + K/2):(4 + K), drop = FALSE])
+                 
+                 design <- cbind(design,
+                                 x5_k2,
+                                 x5pk2_4pk)
+               }
+               
+             }
+             
+             tx_indep_mean <- cbind(1, design) %*% private$param$beta_y
+             
+             private$mu0 <- delta_0 + tx_indep_mean
+             private$mu1 <- delta_1 + tx_indep_mean
+             
+             private$y <- private$mu1 * private$z + private$mu0 * ( 1 - private$z ) + rnorm(private$n, 
+                                                                                            sd = private$param$sigma_y)
+             # private$check_data()
+             invisible(self)
+           },
+           gen_z = function() {
+             if (all(dim(private$x) == 0)) self$gen_x()
+             
+             if (private$p == 4) {
+               design <- switch(private$pscore_design,
+                      "A" = private$x,
+                      "B" = cbind(private$x, private$x[,1]^2, private$x[,1] * private$x[,2], private$x[,2]^2))
+             } else {
+               design <- private$x
+               K <- private$p - 4
+               if (K > 0) {
+                 x5_k2 <- rowSums(private$x[, 5:(4 + K/2), drop = FALSE])
+                                 
+                 x5pk2_4pK <- rowSums(private$x[, (5 + K/2):(4 + K), drop = FALSE])
+                 
+                 design <- cbind(design,
+                                    x5_k2,
+                                    x5pk2_4pk)
+               }
+               
+             }
+             
+             eta <- cbind(1, design) %*% private$param$beta_z
+             private$pscore <- plogis(eta)
+             private$z <- rbinom(private$n, 1, prob = private$pscore)
+             private$check_data()
+             invisible(self)
+           },
+           initialize = function(n = 100, p = 4,
+                                 param = list(), 
+                                 pscore_design = "A",
+                                 outcome_design = "A",
+                                 overlap = "high", 
+                                 treatment_effect = "A", ...) {
+             
+             
+             if (isTRUE(missing(p)) | isTRUE(is.null(p))  | p < 4) {
+               warning("'p' must be greater than of equal to 4. Set to 4.")
+               private$p <- 4
+             } else {
+               private$p <- as.integer(p)
+             }
+             
+             if (isTRUE(missing(n)) || isTRUE(is.null(n))) {
+               private$n <- 512
+             } else {
+               private$n <- n
+             }
+             if (missing(outcome_design ) || is.null(outcome_design) ) {
+               private$outcome_design <- "A"
+             } else {
+               private$outcome_design <- match.arg(design, c("A","B"))
+             }
+             if (missing(pscore_design ) || is.null(pscore_design) ) {
+               private$pscore_design <- "A"
+             } else {
+               private$pscore_design <- match.arg(design, c("A","B"))
+             }
+             if (missing(treatment_effect ) || is.null(treatment_effect) ) {
+               private$treatment_effect <- "A"
+             } else {
+               private$treatment_effect <- match.arg(treatment_effect, c("A","B"))
+             }
+             private$set_param(beta_z = param$beta_z, 
+                               beta_y = param$beta_y,
+                               sigma_y = param$sigma_y)
+             
+           },
+           get_design = function() {
+             return(c("Outcome Design" = private$outcome_design, "Overlap" = private$overlap))
+           }
+         ),
+         private = list( outcome_design = "character",
+                         pscore = "numeric",
+                         pscore_design = "character",
+                         set_param = function(beta_z, beta_y, sigma_y, sigma_x) {
+                           miss.null <- function(xx) {
+                             return(missing(xx) | is.null(xx))
+                           }
+                           extra.terms <- switch(private$overlap,
+                                                 "high" = switch(as.character(private$p),
+                                                                 "4" = NULL,
+                                                                 "20" = c(-.3, .5),
+                                                                 c(-.1, .15)),
+                                                 "low" = switch(as.character(private$p),
+                                                                "4" = NULL,
+                                                                "20" = c(-1,1),
+                                                                c(-.3, .5)) )
+                           default_param <- list(
+                             tx_effect = switch(private$treatment_effect,
+                                                "A" = function(x){x},
+                                                "B" = function(x){private$pscore^2 + 2 * private$pscore + 1},
+                                                "C" = function(x){10 * (privatea$pscore - 0.5)^2 + 0.5}),
+                             beta_y = switch(as.character(private$p),
+                                             "4" = switch(private$outcome_design,
+                                                   "A" = c(0.5, 1, .6, 2.2, -1.2),
+                                                   "B" = c(0.5, 1, .6, 2.2, -1.2, 0.3)),
+                                             "12" = switch(private$outcome_design,
+                                                           "A" = c(0.5, 1, .6, 2.2, -1.2, 1, -1, 1, -1),
+                                                           "B" = c(0.5, 1, .6, 2.2, -1.2, 1, -1, 1, -1,
+                                                                   .5, .6, .5)),
+                                             switch(private$outcome_design,
+                                                    c(0.5, 1, .6, 2.2, -1.2, 1, -1, 1, -1))
+                             ),
+                             sigma_y = 1,
+                             beta_z = switch(private$p,
+                                             "4" = switch(private$pscore_design,
+                                                          "A" = switch(private$overlap,
+                                                                       "high" = c(-1.5, 0.5, -0.75, 2, -0.5),
+                                                                       "low" = c(-1, 0.4, -1.5, 2, -1.5)),
+                                                          "B" = switch(private$overlap,
+                                                                       "high" = c(-1.5, 0.5, -0.75, 2, -0.5, .43, 1.4, .25, .3),
+                                                                       "low" = c(-1, 0.4, -1.5, 2, -1.5, .65, 2, .4, .45))),
+                                             # "12" = switch(),
+                                             c(-1.5, 0.5, -0.75, 2, -0.5, rep(extra.terms,2))
+                             )
+                           )
+                           temp_param <- list()
+                           if (miss.null(beta_z)) {
+                             temp_param$beta_z  <- default_param$beta_z
+                           } else {
+                             stopifnot(is.vector(param$beta_z))
+                             temp_param$beta_z  <- param$beta_z
+                           }
+                           if (miss.null(beta_y)) {
+                             temp_param$beta_y  <- default_param$beta_y
+                           } else {
+                             stopifnot(is.vector(beta_y))
+                             temp_param$beta_y  <- param$beta_y
+                           }
+                           if (miss.null(sigma_y)) {
+                             temp_param$sigma_y <- default_param$sigma_y
+                           } else {
+                             temp_param$sigma_y <- param$sigma_y
+                           }
+                           if (miss.null(sigma_x)) {
+                             temp_param$sigma_x <- default_param$sigma_x
+                           } else {
+                             temp_param$sigma_x <- param$sigma_x
+                           }
+                           private$param <- temp_param
+                         },
+                         treatment_effect = "character"
+         )
+  )
+}

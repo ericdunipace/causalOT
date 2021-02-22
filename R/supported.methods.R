@@ -1,5 +1,5 @@
 supported.methods <- function() {
-  return(c("Logistic","SBW", "SCM",
+  return(c("Logistic","SBW", "SCM", "CBPS",
            "RKHS", "RKHS.dose", "NNM", 
            "Wasserstein",
            "Constrained Wasserstein",

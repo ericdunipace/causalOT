@@ -131,6 +131,7 @@
                                                                         augmentation = NULL),
                                                  propensity.formula = list(Logistic = NULL,
                                                                         SBW = NULL,
+                                                                        CBPS = NULL,
                                                                         "Constrained Wasserstein" = NULL,
                                                                         "Wasserstein" = NULL),
                                                  model.augmentation = "both",
@@ -368,11 +369,13 @@
                                propensity.formula <- list()
                              }
                              private$ps.formula <- list(logistic = unlist(propensity.formula$Logistic),
+                                                        cbps = unlist(propensity.formula$CBPS),
                                                         sbw = unlist(propensity.formula$SBW),
                                                         cwass = unlist(propensity.formula$`Constrained Wasserstein`),
                                                         wass = unlist(propensity.formula$Wasserstein))
-                             if(is.null(private$ps.formula$logistic)) private$ps.formula$logistic <- "z ~ . + 0"
-                             if(is.null(private$ps.formula$sbw)) private$ps.formula$sbw <- "z ~ . + 0"
+                             if(is.null(private$ps.formula$logistic)) private$ps.formula$logistic <- "z ~ ."
+                             if(is.null(private$ps.formula$cbps)) private$ps.formula$cbps <- "z ~ ."
+                             if(is.null(private$ps.formula$sbw)) private$ps.formula$sbw <- "~ . + 0"
                              if(is.null(private$ps.formula$cwass)) private$ps.formula$cwass <- NA #"z ~ . + 0"
                              if(is.null(private$ps.formula$wass)) private$ps.formula$wass <- NA #"z ~ . + 0"
                              
@@ -1074,6 +1077,8 @@
                                                                                                                         None = list(delta = NA_real_, other = NA_character_),
                                                                                                                         Logistic = list(delta = private$truncations,
                                                                                                                                         formula = private$ps.formula$logistic),
+                                                                                                                        CBPS = list(delta = NA_real_,
+                                                                                                                                    formula = private$ps.formula$cbps),
                                                                                                                         NNM = nnm_list,
                                                                                                                         SBW = list(grid.search = private$grid.search,
                                                                                                                                    delta = sdm,
@@ -1267,6 +1272,11 @@
                                               power <- p[[1]]
                                               # kernel <- private$RKHS$kernel
                                             }
+                                            if ( isTRUE(joint.mapping) && isTRUE(add.margins) && isTRUE(penalty != "none"))  {
+                                              grid.length <- 4
+                                            } else {
+                                              grid.length <- 7
+                                            }
                                             if (estimand != "cATE") {
                                               private$weights[[estimand]] <- 
                                                 tryCatch(
@@ -1296,7 +1306,8 @@
                                                             add.joint = TRUE, #private$wass.opt$add.joint,
                                                             add.margins = isTRUE(add.margins),
                                                             penalty = penalty,
-                                                            joint.mapping = joint.mapping,
+                                                            joint.mapping = isTRUE(joint.mapping),
+                                                            grid.length = grid.length,
                                                             wass.method = private$wass.opt$method,
                                                             wass.niter = private$wass.opt$niter,
                                                             epsilon = private$wass.opt$epsilon,
