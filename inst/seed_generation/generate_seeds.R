@@ -3,7 +3,7 @@
 rm(list=ls())
 library(causalOT)
 
-overlap <- c("low","high")
+overlap <- c("low","medium","high")
 design <- c("A","B")
 
 no    <- length(overlap)
@@ -116,5 +116,26 @@ seed_array <- array(seeds, dim = c(nsims),
                     dimnames = list(nsims = 1:nsims)
 )
 dump("seed_array", file = "inst/seed_generation/lalonde_seeds_est.Rdmped")
+
+#### Hainmuell ####
+rm(list=ls())
+library(causalOT)
+
+add.margins <- c(FALSE, TRUE)
+overlap <- "none"
+
+no    <- length(overlap)
+nd    <- length(add.margins)
+nsims <- 1000
+
+seeds <- seed.gen(design = add.margins, overlap = overlap, niter = nsims, seed = 602057735) #seed from random.org
+
+# seed_array <- array(seeds, dim=c(nd, no, nsims),
+#                     dimnames = list(design = add.margins,
+#                                     overlap = overlap,
+#                                     nsims = 1:nsims)
+# )
+seed_array <- seeds
+dump("seed_array", file="inst/seed_generation/hainmueller_eval.Rdmped")
 
 # q("no")

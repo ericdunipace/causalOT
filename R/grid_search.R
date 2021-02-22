@@ -1859,6 +1859,13 @@ wass_grid_eval <- function(data, grid = NULL,
     (sum(w$gamma * cost^(w$args$power)))^(1/(w$args$power))
   }
   
+  get_outcome <- function(w, data, estimand) {
+    estimate_effect(data = data, weights = w, hajek = TRUE,
+                    doubly.robust = FALSE, estimand = estimand,
+                    split.model = TRUE, matched = FALSE
+                    )$estimate
+  }
+  
   estimand <- match.arg(estimand)
   method <- match.arg(method)
   dots <- list(...)
@@ -1930,7 +1937,7 @@ wass_grid_eval <- function(data, grid = NULL,
                n.boot = n.boot,
                K = K, 
                R = R,
-               eval.method = eval.method,
+               eval.method = "cross.validation",
                wass.method = wass.method,
                wass.iter = wass.iter,
                sample_weight = sample_weight,
@@ -1950,16 +1957,32 @@ wass_grid_eval <- function(data, grid = NULL,
   
   weight.list <- weight_est_fun(args)
   
+  taus <- vapply(X = weight.list,
+                     FUN = get_outcome, FUN.VALUE = 1,
+                     data = data, estimand = estimand)
+  
   output.weight <- eval_weights(weight.list, args)
   
-  chosen <- output.weight$args$constraint
-  chosen$margins <- chosen$margins[1]
-  chosen$joint <- chosen$joint
-  chosen$penalty <- chosen$penalty
+  cv.chosen <- output.weight$args$constraint
+  cv.chosen$margins <- cv.chosen$margins[1]
+  cv.chosen$joint <- cv.chosen$joint
+  cv.chosen$penalty <- cv.chosen$penalty
   
-  if (is.null(chosen$margins)) chosen$margins <- NA_real_
-  if (is.null(chosen$joint)) chosen$joint <- NA_real_
-  if (is.null(chosen$penalty)) chosen$penalty <- NA_real_
+  if (is.null(cv.chosen$margins)) cv.chosen$margins <- NA_real_
+  if (is.null(cv.chosen$joint)) cv.chosen$joint <- NA_real_
+  if (is.null(cv.chosen$penalty)) cv.chosen$penalty <- NA_real_
+  
+  args$eval.method <- "bootstrap"
+  output.weight.b <- eval_weights(weight.list, args)
+  
+  boot.chosen <- output.weight.b$args$constraint
+  boot.chosen$margins <- boot.chosen$margins[1]
+  boot.chosen$joint <- boot.chosen$joint
+  boot.chosen$penalty <- boot.chosen$penalty
+  
+  if (is.null(boot.chosen$margins)) boot.chosen$margins <- NA_real_
+  if (is.null(boot.chosen$joint)) boot.chosen$joint <- NA_real_
+  if (is.null(boot.chosen$penalty)) boot.chosen$penalty <- NA_real_
   
   grid.margins <- unlist(sapply(grid, function(x) x$margins[1]))
   grid.joint   <- unlist(sapply(grid, function(x) x$joint[1]))
@@ -1996,9 +2019,13 @@ wass_grid_eval <- function(data, grid = NULL,
   
   
   output <- data.frame(n = n, d = ncol(x),
-                       chosen.margins = chosen$margins,
-                       chosen.joint = chosen$joint, 
-                       chosen.penalty = chosen$penalty,
+                       estimates = taus,
+                       cv.chosen.margins = cv.chosen$margins,
+                       cv.chosen.joint = cv.chosen$joint, 
+                       cv.chosen.penalty = cv.chosen$penalty,
+                       boot.chosen.margins = boot.chosen$margins,
+                       boot.chosen.joint = boot.chosen$joint, 
+                       boot.chosen.penalty = boot.chosen$penalty,
                        grid.margins = grid.margins,
                        grid.joint  = grid.joint,
                        grid.penalty  = grid.penalty,
