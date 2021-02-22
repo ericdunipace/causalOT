@@ -1351,7 +1351,7 @@ pen.fun.grid <- function(x, z,
     } else {
       return(lapply(1:grid.length, function(i) list(penalty = 0.0)))
     }
-  }
+  } 
   
   if (estimand == "ATE") {
     cost1 <- cost[[1]]
