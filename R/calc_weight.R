@@ -18,7 +18,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   
   if (isTRUE(args[["penalty"]] == "none") && isTRUE(grid.search == TRUE) && ((
      (args$method %in% c("Constrained Wasserstein","Wasserstein")) &&
-      (isFALSE(args$add.mapping) && isFALSE(args$joint.mapping))) ||
+      (isFALSE(args$add.margins) && isFALSE(args$joint.mapping))) ||
      args$method == "SCM")  ) {
     grid.search <- FALSE
   }
