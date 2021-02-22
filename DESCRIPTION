@@ -37,6 +37,7 @@ Suggests:
     Rcplex,
     gurobi,
     Rmosek,
+    CBPS,
     dplyr,
     sbw,
     approxOT,
