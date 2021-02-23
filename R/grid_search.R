@@ -28,11 +28,12 @@ sbw_grid_search <- function(data, grid = NULL,
   
   weight.list <- lapply(grid, function(delta) {
     args$constraint <- delta
-    out <- tryCatch(eval(f.call, envir = args),
-                    error = function(e) {
-                      warning(e$message)
-                      return(list(w0 = rep(NA_real_, n0),
-                                                     w1 = rep(NA_real_, n1)))})
+    out <- eval(f.call, envir = args)
+    # out <- tryCatch(eval(f.call, envir = args),
+    #                 error = function(e) {
+    #                   warning(e$message)
+    #                   return(list(w0 = rep(NA_real_, n0),
+    #                                                  w1 = rep(NA_real_, n1)))})
     if (solver == "gurobi") Sys.sleep(0.1)
     return(out)
   })
@@ -923,8 +924,8 @@ clean_up_weights <- function(weights, selection, args) {
 }
 
 mean_bal_grid <- function(bootIdx, weight, data, tx_ind, ...) {
+  if(all(is.na(weight$w0)) || all(is.na(weight$w1))) return(NA_real_)
   wvec <- c(weight$w0, weight$w1 )
-  if (all(is.na(wvec))) return(NA)
   dataResamp <- data[bootIdx,]
   weightResamp <- wvec[bootIdx]
   z <- dataResamp[,tx_ind]

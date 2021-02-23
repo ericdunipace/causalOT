@@ -664,7 +664,7 @@ ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000,
                             treatment.indicator = treatment.indicator,
                             outcome = outcome,
                             n0 = n0, n1 = n1, ...)
-    if (all(is.na(weight.boot$w0)) && all(is.na(weight.boot$w1))) {
+    if (all(is.na(weight.boot$w0)) || all(is.na(weight.boot$w1))) {
       return(NULL)
     }
     # est.args <- c(list(data = data, formula = object$formula,
@@ -792,8 +792,7 @@ cot_boot_samples <- function(n.boot, boot.method, estimand, method, matched, n0,
   #                       simplify = FALSE)
   # return(boot.idx)
   # if that doesn't work then: 
-  if (!matched && (
-    method == "SBW" | method == "Logistic" | method == "None") ) {
+  if (!matched && !(method %in% ot.methods() )) {
     boot.idx <- replicate(n = n.boot, sample.int(n = n, size = nsamp,
                                                  replace = TRUE),
                           simplify = FALSE)
