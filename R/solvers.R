@@ -1,6 +1,8 @@
-cplex_solver <- function(qp, neg.weights = FALSE, ...) {
+cplex_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   dots <- list(...)
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  get.dual <- isTRUE(get.dual)
+  
   qp <- convert_cones(qp)
   num_param <- length(c(as.numeric(qp$obj$L)))
   
@@ -33,11 +35,20 @@ cplex_solver <- function(qp, neg.weights = FALSE, ...) {
   sol <- switch(neg.wt,
                 sol * as.numeric(sol > 0),
                 sol)
+  dual_vars <- if (get.dual) {
+    res$extra$lambda
+  } else {
+    NULL
+  }
+  names(dual_vars) <- names(qp$LC$vals)
+  return(list(sol = sol, dual = dual_vars))
   return(sol[1:qp$nvar])
 }
 
-gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
+gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  get.dual <- isTRUE(get.dual)
+  
   qp <- convert_cones(qp)
   num_param <- length(c(as.numeric(qp$obj$L)))
   model <- list()
@@ -77,8 +88,13 @@ gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
   # 
   # status <- out$status
   # 
-  # dual_vars <- out$pi[-length(out$pi)]
-  return(sol[1:qp$nvar])
+  dual_vars <- if (get.dual) {
+    res$pi
+  } else {
+    NULL
+  }
+  names(dual_vars) <- names(qp$LC$vals)
+  return(list(sol = sol, dual = dual_vars))
   
   if (dots$save.solution) {
     return(list(result = sol, res = res))
@@ -87,8 +103,10 @@ gurobi_solver <- function(qp, neg.weights = FALSE, ...) {
   }}
 }
 
-mosek_solver <- function(qp, neg.weights = FALSE, ...) {
+mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  get.dual <- isTRUE(get.dual)
+  
   num_param <- length(c(as.numeric(qp$obj$L)))
   
   model <- list()
@@ -203,8 +221,15 @@ mosek_solver <- function(qp, neg.weights = FALSE, ...) {
   # 
   # status <- out$status
   # 
-  # dual_vars <- res$sol$itr$slc - res$sol$itr$suc
-  return(sol)
+  dual_vars <- if (get.dual) {
+    res$sol$itr$slc + res$sol$itr$suc
+  } else {
+    NULL
+  }
+  names(dual_vars) <- names(qp$LC$vals)
+  return(list(sol = sol, dual = dual_vars))
+  
+  
   
   if (dots$save.solution) {
     return(list(result = sol, res = res))
@@ -222,14 +247,16 @@ QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
   #                     "gurobi" = "gurobi_solver",
   #                     "mosek" = "mosek_solver")
   # sol <- do.call(solve.fun, list(qp, ...))
-  sol <- switch(solver,
+  res <- switch(solver,
                 "cplex" = cplex_solver(qp, ...),
                 "gurobi" = gurobi_solver(qp, ...),
                 "mosek" = mosek_solver(qp, ...))
-  return(renormalize(sol))
   
-  sol$result <- renormalize(sol$result)
-  return(sol)
+  res$sol <- renormalize(res$sol)
+  return(res)
+  
+  # sol$result <- renormalize(sol$result)
+  # return(sol)
 }
 
 

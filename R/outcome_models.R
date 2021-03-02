@@ -620,15 +620,97 @@ estimate_effect <- function(data, formula = NULL, weights,
   return(output)
 }
 
-confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstrap", "asymptotic"), ...) {
+confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstrap", "asymptotic", "jackknife"), ...) {
   method <- match.arg(method)
   if (method == "bootstrap") {
     return(ci_boot_ce(object, parm, level, ...))
+  } else if (method == "jackknife") {
+    return(ci_jack_ce(object, parm, level, ...))
   } else {
-    stop("asymptotic confidence intervals not currently implemented")
+    stop("confidence interval method not currently implemented")
   }
   
   
+}
+
+ci_jack_ce <- function(object, parm, level, ...) {
+    est_jk <- function(i, dat, weight, n0, n1) {
+      idx_i <- 1:n0
+      idx_j <- 1:n1
+      if (i <= n0) {
+        idx_i <- idx_i[-i]
+      } else if (i > n0) {
+        idx_j <- idx_j[-(i - n0)]
+      }
+      
+      dat.new <- dat[-i,,drop = FALSE]
+      
+      weight.new <- weight
+      estimand <- weight.new$estimand
+      method <- weight.new$method
+      
+      if (method %in% ot.methods()) {
+        if (estimand != "ATE") {
+          weight.new$gamma <- matrix(renormalize(weight.new$gamma[idx_i, idx_j]),
+                                     length(idx_i), length(idx_j))
+          weight.new$w0 <- rowSums(weight.new$gamma)
+          weight.new$w1 <- colSums(weight.new$gamma)
+        } else {
+          weight.new$gamma <- list(matrix(renormalize(weight.new$gamma[[1]][idx_i, -i]),
+                                          length(idx_i), nrow(dat.new)),
+                                   matrix(renormalize(weight.new$gamma[[2]][idx_j, -i]),
+                                          length(idx_j), nrow(dat.new)))
+          weight.new$w0 <- rowSums(weight.new$gamma[[1]])
+          weight.new$w1 <- rowSums(weight.new$gamma[[2]])
+        }
+      } else {
+        weight.new$w0 <- renormalize(weight.new$w0[idx_i])
+        weight.new$w1 <- renormalize(weight.new$w1[idx_j])
+      }
+      
+      
+      return(estimate_effect(data = dat.new, weights = weight.new,
+                             estimand = weight.new$estimand, doubly.robust = dr,
+                             outcome = 1, treatment.indicator = 2,
+                             matched = FALSE,
+                             balance.covariates = 3:ncol(dat.new))$estimate)
+    }
+    
+    data <- object$data
+    z    <- data[,data$options$treatment.indicator]
+    x    <- data[,data$options$balance.covariates, drop = FALSE]
+    y    <- data[,data$options$outcome]
+    x0 <- x[z == 0, ]
+    x1 <- x[z == 1, ]
+    
+    y0 <- y[z == 0]
+    y1 <- y[z == 1]
+    n0 <- nrow(x0)
+    n1 <- nrow(x1)
+    n <- n0 + n1
+    x  <- rbind(x0, x1)
+    
+    
+    dat <- data.frame(y = c(y0,y1), z = c(rep(0, n0), rep(1,n1)), x)
+    
+    tau <- object$estimate
+    
+    weight <- object$weights
+    
+    jk.estimates <- vapply(1:nrow(dat), FUN = est_jk, FUN.VALUE = 1, dat = dat,
+                           n0 = n0, n1 = n1,
+                           weight = weight)
+    var.jk <- (n - 1) / n * sum( (jk.estimates - tau)^2)
+    
+    upr <- tau + qnorm( 1 - (1 - level)/2) * sqrt(var.jk)
+    lwr <- tau + qnorm((1 - level)/2)      * sqrt(var.jk)
+    
+    out <- list(CI = c(lwr, upr),
+                SD =  sqrt(var.jk).
+                jk = jk.estimates,
+                tau = tau)
+    
+    return(out)
 }
 
 ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000, 
@@ -882,7 +964,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                                         rep(1, n1 + n0))
       
       wt.args <- list(
-                  c(list(data = dat.0, constraint = weight$args$constraint,
+                  c(list(data = dat.0, constraint = weight$args$constraint[[1]],
                         estimand = "ATT", method = weight$method,
                         transport.matrix = !is.null(weight$gamma),
                         grid.search = isTRUE(weight$args$grid.search), 
@@ -893,7 +975,7 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                         sample_weight = renormalize(c(tab.0, tab)),
                         ...), 
                    weight$args),
-                   c(list(data = dat.1, constraint = weight$args$constraint,
+                   c(list(data = dat.1, constraint = weight$args$constraint[[2]],
                           estimand = "ATT", method = weight$method,
                           transport.matrix = !is.null(weight$gamma),
                           grid.search = isTRUE(weight$args$grid.search), 

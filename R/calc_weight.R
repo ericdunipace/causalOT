@@ -271,14 +271,14 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
 
 calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
                             method = c("SBW","Wasserstein", "Constrained Wasserstein", "SCM"),
-                            solver = c("gurobi","mosek","cplex"),
+                            solver = c("mosek","gurobi","cplex"),
                             sample_weight = NULL,
                             ...) {
   solver_fun <- function(qp, solver, ...) {
     tryCatch(QPsolver(qp, solver = solver, ...),
              error = function(e) {
                warning(e$message)
-               NA_real_
+               list(sol = NA_real_, dual = NULL)
              })
   }
   
@@ -296,12 +296,12 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
                  ...)
   dots <- list(...)
   
-  sol <- lapply(qp, solver_fun, solver = solver, ...)
+  res <- lapply(qp, solver_fun, solver = solver, ...)
   
   ns <- get_n(data, ...)
   
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
-  output <- convert_sol(sol, estimand, method, ns["n0"], ns["n1"], sample_weight)
+  output <- convert_sol(res, estimand, method, ns["n0"], ns["n1"], sample_weight)
   output$estimand <- estimand
   output$method <- method
   if(method %in% ot.methods()) {
@@ -318,7 +318,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
     dots[["power"]] <- dots[["p"]]
     dots[["p"]] <- NULL
   }
-  output$args <- c(list(solver = solver, constraint = constraint),
+  output$args <- c(output$args, list(solver = solver, constraint = constraint),
                         # sol = sol$sol),
                         dots)
   
@@ -483,50 +483,63 @@ calc_weight_error <- function(n0 = NULL, n1 = NULL) {
               w1 = rep(NA_real_, n1)))
 }
 
-convert_sol <- function(sol, estimand, method, n0, n1, sample_weight) {
+convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
-  stopifnot(is.list(sol))
+  stopifnot(is.list(res))
   stopifnot(inherits(sample_weight, "sampleWeights"))
   
   if ( method %in% c("Wasserstein", "Constrained Wasserstein","SCM") ) {
     if (estimand == "ATC") {
-      output$gamma <- matrix(sol[[1]], n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
+      output$gamma <- matrix(res[[1]]$sol, n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- sample_weight$a
       output$w1 <- colSums(output$gamma)
+      dual <- res[[1]]$dual
     } else if (estimand == "ATT") {
-      output$gamma <- matrix(sol[[1]], n0, n1) #matrix(sol[[1]]$result, n0, n1)
+      output$gamma <- matrix(res[[1]]$sol, n0, n1) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- rowSums(output$gamma)
       output$w1 <- sample_weight$b
+      dual <- res[[1]]$dual
     } else if (estimand == "cATE") {
-      output$w0 <- rowSums(matrix(sol[[2]], n0, n1)) #matrix(sol[[2]]$result, n0, n1)
-      output$w1 <- colSums(matrix(sol[[1]], n0, n1, byrow = TRUE)) ##matrix(sol[[1]]$result, n0, n1)
+      output$w0 <- rowSums(matrix(res[[2]]$sol, n0, n1)) #matrix(sol[[2]]$result, n0, n1)
+      output$w1 <- colSums(matrix(res[[1]]$sol, n0, n1, byrow = TRUE)) ##matrix(sol[[1]]$result, n0, n1)
+      dual <- list(res[[2]]$dual,
+                   res[[1]]$dual)
     } else if (estimand == "ATE") {
       N <- n0 + n1
-      output$w0 <-  rowSums(matrix(sol[[1]], n0, N)) #matrix(sol[[1]]$result, n0, n1)
-      output$w1 <-  rowSums(matrix(sol[[2]], n1, N)) #matrix(sol[[2]]$result, n0, n1)
+      output$w0 <-  rowSums(matrix(res[[1]]$sol, n0, N)) #matrix(sol[[1]]$result, n0, n1)
+      output$w1 <-  rowSums(matrix(res[[2]]$sol, n1, N)) #matrix(sol[[2]]$result, n0, n1)
       #note both are rowSums here
-      output$gamma <- list(w0 =  matrix(sol[[1]], n0, N),
-                           w1 =  matrix(sol[[2]], n1, N))
+      output$gamma <- list(w0 =  matrix(res[[1]]$sol, n0, N),
+                           w1 =  matrix(res[[2]]$sol, n1, N))
+      dual <- list(res[[1]]$dual,
+                   res[[2]]$dual)
     }
   } else {
     if (estimand == "ATT") {
-      output$w0 <- sol[[1]] #renormalize(sol[[1]]$result)
+      output$w0 <- res[[1]]$sol #renormalize(sol[[1]]$result)
       output$w1 <- sample_weight$b
+      dual <- res[[1]]$dual
     } else if (estimand == "ATC") {
       output$w0 <- sample_weight$a
-      output$w1 <- sol[[1]] #renormalize(sol[[1]]$result)
+      output$w1 <- res[[1]]$sol #renormalize(sol[[1]]$result)
+      dual <- res[[1]]$dual
     } else if (estimand == "feasible") {
-      output$w0 <- renormalize(sol[[1]][1:n0]) #renormalize(sol[[1]]$result[1:n0])
-      output$w1 <- renormalize(sol[[1]][n0 + 1:n1]) #renormalize(sol[[1]][n0 + 1:n1])
+      output$w0 <- renormalize(res[[1]]$sol[1:n0]) #renormalize(sol[[1]]$result[1:n0])
+      output$w1 <- renormalize(res[[1]]$sol[n0 + 1:n1]) #renormalize(sol[[1]][n0 + 1:n1])
+      dual <- res[[1]]$dual
     } else if (estimand == "cATE") {
-      output$w0 <- renormalize(sol[[1]]) #renormalize(sol[[1]]$result)
-      output$w1 <- renormalize(sol[[2]]) #renormalize(sol[[2]]$result)
+      output$w0 <- renormalize(res[[1]]$sol) #renormalize(sol[[1]]$result)
+      output$w1 <- renormalize(res[[2]]$sol) #renormalize(sol[[2]]$result)
+      dual <- list(res[[1]]$dual,
+                   res[[2]]$dual)
     } else if (estimand == "ATE") {
-      output$w0 <- renormalize(sol[[1]]) #renormalize(sol[[1]]$result)
-      output$w1 <- renormalize(sol[[2]]) #renormalize(sol[[2]]$result)
+      output$w0 <- renormalize(res[[1]]$sol) #renormalize(sol[[1]]$result)
+      output$w1 <- renormalize(res[[2]]$sol) #renormalize(sol[[2]]$result)
+      dual <- list(res[[1]]$dual,
+                   res[[2]]$dual)
     }
   }
-  
+  output$args <- list(dual = dual)
   return(output)
 }
 

@@ -902,7 +902,7 @@ combine_weight_ATE <- function(weight0, weight1) {
     weight0$w1 <- weight1$w0
     weight0$gamma <- list(weight0$gamma,
                           weight1$gamma)
-    weight0$args$constraint <- list(weight0$args$constraint,
+    weight0$args$constraint <- c(weight0$args$constraint,
                                     weight1$args$constraint)
     weight0$estimand <- "ATE"
   return(weight0)

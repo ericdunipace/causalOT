@@ -1141,7 +1141,7 @@ set_K <- function(K, x1, x0, d_c, add.joint, add.margins, penalty, joint.mapping
   K_joint <- K_margins <- K_penalty <- NULL
   if (is.list(K)) {
     if(add.joint || add.margins || penalty != "none") {
-      if (!any(names(K) %in% c("joint", "margins","penalty")) ) {
+      if (!any(names(K) %in% c("joint", "margins","penalty") ) ) {
         stop("constraint should be a list with optional named slots `joint`, `margins`, and/or `penalty`. Specify the one needed for goal.",)
       }
     }
@@ -1626,6 +1626,12 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   
   
   if (add.margins) {
+    if (!is.list(cost) && is.matrix(cost)) {
+      cost <- c(lapply(1:d, function(i) cost_fun(x[,i,drop = FALSE], z, 
+                                                 ground_p = p, metric = dist,
+                                                 rkhs.args = rkhs.args, estimand = "ATT")),
+                cost)
+    }
     d_cost <- length(cost) - 1
     cost.marg <- cost[1:d_cost]
     cost <- cost[[d_cost + 1]]
@@ -1656,6 +1662,7 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   
   # linear constraints
   LC <- list()
+  
   #linear constraint matrix A
   sum_const_A <- Matrix::sparseMatrix(i = rep(1, n0*n1),
                                       j = 1:(n0*n1),
@@ -1671,6 +1678,10 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   sum_const <- 1
   marg_const <- margmass$b 
   K_const  <- c(margins = K$margins)
+  
+  # set constraint bounds
+  LC$uc <- c(sum_1 = 1, sum_b = marg_const, K_const^p)
+  LC$lc <- c(sum_1 = 1, sum_b = marg_const, rep(0, length(K_const)))
   
   if (neg.weights) {
     K_const <- c(K_const, joint = 0, margins = rep(0, length(K_const)))

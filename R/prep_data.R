@@ -94,7 +94,7 @@ prep_data.matrix <- function(data,...) {
   } else {
     cov_bal
   }
-  if(!is.null(outcome)) {
+  if (!is.null(outcome)) {
     y.var <- if(is.character(outcome)) {
       match(outcome, colnames(data))
     } else {
