@@ -762,7 +762,7 @@ cgd_grid_fun <- function(args) {
       if (all(is.na(w$w1))) {
         return(w)
       } else {
-        convert_sol(sol = list(c(w$gamma)), 
+        convert_sol(res = list(sol = c(w$gamma)), 
                     estimand = args[["estimand"]],
                     method = args[["method"]], 
                     n0 = n0, n1 = n1, sample_weight = args[["sample_weight"]])
