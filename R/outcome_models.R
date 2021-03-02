@@ -706,7 +706,7 @@ ci_jack_ce <- function(object, parm, level, ...) {
     lwr <- tau + qnorm((1 - level)/2)      * sqrt(var.jk)
     
     out <- list(CI = c(lwr, upr),
-                SD =  sqrt(var.jk).
+                SD =  sqrt(var.jk),
                 jk = jk.estimates,
                 tau = tau)
     
