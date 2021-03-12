@@ -29,6 +29,32 @@ pos_sdef <- function(X, symmetric = FALSE) {
   return(X + Matrix::Diagonal(n = p, x = adjust))
 }
 
+check_pos_sdef <- function(X, symmetric = FALSE) {
+  p <- ncol(X)
+  if (inherits(X, "dsTMatrix")) {
+    X <- as(as(X, "dsCMatrix"),"dgCMatrix")
+    symmetric <- TRUE
+  }
+  if (inherits(X, "dgTMatrix")) {
+    X <- as(X, "dgCMatrix")
+    symmetric <- TRUE
+  }
+  if (symmetric) {
+    # emax <- RSpectra::eigs_sym(X, k = 1, which = "LM")$values
+    emin <- RSpectra::eigs_sym(X, k = 1, which = "LA", sigma = -100,
+                               opts = list(retvec = FALSE,
+                                           maxitr = 2000,
+                                           tol = 1e-7))$values
+  } else {
+    # emax <- RSpectra::eigs(X, k = 1, which = "LM")$values
+    emin <- RSpectra::eigs(X, k = 1, which = "LA", sigma = -100,
+                           opts = list(retvec = FALSE,
+                                       maxitr = 2000,
+                                       tol = 1e-7))$values
+  }
+  return(emin < 0)
+}
+
 robust_sqrt_mat <- function(X) {
   X <- pos_sdef(X, symmetric = TRUE)
   return(Matrix::Matrix(chol(X), sparse = TRUE))
@@ -85,6 +111,13 @@ vec_to_col_constraints <- function(rows, cols) {
                                          dims = c(cols, rows * cols), giveCsparse = FALSE)
   
   )
+}
+
+zero_mat_sp <- function(rows, cols) {
+  return(Matrix::sparseMatrix(i = integer(0),
+                              j = integer(0),
+                              x = 0,
+                              dims = c(rows, cols), giveCsparse = FALSE))
 }
 
 # marg_constraint_to_transport_matrix_row <- function(constraints, rows, cols) {
@@ -247,3 +280,40 @@ entropy <- function(x) {
   x_pos <- x[x > 0]
   return(sum(-x_pos * log(x_pos)))
 }
+
+theme_cot <- function(base_size = 11, base_family = "", 
+                       base_line_size = base_size/22, 
+                       base_rect_size = base_size/22,
+                       legend.position = 'bottom',
+                       legend.box = "horizontal",
+                       legend.justification = "center",
+                       legend.margin = ggplot2::margin(0,0,0,0),
+                       legend.box.margin = ggplot2::margin(-10,-10,0,-10)) { 
+  ggplot2::`%+replace%`(ggplot2::theme_bw(base_size = base_size, base_family = "", 
+                                          base_line_size = base_line_size, 
+                                          base_rect_size = base_rect_size),
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 1),
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major = ggplot2::element_blank(),
+      strip.background = ggplot2::element_blank(),
+      strip.text.x = ggplot2::element_text(face = "bold"),
+      strip.text.y = ggplot2::element_text(face = "bold"),
+      legend.position = legend.position,
+      legend.box = legend.box,
+      legend.justification = legend.justification,
+      legend.margin = legend.margin,
+      legend.box.margin = legend.box.margin
+      # change stuff here
+    ))
+  
+}
+
+# theme_base <- function() {
+#   ggplot2::theme_bw() ggplot2::`%+replace%`
+#   ggplot2::theme(text = element_text(size=12),
+#                panel.grid.major = element_blank(),
+#                panel.grid.minor = element_blank(),
+#                strip.background = element_blank()
+#   )
+# }

@@ -1,5 +1,6 @@
 supported.methods <- function() {
-  return(c("Logistic","SBW", "SCM", "CBPS",
+  return(c("Logistic","SBW", "SCM", "EBW",
+           "CBPS",
            "RKHS", "RKHS.dose", "NNM", 
            "Wasserstein",
            "Constrained Wasserstein",
@@ -10,7 +11,8 @@ ot.methods <- function() {
   return(c("NNM", 
            "Wasserstein",
            "Constrained Wasserstein",
-           "SCM"))
+           "SCM",
+           "EBW"))
 }
 
 dist.metrics <- function() {

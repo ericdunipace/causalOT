@@ -34,6 +34,10 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     if (method == "Wasserstein" | method == "Constrained Wasserstein" | method == "SCM") {
       bf <- list(mm = mm,
                  K = dots[["balance.constraints"]])
+      if (is.null(bf$K)) {
+        bf <- NULL
+        warning("Formula provided but not constraints. Not using SBW constraints")
+      }
     }
   } else {
     if (method == "SBW") {
@@ -160,7 +164,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   soc = soc))
     } else {
       list(qp_scm(x = x, z = z, K = constraint,
-                  p=dots[["p"]], dist = dots[["metric"]], 
+                  p = dots[["p"]], dist = dots[["metric"]], 
                   cost = dots[["cost"]],
                   rkhs.args = dots[["rkhs.args"]], 
                   penalty = dots[["penalty"]],
@@ -171,6 +175,40 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   sample_weight = sw,
                   soc = soc))
     }
+  } else if (meth == "EBW") {
+      if (is.null(dots[["p"]])) dots[["p"]] <- 2
+      if (is.null(dots[["metric"]])) dots[["metric"]] <- "mahalanobis"
+      
+      if (est == "cATE") {
+        list(qp_ebw(x = x, z = 1 - z,
+                    p = dots[["p"]],
+                    dist = dots[["metric"]], cost = dots[["cost"]],
+                    sample_weight = sw0),
+             qp_ebw(x=x, z = z, p = dots[["p"]],
+                    dist = dots[["metric"]], cost = dots[["cost"]],
+                    sample_weight = sw1))
+      } else if (est == "ATE") {
+        
+        list(qp_ebw(x = rbind(x[z == 0, ,drop = FALSE],x), 
+                    z = c(rep(0, sum(1 - z)), rep(1, nrow(x))),
+                    p = dots[["p"]],
+                    dist = dots[["metric"]], cost = dots[["cost"]],
+                    sample_weight = sw0),
+             qp_ebw(x = rbind(x[z == 1, ,drop = FALSE],x), 
+                    z = c(rep(0, sum(z)), rep(1, nrow(x))),
+                    p = dots[["p"]],
+                    dist = dots[["metric"]], cost = dots[["cost"]],
+                    sample_weight = sw1))
+      } else if (est == "ATC") {
+        list(qp_ebw(x=x, z= 1 - z, 
+                    p = dots[["p"]],
+                    dist = dots[["metric"]], cost = dots[["cost"]],
+                    sample_weight = sw))
+      } else {
+        list(qp_ebw(x = x, z = z, p = dots[["p"]],
+                    dist = dots[["metric"]], cost = dots[["cost"]],
+                    sample_weight = sw))
+      }
   } else if (meth == "Wasserstein") {
     
     if (is.null(dots[["p"]])) dots[["p"]] <- 2
@@ -179,6 +217,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     if (is.null(dots[["penalty"]])) dots[["penalty"]] <- "L2"
     if (is.null(dots[["joint.mapping"]])) dots[["joint.mapping"]] <- FALSE
     if (is.null(dots[["neg.weights"]])) dots[["neg.weights"]] <- FALSE
+    if (is.null(dots[["add.divergence"]])) dots[["add.divergence"]] <- FALSE
     
     if (dots[["metric"]] == "RKHS" & is.null(dots[["rkhs.args"]])) {
       if (is.null(dots[["opt.method"]])) dots[["opt.method"]] <- "stan"
@@ -228,7 +267,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    neg.weights = dots[["neg.weights"]],
                    bf = bf,
                    sample_weight = sw0,
-                   soc = soc),
+                   soc = soc, divergence = dots[["add.divergence"]]),
            qp_wass(x=x, z = z, K = constraint1,
                    p=dots[["p"]], dist = dots[["metric"]], cost = dots[["cost"]],
                    penalty = dots[["penalty"]],
@@ -238,7 +277,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    neg.weights = dots[["neg.weights"]],
                    bf = bf,
                    sample_weight = sw1,
-                   soc = soc))
+                   soc = soc, divergence = dots[["add.divergence"]]))
     } else if (est == "ATE") {
       bf0 <- bf1 <- bf
       if (!is.null(bf)) {
@@ -268,7 +307,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    neg.weights = dots[["neg.weights"]],
                    bf = bf0,
                    sample_weight = sw0,
-                   soc = soc),
+                   soc = soc, divergence = dots[["add.divergence"]]),
            qp_wass(x = rbind(x[z == 1, ,drop = FALSE],x), 
                    z = c(rep(0, sum(z)), rep(1, nrow(x))),
                    K = constraint1,
@@ -281,7 +320,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    neg.weights = dots[["neg.weights"]],
                    bf = bf1,
                    sample_weight = sw1,
-                   soc = soc))
+                   soc = soc, divergence = dots[["add.divergence"]]))
     } else if (est == "ATC") {
       list(qp_wass(x=x, z=1-z, K=constraint, 
                    p=dots[["p"]], dist = dots[["metric"]], 
@@ -294,7 +333,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    neg.weights = dots[["neg.weights"]],
                    bf = bf,
                    sample_weight = sw,
-                   soc = soc))
+                   soc = soc, divergence = dots[["add.divergence"]]))
     } else {
       list(qp_wass(x = x, z = z, K = constraint,
                    p=dots[["p"]], dist = dots[["metric"]], 
@@ -306,7 +345,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                    neg.weights = dots[["neg.weights"]],
                    bf = bf,
                    sample_weight = sw,
-                   soc = soc))
+                   soc = soc, divergence = dots[["add.divergence"]]))
     }
     
   } else if (meth == "Constrained Wasserstein") {
@@ -1030,23 +1069,41 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
     A2_0 <- x_constraint_0
     A2_1 <- x_constraint_1
     
-    A_1 <- rbind(A1_1, A2_1, A2_1)
-    A_0 <- rbind(A1_0, A2_0, A2_0)
     
-    vals_0 <- c(rep(1, nrow(A1_0)), K_lwr_0, K_upr_0)
-    vals_1 <- c(rep(1, nrow(A1_1)), K_lwr_1, K_upr_1)
+    A_1 <- rbind(A1_1, A2_1)
+    lc_1 <- c(rep(1, nrow(A1_1)), K_lwr_1)
+    uc_1 <- c(rep(1, nrow(A1_1)), K_upr_1)
     
-    dir_0 <- c(rep("E", nrow(A1_0)),rep("G",length(K_lwr_0)), rep("L",length(K_upr_0)))
-    dir_1 <- c(rep("E", nrow(A1_1)),rep("G",length(K_lwr_1)), rep("L",length(K_upr_1)))
     
+    A_0 <- rbind(A1_0, A2_0)
+    lc_0 <- c(rep(1, nrow(A1_0)), K_lwr_0)
+    uc_0 <- c(rep(1, nrow(A1_0)), K_upr_0)
+    
+    # A_1 <- rbind(A1_1, A2_1, A2_1)
+    # A_0 <- rbind(A1_0, A2_0, A2_0)
+    # 
+    # vals_0 <- c(rep(1, nrow(A1_0)), K_lwr_0, K_upr_0)
+    # vals_1 <- c(rep(1, nrow(A1_1)), K_lwr_1, K_upr_1)
+    # 
+    # dir_0 <- c(rep("E", nrow(A1_0)),rep("G",length(K_lwr_0)), rep("L",length(K_upr_0)))
+    # dir_1 <- c(rep("E", nrow(A1_1)),rep("G",length(K_lwr_1)), rep("L",length(K_upr_1)))
+    # 
     program_0 <- list(obj = list(Q = Q0_0, L = L0_0),
-                      LC = list(A = A_0, dir = dir_0,
-                                vals = vals_0),
+                      LC = list(A = A_0, 
+                                lc = lc_0,
+                                uc = uc_0
+                                # dir = dir_0,
+                                # vals = vals_0
+                                ),
                       nvar = n0)
     
     program_1 <- list(obj = list(Q = Q0_1, L = L0_1),
-                      LC = list(A = A_1, dir = dir_1,
-                                vals = vals_1),
+                      LC = list(A = A_1, 
+                                lc = lc_1,
+                                uc = uc_1
+                                # dir = dir_1,
+                                # vals = vals_1
+                                ),
                       nvar = n1)
     
     program_1 <- add_bounds(program_1, FALSE)
@@ -1094,9 +1151,12 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
   
   A2 <- x_constraint
   
-  A <- rbind(A1, A2, A2)
-  vals <- c(rep(1, nrow(A1)), K_lwr, K_upr)
-  dir <- c(rep("E", nrow(A1)),rep("G",length(K_lwr)), rep("L",length(K_upr)))
+  A <- rbind(A1, A2)
+  
+  lc <- c(rep(1, nrow(A1)), K_lwr)
+  uc <- c(rep(1, nrow(A1)), K_upr)
+  # vals <- c(rep(1, nrow(A1)), K_lwr, K_upr)
+  # dir <- c(rep("E", nrow(A1)),rep("G",length(K_lwr)), rep("L",length(K_upr)))
   # dir <- c(ROI::eq(1), ROI::geq(d), ROI::leq(d))
   # LC <- ROI::L_constraint(A, dir, vals)
   
@@ -1118,8 +1178,7 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
   # ROI::constraints(op) <- LC
   
   program <- list(obj = list(Q = Q0, L = L0),
-                  LC = list(A = A, dir = dir,
-                            vals = vals))
+                  LC = list(A = A, lc = lc, uc = uc))
   program$nvar <- n
   # add bounds
   program <- add_bounds(program, FALSE)
@@ -1249,32 +1308,112 @@ add_bc <- function(op, bf, z, K) {
     Kmm_low <- -Kmm + mmtarg
     Kmm_high <- Kmm + mmtarg
     
-    op$LC$vals <- c(op$LC$vals, "bc_up" = Kmm_high, "bc_low" = -Kmm_low)
+    op$LC$A <- rbind(op$LC$A, mmbal)
     
-    op$LC$A <- rbind(op$LC$A, mmbal, -mmbal)
+    op$LC$lc <- c(op$LC$lc, sbw = Kmm_low)
+    op$LC$uc <- c(op$LC$uc, sbw = Kmm_high)
     
-    op$LC$dir <- c(op$LC$dir, rep("L", 2 * length(Kmm_high)))
+    # op$LC$vals <- c(op$LC$vals, "bc_up" = Kmm_high, "bc_low" = -Kmm_low)
+    # op$LC$dir <- c(op$LC$dir, rep("L", 2 * length(Kmm_high)))
+    # op$LC$A <- rbind(op$LC$A, mmbal, -mmbal)
   } 
   
   return(op)
   
 }
 
-qp_pen <- function(qp, n0, n1, a, penalty, lambda, soc) {
+pen_var <- function(qp, n0, n1, lambda) {
+  
+  nvar <- length(qp$obj$LC)
+  
+  # if (divergence) {
+  #   extra_col <- nvar - (n0 * n1) + 3
+  #   Fnew <- rbind(
+  #     c(rep(0, nvar) , 1),
+  #     c(rep(0, nvar + 1)),
+  #     cbind(vec_to_row_constraints(n0,n1),
+  #           zero_mat_sp(n0, extra_col)
+  #     ))
+  #   gnew <- c(0, 1, rep(0,n0))
+  #   cones_new <- matrix(list("RQUAD",  n0 + 2, NULL),
+  #                       nrow = 3, ncol = 1)
+  #   
+  #   if (is.null(qp$cones)) {
+  #     qp$cones <- list()
+  #     
+  #     
+  #     qp$cones$F <- Fnew
+  #     qp$cones$g <- gnew
+  #     qp$cones$cones <- cones_new
+  #     
+  #   } else {
+  #     
+  #     qp$cones$F <- rbind(cbind(qp$cones$F, rep(0, nrow(qp$cones$F))),
+  #                         Fnew)
+  #     qp$cones$g <- c(qp$cones$g, gnew)
+  #     qp$cones$cones <- cbind(qp$cones$cones, 
+  #                       cones_new)
+  # 
+  # 
+  #   }
+  #   qp$obj$L <- c(qp$obj$L, pen = lambda)
+  #   qp$LC$A <- cbind(qp$LC$A, rep(0, nrow(qp$LC$A)))
+  #   qp$bounds$lb <- c(qp$bounds$lb, 0)
+  #   qp$bounds$ub <- c(qp$bounds$ub, Inf)
+  # } else {
+    extra_col <- nvar - (n0 * n1) + 1
+    Fnew <- rbind(
+      c(rep(0, nvar) , 1),
+      c(rep(0, nvar + 1)),
+      cbind(vec_to_row_constraints(n0,n1),
+            zero_mat_sp(n0, extra_col)
+      ))
+    gnew <- c(0, 1, rep(0,n0))
+    cones_new <- matrix(list("RQUAD",  n0 + 2, NULL),
+                        nrow = 3, ncol = 1)
+    
+    if (is.null(qp$cones)) {
+      qp$cones <- list()
+      
+      
+      qp$cones$F <- Fnew
+      qp$cones$g <- gnew
+      qp$cones$cones <- cones_new
+      
+    } else {
+      
+      qp$cones$F <- rbind(cbind(qp$cones$F, rep(0, nrow(qp$cones$F))),
+                          Fnew)
+      qp$cones$g <- c(qp$cones$g, gnew)
+      qp$cones$cones <- cbind(qp$cones$cones, 
+                        cones_new)
+
+
+    }
+    qp$obj$L <- c(qp$obj$L, pen = lambda)
+    qp$LC$A <- cbind(qp$LC$A, rep(0, nrow(qp$LC$A)))
+    qp$bounds$lb <- c(qp$bounds$lb, 0)
+    qp$bounds$ub <- c(qp$bounds$ub, Inf)
+  # }
+  return(qp)
+}
+
+qp_pen <- function(qp, n0, n1, a, b, penalty, lambda, soc, divergence) {
   nvar <- n0 * n1
+  clength <- length(qp$obj$L)
   if (penalty == "L2") {
     if (soc) {
       if (is.null(qp$cones)) {
         qp$cones <- list()
         
         qp$cones$F <- rbind(
-          c(rep(0, nvar) , 1),
-          c(rep(0, nvar + 1)),
+          c(rep(0, clength) , 1),
+          c(rep(0, clength + 1)),
           cbind(Matrix::Diagonal(n = nvar, x = 1),
                 Matrix::sparseMatrix(i = integer(0),
                                      j = integer(0), x = 0,
                                      dims = c(nvar, 
-                                              1 ))))
+                                              1 + clength - nvar))))
         qp$cones$g <- c(0, 1, rep(0,nvar))
         qp$cones$cones <- matrix(list("RQUAD",  nvar + 2, NULL),
                                  nrow = 3, ncol = 1)
@@ -1319,7 +1458,8 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda, soc) {
       qp$cones$F <- Matrix::sparseMatrix(i = c(seq(2, 3 * nvar,by=3),
                                                seq(3, 3 * nvar,by=3)),
                                          j = c(1:nvar, (nvar + 1) : (2 * nvar)),
-                                         x = 1)
+                                         x = 1,
+                                         dims = c(nvar, clength))
       qp$cones$g <- rep(c(1, 0, 0), nvar)
       qp$cones$cones <- matrix(list("PEXP", 3, NULL), nrow = 3, ncol = nvar)
       rownames(qp$cones$cones) <- c("type","dim","conepar")
@@ -1444,42 +1584,7 @@ qp_pen <- function(qp, n0, n1, a, penalty, lambda, soc) {
     # } else {
     #   qp$obj$L - 2 * rep(a, n1) * lambda
     # }
-    if (is.null(qp$cones)) {
-      qp$cones <- list()
-      
-      qp$cones$F <- rbind(
-        c(rep(0, nvar) , 1),
-        c(rep(0, nvar + 1)),
-        cbind(vec_to_row_constraints(n0,n1),
-              Matrix::sparseMatrix(i = integer(0),
-                                   j = integer(0), x = 0,
-                                   dims = c(n0, 
-                                           1 ))))
-      qp$cones$g <- c(0, 1, rep(0,n0))
-      qp$cones$cones <- matrix(list("RQUAD",  n0 + 2, NULL),
-                               nrow = 3, ncol = 1)
-      
-    } else {
-      qp$cones$F <- rbind(cbind(qp$cones$F, rep(0, nrow(qp$cones$F))),
-                          c(rep(0, ncol(qp$cones$F)) , 1),
-                          c(rep(0, ncol(qp$cones$F) + 1)),
-                          cbind(vec_to_row_constraints(n0,n1),
-                                Matrix::sparseMatrix(i = integer(0),
-                                                     j = integer(0), x = 0,
-                                                     dims = c(n0, 
-                                                              ncol(qp$cones$F) - nvar + 1 ))))
-      qp$cones$g <- c(qp$cones$g, c(0,1, rep(0,n0)))
-      qp$cones$cones <- cbind(qp$cones$cones, 
-                              matrix(list("RQUAD",  n0 + 2, NULL),
-                                     nrow = 3, ncol = 1))
-      
-      
-    }
-    qp$obj$L <- c(qp$obj$L, pen = lambda)
-    qp$LC$A <- cbind(qp$LC$A, rep(0, nrow(qp$LC$A)))
-    qp$bounds$lb <- c(qp$bounds$lb, 0)
-    qp$bounds$ub <- c(qp$bounds$ub, Inf)
-    
+    qp <- pen_var(qp, n0, n1, lambda)
   } 
   qp$nvar <- nvar
   return(qp)
@@ -1566,6 +1671,62 @@ add_bounds <- function(op, neg.weights, add.joint) {
   return(op)
 }
 
+get_marg_const <- function(b, n0,n1, divergence = TRUE) {
+  A_marg_const_b_col_joint <- vec_to_col_constraints(n0, n1)
+  if (!divergence) {
+    return(list(A = A_marg_const_b_col_joint, lc = b, uc = b))
+  }
+  A_marg_const_b_col <- vec_to_col_constraints(n1, n1)
+  A_marg_const_b_row <- vec_to_row_constraints(n1, n1)
+  A_marg_const_a_col <- vec_to_col_constraints(n0, n0)
+  A_marg_const_a_row <- vec_to_row_constraints(n0, n0)
+  A_marg_const_a_row_joint <- vec_to_row_constraints(n0, n1)
+  marg_a_combine <- rbind(cbind(A_marg_const_a_row_joint, -A_marg_const_a_row
+                                , zero_mat_sp(n0,n1*n1) #comment out
+                                ),
+                          cbind(A_marg_const_a_row_joint, -A_marg_const_a_col
+                                  , zero_mat_sp(n0,n1*n1) # comment out
+                                  ))
+                          
+  marg_b_combine <- rbind(cbind(A_marg_const_b_col_joint, zero_mat_sp(n1, n0*n0)
+                                , zero_mat_sp(n1, n1*n1) # comment out
+                                )
+                          , cbind(zero_mat_sp(n1, n0 * n1), zero_mat_sp(n1, n0*n0), A_marg_const_b_col), #comment out
+                          cbind(zero_mat_sp(n1, n0 * n1), zero_mat_sp(n1, n0*n0), A_marg_const_b_row) #comment out
+                          )
+  return(list(A = rbind(marg_b_combine, marg_a_combine),
+       lc = c(b, 
+              b, b, #comment out
+              rep(0, n0 * 2)),
+       uc = c(b, 
+              b, b, #comment out
+              rep(0, n0 * 2))))         
+}
+
+bc_to_dir_const <- function(qp) {
+  lc <- qp$LC$lc
+  uc <- qp$LC$uc
+  A  <- qp$LC$A
+  
+  
+  equal <- which(lc == uc)
+  lt    <- which(lc != uc & !is.infinite(uc))
+  gt    <- which(lc != uc & !is.infinite(lc))
+  
+  dir <- c(rep("E", length(equal)), rep("L", length(lt)),
+           rep("G", length(gt)))
+  vals <- c(lc[equal], uc[lt], lc[gt])
+  
+  A   <- rbind(A[equal,, drop = FALSE],
+               A[lt,, drop = FALSE],
+               A[gt,, drop = FALSE])
+  
+  qp$LC$A <- A
+  qp$LC$dir <- dir
+  qp$LC$vals <- vals
+  return(qp)
+}
+
 qp_wass <- function(x, z, K = list(penalty = NULL,
                                    joint   = NULL,
                                    margins = NULL,
@@ -1580,9 +1741,24 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
                     neg.weights = FALSE,
                     bf = NULL,
                     sample_weight = NULL,
-                    soc = FALSE) {
+                    soc = FALSE, divergence = FALSE) {
   
   # estimand <- match.arg(estimand)
+  divergence <- isTRUE(divergence)
+  
+  if (divergence) {
+    return(qp_wass_div(x = x, z = z, K = K, 
+                       p = p,
+                       penalty = penalty,
+                       dist = dist, cost = cost,
+                       rkhs.args = rkhs.args, add.joint = TRUE,
+                       add.margins = add.margins,
+                       joint.mapping = joint.mapping,
+                       neg.weights = neg.weights,
+                       bf = bf,
+                       sample_weight = sample_weight,
+                       soc = soc))
+  }
   stopifnot(is.numeric(p))
   stopifnot(length(p) == 1)
   margmass = get_sample_weight(sample_weight, z = z)
@@ -1683,16 +1859,16 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   LC$uc <- c(sum_1 = 1, sum_b = marg_const, K_const^p)
   LC$lc <- c(sum_1 = 1, sum_b = marg_const, rep(0, length(K_const)))
   
-  if (neg.weights) {
-    K_const <- c(K_const, joint = 0, margins = rep(0, length(K_const)))
-    LC$A <- rbind(LC$A, -joint_cost_vec, -1 * marg_cost_vec)
-  }
-  
-  LC$vals <- c(sum_1 = 1, sum_b = marg_const, K_const^p)
-  
-  # set direction
-  LC$dir <- c(rep("E", 1 + length(marg_const)),
-              rep("L", length(K_const)))
+  # if (neg.weights) {
+  #   K_const <- c(K_const, joint = 0, margins = rep(0, length(K_const)))
+  #   LC$A <- rbind(LC$A, -joint_cost_vec, -1 * marg_cost_vec)
+  # }
+  # 
+  # LC$vals <- c(sum_1 = 1, sum_b = marg_const, K_const^p)
+  # 
+  # # set direction
+  # LC$dir <- c(rep("E", 1 + length(marg_const)),
+  #             rep("L", length(K_const)))
   
   # create lp/qp
   op <- list(obj = obj, LC = LC)
@@ -1707,9 +1883,189 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   if (joint.mapping) op <- add_mapping(op, x0, x1, p, margmass$b, K$joint/median(cost), penalty) #currently just p = 2 method
   
   # add in penalty functions
-  op <- qp_pen(op, n0, n1, margmass$a, penalty = penalty, K$penalty, soc)
+  op <- qp_pen(op, n0, n1, margmass$a, margmass$b, penalty = penalty, K$penalty, soc, FALSE)
+  # (qp, n0, n1, a, b, penalty, lambda, soc, divergence)
+  
+  # K_vals <- rep(K, d + 1)
+  # L0 <- rep(0, n0 * n1) #simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
+  #nrow = 1, ncol = n0*n1) #c(rep(0, n0*n1)) #c( w = rep( -marg_mass, n0 * n1 ) )
+  # obj <- list(Q = Matrix::Diagonal(weight.dim, 0.5 * K),#Q0,
+  #             L = LO)
+  # 
+  # LC <- list()
+  # LC$A <- rbind(sum_const, 
+  #               marg_const_mat, 
+  #               cost_vec)
+  # LC$vals <- c(1, marg_const, K_vals)
+  # LC$dir <- c(rep("E", 1 + marg_const_n),
+  #             rep("L", length(K_vals)))
+  
+  # op <- list(obj = obj, LC = LC)
+  return(op)
+}
+
+
+qp_wass_div <- function(x, z, K = list(penalty = NULL,
+                                   joint   = NULL,
+                                   margins = NULL,
+                                   balance = NULL), 
+                    p = 2,
+                    penalty = c("L2","entropy",
+                                "variance"),
+                    dist = dist.metrics(), cost = list(joint = NULL,
+                                                       a = NULL,
+                                                       b = NULL,
+                                                       margins = NULL),
+                    rkhs.args = NULL, add.joint = TRUE,
+                    add.margins = FALSE,
+                    joint.mapping = FALSE,
+                    neg.weights = FALSE,
+                    bf = NULL,
+                    sample_weight = NULL,
+                    soc = FALSE) {
+  
+  # estimand <- match.arg(estimand)
+  stopifnot(is.numeric(p))
+  stopifnot(length(p) == 1)
+  margmass = get_sample_weight(sample_weight, z = z)
+  joint.mapping <- isTRUE(joint.mapping)
+  penalty <- match.arg(penalty)
+  neg.weights <- isTRUE(neg.weights)
+  soc <- isTRUE(soc)
+  
+  if (neg.weights && penalty == "entropy") {
+    stop("Can't have negative weights with the entropy penalty!")
+  }
+  
+  x1 <- x[z == 1,,drop = FALSE]
+  x0 <- x[z == 0,,drop = FALSE]
+  
+  n <- nrow(x)
+  d <- ncol(x)
+  
+  n1 <- nrow(x1)
+  n0 <- nrow(x0)
+  
+  weight.dim <- n0 * n1
+  
+  dist <- match.arg(dist)
+  
+  if(is.null(cost) ) {
+    if(add.margins) {
+      cost <- lapply(1:d, function(i) cost_fun(x[,i,drop = FALSE], z, 
+                                               ground_p = p, metric = dist,
+                                               rkhs.args = rkhs.args, estimand = "ATT"))
+      cost[d + 1] <- list(cost_fun(x, z, 
+                                   ground_p = p, metric = dist,
+                                   rkhs.args = rkhs.args, estimand = "ATT"))
+      
+    } else {
+      cost <- cost_fun(x, z, 
+                       ground_p = p, metric = dist,
+                       rkhs.args = rkhs.args, estimand = "ATT")
+      cost_a <- cost_fun(rbind(x0,x0), c(rep(0,n0), rep(1,n0)), 
+                       ground_p = p, metric = dist,
+                       rkhs.args = rkhs.args, estimand = "ATT")
+      cost_b <- cost_fun(rbind(x1,x1), c(rep(0,n1), rep(1,n1)), 
+                         ground_p = p, metric = dist,
+                         rkhs.args = rkhs.args, estimand = "ATT")
+    }
+  }
   
   
+  if (add.margins) {
+    if (!is.list(cost) && is.matrix(cost)) {
+      cost <- c(lapply(1:d, function(i) cost_fun(x[,i,drop = FALSE], z, 
+                                                 ground_p = p, metric = dist,
+                                                 rkhs.args = rkhs.args, estimand = "ATT")),
+                cost)
+    }
+    d_cost <- length(cost) - 1
+    cost.marg <- cost[1:d_cost]
+    cost <- cost[[d_cost + 1]]
+    
+    sapply(cost.marg, function(cc) stopifnot(dim(cc) %in% c(n0,n1)))
+    
+    marg_cost_vec <- Matrix::sparseMatrix(i = rep(1:d, each = n0 * n1),
+                                          j = rep(1:(n0 * n1), d),
+                                          x = c(sapply(cost.marg, c)^p),
+                                          dims = c(d, n0 * n1))
+  } else {
+    marg_cost_vec <- cost.marg <- NULL
+  }
+  
+  stopifnot(dim(cost) %in% c(n0,n1))
+  
+  median_cost_p <- median(cost^p)
+  
+  joint_cost_vec <- c( cost^p
+                      , -0.5 *c(cost_a^p)
+                      , -0.5 * c(cost_b^p)
+                      ) #/ median_cost_p
+  
+  K_joint <- set_K(K, x0, x1, d_c = length(cost.marg), joint.mapping, add.margins,
+             penalty = penalty, joint.mapping = joint.mapping,
+             method = "Wasserstein")
+  
+  #objective function
+  obj <- list(L = c(cost = joint_cost_vec))
+  
+  # linear constraints
+  LC <- list()
+  
+  #linear constraint matrix A and bounds
+  marg_const <- get_marg_const(margmass$b, n0, n1, divergence = TRUE)
+  
+  cost_const <- rbind(marg_cost_vec
+                      # , joint_cost_vec
+                      )
+  
+  LC$A <- rbind(marg_const$A, cost_const)
+  # LC$A <- rbind(marg_const$A, 
+  #               cbind(cost_const,
+  #               zero_mat_sp(nrow(cost_const),
+  #                           ncol(marg_const$A) - length(joint_cost_vec))))
+  
+  # linear constraint values
+  K_const  <- c(margins = K$margins)
+  
+  # set constraint bounds
+  LC$uc <- c(marg_const$lc, marginal_cost_const = K_const^p
+             # , joint = Inf
+             )
+  LC$lc <- c(marg_const$uc, marginal_cost_const =rep(0, length(K_const))
+             # ,joint = 0
+             )
+  
+  # if (neg.weights) {
+  #   K_const <- c(K_const, joint = 0, margins = rep(0, length(K_const)))
+  #   LC$A <- rbind(LC$A, -joint_cost_vec, -1 * marg_cost_vec)
+  # }
+  # 
+  # LC$vals <- c(sum_1 = 1, sum_b = marg_const, K_const^p)
+  # 
+  # # set direction
+  # LC$dir <- c(rep("E", 1 + length(marg_const)),
+  #             rep("L", length(K_const)))
+  
+  # create lp/qp
+  op <- list(obj = obj, LC = LC)
+  
+  # add bal constraints if necessary
+  op <- add_bc(op, bf, z, K)
+  
+  # add bounds
+  op <- add_bounds(op, neg.weights, joint.mapping)
+  
+  # add in mapping
+  if (joint.mapping) op <- add_mapping(op, x0, x1, p, margmass$b, K$joint/median(cost), penalty) #currently just p = 2 method
+  
+  # add in penalty functions
+  op <- qp_pen(op, n0, n1, margmass$a, margmass$b, penalty = penalty, K$penalty, soc, FALSE)
+  op <- qp_pen(op, n0, n0, margmass$a, margmass$a, penalty = penalty, K$penalty, soc, TRUE)
+  op <- qp_pen(op, n1, n1, margmass$b, margmass$b, penalty = penalty, K$penalty, soc, TRUE)
+  
+  op$nvar <- n0*n1
   # K_vals <- rep(K, d + 1)
   # L0 <- rep(0, n0 * n1) #simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
   #nrow = 1, ncol = n0*n1) #c(rep(0, n0*n1)) #c( w = rep( -marg_mass, n0 * n1 ) )
@@ -1872,7 +2228,7 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   if (joint.mapping) op <- add_mapping(op, x0, x1, p, margmass$b, K$joint, penalty) #currently just p = 2 method
   
   # add in penalty functions
-  op <- qp_pen(op, n0, n1, margmass$a, penalty = penalty, K$penalty, soc)
+  op <- qp_pen(op, n0, n1, margmass$a, margmass$b, penalty = penalty, K$penalty, soc, FALSE)
   
   # K_vals <- rep(K, d + 1)
   # L0 <- rep(0, n0 * n1) #simple_triplet_matrix(i=integer(0), j = integer(0), v = numeric(0),
@@ -1945,27 +2301,27 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   LC <- list()
   
   #linear constraint matrix A
-  sum_const_A <- Matrix::sparseMatrix(i = rep(1, n0*n1),
-                                      j = 1:(n0*n1),
-                                      x = rep(1, n1 * n0),
-                                      dims = c(1, n0*n1))
+  # sum_const_A <- Matrix::sparseMatrix(i = rep(1, n0*n1),
+  #                                     j = 1:(n0*n1),
+  #                                     x = rep(1, n1 * n0),
+  #                                     dims = c(1, n0*n1))
   marg_const_mat_A <- vec_to_col_constraints(n0,n1)
   
-  LC$A <- rbind(sum_const_A 
-                , marg_const_mat_A
+  LC$A <- rbind(marg_const_mat_A
                 )
   
   
   # linear constraint values
-  sum_const <- 1
   marg_const <- margmass$b 
   
-  LC$vals <- c(sum_1 = 1, sum_b = marg_const)
+  LC$lc <- c(sum_b = marg_const)
+  LC$uc <- c(sum_b = marg_const)
   
-  # set direction
-  LC$dir <- c(rep("E", 1 
-                  + length(marg_const)
-                  ))
+  # LC$vals <- c(sum_b = marg_const)
+  # # set direction
+  # LC$dir <- c(rep("E", 1 
+  #                 + length(marg_const)
+  #                 ))
   
   # create lp/qp
   op <- list(obj = obj, LC = LC)
@@ -1977,8 +2333,71 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   op <- add_mapping(op, x0, x1, p, margmass$b, 0.0, penalty) #currently just p = 2 method
   
   # add in penalty functions
-  op <- qp_pen(op, n0, n1, margmass$a, penalty = penalty, K$penalty, soc)
+  op <- qp_pen(op, n0, n1, margmass$a, margmass$b, penalty = penalty, K$penalty, soc, FALSE)
+  #(qp, n0, n1, a, b, penalty, lambda, soc, divergence)
   
+  return(op)
+}
+
+qp_ebw <- function(x, z,
+                        p = 2,
+                        dist = dist.metrics(), cost = list(joint = NULL,
+                                                           a = NULL,
+                                                           b = NULL),
+                        sample_weight = NULL) {
+  
+  # estimand <- match.arg(estimand)
+  stopifnot(is.numeric(p))
+  stopifnot(length(p) == 1)
+  margmass = get_sample_weight(sample_weight, z = z)
+  
+  x1 <- x[z == 1,,drop = FALSE]
+  x0 <- x[z == 0,,drop = FALSE]
+  
+  n <- nrow(x)
+  d <- ncol(x)
+  
+  n1 <- nrow(x1)
+  n0 <- nrow(x0)
+  
+  weight.dim <- n0 * n1
+  
+  dist <- match.arg(dist)
+  
+  if(is.null(cost) ) {
+      cost <- cost_fun(x, z, 
+                       ground_p = p, metric = dist,
+                       rkhs.args = rkhs.args, estimand = "ATT")
+      cost_a <- cost_fun(rbind(x0,x0), c(rep(0,n0), rep(1,n0)), 
+                         ground_p = p, metric = dist,
+                         rkhs.args = rkhs.args, estimand = "ATT")
+      cost_b <- cost_fun(rbind(x1,x1), c(rep(0,n1), rep(1,n1)), 
+                         ground_p = p, metric = dist,
+                         rkhs.args = rkhs.args, estimand = "ATT")
+  }
+  
+  
+  stopifnot(dim(cost) %in% c(n0,n1))
+  
+  joint_cost_vec <- rowMeans(cost)
+  
+  #objective function
+  obj <- list(L = c(cost = 2 * joint_cost_vec^p/n0),
+              Q = Matrix::sparseMatrix(i = rep(1:n0, n0),
+                                       j = rep(1:n0, each = n0),
+                                       x = -cost_a^p/n0^2,
+                                       dims = c(n0,n0)))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- Matrix::sparseMatrix(i = rep(1, n0), j = 1:n0,
+                               x = 1, dims = c(1,n0))
+  
+  # set constraint bounds
+  LC$uc <- c(1)
+  LC$lc <- c(1)
+  
+  op <- list(obj = obj, LC = LC)
   
   return(op)
 }
@@ -2045,6 +2464,102 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
                           ub = rep(Inf, quick_op$nvar))
   return(quick_op)
 }
+
+qp_lin_comb <- function(x) {
+  n <- length(x)
+  
+  #objective function
+  obj <- list(L = c(x))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- Matrix::sparseMatrix(i = rep(1, n), j = 1:n,
+                               x = 1, dims = c(1,n))
+  
+  # set constraint bounds
+  LC$uc <- c(1)
+  LC$lc <- c(1)
+  
+  op <- list(obj = obj, LC = LC)
+  op$bounds <- list(lb = rep(0,n), ub = rep(Inf,n))
+  op$nvar <- n
+  return(op)
+}
+
+qp_dual <- function(f, g, b, dispersion = numeric(0)) {
+  n <- length(f)
+  
+  #objective function
+  obj <- list(L = c(f))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- rbind(Matrix::sparseMatrix(i = rep(1, n), j = 1:n,
+                               x = 1, dims = c(1,n)),
+                c(f))
+  
+  # set constraint bounds
+  LC$uc <- c(1, Inf)
+  LC$lc <- c(1, -sum(g * b))
+  
+  op <- list(obj = obj, LC = LC)
+  op$bounds <- list(lb = rep(0,n), ub = rep(Inf,n))
+  
+  # dispersion
+  if (length(dispersion) > 0) {
+    op$cones <- list(F = rbind(c(rep(0, n ),1),
+                               rep(0, n + 1),
+                         cbind(Matrix::Diagonal(n, 1), zero_mat_sp(n,1))),
+                     cones =  matrix(list("RQUAD",  n + 2, NULL),
+                                     nrow = 3, ncol = 1),
+                     g = c(0,1, rep(0, n)))
+    op$obj$L <- c(op$obj$L, dispersion)
+    op$LC$A <- cbind(op$LC$A, zero_mat_sp(nrow(op$LC$A),1))
+    op$bounds$lb <- c(op$bounds$lb, 0)
+    op$bounds$ub <- c(op$bounds$ub, Inf)
+  }
+  
+  op$nvar <- n
+  return(op)
+}
+
+qp_dual_max <- function(f, g, b, dispersion = numeric(0)) {
+  n <- length(f)
+  
+  #objective function
+  obj <- list(L = c(-f))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- rbind(Matrix::sparseMatrix(i = rep(1, n), j = 1:n,
+                                     x = 1, dims = c(1,n)),
+                c(-f))
+  
+  # set constraint bounds
+  LC$uc <- c(1, sum(g * b))
+  LC$lc <- c(1, -Inf)
+  
+  op <- list(obj = obj, LC = LC)
+  op$bounds <- list(lb = rep(0,n), ub = rep(Inf,n))
+  
+  # dispersion
+  if (length(dispersion) > 0) {
+    op$cones <- list(F = rbind(c(rep(0, n ),1),
+                               rep(0, n + 1),
+                               cbind(Matrix::Diagonal(n, 1), zero_mat_sp(n,1))),
+                     cones =  matrix(list("RQUAD",  n + 2, NULL),
+                                     nrow = 3, ncol = 1),
+                     g = c(0,1, rep(0, n)))
+    op$obj$L <- c(op$obj$L, dispersion)
+    op$LC$A <- cbind(op$LC$A, zero_mat_sp(nrow(op$LC$A),1))
+    op$bounds$lb <- c(op$bounds$lb, 0)
+    op$bounds$ub <- c(op$bounds$ub, Inf)
+  }
+  
+  op$nvar <- n
+  return(op)
+}
+
 
 check_wass_const <- function(opt_problem) {
   cost <- c(opt_problem$LC$A[1,])

@@ -620,7 +620,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                             miss.null <- function(xx) {
                                               return(missing(xx) | is.null(xx))
                                             }
-                                            if(is.null(private$design) ) {
+                                            if (is.null(private$design) ) {
                                               private$design <- "A"
                                             }
                                             private$d <- switch(private$design,
@@ -1561,5 +1561,86 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                          },
                          treatment_effect = "character"
          )
+  )
+}
+
+{
+  HulingMak2020_univariate <- R6::R6Class("HulingMak2020_univariate", 
+                             inherit = DataSim,
+                             public = list(
+                               gen_data = function() {
+                                 self$gen_x()
+                                 self$gen_z()
+                                 self$gen_y()
+                                 # private$\check_data()
+                                 invisible(self)
+                               },
+                               gen_x = function() {
+                                 stopifnot(length(private$n) > 0 )
+                                 private$x <- as.matrix(sort(rnorm(private$n)))
+                                 colnames(private$x) <- "X"
+                                 private$xdensity <- pnorm(private$x)
+                                 private$check_data()
+                                 invisible(self)
+                               },
+                               gen_y = function() {
+                                 if (all(is.character(private$x))) self$gen_x()
+                                 if (all(is.character(private$z))) self$gen_z()
+                                 
+                                 mean_y <- private$x + private$x^3 - 1/(0.1 + 0.1* private$x^2)
+                                 private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = sqrt(2)))
+                                 # private$check_data()
+                                 invisible(self)
+                               },
+                               gen_z = function() {
+                                 if (all(is.character(private$x))) self$gen_x()
+                                 
+                                 latent_z <- switch(private$design,
+                                                    "A" = private$x - 1,
+                                                    "B" = 2 /3  * private$x^2 + private$x - 1,
+                                                    "C" = -1 / 3 * private$x^3 + 2 /3  * private$x^2 + private$x - 1)
+                                 private$pscore <- plogis(latent_z)
+                                 private$z <- rbinom(private$n, 
+                                                     size = 1, 
+                                                     prob = private$pscore)
+                                 private$check_data()
+                                 private$tx_density <- private$pscore * private$xdensity
+                                 private$cn_density <- (1 - private$pscore) * private$xdensity
+                                 
+                                 invisible(self)
+                               },
+                               get_density = function(which = c("full","pscore", "treated", "control")) {
+                                 which.dens <- match.arg(which)
+                                 return( switch(which.dens,
+                                                "full" = private$xdensity,
+                                                "pscore" = private$pscore,
+                                                "treated" = private$tx_density,
+                                                "control" = private$cn_density) )
+                               },
+                               initialize = function(n = 128, design = "A", ...) {
+                                 
+                                 
+                                 if (missing(n) | is.null(n)) {
+                                   private$n <- 128
+                                 } else {
+                                   private$n <- n
+                                 }
+                                 if (missing(design ) | is.null(design) ) {
+                                   private$design <- "A"
+                                 } else {
+                                   private$design <- match.arg(design, c("A","B","C"))
+                                 }
+                                 private$p <- 1
+                               },
+                               get_design = function() {
+                                 return(c(design = private$design))
+                               }
+                             ),
+                             private = list(design = "character",
+                                            overlap = "character",
+                                            pscore = "numeric",
+                                            xdensity = "numeric",
+                                            tx_density = "numeric",
+                                            cn_density = "numeric")
   )
 }

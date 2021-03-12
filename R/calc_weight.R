@@ -270,7 +270,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
 }
 
 calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
-                            method = c("SBW","Wasserstein", "Constrained Wasserstein", "SCM"),
+                            method = c("SBW",ot.methods()),
                             solver = c("mosek","gurobi","cplex"),
                             sample_weight = NULL,
                             ...) {
@@ -490,27 +490,36 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
   
   if ( method %in% c("Wasserstein", "Constrained Wasserstein","SCM") ) {
     if (estimand == "ATC") {
-      output$gamma <- matrix(res[[1]]$sol, n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
+      sol <- res[[1]]$sol[1:(n0*n1)]
+      output$gamma <- matrix(sol, n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- sample_weight$a
       output$w1 <- colSums(output$gamma)
       dual <- res[[1]]$dual
     } else if (estimand == "ATT") {
-      output$gamma <- matrix(res[[1]]$sol, n0, n1) #matrix(sol[[1]]$result, n0, n1)
+      sol <- res[[1]]$sol[1:(n0*n1)]
+      
+      output$gamma <- matrix(sol, n0, n1) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- rowSums(output$gamma)
       output$w1 <- sample_weight$b
       dual <- res[[1]]$dual
     } else if (estimand == "cATE") {
-      output$w0 <- rowSums(matrix(res[[2]]$sol, n0, n1)) #matrix(sol[[2]]$result, n0, n1)
-      output$w1 <- colSums(matrix(res[[1]]$sol, n0, n1, byrow = TRUE)) ##matrix(sol[[1]]$result, n0, n1)
+      sol2 <- res[[1]]$sol[1:(n0*n1)]
+      sol1 <- res[[2]]$sol[1:(n0*n1)]
+      
+      output$w0 <- rowSums(matrix(sol1, n0, n1)) #matrix(sol[[2]]$result, n0, n1)
+      output$w1 <- colSums(matrix(sol2, n0, n1, byrow = TRUE)) ##matrix(sol[[1]]$result, n0, n1)
       dual <- list(res[[2]]$dual,
                    res[[1]]$dual)
     } else if (estimand == "ATE") {
+      
       N <- n0 + n1
-      output$w0 <-  rowSums(matrix(res[[1]]$sol, n0, N)) #matrix(sol[[1]]$result, n0, n1)
-      output$w1 <-  rowSums(matrix(res[[2]]$sol, n1, N)) #matrix(sol[[2]]$result, n0, n1)
+      sol1 <- renormalize(res[[1]]$sol[1:(n0*N)])
+      sol2 <- renormalize(res[[2]]$sol[1:(n1*N)])
+      output$w0 <-  rowSums(matrix(sol1, n0, N)) #matrix(sol[[1]]$result, n0, n1)
+      output$w1 <-  rowSums(matrix(sol2, n1, N)) #matrix(sol[[2]]$result, n0, n1)
       #note both are rowSums here
-      output$gamma <- list(w0 =  matrix(res[[1]]$sol, n0, N),
-                           w1 =  matrix(res[[2]]$sol, n1, N))
+      output$gamma <- list(w0 =  matrix(sol1, n0, N),
+                           w1 =  matrix(sol2, n1, N))
       dual <- list(res[[1]]$dual,
                    res[[2]]$dual)
     }

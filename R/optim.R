@@ -197,6 +197,143 @@ cgOptimizer <- R6::R6Class("cgOptimizer",
                           
 )
 
+fullWassCGD <- R6::R6Class("wassCGD",
+                                      inherit = cgOptimizer,
+                                      public = list(
+                                        initialize = function(X1, X2, 
+                                                              cost,
+                                                              qp_constraint = list(joint = 1,
+                                                                                   margins = 1,
+                                                                                   penalty = 1),
+                                                              qp_solver = c("mosek", "gurobi", 
+                                                                            "cplex"),
+                                                              qp_penalty = "L2",
+                                                              lambda = list(joint = 1,
+                                                                            penalty = 1
+                                                              ),
+                                                              add.mapping = FALSE,
+                                                              add.margins = FALSE,
+                                                              penalty = "L2",
+                                                              metric = dist.metrics(),
+                                                              power = 2,
+                                                              niter = 1000,
+                                                              tol = 1e-7,
+                                                              sample_weight = NULL,
+                                                              ...
+                                        ) {
+                                          metric    <- match.arg(metric, dist.metrics())
+                                          private$add.margins <- isTRUE(add.margins)
+                                          private$add.mapping <- isTRUE(add.mapping)
+                                          private$penalty <- match.arg(penalty, c("L2","none", "entropy",
+                                                                                  "variance"))
+                                          qp_penalty <- match.arg(qp_penalty, c("L2","none", "entropy",
+                                                                                "variance"))
+                                          if (missing(niter) || length(niter) == 0) niter <- 1000
+                                          if (missing(tol) || length(tol) == 0) tol <= 1e-7 
+                                          
+                                          
+                                          private$n1 <- nrow(X1)
+                                          private$n2 <- nrow(X2)
+                                          
+                                          x <- rbind(X1,X2)
+                                          z <- c(rep(0, private$n1), rep(1, private$n2))
+                                          
+                                          sw  <- get_sample_weight(sample_weight, z)
+                                          private$a <- sw$a
+                                          private$b <- sw$b
+                                          
+                                          if (missing(cost) || length(cost) == 0) {
+                                            private$cost <- cost_fun(x = x, z = z, power = power, metric = metric,
+                                                                     estimand = "ATT")^power
+                                            if (add.margins) {
+                                              costqp <- c(lapply(1:ncol(X1), function(d) cost_fun(x = x[,d,drop = FALSE], z = z, power = power, metric = metric,
+                                                                                                  estimand = "ATT")),
+                                                          list(private$cost^(1/power)))
+                                            } else {
+                                              costqp <- private$cost^(1/power)
+                                            }
+                                          } else {
+                                            if (add.margins) {
+                                              costqp <- cost
+                                              private$cost   <- cost[[length(cost)]]^(power)
+                                            } else {
+                                              private$cost <- cost^(power)
+                                            }
+                                          }
+                                          
+                                          if (add.mapping) private$cost <- private$cost / max(private$cost)
+                                          
+                                          private$penalty_list <- list(margins = qp_constraint$margins)
+                                          
+                                          private$qp <- qp_lin_comb(private$a)
+                                          
+                                          stopifnot(all(c("obj", "LC","bounds","nvar") %in% names(private$qp)))
+                                          # names(private$qp$obj$L) <- c(rep("cost",length(private$cost)), rep("pen", length(private$qp$obj$L) - length(cost)))
+                                          private$cost_idx <- grep("cost", names(private$qp$obj$L))
+                                          solver <- switch(qp_solver,
+                                                           "cplex" = cplex_solver,
+                                                           "gurobi" = gurobi_solver,
+                                                           "mosek" = mosek_solver)
+                                          private$solver <- function(qp){
+                                            sol <- solver(qp)
+                                            return(matrix(sol, private$n1, private$n2))
+                                          }
+                                          private$tol <- tol
+                                          private$niter <- as.numeric(niter)
+                                          
+                                          f.df.fun <- if (add.mapping) {
+                                            jm_nooutcome(method = "Wasserstein", penalty = private$penalty)
+                                          } else {
+                                            nojm_nooutcome(method = "Wasserstein", penalty = private$penalty)
+                                          }
+                                          
+                                          private$f_user <- f.df.fun$f_user
+                                          #   function(X1, X2,
+                                          #                            Y1, Y2,
+                                          #                            cost, G,
+                                          #                            param,
+                                          #                            lambda) {
+                                          #   sum((X2 - sweep(crossprod(G, X1), MARGIN = 1, FUN = "/", STAT = private$b,
+                                          #                   check.margin = FALSE))^2 * private$b / (private$p)) + 
+                                          #     lambda[1] * sum(cost * G) +
+                                          #     lambda[2] * sum(param^2)/private$p^2 +
+                                          #     lambda[3] * 0.5 * sum(G^2)
+                                          #   
+                                          # }
+                                          private$df_user <-  f.df.fun$df_user
+                                          #   function(X1, X2,
+                                          #                              Y1, Y2,
+                                          #                              cost, G,
+                                          #                              param,
+                                          #                              lambda) {
+                                          #   2 * tcrossprod(X1, X2 - sweep(crossprod(G, X1), MARGIN = 1, FUN = "/", STAT = private$b,
+                                          #                                 check.margin = FALSE))  * private$b / (private$p) + 
+                                          #     lambda[1] * cost +
+                                          #     lambda[3] * G
+                                          # }
+                                          private$solve_param_user <- function(...) {
+                                          }
+                                          
+                                          private$X1 <- X1
+                                          private$X2 <- X2
+                                          
+                                          private$p  <- ncol(X1)
+                                          private$n1 <- nrow(X1)
+                                          private$n2 <- nrow(X2)
+                                          
+                                          private$param <- rep(0, private$p)
+                                          
+                                          private$lambda <- c(cost = lambda$joint, coefficients = 0.0,
+                                                              gamma = lambda$penalty)
+                                          
+                                          private$run_warm_start <- FALSE
+                                          
+                                        }
+                                      )
+                                      
+                                      
+)
+
 wassCGD <- R6::R6Class("wassCGD",
   inherit = cgOptimizer,
   public = list(
@@ -722,7 +859,7 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
   # Otherwise, compute the minimizer of a quadratic interpolant:
   alpha1 = -(derphi0) * alpha0^2 / 2.0 / (phi_a0 - phi0 - derphi0 * alpha0)
   phi_a1 = phi(x + dx * alpha1)
-  if ((phi_a1 <= (phi0 + c1 * alpha1 * derphi0) ) ) { #&& (alpha1 >= 0) ) {
+  if ((phi_a1 <= (phi0 + c1 * alpha1 * derphi0) )  && (alpha1 >= 0) ) {
     return(list(alpha = alpha1, phi1 = phi_a1))
   }
   if (alpha1 < 0) alpha1 <- alpha0 - 0.01  #avoids the negative step size
@@ -733,6 +870,7 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
   a <- b <- alpha2 <- phi_a2 <- NULL
   while (alpha1 > amin) {      # we are assuming alpha>0 is a descent direction
     factor = alpha0^2 * alpha1^2 * (alpha1 - alpha0)
+    if(factor == 0) break
     a = alpha0^2 * (phi_a1 - phi0 - derphi0 * alpha1) - 
             alpha1^2 * (phi_a0 - phi0 - derphi0 * alpha0)
     a = a / factor
@@ -742,7 +880,7 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
     
     alpha2 = (-b + sqrt(abs(b^2 - 3 * a * derphi0))) / (3.0 * a)
     phi_a2 = phi(x + dx * alpha2)
-    if ((phi_a2 <= (phi0 + c1 * alpha2 * derphi0)) ) {# && alpha2 >= 0) {
+    if ((phi_a2 <= (phi0 + c1 * alpha2 * derphi0)) && alpha2 >= 0) {
       return(list(alpha = alpha2, phi1 = phi_a2))
     }
     

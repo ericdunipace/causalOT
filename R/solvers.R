@@ -4,6 +4,7 @@ cplex_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   get.dual <- isTRUE(get.dual)
   
   qp <- convert_cones(qp)
+  qp <- bc_to_dir_const(qp)
   num_param <- length(c(as.numeric(qp$obj$L)))
   
   if (is.null(dots$control)) {
@@ -49,7 +50,11 @@ gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
   get.dual <- isTRUE(get.dual)
   
+  #convert from mosek format to gurobi
   qp <- convert_cones(qp)
+  qp <- bc_to_dir_const(qp)
+  
+  
   num_param <- length(c(as.numeric(qp$obj$L)))
   model <- list()
   model$Q <- qp$obj$Q
@@ -137,18 +142,62 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
       }
       model$qobj <- list(i = 1:num_param, j =  1:num_param, v = 2 * vals)
     } else {
+      # if(!inherits(qp$obj$Q, "dsCMatrix")) {
+      #   qp$obj$Q <- Matrix::Matrix(qp$obj$Q, sparse = TRUE)
+      # }
+      not.pos.def <- check_pos_sdef(qp$obj$Q, symmetric = TRUE)
+      if (not.pos.def) {
+        
+        eigs <- RSpectra::eigs_sym(qp$obj$Q, 
+                                   k = 2, 
+                                   which = "LA", 
+                                   sigma = -100,
+                       opts = list(retvec = FALSE,
+                                   maxitr = 2000,
+                                   tol = 1e-7))$values
+        if (sum(eigs < 0) == 1) {
+          
+          decomp <- eigen(qp$obj$Q, symmetric = TRUE)
+          qp$obj$Q <- NULL
+          d <- sqrt(abs(decomp$values))
+          nd <- length(d)
+          qvec <- decomp$vec[,c(nd, 1:(nd-1))]
+          d <- d[c(nd, 1:(nd-1))]
+          if (!is.null(qp$cones)) {
+            qp$cones <- list(F = rbind(qp$cones$F,  d * t(qvec)),
+                             g = c(qp$cones$g, rep(0, nd)),
+                             cones = cbind(qp$cones$cones, matrix(list("QUAD",  nd, NULL),
+                                            nrow = 3, ncol = 1)))
+          } else {
+            qp$cones <- list(F = d * t(qvec),
+                             g = rep(0, nd),
+                             cones = matrix(list("QUAD",  nd, NULL),
+                                            nrow = 3, ncol = 1))
+          }
+          qp$obj$L <- qp$obj$L + c(d[1] *qvec[,1])
+        } else {
+          qp$obj$Q <- Matrix::Matrix(pos_sdef(qp$obj$Q, symmetric = TRUE),
+                                     sparse = TRUE)
+          if (!inherits(qp$obj$Q,"dgTMatrix")) {
+            qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
+          }
+          trimat <- Matrix::tril(qp$obj$Q)
+          model$qobj <- list(i = trimat@i + 1, j = trimat@j + 1, v = trimat@x * 2)
+        }
+      } else {
+        if (!inherits(qp$obj$Q,"dgTMatrix")) {
+          qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
+        }
+        trimat <- Matrix::tril(qp$obj$Q)
+        model$qobj <- list(i = trimat@i + 1, j = trimat@j + 1, v = trimat@x * 2)
+      }
       # M <- qp$obj$Q + Matrix::t(qp$obj$Q)
       # not.pos.def <- tryCatch(isFALSE(is.matrix(chol(diag(10000, 10,10)))), error = function(e) TRUE)
       # if (not.pos.def) {
       # qp$obj$Q<- as(qp$obj$Q, "dsCMatrix")
-      qp$obj$Q <- Matrix::Matrix(pos_sdef(qp$obj$Q, symmetric = TRUE),
-                                 sparse = TRUE)
+      
       # }
-      if (!inherits(qp$obj$Q,"dgTMatrix")) {
-        qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
-      }
-      trimat <- Matrix::tril(qp$obj$Q)
-      model$qobj <- list(i = trimat@i + 1, j = trimat@j + 1, v = trimat@x * 2)
+      
     }
   }
   model$c <- c(as.numeric(qp$obj$L))
@@ -162,18 +211,20 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   # )
   
   #constraint bounds
-  num_bounds <- sum(qp$LC$dir == "E") + sum(qp$LC$dir == "L") + sum(qp$LC$dir == "G")
-  if (num_bounds > 0) {
-    blc <- rep(-Inf, num_bounds)
-    buc <- rep(Inf, num_bounds)
-    blc[qp$LC$dir=="E"] <- buc[qp$LC$dir=="E"] <- qp$LC$vals[qp$LC$dir=="E"]
-    buc[qp$LC$dir=="L"] <- qp$LC$vals[qp$LC$dir=="L"]
-    blc[qp$LC$dir=="G"] <- qp$LC$vals[qp$LC$dir=="G"]
-    
-    model$bc <- rbind(blc = blc,
-                      buc = buc)
-  }
+  # num_bounds <- sum(qp$LC$dir == "E") + sum(qp$LC$dir == "L") + sum(qp$LC$dir == "G")
+  # if (num_bounds > 0) {
+  #   blc <- rep(-Inf, num_bounds)
+  #   buc <- rep(Inf, num_bounds)
+  #   blc[qp$LC$dir=="E"] <- buc[qp$LC$dir=="E"] <- qp$LC$vals[qp$LC$dir=="E"]
+  #   buc[qp$LC$dir=="L"] <- qp$LC$vals[qp$LC$dir=="L"]
+  #   blc[qp$LC$dir=="G"] <- qp$LC$vals[qp$LC$dir=="G"]
+  #   
+  #   model$bc <- rbind(blc = blc,
+  #                     buc = buc)
+  # }
   
+  model$bc <- rbind(blc = qp$LC$lc,
+                    buc = qp$LC$uc)
   
   model$cones <- qp$cones$cones
   model$F <- qp$cones$F
@@ -187,7 +238,7 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   # if(!is.null(dots$sol)) model$iparam$OPTIMIZER <- "MSK_OPTIMIZER_FREE_SIMPLEX"#"FREE_SIMPLEX" # "MSK_OPTIMIZER_FREE_SIMPLEX"
   # 
   opts <- list()
-  if(is.null(dots$verbose)) {
+  if (is.null(dots$verbose)) {
     opts$verbose <- 0L
   } else {
     opts$verbose <- as.integer(dots$verbose)
@@ -232,7 +283,6 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   return(list(sol = sol, dual = dual_vars))
   
   
-  
   if (dots$save.solution) {
     return(list(result = sol, res = res))
   } else {{
@@ -254,7 +304,7 @@ QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
                 "gurobi" = gurobi_solver(qp, ...),
                 "mosek" = mosek_solver(qp, ...))
   
-  res$sol <- renormalize(res$sol)
+  # res$sol <- renormalize(res$sol)
   return(res)
   
   # sol$result <- renormalize(sol$result)
