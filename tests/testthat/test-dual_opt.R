@@ -33,7 +33,7 @@ testthat::test_that("dual opt works", {
                              delta = 1.0),
           balance = list(balance.functions = x0,
                          formula = NULL,
-                         balance.delta = 0.001),
+                         balance.constraints = 0.001),
           marginal.wasserstein = list(marginal.costs = NULL,
                                       marginal.constraints = 1),
             control = NULL)
@@ -75,7 +75,7 @@ testthat::test_that("dual opt works", {
                                       delta = 1.0),
                    balance = list(balance.functions = x0,
                                   formula = NULL,
-                                  balance.delta = 0.1),
+                                  balance.constraints = 0.1),
                    marginal.wasserstein = NULL,
                    control = NULL)
   
@@ -89,7 +89,7 @@ testthat::test_that("dual opt works", {
                                       delta = 1.0),
                    balance = list(balance.functions = x0,
                                   formula = NULL,
-                                  balance.delta = 0.1),
+                                  balance.constraints = 0.1),
                    marginal.wasserstein = list(marginal.costs = NULL,
                                                marginal.constraints = 1),
                    control = NULL)
@@ -118,7 +118,7 @@ testthat::test_that("dual opt works", {
                                        delta = 1.0),
                     balance = list(balance.functions = x0,
                                    formula = NULL,
-                                   balance.delta = 0.001),
+                                   balance.constraints = 0.001),
                     marginal.wasserstein = NULL,
                     control = NULL)
   
@@ -146,7 +146,7 @@ testthat::test_that("dual opt works", {
                                        delta = 1.0),
                     balance = list(balance.functions = x0,
                                    formula = NULL,
-                                   balance.delta = 0.001),
+                                   balance.constraints = 0.001),
                     marginal.wasserstein = list(marginal.costs = NULL,
                                                 marginal.constraints = 1),
                     control = NULL)

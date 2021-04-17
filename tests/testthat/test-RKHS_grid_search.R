@@ -22,14 +22,14 @@ testthat::test_that("RKHS grid works", {
   
   testthat::expect_silent(cplex.check  <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "cplex"))
   testthat::expect_silent(gurobi.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "gurobi"))
-  testthat::expect_error(
-    testthat::expect_warning(
+  # testthat::expect_error(
+  #   testthat::expect_warning(
       mosek.check  <- RKHS_grid_search(data = data, grid = NULL, 
                                        estimand = "ATE", n.boot = 10, 
                                        opt.hyperparam = FALSE, 
                                        solver = "mosek")
-      )
-  )
+  #     )
+  # )
   
 })
 

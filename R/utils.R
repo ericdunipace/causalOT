@@ -97,7 +97,7 @@ vec_to_row_constraints <- function(rows, cols) {
   return(Matrix::sparseMatrix(i = rep(1:rows, each = cols),
                        j = c(sapply(0:(rows - 1), function(i) i + col_idx)),
                        x = rep.int(1,rows * cols),
-                       dims = c(rows, rows * cols), giveCsparse = FALSE))
+                       dims = c(rows, rows * cols), repr = "T"))
 }
 vec_to_col_constraints <- function(rows, cols) {
   # ones_rows <- Matrix::Matrix(data = 1, nrow = 1, ncol = rows)
@@ -108,7 +108,7 @@ vec_to_col_constraints <- function(rows, cols) {
   return( Matrix::sparseMatrix(i = rep(1:cols, each = rows),
                                          j = c(sapply(0:(cols - 1), function(i) i * rows + 1:rows)),
                                          x = rep(1,rows * cols),
-                                         dims = c(cols, rows * cols), giveCsparse = FALSE)
+                                         dims = c(cols, rows * cols), repr = "T")
   
   )
 }
@@ -117,7 +117,7 @@ zero_mat_sp <- function(rows, cols) {
   return(Matrix::sparseMatrix(i = integer(0),
                               j = integer(0),
                               x = 0,
-                              dims = c(rows, cols), giveCsparse = FALSE))
+                              dims = c(rows, cols), repr = "T"))
 }
 
 # marg_constraint_to_transport_matrix_row <- function(constraints, rows, cols) {

@@ -125,7 +125,9 @@
                                                              add.joint = TRUE,
                                                              add.margins = FALSE,
                                                              eval.method = "cross.validation",
-                                                             cross.val.replicates = 10),
+                                                             cross.val.replicates = 10,
+                                                             confidence.interval = FALSE,
+                                                             add.divergence = FALSE),
                                                  outcome.model = "lm",
                                                  outcome.formula = list(none = NULL,
                                                                         augmentation = NULL),
@@ -161,9 +163,9 @@
                                private$standardized.difference.means <- NULL
                              }
                              if(is.null(Wass)) {
-                               Wass <- list(method = "networkflow",
-                                           niter = 0,
-                                           epsilon = 0.05,
+                               Wass <- list(method = "sinkhorn",
+                                           niter = 1e3,
+                                           epsilon = 1, # 0.05,
                                            powers = 2,
                                            ground_powers = 2,
                                            metrics = "mahalanobis",
@@ -174,8 +176,10 @@
                                            penalty = "L2",
                                            joint.mapping = FALSE,
                                            neg.weights = FALSE,
-                                           eval.method = "cross.validation",
-                                           cross.val.replicates = 10)
+                                           eval.method = "bootstrap",
+                                           cross.val.replicates = 10,
+                                           confidence.interval = FALSE,
+                                           add.divergence = FALSE)
                              }
                              private$wass.opt <- list()
                              if (!is.null(Wass$metrics)) {
@@ -200,7 +204,7 @@
                              if(!is.null(Wass$method)) {
                                private$wass.opt$method <- match.arg(Wass$method, choices = approxOT::transport_options())
                              } else {
-                               private$wass.opt$method <- "networkflow"
+                               private$wass.opt$method <- "sinkhorn"
                              }
                              
                              
@@ -216,7 +220,7 @@
                              if (!is.null(Wass$epsilon)) {
                                private$wass.opt$epsilon <- as.double(Wass$epsilon)
                              } else {
-                               private$wass.opt$epsilon <- 0.05
+                               private$wass.opt$epsilon <- 1 # 0.05
                              }
                              if (!is.null(Wass$constrained.wasserstein.target)) {
                                private$cwass.targ <- match.arg(Wass$constrained.wasserstein.target, c("RKHS", "SBW"))
@@ -258,9 +262,9 @@
                              }
                              
                              if (!is.null(Wass$eval.method)) {
-                               private$wass.opt$eval.method <- match.arg(Wass$eval.method, c("cross.validation", "bootstrap"))
+                               private$wass.opt$eval.method <- match.arg(Wass$eval.method, c("bootstrap", "cross.validation"))
                              } else {
-                               private$wass.opt$eval.method <- "cross.validation"
+                               private$wass.opt$eval.method <- "bootstrap"
                              }
                              
                              if (!is.null(Wass$cross.val.replicates)) {
@@ -269,6 +273,18 @@
                                private$wass.opt$cross.val.replicates <- 10
                              }
                              
+                             if (!is.null(Wass$confidence.interval) ) {
+                               private$wass.opt$confidence.interval <- isTRUE(Wass$confidence.interval)
+                             } else {
+                               private$wass.opt$confidence.interval <- FALSE
+                             }
+                             
+                             if (!is.null(Wass$add.divergence) ) {
+                               private$wass.opt$add.divergence <- sapply(Wass$add.divergence, isTRUE)
+                             } else {
+                               private$wass.opt$add.divergence <- FALSE
+                             }
+                               
                              private$SBW.balconst <- list("ATT" = 0.1,
                                                           "ATC" = 0.1,
                                                           "cATE" = 0.1,
@@ -433,6 +449,7 @@
                                ess.frac = lapply(1:private$max.conditions, function(i) private$wass_df),
                                psis.ess.frac = lapply(1:private$max.conditions, function(i) private$wass_df),
                                psis.k = lapply(1:private$max.conditions, function(i) private$wass_df),
+                               confidence.interval = lapply(1:private$max.conditions, function(i) c(NA_real_, NA_real_)),
                                estimate = rep(NA_real_, private$max.conditions)
                              )
                              private$weights <- sapply(private$estimand, function(i) {NULL}, simplify = NULL)
@@ -573,10 +590,10 @@
                                           },
                                           check.skip = function(weights) {
                                             skip <- FALSE
-                                            if(isTRUE(all(is.na(weights$w0))) | isTRUE(length(weights$w0) == 0) | isTRUE(is.null(weights$w0))) {
+                                            if (isTRUE(all(is.na(weights$w0))) | isTRUE(length(weights$w0) == 0) | isTRUE(is.null(weights$w0))) {
                                               skip <- TRUE
                                             }
-                                            if(isTRUE(all(is.na(weights$w1))) | isTRUE(length(weights$w1) == 0) | isTRUE(is.null(weights$w1))) {
+                                            if (isTRUE(all(is.na(weights$w1))) | isTRUE(length(weights$w1) == 0) | isTRUE(is.null(weights$w1))) {
                                               skip <- TRUE
                                             }
                                             return(skip)
@@ -590,6 +607,7 @@
                                             iter <- 1L
                                             data.table::set(private$output.dt, i = NULL, j = "method" , value = as.character(cur$method))
                                             wass.df <- private$wass_df
+                                            esteff <- ci.out <- NULL
                                             for (solver in cur$solver) {
                                               for (o in cur$options[[1]]) {
                                                 if (private$verbose && (method == "Wasserstein" | method == "Constrained Wasserstein"  | method == "SCM") ) print(o)
@@ -608,6 +626,12 @@
                                                   if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
                                                   if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(o$penalty == "none")) next
                                                   if ( isTRUE(o$neg.weights) && isTRUE(o$penalty == "entropy")) next
+                                                  if (method == "Wasserstein") {
+                                                    if ( isTRUE(o$add.divergence) ) {
+                                                      if (isTRUE(o$add.margins)) next
+                                                      if (isTRUE(o$joint.mapping)) next
+                                                    }
+                                                  }
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
                                                                       solver = solver,
@@ -620,6 +644,7 @@
                                                                       metric = o$metric,
                                                                       formula = o$formula[[1]],
                                                                       add.margins = isTRUE(o$add.margins),
+                                                                      add.divergence = isTRUE(o$add.divergence),
                                                                       penalty = o$penalty,
                                                                       joint.mapping = isTRUE(o$joint.mapping)
                                                   )
@@ -664,6 +689,7 @@
                                                           data.table::set(private$output.dt, i = iter, j = "psis.k", value = psis.k)
                                                           #opt wt dist
                                                           # data.table::set(private$output.dt, i = iter, j = "opt.dist", value = opt.dist)
+                                                          
                                                           esteff <- estimate_effect(private$simulator, 
                                                                                     formula = cur$outcome.formula[[1]][[aug + 1]],
                                                                                     weights = private$weights[[est]],
@@ -674,6 +700,11 @@
                                                                                     split.model = split,
                                                                                     estimand = est,
                                                                                     model = match.fun(mods))
+                                                          if ( method == "Wasserstein" && private$wass.opt$confidence.interval ) {
+                                                            ci.out <- confint(esteff)
+                                                            data.table::set(private$output.dt, i = iter, j = "confidence.interval", 
+                                                                            value = list(c(ci.out$CI)))
+                                                          }
                                                           data.table::set(private$output.dt, i = iter, j = "estimate", 
                                                                           value = esteff$estimate
                                                           )
@@ -1060,7 +1091,8 @@
                                                               add.margins = private$wass.opt$add.margins,
                                                               joint.mapping = private$wass.opt$joint.mapping,
                                                               penalty = private$wass.opt$penalty,
-                                                              neg.weights = private$wass.opt$neg.weights
+                                                              neg.weights = private$wass.opt$neg.weights,
+                                                              add.divergence = private$wass.opt$add.divergence
                                                               
                                             )
                                             scm_list <- list(  delta = sdm,
@@ -1240,6 +1272,7 @@
                                                                  metric = metric,
                                                                  formula,
                                                                  add.margins = FALSE,
+                                                                 add.divergence = FALSE,
                                                                  penalty,
                                                                  joint.mapping) {
                                             method <- as.character(cur$method[[1]])
@@ -1305,6 +1338,8 @@
                                                             balance.constraints = private$SBW.balconst[[estimand]],
                                                             add.joint = TRUE, #private$wass.opt$add.joint,
                                                             add.margins = isTRUE(add.margins),
+                                                            add.divergence = isTRUE(add.divergence),
+                                                            unbiased = TRUE,
                                                             penalty = penalty,
                                                             joint.mapping = isTRUE(joint.mapping),
                                                             grid.length = grid.length,

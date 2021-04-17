@@ -1,4 +1,4 @@
-arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "args")
+arg.names <- c("w0",  "w1",   "gamma","args", "estimand", "method")
 
 testthat::test_that("works for Const Wass", {
   testthat::skip_on_cran()
@@ -1050,7 +1050,7 @@ testthat::test_that("works for SCM, penalties", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = list(penalty = 3), 
+                                                           constraint = list(penalty = 0), 
                                                            estimand = e, 
                                                            method = "SCM",
                                                            penalty = "L2",
@@ -1438,7 +1438,7 @@ testthat::test_that("works for SCM, neg.weights", {
   # testthat::expect_true(any(weights[[4]]$w0 < 0))
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = list(penalty = 30), 
+                                                           constraint = list(penalty = 0), 
                                                            estimand = e, 
                                                            penalty = "L2",
                                                            method = "SCM",
@@ -1458,11 +1458,11 @@ testthat::test_that("works for SCM, neg.weights", {
                                    weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_true(any(weights[[4]]$w1 < 0))
-  testthat::expect_true(any(weights[[4]]$w0 < 0))
+  # testthat::expect_true(any(weights[[4]]$w1 < 0))
+  # testthat::expect_true(any(weights[[4]]$w0 < 0))
   
   weights <- lapply(estimates, function(e) calc_weight_bal(data = data, 
-                                                           constraint = list(penalty = 1), 
+                                                           constraint = list(penalty = 0), 
                                                            estimand = e, 
                                                            penalty = "L2",
                                                            method = "SCM",

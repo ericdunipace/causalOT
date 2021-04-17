@@ -1,4 +1,4 @@
-arg.names <- c("w0",  "w1",   "gamma","estimand", "method",  "args")
+arg.names <- c("w0",  "w1", "gamma","args","estimand", "method")
 
 testthat::test_that("works for Const Wass", {
   testthat::skip_on_cran()
@@ -862,7 +862,7 @@ testthat::test_that("works for SCM grid", {
   
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
-  testthat::expect_silent(
+  testthat::expect_warning(
     weight.check[[estimates[1]]] <- calc_weight(data = data, 
                                                 constraint = NULL,
                                                 grid.search = TRUE,

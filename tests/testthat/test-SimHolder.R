@@ -17,10 +17,11 @@ warn.fun <- function() {
 methods <- c('Logistic', 
              'SBW', 
              'SCM',
-             'RKHS', 
+             'CBPS', 
+             'RKHS',
              'NNM', 
              "Wasserstein", 
-             'Constrained Wasserstein', 
+             'Constrained Wasserstein',
              'None',
              'gp'
 )
@@ -239,16 +240,7 @@ testthat::test_that("SimHolder runs", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method), c('Logistic', 
-                                                'SBW', 
-                                                'SCM',
-                                                'RKHS', 
-                                                'NNM', 
-                                                "Wasserstein", 
-                                                'Constrained Wasserstein',
-                                                'None',
-                                                'gp'
-                                                ))
+  testthat::expect_equal(unique(out$method), methods)
 })
 
 testthat::test_that("SimHolder runs, only ATE", {
@@ -448,8 +440,7 @@ testthat::test_that("SimHolder runs with formula options", {
   ground_power <- 2
   std_mean_diff <- c(0.2,0.3)
   solver <- "mosek"
-  methods <- c("Logistic","SBW","NNM","Wasserstein",
-               "Constrained Wasserstein")
+  methods <- c("Logistic","SBW","NNM","Wasserstein")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p,
@@ -479,7 +470,6 @@ testthat::test_that("SimHolder runs with formula options", {
                                                                 "z ~ . "),
                                                 SBW = list("~.+0",
                                                            "~ . + .*. + I(.^2) + 0"),
-                                                "Constrained Wasserstein" = list(NA, "~.+0"),
                                                 Wasserstein = list(NA, "~.+0")),
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
@@ -511,7 +501,7 @@ testthat::test_that("SimHolder runs with formula options", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
-  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW',"NNM",'Wasserstein','Constrained Wasserstein'))
+  testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW',"NNM",'Wasserstein'))
 })
 
 testthat::test_that("SimHolder runs,verbose", {
@@ -682,7 +672,7 @@ testthat::test_that("SimHolder with grid works", {
   ground_power <- 2
   std_mean_diff <- c(0, 0.1, 1)
   solver <- "mosek"
-  methods <- c("SBW","Wasserstein","Constrained Wasserstein",
+  methods <- c("SBW","Wasserstein",
                "SCM")
   
   #### get simulation functions ####
@@ -787,12 +777,12 @@ testthat::test_that("SimHolder with grid works", {
                                    method = "sinkhorn",
                                    wasserstein.distance.constraints = NULL,
                                    joint.mapping = FALSE,
-                                   penalty = c("none","entropy"))
+                                   penalty = c("none"))
                        , verbose = TRUE
   )
   testthat::expect_warning(sh3$run())
   testthat::expect_equal(unique(sh3$get.output()$penalty),
-                         c(NA, "none","entropy"))
+                         c(NA, "none"))
   testthat::expect_equal(unique(sh3$get.output()$method),
                          c("SBW","Wasserstein","Constrained Wasserstein","SCM"))
   
@@ -821,6 +811,34 @@ testthat::test_that("SimHolder with grid works", {
   )
   # debugonce(wass_grid_search)
   testthat::expect_warning(sh4$run())
+  
+  # SimHolder$debug("estimate")
+  # SimHolder$debug("method.setup")
+  # SimHolder$debug("initialize")
+  sh5 <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = TRUE,
+                      methods = c("NNM", "Wasserstein"),
+                      truncations = std_mean_diff,
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      match = "both",
+                      solver = "mosek",
+                      Wass = list(wass_powers = power,
+                                  ground_powers = ground_power,
+                                  metrics = distance,
+                                  niter = 5,
+                                  method = "greenkhorn",
+                                  wasserstein.distance.constraints = c(10,11),
+                                  add.divergence = c(TRUE,FALSE)),
+                      verbose = TRUE)
+  testthat::expect_warning(sh5$run())
+  output <- sh5$get.output()
+  testthat::expect_true("add.divergence" %in% colnames(output))
+  testthat::expect_true(all(unique(output$add.divergence) %in% c(NA, TRUE, FALSE)))
 })
 
 testthat::test_that("SimHolder with grid works, opt.hyperparam", {
@@ -908,3 +926,72 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   # testthat::expect_type(original$get_y(), "double")
 })
 
+testthat::test_that("SimHolder runs confidence intervals", {
+  testthat::skip_on_cran()
+  # testthat::skip("Interactive only")
+  set.seed(234028)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^5
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("sdLp")
+  power <- c(2)
+  ground_power <- 1
+  std_mean_diff <- c(0.2,0.3)
+  solver <- "mosek"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p,
+                              design = design, overlap = overlap)
+  # SimHolder$debug("initialize")
+  # SimHolder$debug("update")
+  # SimHolder$debug("estimate")
+  # SimHolder$debug("model_estimate")
+  # SimHolder$debug("get_delta")
+  # SimHolder$debug("method.setup")
+  # SimHolder$debug("cost.setup")
+  # SimHolder$debug("get_cost")
+  # SimHolder$debug("max.cond.calc")
+  sh <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = TRUE,
+                      truncations = std_mean_diff,
+                      methods = c("NNM", "Wasserstein"),
+                      estimands = "ATE",
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      match = "both",
+                      solver = "gurobi",
+                      Wass = list(wass_powers = power,
+                                  ground_powers = ground_power,
+                                  metrics = distance,
+                                  constrained.wasserstein.target = c("SBW"),
+                                  add.margins = c(FALSE),
+                                  confidence.interval = TRUE
+                      ))
+  
+  
+  testthat::expect_warning(
+    {
+      
+      sh$run()
+      warn <- warnings()
+    }
+  )
+  if (!is.null(warn)) warn.fun()
+  
+  output <- sh$get.output()
+  
+  testthat::expect_true(inherits(output$confidence.interval[1], "list"))
+  
+  
+})

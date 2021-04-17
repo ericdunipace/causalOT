@@ -42,17 +42,26 @@ sbw_grid_search <- function(data, grid = NULL,
   if (estimand != "ATE") {
     mean.bal.dat <- cbind(z = c(rep(0,n0), rep(1,n1)), 
                           x)
-    bootIdx       <- lapply(1:n.boot, function(ii) 
-    {sample.int(n,n, replace = TRUE)})
+    # bootIdx       <- lapply(1:n.boot, function(ii) 
+    # {sample.int(n,n, replace = TRUE)})
     
-    output        <- rep(NA, length(grid))
+    # output        <- rep(NA, length(grid))
+    
+    
+    output <- vapply(X = weight.list, FUN = mean_bal_grid, 
+                     FUN.VALUE = 1,
+                     nboot = n.boot, 
+                     data = mean.bal.dat, tx_ind = "z", 
+                     balance.covariates = colnames(x),
+                     estimand = "ATT")
+    
     names(output) <- as.character(grid)
     
-    for (g in seq_along(grid)) {
-      output[g] <- mean(sapply(bootIdx, mean_bal_grid, weight = weight.list[[g]], 
-                               data = mean.bal.dat, estimand = estimand,
-                               tx_ind = "z", balance.covariates = colnames(x)))
-    }
+    # for (g in seq_along(grid)) {
+    #   output[g] <- mean(sapply(bootIdx, mean_bal_grid, weight = weight.list[[g]], 
+    #                            data = mean.bal.dat, estimand = estimand,
+    #                            tx_ind = "z", balance.covariates = colnames(x)))
+    # }
     if (all(is.na(output))) stop("sbw_grid_search: All grid values generated errors")
     
     min.idx <- which(output == min(output, na.rm = TRUE))
@@ -69,23 +78,42 @@ sbw_grid_search <- function(data, grid = NULL,
                            rbind(x1,x))
     # bootIdx       <- lapply(1:n.boot, function(ii) 
     #     {sample.int(n,n, replace = TRUE)})
-    bootIdx.0       <- lapply(1:n.boot, function(ii) 
-        {c(sample.int(n0,n0, replace = TRUE), n0 + sample.int(n,n, replace = TRUE))})
-    bootIdx.1       <- lapply(1:n.boot, function(ii) 
-        {c(sample.int(n1,n1, replace = TRUE), n1 + sample.int(n,n, replace = TRUE))})
+    # bootIdx.0       <- lapply(1:n.boot, function(ii) 
+    #     {c(sample.int(n0,n0, replace = TRUE), n0 + sample.int(n,n, replace = TRUE))})
+    # bootIdx.1       <- lapply(1:n.boot, function(ii) 
+    #     {c(sample.int(n1,n1, replace = TRUE), n1 + sample.int(n,n, replace = TRUE))})
     
     full.sample.wt <- rep(1/n,n)
     
-    for (g in seq_along(grid)) {
-      w0 <- list(w0 = weight.list[[g]]$w0, w1 = full.sample.wt)
-      w1 <- list(w0 = weight.list[[g]]$w1, w1 = full.sample.wt)
-      output_0[g] <- mean( sapply(bootIdx.0, mean_bal_grid, weight = w0, 
-                               data = mean.bal.dat.0, estimand = "ATT",
-                               tx_ind = "z", balance.covariates = colnames(x)))
-      output_1[g] <- mean( sapply(bootIdx.1, mean_bal_grid, weight = w1, 
-                               data = mean.bal.dat.1, estimand = "ATT",
-                               tx_ind = "z", balance.covariates = colnames(x)))
-    }
+    output_0 <- sapply(X = weight.list, 
+                       function(w) mean_bal_grid(
+                         weight = list(w0 = w$w0, w1 = full.sample.wt), 
+                         nboot = n.boot, 
+                         data = mean.bal.dat.0, 
+                         tx_ind = "z", 
+                         balance.covariates = colnames(x),
+                         estimand = "ATT"))
+    
+    output_1 <- sapply(X = weight.list, 
+                       function(w) mean_bal_grid(
+                         weight = list(w0 = w$w1, w1 = full.sample.wt), 
+                         nboot = n.boot, 
+                         data = mean.bal.dat.1, 
+                         tx_ind = "z", 
+                         balance.covariates = colnames(x),
+                         estimand = "ATT"))
+    
+    
+    # for (g in seq_along(grid)) {
+    #   w0 <- list(w0 = weight.list[[g]]$w0, w1 = full.sample.wt)
+    #   w1 <- list(w0 = weight.list[[g]]$w1, w1 = full.sample.wt)
+    #   output_0[g] <- mean( sapply(bootIdx.0, mean_bal_grid, weight = w0, 
+    #                            data = mean.bal.dat.0, estimand = "ATT",
+    #                            tx_ind = "z", balance.covariates = colnames(x)))
+    #   output_1[g] <- mean( sapply(bootIdx.1, mean_bal_grid, weight = w1, 
+    #                            data = mean.bal.dat.1, estimand = "ATT",
+    #                            tx_ind = "z", balance.covariates = colnames(x)))
+    # }
     if (all(is.na(output_0)) | all(is.na(output_1))) stop("All grid values generated errors")
     
     min.idx.0 <- which(output_0 == min(output_0, na.rm = TRUE))
@@ -146,14 +174,21 @@ RKHS_grid_search <- function(data, grid = NULL,
   
   n <- nrow(pd$df)
   
-  bootIdx <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
+  # bootIdx <- lapply(1:n.boot, function(ii) {sample.int(n,n, replace = TRUE)})
   output <- rep(NA, length(grid))
   names(output) <- as.character(grid)
-  for (g in seq_along(grid)) {
-    output[g] <- mean(sapply(bootIdx, mean_bal_grid, weight = weight.list[[g]], 
-                             data = mean.bal.dat, estimand = estimand,
-                             tx_ind = "z", balance.covariates = colnames(x)))
-  }
+  output <- vapply(X = weight.list, FUN = mean_bal_grid, 
+         FUN.VALUE = 1,
+         nboot = n.boot, 
+         data = mean.bal.dat, tx_ind = "z", 
+         balance.covariates = colnames(x),
+         estimand = estimand)
+  # for (g in seq_along(grid)) {
+  #   output[g] <- mean(mean_bal_grid(weight = weight.list[[g]], 
+  #                                   nboot = n.boot,
+  #                                  data = mean.bal.dat, estimand = estimand,
+  #                                  tx_ind = "z", balance.covariates = colnames(x)))
+  # }
   min.idx <- which(output == min(output, na.rm = TRUE))[1]
   weight.list[[min.idx]]$estimand <- "ATE"
   weight.list[[min.idx]]$lambda <- grid[min.idx]
@@ -167,12 +202,15 @@ wass_grid_search <- function(data, grid = NULL,
                              estimand = c("ATT", "ATC","cATE","ATE"),
                              K = 10, R = 10,
                              n.boot = 1000,
-                             eval.method = c("cross.validation", "bootstrap"),
+                             eval.method = c("bootstrap", "cross.validation"),
                              method = c("Wasserstein","Constrained Wasserstein", "SCM"),
                              sample_weight = NULL,
-                             wass.method = "networkflow", wass.iter = 0,
+                             wass.method = "sinkhorn", wass.iter = 1e3,
+                             epsilon = 1,
+                             unbiased = TRUE,
                              add.joint = TRUE,
                              add.margins = FALSE,
+                             add.divergence = FALSE,
                              joint.mapping = FALSE,
                              verbose = FALSE,
                              neg.weights = FALSE,
@@ -182,7 +220,7 @@ wass_grid_search <- function(data, grid = NULL,
   
   estimand <- match.arg(estimand)
   method <- match.arg(method)
-  eval.method <- match.arg(eval.method, c("cross.validation", "bootstrap"))
+  eval.method <- match.arg(eval.method)
   
   add.margins <- isTRUE(add.margins)
   add.joint  <- isTRUE(add.joint)
@@ -242,6 +280,7 @@ wass_grid_search <- function(data, grid = NULL,
                   p = p, data = data, cost = cost, estimand = estimand,
                   method = method, metric = metric, wass.iter = wass.iter, 
                   add.joint = add.joint, add.margins = add.margins,
+                  add.divergence = add.divergence,
                   joint.mapping = joint.mapping, penalty = penalty,
                   ...))
   }
@@ -570,6 +609,7 @@ weight_est_fun <- function(args) {
       args$constraint <- args[["grid"]][1]
       weight.est.call <- f.call.list.no.eval("calc_weight",
                                              list.args = args)
+      weight.est.call$envir$verbose <- FALSE
       weights <-  pbapply::pblapply(args[["grid"]], function(delta) {
         weight.est.call$envir$constraint <- delta
         out <- eval(weight.est.call$expr, envir = weight.est.call$envir)
@@ -923,17 +963,62 @@ clean_up_weights <- function(weights, selection, args) {
   }
 }
 
-mean_bal_grid <- function(bootIdx, weight, data, tx_ind, ...) {
+mean_bal_grid <- function(weight, nboot, data, tx_ind, ...) {
+  
   if(all(is.na(weight$w0)) || all(is.na(weight$w1))) return(NA_real_)
   wvec <- c(weight$w0, weight$w1 )
+  
+  z <- data[, tx_ind, drop = FALSE]
+  
+  means <- vapply(X = 1:nboot, 
+                  FUN = mean_bal_eval, FUN.VALUE = 1,
+                  wvec = wvec, data = data, z_orig = z,
+                  tx_ind = tx_ind, ...)
+  
+  return(mean(means))
+  
+}
+
+mean_bal_boot <- function(n, z) {
+  
+  continue.sampling <- TRUE
+  check.sum   <- NULL
+  
+  while(continue.sampling) {
+    bootIdx   <- sample.int(n,n, replace = TRUE)
+    
+    check.sum <- sum(z[bootIdx])
+    if( (check.sum > 0) && (check.sum < n) ) continue.sampling <- FALSE
+  }
+  
+  return(bootIdx)
+  
+  
   dataResamp <- data[bootIdx,]
   weightResamp <- wvec[bootIdx]
   z <- dataResamp[,tx_ind]
   
   wl <- list(w0 = renormalize(weightResamp[z == 0]), w1 = renormalize(weightResamp[z == 1]))
-    bals <- mean_bal(dataResamp, weights = wl, treatment.indicator = tx_ind, ...)
+  bals <- mean_bal(dataResamp, weights = wl, treatment.indicator = tx_ind, ...)
   return(mean(bals))
 }
+
+mean_bal_eval <- function(wvec, data, z_orig, tx_ind, ...) {
+  
+  n <- nrow(data)
+  
+  bootIdx <- mean_bal_boot(n, z = z_orig)
+  
+  dataResamp <- data[bootIdx,]
+  weightResamp <- wvec[bootIdx]
+  z <- z_orig[bootIdx]
+  
+  wl <- list(w0 = renormalize(weightResamp[z == 0]), w1 = renormalize(weightResamp[z == 1]))
+  bals <- mean_bal(dataResamp, weights = wl, treatment.indicator = tx_ind, ...)
+  return(mean(bals))
+}
+
+
 
 wass_dist_helper <- function(...) {
   args <- list(...)
@@ -1336,7 +1421,8 @@ pen.fun.grid <- function(x, z,
                           grid.length,
                           p, 
                           data, cost, estimand, metric, wass.iter, add.margins, 
-                          joint.mapping, penalty, ...) {
+                          joint.mapping, penalty, 
+                         add.divergence, ...) {
   
   
   n <- nrow(x)
@@ -1353,6 +1439,16 @@ pen.fun.grid <- function(x, z,
       return(list(list(penalty = 0.0)))
     }
   } 
+  
+  if(add.divergence) {
+    min.val <- NULL
+    bottom <- 0.05
+    top    <- 5e6
+  } else {
+    min.val <- 0
+    bottom <- 1e-3
+    top    <- 1e6
+  }
   
   if (estimand == "ATE") {
     cost1 <- cost[[1]]
@@ -1371,10 +1467,10 @@ pen.fun.grid <- function(x, z,
       mc0 <- mc0/median(cost0)
     }
     
-    grid0 <- lapply(c(0, exp(seq(log(1e-6 * mc0), log(1e3 * mc0), length.out = grid.length ))),
+    grid0 <- lapply(c(min.val, exp(seq(log(bottom * mc0), log(top * mc0), length.out = grid.length ))),
                    function(nn) nn)
     
-    grid1 <- lapply(c(0, exp(seq(log(1e-6 * mc1) , log(1e3 * mc1), length.out = grid.length ))),
+    grid1 <- lapply(c(min.val, exp(seq(log(bottom * mc1) , log(top * mc1), length.out = grid.length ))),
                    function(nn) nn)
     
     grid <- lapply(1:grid.length, function(gg) list(list(penalty = grid0[[gg]]), 
@@ -1391,8 +1487,8 @@ pen.fun.grid <- function(x, z,
     if (joint.mapping) {
       mc <- mc/median(cost)
     }
-    grid <- lapply(c(0,exp(seq(log(1e-6 * mc), 
-                               log(1e3 * mc) , 
+    grid <- lapply(c(min.val,exp(seq(log(bottom * mc), 
+                               log(top * mc) , 
                                length.out = grid.length ))),
                    function(nn) list(penalty = nn))
     
@@ -1407,6 +1503,7 @@ wass.fun.grid <- function(x, z,
                           p, 
                           data, cost, estimand, metric, wass.iter, add.margins, 
                           joint.mapping, 
+                          add.divergence,
                           penalty, ...) {
   D <- ncol(x)
   
@@ -1438,6 +1535,7 @@ wass.fun.grid <- function(x, z,
                         data, cost, estimand, 
                         metric, wass.iter, add.margins, 
                         joint.mapping, penalty,
+                        add.divergence,
                         ...)
     # keep <- round(seq.int(1L,length(marg.grid), length.out = grid.length))
     # marg.grid <- marg.grid[keep]
@@ -1464,7 +1562,8 @@ wass.fun.grid <- function(x, z,
                          p, 
                          data, cost, estimand, metric, 
                          wass.iter, add.margins, 
-                         joint.mapping, penalty, ...)
+                         joint.mapping, penalty, 
+                         add.divergence, ...)
     # if (estimand == "ATE") {
     #   grid <- lapply(grid, function(gg) list(gg, gg))
     # }
@@ -1496,6 +1595,7 @@ scm.fun.grid <- function(x, z,
                           grid.length,
                           p, 
                           data, cost, estimand, metric, wass.iter, add.margins, 
+                          add.divergence,
                           joint.mapping, penalty, ...) {
   D <- ncol(x)
   
@@ -1514,7 +1614,8 @@ scm.fun.grid <- function(x, z,
                        p = 2, 
                        data, cost = cost, estimand, metric = "Lp", 
                        wass.iter, add.margins = FALSE, 
-                       joint.mapping = FALSE, penalty, ...)
+                       joint.mapping = FALSE, penalty, 
+                       add.divergence = FALSE, ...)
     
   return(grid)
   
@@ -1523,7 +1624,8 @@ scm.fun.grid <- function(x, z,
 wass_grid_default <- function(x, z, grid.length,
                               p, data, cost, estimand, method, metric, wass.iter, 
                               add.joint, add.margins, joint.mapping, 
-                              penalty, ...) {
+                              penalty, add.divergence,
+                              ...) {
   
     
   get_defaults <- switch(method,
@@ -1540,6 +1642,7 @@ wass_grid_default <- function(x, z, grid.length,
                add.margins = add.margins,
                joint.mapping = joint.mapping,
                penalty = penalty,
+               add.divergence = add.divergence,
                ...)
   args <- args[!duplicated(names(args))]
   n.args <- lapply(names(args), as.name)
@@ -1692,7 +1795,7 @@ setup_boot_args <- function(boot.idx, weight.list, wass.dat, cost, p,
   return(boot.f.call)
 }
 
-wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric = metric,
+wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric,
                       wass.method, wass.iter, add.joint,
                       sample_weight, cost_a = NULL, cost_b = NULL,
                       unbiased = FALSE,
@@ -1800,12 +1903,13 @@ cv_get <- function(n, K, R) {
   return(folds)
 }
 
-wass_cv <- function(weights, K, R, cost, p,
+wass_cv <- function(weights, K, R, cost, p, metric,
                     wass.method, 
                     wass.iter, 
                     x0, x1,
                     cost_a = NULL, cost_b = NULL, 
-                    unbiased = FALSE, verbose, 
+                    unbiased = FALSE, 
+                    verbose, 
                      ...) {
   
   
@@ -1871,6 +1975,7 @@ wass_grid_eval <- function(data, grid = NULL,
                              wass.method = "networkflow", wass.iter = 0,
                              add.joint = TRUE,
                              add.margins = FALSE,
+                             add.divergence = FALSE,
                              joint.mapping = FALSE,
                              verbose = FALSE,
                              neg.weights = FALSE,
@@ -1947,6 +2052,7 @@ wass_grid_eval <- function(data, grid = NULL,
                                          p = p, data = data, cost = cost, estimand = estimand,
                                          method = method, metric = metric, wass.iter = wass.iter, 
                                          add.joint = add.joint, add.margins = add.margins,
+                                         add.divergence = add.divergence,
                                          joint.mapping = joint.mapping, penalty = penalty,
                                          ...))
   }

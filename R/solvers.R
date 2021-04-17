@@ -274,8 +274,8 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   # status <- out$status
   # 
   if (get.dual) {
-    dual_vars <- res$sol$itr$slc + res$sol$itr$suc
-    names(dual_vars) <- names(qp$LC$vals)
+    dual_vars <- cbind(res$sol$itr$slc, res$sol$itr$suc)
+    rownames(dual_vars) <- names(qp$LC$vals)
   } else {
     dual_vars <-  NULL
   }
@@ -360,7 +360,7 @@ convert_cones <- function(qp) {
     qp$LC$vals <- c(qp$LC$vals, unlist(constraint.list))
     qp$LC$dir <- c(qp$LC$dir, rep("E", addl.varnum))
     
-    qp$bounds$lb <- c(qp$bounds$lb[-idx.constraint], rep(-Inf, addl.varnum))
+    qp$bounds$lb <- c(qp$bounds$lb[-idx.constraint], rep(0, addl.varnum))
     qp$bounds$ub <- c(qp$bounds$ub[-idx.constraint], rep(Inf, addl.varnum))
   }
   return(qp)

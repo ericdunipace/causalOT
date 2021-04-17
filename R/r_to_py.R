@@ -126,6 +126,8 @@ predict.ot_imputer <- function(object, newdata, subset,
   
   #convert to python datatypes
   np <- reticulate::import("numpy", convert = FALSE)
+  torch <- reticulate::import("torch", convert = TRUE)
+  
   X_np <- np$array(X_dat[nz.idx, , drop = FALSE])
   X_miss <- torch$DoubleTensor(X_np)
   weights_py <- torch$DoubleTensor(weights_combined[nz.idx])
@@ -242,6 +244,121 @@ coef.ot_imputer <- function(object, tx.name, estimand, ...) {
   return(c(z = effect))
   
 }
+
+#' Sinkhorn Loss
+#'
+#' @param power power of the optimal transport distance.
+#' @param blur The finest level of detail that should be handled by the loss function - in order to prevent overfitting on the samples’ locations.
+#' @param reach specifies the typical scale associated to the constraint strength
+#' @param diameter A rough indication of the maximum distance between points, which is used to tune the espilon-scaling descent and provide a default heuristic for clustering multiscale schemes. If None, a conservative estimate will be computed on-the-fly.
+#' @param scaling specifies the ratio between successive values of sigma in the epsilon-scaling descent. This parameter allows you to specify the trade-off between speed (scaling < .4) and accuracy (scaling > .9).
+#' @param truncate If backend is "multiscale", specifies the effective support of a Gaussian/Laplacian kernel as a multiple of its standard deviation
+#' @param cost specifies the cost function that should be used instead of
+#' @param kernel 
+#' @param cluster_scale If backend is "multiscale", specifies the coarse scale at which cluster centroids will be computed. If None, a conservative estimate will be computed from diameter and the ambient space’s dimension, making sure that memory overflows won’t take place.
+#' @param debias specifies if we should compute the unbiased Sinkhorn divergence instead of the classic, entropy-regularized “SoftAssign” loss.
+#' @param potentials When this parameter is set to True, the SamplesLoss layer returns a pair of optimal dual potentials 𝐹 F  and 𝐺 G , sampled on the input measures, instead of differentiable scalar value. These dual vectors (𝐹(𝑥𝑖)) ( F ( x i ) )  and (𝐺(𝑦𝑗)) ( G ( y j ) )  are encoded as Torch tensors, with the same shape as the input weights (𝛼𝑖) ( α i )  and (𝛽𝑗) ( β j )
+#' @param verbose if backend is "multiscale", specifies whether information on the clustering and epsilon-scaling descent should be displayed in the standard output.
+#' @param backend one of "auto", "tensorized", "online", "multiscale"
+#'
+#'@description This function serves as a wrapper to Python function SamplesLoss in the GeomLoss package http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss 
+#'
+#' @return 
+#' @export
+#'
+#' @examples
+sinkhorn_geom <- function(x, y, a, b, power = 2, 
+                          blur = 0.05, reach = NULL, diameter = NULL,
+                          scaling = 0.5, truncate = 5,
+                          metric = "sdLp", kernel = NULL,
+                          cluster_scale=NULL, 
+                          debias=TRUE, 
+                          verbose=FALSE, backend='auto', ... ) {
+  
+  np <- reticulate::import("numpy", convert = TRUE)
+  torch <- reticulate::import("torch", convert = TRUE)
+  geomloss <- reticulate::import("geomloss", convert = TRUE)
+  # cmake <- reticulate::import("cmake", convert = TRUE)
+  n <- nrow(x)
+  m <- nrow(y)
+  d <- ncol(x)
+  
+  if (metric == "mahalanobis") {
+    total <- rbind(x,y)
+    U <- inv_sqrt_mat(cov(total), symmetric = TRUE)
+    
+    update <- (total - matrix(colMeans(total), nrow = n+m,
+                                       ncol = d, byrow = TRUE)) %*% U
+    
+    x <- update[1:n,,drop = FALSE]
+    y <- update[-(1:n),,drop = FALSE]
+    
+  } else if (metric == "sdLp") {
+    total <- rbind(x,y)
+    update <- scale(total)
+    x <- update[1:n,,drop = FALSE]
+    y <- update[-(1:n),,drop = FALSE]
+  }
+  
+  if (backend == "tensorized" || (n*m <= 5000^2 && backend != "multiscale" && backend != "online")) {
+    if (power == 2) {
+      cost <- geomloss$utils$squared_distances
+    } else if (power == 1) {
+      reticulate::source_python(file = lp_python_path)
+      cost <- l1_loss
+    }
+  } else if (n*m > 5000^2 || backend == "multiscale" || backend == "online") {
+    if (power == 2) {
+      cost <- "SqDist(X,Y)"
+    } else if (power == 1) {
+      cost <- "Abs(X - Y)"
+    }
+    pykeops <- reticulate::import("pykeops", convert = TRUE)
+    pykeops$clean_pykeops()
+  } else {
+    cost <- NULL
+  }
+  
+  
+  
+  xt <- torch$DoubleTensor(np$array(x))$contiguous()
+  yt <- torch$DoubleTensor(np$array(y))$contiguous()
+  at <- torch$DoubleTensor(a)$contiguous()
+  bt <- torch$DoubleTensor(b)$contiguous()
+  
+  
+  
+  Loss <- geomloss$SamplesLoss("sinkhorn", p = power, blur = blur, reach = reach,
+                      diameter = diameter, 
+                      scaling = scaling, 
+                      cost = cost, kernel = kernel,
+                      cluster_scale = cluster_scale,
+                      debias = debias,
+                      potentials = TRUE,
+                      verbose = verbose,
+                      backend = backend)
+  
+  potentials.torch <- Loss(at, xt, bt, yt)
+  f  <- c(potentials.torch[[1]]$float()$numpy())
+  g  <- c(potentials.torch[[2]]$float()$numpy())
+  
+  # diameter, ε, ε_s, ρ
+  # scale = geomloss$sinkhorn_samples$scaling_parameters(xt, yt, power, blur, reach, diameter, scaling )
+  # names(scale) <- c("diameter", "epsilon", "epsilon_s", "rho")
+  
+  #sinkhorn_cost(ε, ρ, α, β, a_x, b_y, a_y, b_x, debias=debias, potentials=potentials)
+  loss <- sum(f * a) + sum(g * b)
+  
+  retVal <- list(f = f,
+                 g = g,
+                 loss = loss)
+  
+  # class(retVal) <- "geomSinkhorn"
+  return(retVal)
+  
+}
+
+
 
 setClass("ot_imputer", slots = c(data = "matrix"))
 setMethod("predict", signature = c(object = "ot_imputer"),

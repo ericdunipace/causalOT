@@ -213,9 +213,10 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   
   output <- list(w0 = c(w0), w1 = c(w1), 
                  gamma = NULL,
+                 args = addl.args,
                  estimand = estimand,
-                 method = "NNM", 
-                 args = addl.args)
+                 method = "NNM"
+                 )
   
   if (isTRUE(transport.matrix)) {
     output$gamma <- calc_gamma(output, cost = cost, p = p, ...)
@@ -273,30 +274,29 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
                             method = c("SBW",ot.methods()),
                             solver = c("mosek","gurobi","cplex"),
                             sample_weight = NULL,
+                            add.divergence = FALSE,
                             ...) {
-  solver_fun <- function(qp, solver, ...) {
-    tryCatch(QPsolver(qp, solver = solver, ...),
-             error = function(e) {
-               warning(e$message)
-               list(sol = NA_real_, dual = NULL)
-             })
-  }
-  
   method <- match.arg(method)
   estimand <- match.arg(estimand)
   sample_weight <- get_sample_weight(sample_weight, get_z(data, ...))
+  if (isTRUE(add.divergence) && method == "Wasserstein") {
+    run.divergence <- 2L
+  } else {
+    run.divergence <- 1L
+  }
   
   solver <- match.arg(solver)
-  soc <- switch(solver,
-                "mosek" = TRUE,
-                FALSE)
-  qp <- quadprog(data = data, constraint = constraint,  estimand = estimand, 
-                 method = method, sample_weight = sample_weight,
-                 soc = soc,
-                 ...)
-  dots <- list(...)
   
-  res <- lapply(qp, solver_fun, solver = solver, ...)
+  res <- switch(run.divergence,
+                calc_weight_qp(data = data, constraint = constraint,  estimand = estimand, 
+                                   method = method, sample_weight = sample_weight,
+                               solver = solver,
+                                   ...),
+                calc_weight_div(data = data, constraint = constraint,  estimand = estimand, 
+                                    method = method, sample_weight = sample_weight,
+                                solver = solver,
+                                    ...)
+                )
   
   ns <- get_n(data, ...)
   
@@ -304,8 +304,8 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   output <- convert_sol(res, estimand, method, ns["n0"], ns["n1"], sample_weight)
   output$estimand <- estimand
   output$method <- method
+  dots <- list(...)
   if(method %in% ot.methods()) {
-    dots <- list(...)
     if(is.null(dots[["p"]])) dots[["p"]] <- 2
     if(is.null(dots$metric)) dots$metric <- "mahalanobis"
     if(!is.null(dots$cost)) dots$cost <- NULL
@@ -317,12 +317,211 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
     dots$metric <- dots$metric
     dots[["power"]] <- dots[["p"]]
     dots[["p"]] <- NULL
+    dots[["add.divergence"]] <- add.divergence
   }
   output$args <- c(output$args, list(solver = solver, constraint = constraint),
                         # sol = sol$sol),
                         dots)
   
   return(output)
+}
+
+calc_weight_qp <- function(data, constraint, estimand,
+                           method, sample_weight,
+                           solver, ...) {
+  solver_fun <- function(qp, solver, ...) {
+    tryCatch(QPsolver(qp, solver = solver, ...),
+             error = function(e) {
+               warning(e$message)
+               list(sol = NA_real_, dual = NULL)
+             })
+  }
+  
+  
+  soc <- switch(solver,
+                "mosek" = TRUE,
+                FALSE)
+  qp <- quadprog(data = data, constraint = constraint,  estimand = estimand, 
+                 method = method, sample_weight = sample_weight,
+                 soc = soc,
+                 ...)
+  dots <- list(...)
+  
+  res <- lapply(qp, solver_fun, solver = solver, ...)
+  return(res)
+}
+
+calc_weight_div <- function(data, constraint, estimand,
+                            method, sample_weight = NULL,
+                            solver, penalty = c("entropy", "L2"), 
+                            cost = NULL,
+                            add.margins = FALSE,
+                            metric = dist.metrics(),
+                            p = 2,
+                            niter = 2000,
+                            tol = 1e-7,
+                            search = "mirror-nocgd",
+                            stepsize = 1e-1,
+                            reach = NULL,
+                            diameter = NULL,
+                            scaling = 0.5, truncate = 5,
+                            kernel = NULL,
+                            cluster_scale = NULL, 
+                            verbose = FALSE, backend='auto',
+                            ...) {
+  
+  pd <- prep_data(data, )
+  z <- as.numeric(pd$z)
+  x.df <- pd$df[,!(colnames(pd$df) == "y")]
+  x <- as.matrix(x.df)
+  cn <- colnames(x.df)
+  x.df <- as.data.frame(x.df)
+  colnames(x) <- colnames(x.df) <- cn
+  
+  X0 <- x[z==0,,drop = FALSE]
+  X1 <- x[z==1,,drop = FALSE]
+  
+  # penalty <- match.arg(penalty)
+  penalty <- "entropy" #L2 not ready yet
+  
+  optClass <- switch(penalty,
+                     L2 = wassDivL2,
+                     entropy = wassDivEnt)
+
+  if (estimand == "ATE") {
+    
+    sw1 <- list(a = sample_weight$b, b = sample_weight$total)
+    sw0 <- sw1
+    sw0$a <- sample_weight$a
+    
+    if(is.null(constraint)) {
+      stop("Must specify a penalty for optimal transport divergences")
+    }
+    
+    if(is.list(constraint)) {
+      if(length(constraint) == 2) {
+        constraint0 <- constraint[[1]]
+        constraint1 <- constraint[[2]]
+      } else {
+        constraint0 <- constraint
+        constraint1 <- constraint
+      }
+    } else {
+      constraint0 <- constraint1 <- list(penalty = constraint)
+    }
+    
+    if (is.list(cost) && length(cost) == 2) {
+      cost0 <- cost[[1]]
+      cost1 <- cost[[2]]
+    } else {
+      cost0 <- cost1 <- cost
+    }
+    
+    # if (is.null(stepsize)) {
+    #   stepsize0 <- constraint0/1e5
+    #   stepsize1 <- constraint1/1e5
+    # }
+    
+    optimizer0 <- optClass$new(X1 = X0, X2 = x, 
+                               cost = cost0,
+                               qp_solver = solver,
+                               lambda = constraint0$penalty,
+                               add.margins = FALSE,
+                               metric = metric,
+                               power = p,
+                               niter = niter,
+                               tol = tol,
+                               search = search,
+                               stepsize = stepsize,
+                               sample_weight = sw0,
+                               reach = reach,
+                               diameter = diameter,
+                               scaling = scaling, truncate = truncate,
+                               kernel = kernel,
+                               cluster_scale = cluster_scale, 
+                               debias = TRUE, 
+                               verbose = verbose, backend = 'auto')
+    
+    optimizer1 <- optClass$new(X1 = X1, X2 = x, 
+                               cost = cost1,
+                               qp_solver = solver,
+                               lambda = constraint1$penalty,
+                               add.margins = FALSE,
+                               metric = metric,
+                               power = p,
+                               niter = niter,
+                               tol = tol,
+                               search = search,
+                               stepsize = stepsize,
+                               sample_weight = sw1,
+                               reach = reach,
+                               diameter = diameter,
+                               scaling = scaling, truncate = truncate,
+                               kernel = kernel,
+                               cluster_scale = cluster_scale, 
+                               debias = TRUE, 
+                               verbose = verbose, backend = 'auto')
+    
+    
+    cg(optimizer0, verbose = verbose)
+    cg(optimizer1, verbose = verbose)
+    
+    return(list(list(sol = optimizer0$get_weight()) , 
+                list(sol = optimizer1$get_weight())))
+    
+  } else if (estimand == "ATC") {
+    optimizer <- optClass$new(X1 = X1, X2 = X0, 
+                              cost = cost,
+                              qp_solver = solver,
+                              lambda = constraint$penalty,
+                              add.margins = FALSE,
+                              metric = metric,
+                              power = p,
+                              niter = niter,
+                              tol = tol,
+                              search = search,
+                              stepsize = stepsize,
+                              sample_weight = sample_weight,
+                              reach = reach,
+                              diameter = diameter,
+                              scaling = scaling, truncate = truncate,
+                              kernel = kernel,
+                              cluster_scale = cluster_scale, 
+                              debias = TRUE, 
+                              verbose = verbose, backend = 'auto')
+    
+    cg(optimizer, verbose = verbose)
+    
+    return(list(sol = t(optimizer$get_weight()), dual = optimizer$get_param()))
+           
+    
+  } else if (estimand == "ATT") {
+    optimizer <- optClass$new(X1 = X0, X2 = X1, 
+                              cost = cost,
+                              qp_solver = solver,
+                              lambda = constraint$penalty,
+                              add.margins = FALSE,
+                              metric = metric,
+                              power = p,
+                              niter = niter,
+                              tol = tol,
+                              search = search,
+                              stepsize = stepsize,
+                              sample_weight = sample_weight,
+                              reach = reach,
+                              diameter = diameter,
+                              scaling = scaling, truncate = truncate,
+                              kernel = kernel,
+                              cluster_scale = cluster_scale, 
+                              debias = TRUE, 
+                              verbose = verbose, backend = 'auto')
+    
+    cg(optimizer, verbose = verbose)
+    
+    return(list(sol = optimizer$get_weight(),dual = optimizer$get_param()))
+  }
+  
+  
 }
 
 calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), method = c("RKHS", "RKHS.dose"),
@@ -419,16 +618,16 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   
   if (estimand == "ATC") {
     output$w0 <- sample_weight$a
-    output$w1 <- renormalize(sol[[1]][pd$z == 1])
+    output$w1 <- renormalize(sol[[1]]$sol[pd$z == 1])
   } else if (estimand == "ATT") {
-    output$w0 <- renormalize(sol[[1]][pd$z == 0])
+    output$w0 <- renormalize(sol[[1]]$sol[pd$z == 0])
     output$w1 <- sample_weight$b
   } else if (estimand == "cATE") {
-    output$w0 <- renormalize(sol[[1]][pd$z == 0])
-    output$w1 <- renormalize(sol[[2]][pd$z == 1])
+    output$w0 <- renormalize(sol[[1]]$sol[pd$z == 0])
+    output$w1 <- renormalize(sol[[2]]$sol[pd$z == 1])
   } else if (estimand == "ATE") {
-    output$w0 <- renormalize(sol[[1]][pd$z == 0])
-    output$w1 <- renormalize(sol[[1]][pd$z == 1])
+    output$w0 <- renormalize(sol[[1]]$sol[pd$z == 0])
+    output$w1 <- renormalize(sol[[1]]$sol[pd$z == 1])
   }
   return(output)
 }

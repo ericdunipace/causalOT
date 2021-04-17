@@ -99,12 +99,15 @@ cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise
   
   if (estimand == "ATE") {
     scale <- 1/matrixStats::rowSds(Y)
+    center <- rowMeans(Y)
   } else  {
-    scale <- 1/matrixStats::rowSds(cbind(X,Y))
+    total <- cbind(X,Y)
+    scale <- 1/matrixStats::rowSds(total)
+    center <- rowMeans(total)
   } 
   
-  X <-  scale * X
-  Y <-  scale * Y
+  X <-  scale * (X - center)
+  Y <-  scale * (Y - center)
   
   if (any(is.infinite(scale)) ) {
     nonzero.idx <- is.finite(scale)

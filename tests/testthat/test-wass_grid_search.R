@@ -616,7 +616,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   
   testthat::expect_equivalent(wsel$args$constraint,
                               list(margins = rep(0.6975125, 6), 
-                                   penalty = 103.4201), tol = 1e-3)
+                                   penalty = 3270431), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -771,7 +771,7 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
   
   testthat::expect_equivalent(wsel$args$constraint, 
                               list(margins = rep(0.6975125, 6),
-                                   penalty = 103.4201), tol = 1e-3)
+                                   penalty = 3270.431), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -970,7 +970,7 @@ testthat::test_that("grid search joint.map, wass", {
                                                           joint = 10), 1e-3)
   
   estimand <- "ATC"
-  testthat::expect_silent(wsel3 <- wass_grid_search(data, grid = NULL,
+  testthat::expect_warning(wsel3 <- wass_grid_search(data, grid = NULL,
                                                     estimand = estimand, n.boot = 10, method = "Wasserstein",
                                                     metric = metric, p = power, solver = "mosek",
                                                     joint.mapping = TRUE,

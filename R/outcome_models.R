@@ -997,10 +997,12 @@ ci_idx_to_wt <- function(idx, estimand, method, weight, object,
                       error = function(e) {
                         warning(e$message)
                         return(calc_weight_error()) }  )
-      wts$w1 <- tryCatch(eval(wf.call, envir = wt.args[[2]])$w0,
-                         error = function(e) {
-                           warning(e$message)
-                           return(calc_weight_error()) }  )
+      wts_1 <- tryCatch(eval(wf.call, envir = wt.args[[2]]),
+                        error = function(e) {
+                          warning(e$message)
+                          return(calc_weight_error()) }  )
+      wts$w1 <- wts_1$w0
+      wts$gamma <- list(wts$gamma, wts_1$gamma)
       wts$estimand <- "ATE"
       return(wts)
     } else {

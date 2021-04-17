@@ -1132,7 +1132,7 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
     Q0 <- Matrix::sparseMatrix(i = c(rep(1:n0, each = n0), rep(n0 + 1:n1, each = n1)),
                                j = c(rep.int(1:n0, n0), rep.int(n0 + 1:n1, n1)),
                                x = c(Q0_c, Q0_t),
-                               dims = c(n,n), giveCsparse = FALSE
+                               dims = c(n,n), repr = "T"
     )
     A1 <- Matrix::sparseMatrix(i = c(rep.int(1,n0), rep.int(2,n1)),
                                j = c(1:n0, n0 + 1:n1),
@@ -1324,7 +1324,7 @@ add_bc <- function(op, bf, z, K) {
 
 pen_var <- function(qp, n0, n1, lambda) {
   
-  nvar <- length(qp$obj$LC)
+  nvar <- length(qp$obj$L)
   
   # if (divergence) {
   #   extra_col <- nvar - (n0 * n1) + 3
@@ -1455,11 +1455,12 @@ qp_pen <- function(qp, n0, n1, a, b, penalty, lambda, soc, divergence) {
     
     if (is.null(qp$cones) ) {
       qp$cones <- list()
-      qp$cones$F <- Matrix::sparseMatrix(i = c(seq(2, 3 * nvar,by=3),
-                                               seq(3, 3 * nvar,by=3)),
-                                         j = c(1:nvar, (nvar + 1) : (2 * nvar)),
+      qp$cones$F <- Matrix::sparseMatrix(i = c(seq(2, 3 * nvar,by = 3),
+                                               seq(3, 3 * nvar,by = 3)),
+                                         j = c(1:nvar, (nvar + 1):(2 * nvar)),
                                          x = 1,
-                                         dims = c(nvar, clength))
+                                         dims = c(nvar * 3, 
+                                                  clength + nvar))
       qp$cones$g <- rep(c(1, 0, 0), nvar)
       qp$cones$cones <- matrix(list("PEXP", 3, NULL), nrow = 3, ncol = nvar)
       rownames(qp$cones$cones) <- c("type","dim","conepar")
@@ -2209,11 +2210,9 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
     LC$A <- rbind(LC$A, -1 * joint_cost_vec, -1 * marg_cost_vec)
   }
   
-  LC$vals <- c(sum_1 = 1, sum_b = marg_const, K_const^p)
-  
-  # set direction
-  LC$dir <- c(rep("E", 1 + length(marg_const)),
-              rep("L", length(K_const)))
+  # set constraint bounds
+  LC$uc <- c(sum_1 = 1, sum_b = marg_const, K_const^p)
+  LC$lc <- c(sum_1 = 1, sum_b = marg_const, rep(0, length(K_const)))
   
   # create lp/qp
   op <- list(obj = obj, LC = LC)
@@ -2440,7 +2439,8 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
     
     A <- t(rep(1.0/n, n))
     vals <- as.double(n)
-    dir <- "E"
+    # dir <- "E"
+    uc <- lc <- vals
     
   } else {
     Q0 <- cost[[1]]
@@ -2450,15 +2450,21 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
     A <- rbind(t(1/n * z),
                t(1/n * (1 - z)  ))
     vals <- as.double(c(n,n))
-    dir <- c("E", "E")
+    # dir <- c("E", "E")
+    uc <- lc <- vals
+    
   }
   
   Q0 <- as(Q0, "dsTMatrix")
   
   
   quick_op <- list(obj = list(Q = Q0, L = L0),
-                   LC = list(A = A, dir = dir,
-                             vals = vals))
+                   LC = list(A = A, 
+                             lc = lc,
+                             uc = uc
+                             # dir = dir,
+                             # vals = vals
+                             ))
   quick_op$nvar <- length(L0)
   quick_op$bounds <- list(lb = rep(0,   quick_op$nvar),
                           ub = rep(Inf, quick_op$nvar))
