@@ -1,3 +1,9 @@
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
 supported.methods <- function() {
   return(c("Logistic","SBW", "SCM", 
            # "EBW",
@@ -8,6 +14,12 @@ supported.methods <- function() {
            "None"))
 }
 
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
 ot.methods <- function() {
   return(c("NNM"
            ,"Wasserstein"
@@ -17,6 +29,12 @@ ot.methods <- function() {
            ))
 }
 
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
 dist.metrics <- function() {
   c("sdLp", "mahalanobis",  "Lp", "RKHS" )
 }

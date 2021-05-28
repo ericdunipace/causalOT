@@ -2140,47 +2140,32 @@ cotDualL2_2 <- R6::R6Class("cotDualL2",
                                rep(max(private$cost), private$nvars)
                              },
                              get_xtx = function(vars) {
-                               diff <- (private$Q %*% vars - private$cost)
-                               pos <- (diff > 0)
-                               return(Matrix::crossprod(private$Q * pos))
+                               # diff <- (private$Q %*% vars - private$cost)
+                               # pos <- (diff > 0)
+                               return(Matrix::crossprod(private$Q))
                              },
                              get_xty = function() {
-                               neg.mass.const <- -private$Q[,private$dual.idx]
-                               cmb.Q <- cbind(neg.mass.const,
-                                              private$Q)
-                               QtC  <- as.numeric(Matrix::crossprod(cmb.Q, 
-                                                                    private$cost)) / private$delta
-                               l_t  <- length(private$target.mean)
-                               A    <- c(rep(0, length(QtC) - l_t), private$target.mean)
-                               return(QtC + A)
+                               NULL
                              },
                              get_hessian = function(vars) {
-                               diff <- (private$Q %*% vars - private$cost)
-                               pos <- as(diff > 0, "sparseVector")
-                               return(-Matrix::crossprod(private$Q * pos)/private$lambda)
+                               # diff <- (private$Q %*% vars - private$cost)
+                               # pos <- as(diff > 0, "sparseVector")
+                               return(self$get_xtx(vars)/(-private$lambda))
                              },
                              get_grad_var = function(vars) {
                                # ignore negative sign and penalty functions since variance of constants is 0 and negative sign is squared
                                diff <- (private$Q %*% vars - private$cost)
-                               diff  <- diff * (diff > 0)
-                               return(Matrix::crossprod(private$Q * as(diff, "sparseVector"))/private$lambda)
+                               # diff  <- diff * (diff > 0)
+                               # pos.prob <- mean(diff > 0)
+                               return(Matrix::crossprod(private$Q * diff)/private$lambda)
                              },
-                             # get_X = function() {
-                             #   neg.mass.const <- -private$Q[,private$dual.idx]
-                             #   cmb.Q <- cbind(neg.mass.const,
-                             #                  private$Q)
-                             #   A <- cbind(
-                             #     matrix(0, nrow = length(private$target.mean),
-                             #          ncol = ncol(cmb.Q) - length(private$target.mean)),
-                             #     Matrix::Diagonal(length(private$target.mean),
-                             #                      x = private$target.mean))
-                             #   return(rbind(cmb.Q / sqrt(private$delta),
-                             #                 A) )
-                             # },
-                             # get_Y = function() {
-                             #   return(c(private$cost / sqrt(private$delta), 
-                             #            rep(1, length(private$target.mean))))
-                             # },
+                             get_pos_prob = function(vars) {
+                               # ignore negative sign and penalty functions since variance of constants is 0 and negative sign is squared
+                               diff <- (private$Q %*% vars - private$cost)
+                               # diff  <- diff * (diff > 0)
+                               pos.prob <- mean(diff > 0)
+                               return(pos.prob)
+                             },
                              penalty.factor = function() {
                                return(private$pf)
                              },

@@ -1,3 +1,13 @@
+#' Barycentric Projections
+#'
+#' @param data Data used to perform projections. Should be a matrix, data.frame, or DataSim class.
+#' @param weight an object of class [causalWeights][causalWeights] output from the [calc_weight()][calc_weight()] function
+#' @param ... optional arguments such as "cost", the cost matrix, or the "estimand", "metric", or "p" if not provided by weights. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
+#'
+#' @return a list containing the barycentric projections with slots "control", "treated", and "observed.treatment"
+#' @export
+#'
+#' @examples
 barycentric_projection <- function(data, weight, 
                                    ...) {
   

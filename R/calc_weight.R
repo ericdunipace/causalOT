@@ -1,7 +1,50 @@
+#' causalWeights class
+#'
+#' @slot w0 A slot with the weights for the control group. 
+#' @slot w1 The weights for the treated group. 
+#' @slot gamma The trasportation matrix. If estimand == "ATE", will be a list with the transportation plan for each treatment group to balance towards the overall treatment. 
+#' @slot estimand A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE". 
+#' @slot method A character denoting the method used to estimate the weights. 
+#' @slot args The other arguments used to construct the weights. 
+#'
+#' @export
 setClass("causalWeights", slots = c(w0 = "numeric", w1 = "numeric", gamma = "matrix",estimand = "character",
                                     method = "character", args = "list"))
 setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numeric"))
 
+#' Estimate causal weights
+#'
+#' @param data Either a matrix, a data.frame, or a DataSim class. Arguments "balance.covariates" and "treatment.indicator" must be provided in the `...` arguments if data is of class data.frame or matrix.
+#' @param constraint The constraints for the weights. See details.
+#' @param estimand The estimand of interest. One of "ATT","ATC", or "ATE".
+#' @param method The method to estimate the causal weights. Must be one of the methods returned by [supported.methods()][supported.methods()].
+#' @param formula The formula for creating the design matrix used in various methods. See details.
+#' @param transport.matrix Should the method calculate the transportation matrix if not done as a part of the method (TRUE/FALSE)? Default is FALSE.
+#' @param grid.search Should hyperparameters be selected by a grid search? Only available for "SBW" and "Wasserstein" methods.
+#' @param ... Many additional arguments are possible depending on the chosen method. See details for more information. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
+#'
+#' @return An object of class [causalWeights][causalWeights]
+#' @export
+#' 
+#' @details 
+#' #Data
+#' The following classes are recognized by the `data` variable.
+#'  
+#' ## DataSim class
+#' The DataSim class is provided by this package for simulations. You can pass a DataSim object (once data has been simulated) to this function
+#' and it will be recognized and handled appropriately.
+#' 
+#' ## data.frame or matrix
+#' If the `data` argument is of class `data.frame` or `matrix`, then additional arguments are necessary to pass in the dots (`...`).
+#' These *must* include a vector argument `balance.covariates` and an integer or character in the `treatment.indicator` argument. The 
+#' `balance.covariates` argument should be either an integer vector giving the column numbers of the covariates to balance or a character vector
+#' giving the names of the columns to balance. Similarly, the `treatment.indicator` argument should be a integer giving the column number of the 
+#' treatment labels or a character giving the column name.
+#' 
+#' #Constraints
+#' The constraint argument is used by the 
+#'
+#' @examples
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = supported.methods(),
                         formula = NULL,
@@ -90,6 +133,17 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   return(output)
 }
 
+#' Calculate Nearest Neighbor Matching weights
+#'
+#' @param data 
+#' @param estimand 
+#' @param transport.matrix Should we calculate the transport matrix (TRUE/FALSE)? Default is FALSE.
+#' @param sample_weight The sample weights
+#' @param ... 
+#'
+#' @return
+#'
+#' @keywords internal
 calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
                             transport.matrix = FALSE, sample_weight = NULL,
                             ...) {
@@ -226,6 +280,16 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   return(output)
 }
 
+#' Calculate IPW using Logistic regression
+#'
+#' @param data 
+#' @param constraint 
+#' @param estimand 
+#' @param ... 
+#'
+#' @return 
+#'
+#' @keywords internal
 calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
                             ...) {
   dots <- list(...)
