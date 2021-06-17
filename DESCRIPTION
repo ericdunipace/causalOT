@@ -6,7 +6,7 @@ Date: 2019-12-19
 Author: Eric Dunipace
 Maintainer: Eric Dunipace <edunipace@g.harvard.edu>
 Description: Uses Wasserstein distances to find optimal match weighting estimators for causal inference.
-License: GPL (>=2.0)
+License: GPL (>=3.0)
 Imports: 
     data.table (>= 1.12.8),
     Matrix,

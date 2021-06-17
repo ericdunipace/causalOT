@@ -12,15 +12,45 @@
   
 }
 
+#' Calculate cost matrix for a given estimand
+#'
+#' @param x An object of class `matrix`
+#' @param z A treatment indicator with values in 0 and 1. Should be of class
+#' `integer` or `vector`
+#' @param power The power used to calculate the the cost matrix: \math{\{(x-y)^{power}\}^{(1/{power})}}
+#' @param metric One of the values in [dist.metrics][dist.metrics()].
+#' @param estimand The estimand desired for the weighting estimator. See details
+#' @param ... Arguments passed to the RKHS calculating function including
+#' \itemize{
+#' \item `kernel`, one of "RBF", "polynomial", "linear"
+#' \item `rkhs.args` The arguments used to construct the kernel
+#' \item 
+#' }
+#' `...` can also be used to handle extra arguments passed by mistake so that
+#' an error is not thrown.
+#' 
+#' @details 
+#' If the estimand is "ATT" or "ATC", `cost_fun` will calculate 
+#' the cost matrix where the rows are the control
+#' and the columns are the treated. If "ATE" will calculate to cost matrices
+#' with the first having the rows corresponding to the control individual and the
+#' second having rows correspond to the treated individuals. For both matrices,
+#' the columns will correspond to the full sample.
+#' 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 cost_fun <- function(x, z, power = 2, metric = dist.metrics(), 
-                     rkhs.args = NULL, estimand = "ATE", ...) {
+                     estimand = "ATE", ...) {
   metric <- match.arg(metric)
   
   dist <- switch(metric, 
                  "Lp" = cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
                  "mahalanobis" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
                  "sdLp" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "RKHS" = causalOT::cost_RKHS(X = x, z = z, rkhs.args = rkhs.args, estimand = estimand, ...))
+                 "RKHS" = causalOT::cost_RKHS(X = x, z = z, estimand = estimand, ...))
   
   return(dist)
   

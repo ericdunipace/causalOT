@@ -35,6 +35,15 @@ extract_x.data.frame <- function(data, ...) {
   return(list(x0 = x0, x1 = x1))
 }
 
+#' Function to extract the x data
+#'
+#' @param data An object of class `matrix`, `data.frame`, or class `DataSim`.
+#' @param ... extra arguments such as "balance.functions" and
+#' "treatment.indicator"
+#'
+#' @return the x data as a list "x0" and "x1"
+#'
+#' @keywords internal
 setGeneric("extract_x", function(data, ...) UseMethod("extract_x"))
 setMethod("extract_x", "DataSim", extract_x.DataSim)
 setMethod("extract_x", "data.frame", extract_x.data.frame)

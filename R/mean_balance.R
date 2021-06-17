@@ -1,3 +1,4 @@
+# calculate mean balance
 mean_bal <- function(data, weights = NULL, ...) {
   
   

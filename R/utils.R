@@ -99,6 +99,7 @@ vec_to_row_constraints <- function(rows, cols) {
                        x = rep.int(1,rows * cols),
                        dims = c(rows, rows * cols), repr = "T"))
 }
+
 vec_to_col_constraints <- function(rows, cols) {
   # ones_rows <- Matrix::Matrix(data = 1, nrow = 1, ncol = rows)
   # diag_cols <- Matrix::Diagonal(cols, x = 1)
@@ -113,16 +114,26 @@ vec_to_col_constraints <- function(rows, cols) {
   )
 }
 
+vec_to_col_constraints_csparse <- function(rows, cols) {
+  # ones_rows <- Matrix::Matrix(data = 1, nrow = 1, ncol = rows)
+  # diag_cols <- Matrix::Diagonal(cols, x = 1)
+  # return(Matrix::kronecker(ones_rows, diag_cols))
+  
+  
+  return( Matrix::sparseMatrix(i = rep(1:cols, each = rows),
+                               j = c(sapply(0:(cols - 1), function(i) i * rows + 1:rows)),
+                               x = rep(1,rows * cols),
+                               dims = c(cols, rows * cols), repr = "C")
+          
+  )
+}
+
 zero_mat_sp <- function(rows, cols) {
   return(Matrix::sparseMatrix(i = integer(0),
                               j = integer(0),
                               x = 0,
                               dims = c(rows, cols), repr = "T"))
 }
-
-# marg_constraint_to_transport_matrix_row <- function(constraints, rows, cols) {
-#   
-# }
 
 form_all_squares <- function(form, data.names) {
   if (is.character(form)) {
@@ -281,6 +292,100 @@ entropy <- function(x) {
   return(sum(-x_pos * log(x_pos)))
 }
 
+# log sum exp function
+log_sum_exp <- function(x) {
+  # if(is.vector(x)) {
+  if(all(is.infinite(x))) return(x[1])
+  mx <- max(x)
+  x_temp <- x - mx
+  return(log(sum(exp(x_temp)))+ mx)
+  # } else if (is.matrix(x)) {
+  #   mx <- apply(x, 1, max)
+  #   x_temp <- x - mx
+  #   return(log(rowSums(exp(x_temp)))+ mx)
+  # }
+}
+
+# log sum exp for two vectors
+log_sum_exp2 <- function(x,y) {
+  mx <- pmax(x,y)
+  # if(is.infinite(mx)) return(mx)
+  
+  temp <- cbind(x,y) - mx
+  temp[mx == -Inf,] <- -Inf
+  return(log(rowSums(exp(temp))) + mx)
+}
+
+# make vector sum to 1
+renormalize <- function(x) {
+  if (all(is.na(x))) return(x)
+  
+  if (isTRUE(any(x < 0))) {
+    # warning("Negative weights found! Normalizing to sum to 1 with less accurate function. Make sure negative weights make sense for your problem")
+    return(x/sum(x, na.rm = TRUE))
+  }
+  if (isTRUE(all(x == 0)) ) return(rep(0, length(x)))
+  l_x <- log(x)
+  return(exp(l_x - log_sum_exp(l_x)))
+}
+
+# project weights onto simplex
+simplex_proj <- function(y) { #simplex projection of Condat 2015
+  N <- length(y)
+  v <- v_tilde <- rep(NA_real_, N)
+  v_count <- 1
+  vt_count <- 0
+  v[1] <- y[1]
+  rho <- y[1] - 1
+  
+  for(n in 2:N) {
+    if(y[n] > rho){
+      rho <- rho + (y[n] - rho)/(v_count + 1)
+      if(rho > y[n] - 1) {
+        v[v_count + 1] <- y[n]
+        v_count <- v_count + 1
+      } else {
+        v_tilde[(vt_count+1):(v_count + vt_count)] <- v[1:v_count]
+        vt_count <- vt_count + v_count
+        v[[1]] <- y[n]
+        v[2:N] <- NA_real_
+        rho <- y[n] - 1
+        v_count <- 1
+      }
+    }
+  }
+  if(!all(is.na(v_tilde))) { #ie, output non-empty
+    v_tilde <- v_tilde[!is.na(v_tilde)]
+    for(x in v_tilde) {
+      if(x > rho) {
+        v[[v_count]] <- x
+        v_count <- v_count + 1
+        rho <- rho + (x - rho)/v_count
+      }
+    }
+  }
+  change <- 1
+  v_count <- sum(!is.na(v))
+  while(change == 1) {
+    change <- 0
+    v <- v[!is.na(v)]
+    for(n in 1:length(v)) {
+      x <- v[n]
+      if(x <= rho) {
+        v[[n]] <- NA_real_
+        v_count <- v_count - 1
+        rho <- rho + (rho - x)/v_count
+        change <- 1
+      }
+    }
+  }
+  tau <- rho
+  K <- sum(!is.na(v))
+  x <- pmax(y - tau, 0)
+  return(x)
+}
+
+
 theme_cot <- function(base_size = 11, base_family = "", 
                        base_line_size = base_size/22, 
                        base_rect_size = base_size/22,
@@ -309,11 +414,3 @@ theme_cot <- function(base_size = 11, base_family = "",
   
 }
 
-# theme_base <- function() {
-#   ggplot2::theme_bw() ggplot2::`%+replace%`
-#   ggplot2::theme(text = element_text(size=12),
-#                panel.grid.major = element_blank(),
-#                panel.grid.minor = element_blank(),
-#                strip.background = element_blank()
-#   )
-# }

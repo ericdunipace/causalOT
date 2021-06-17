@@ -145,7 +145,6 @@ prep_data.DataSim <- function(data, ...) {
 #' }
 #'
 #' @return A list with slots "df" and "z". "df" is a data.frame with the covariates and outcome and "z" is the treatment indicator as an integer vector.
-#' @export
 #'
 #' @keywords internal
 setGeneric("prep_data", function(data, ...) UseMethod("prep_data"))

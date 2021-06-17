@@ -1,3 +1,4 @@
+# calculates predictions from gaussian process
 gp_pred <- function(formula = NULL, data, weights=NULL,
                     param, estimand = c("ATE","ATT","ATC","cATE"), ...) {
   
@@ -149,7 +150,7 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   return(tau)
 }
   
-
+# use barycentric mapping
 mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
   n  <- length(z)
   n1 <- sum(z)
@@ -314,7 +315,7 @@ mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
   return(tx_effect)
 }
 
-
+# model without predictors
 IDmodel <- function(formula, data, weights) {
   
   y <- model.response( model.frame(as.formula(formula), data), "numeric")
@@ -335,6 +336,7 @@ predict.IDmodel <- function(object, newdata, ...) {
 setClass("IDmodel", slots = c(fit = "numeric", residuals = "numeric"))
 setMethod("predict", signature = c(object = "IDmodel"), definition = predict.IDmodel)
 
+# calculate treatment effects from the outcome
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand,
                          sample_weight, ...) {
   
@@ -427,7 +429,7 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
   return(tx_effect)
 }
 
-
+# calculate treatment effects using a model only
 outcome_calc_model <- function(data, z, weights, formula, model.fun, 
                                matched, estimand, 
                                ...) {
@@ -453,6 +455,7 @@ outcome_calc_model <- function(data, z, weights, formula, model.fun,
   return(tx_effect)
 }
 
+# set-up formula for treatment effects
 calc_form <- function(formula, doubly.robust, target, split.model) {
   if (!is.null(formula)) {
     if ( isTRUE(split.model) ) {
@@ -489,6 +492,7 @@ calc_form <- function(formula, doubly.robust, target, split.model) {
   return(formula)
 }
 
+# setup model for treatment effects
 calc_model <- function(model.fun) {
   if (!is.null(model.fun)) {
     if (is.character(model.fun)) {
@@ -501,6 +505,7 @@ calc_model <- function(model.fun) {
   return(model.fun)
 }
 
+# setup hajek weights
 calc_hajek <- function(weights, target, hajek) {
   if (hajek) {
     weights$w0 <- renormalize(weights$w0)
@@ -518,12 +523,82 @@ calc_hajek <- function(weights, target, hajek) {
   return(weights)
 }
 
+
+#' causalEffect class
+#'
+#' @slot estimate The estimated treatment effect.
+#' @slot data The original data as a `data.frame`.
+#' @slot model The function used as the outcome model.
+#' @slot formula The formula for the outcome model.
+#' @slot weights The weights as an object of class [causalWeights][causalWeights]
+#' @slot estimand A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE". 
+#' @slot options A list with the arguments from the [estimate_effect][estimate_effect()] function. See details.
+#' @slot call The call from the [estimate_effect][estimate_effect()] function.
+#' 
+#' @details The `options` slot is a list with slots
+#' \itemize{
+#' \item `hajek`: Were weights normalized to sum to 1 (TRUE/FALSE)
+#' \item `doubly.robust`: Was an augmented estimator used? (TRUE/FALSE)
+#' \item `matched`: Wass barycentric projection estimator used? (TRUE/FALSE)
+#' \item `split.model` Was the outcome model calculated separately in each
+#' treatment group? (TRUE/FALSE)
+#' \item `balance.covariates`: The covariates selected for balance or in the outcome model in slot `data`
+#' \item `treatment.indicator`: The column that is the treatment indicator in slot `data`
+#' \item `outcome`: The columns that is the outcome in  slot `data`
+#' \item `addl.args`: Any additional arguments passed in the dots (`...`) 
+#' of [estimate_effect][estimate_effect()].
+#' }
+#'
+#' @export
+setClass("causalEffect", slots = c(estimate = "numeric", 
+                                   data = "data.frame",
+                                   model = "function", 
+                                   formula = "formula",
+                                   weights = "causalWeights",
+                                   estimand = "character",
+                                   options = "list",
+                                   call = "call"))
+
+
+#' Estimate treatment effects
+#'
+#' @param data A `data.frame`, a `list`, or a [DataSim][DataSim] object
+#' @param formula the outcome model formula
+#' @param weights An object of class [causalWeights][causalWeights]
+#' @param hajek Should the weights be normalized to sum to 1 (TRUE/FALSE)
+#' @param doubly.robust Should an augmented estimator be used? (TRUE/FALSE)
+#' @param matched Should a matched or barycentric project 
+#' estimator be used? (TRUE/FALSE)
+#' @param estimand Estimand to use. Should agree with estimand in the weights or can
+#' be left blank. One of "ATT", "ATC", or "ATE".
+#' @param model The outcome model as a character referring to a function or function
+#' @param split.model Should the outcome model be calculated separately in each
+#' treatment group? (TRUE/FALSE)
+#' @param sample_weight The sample weights. Either NULL or an object of class
+#' [sampleWeights][sampleWeights]
+#' @param ... 
+#'
+#' @return an object of class [causalEffect][causalEffect]
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # set-up data
+#' data <- Hainmueller$new()
+#' data$gen_data()
+#' 
+#' # calculate quantities
+#' weight <- calc_weight(data, method = "Logistic")
+#' tx_eff <- estimate_effect(data = data, weights = weight)
+#' 
+#' # get estimate
+#' print(tx_eff$estimate)
+#' }
 estimate_effect <- function(data, formula = NULL, weights, 
                                   hajek = TRUE, 
                                   doubly.robust = TRUE,
                                   matched = FALSE,
                                   estimand = c("ATT", "ATC", "ATE", "feasible"),
-                                  target = c("ATT", "ATC", "ATE", "feasible"), 
                                   model = NULL, 
                                   split.model = TRUE, 
                                   sample_weight = NULL,
@@ -620,6 +695,40 @@ estimate_effect <- function(data, formula = NULL, weights,
   return(output)
 }
 
+#' Confidence Intervals for Causal Effects
+#'
+#' @param object An object of class [causalEffect][causalEffect]
+#' @param parm Unused. Included to match forms of other confint functions
+#' @param level Confidence level. Should be between 0 and 1. Default is 0.95.
+#' @param method How to calculate the confidence interval. Choices are "bootstrap" for
+#' a bootstrap confidence interval, "asymptotic" for "asymptotic" confidence intervals, and
+#' "jacknife" for jacknife confidence intervals. Default is "asymptotic" since it is faster.
+#' @param ... Additional arguments if method is "bootstrap". Can include 
+#' \itemize{
+#' \item `n.boot`. How many bootstrap samples should be used. Default is 1000.
+#' \item `boot.method`. One of "n-out-of-n" or "m-out-of-n". Optimal transport methods default to 
+#' "m-out-of-n".
+#' \item `verbose`. Should a progress bar be printed? (TRUE/FALSE) Defaults to FALSE.
+#' }
+#'
+#' @return A list with slots "CI" giving the confidence bounds and "SD" giving estimates of the standard
+#' error of the causal effects. If method is "bootstrap" and `boot.method` is "m-out-of-n", then there will
+#' also be a slot named "unadjusted" giving the unadjusted confidence interval and standard error estimate
+#' for reference.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # set-up data
+#' data <- Hainmueller$new()
+#' data$gen_data()
+#' 
+#' # calculate quantities
+#' weight <- calc_weight(data, method = "Logistic")
+#' tx_eff <- estimate_effect(data = data, weights = weight)
+#' 
+#' confint(tx_eff)
+#' }
 confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstrap", "asymptotic", "jackknife"), ...) {
   method <- match.arg(method)
   if (method == "bootstrap") {

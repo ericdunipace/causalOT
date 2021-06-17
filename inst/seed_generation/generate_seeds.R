@@ -117,7 +117,7 @@ seed_array <- array(seeds, dim = c(nsims),
 )
 dump("seed_array", file = "inst/seed_generation/lalonde_seeds_est.Rdmped")
 
-#### Hainmuell ####
+#### Hainmueller ####
 rm(list=ls())
 library(causalOT)
 
@@ -137,5 +137,20 @@ seeds <- seed.gen(design = add.margins, overlap = overlap, niter = nsims, seed =
 # )
 seed_array <- seeds
 dump("seed_array", file="inst/seed_generation/hainmueller_eval.Rdmped")
+
+
+#### convergence ####
+rm(list=ls())
+library(causalOT)
+
+overlap <- "none"
+
+nsims <- 1000
+
+seeds <- seed.gen(design = overlap, overlap = overlap, niter = nsims, seed = 555069822) #seed from random.org
+
+
+seed_array <- seeds
+dump("seed_array", file="inst/seed_generation/convergence_seeds.Rdmped")
 
 # q("no")

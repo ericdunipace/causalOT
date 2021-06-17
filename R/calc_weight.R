@@ -10,6 +10,14 @@
 #' @export
 setClass("causalWeights", slots = c(w0 = "numeric", w1 = "numeric", gamma = "matrix",estimand = "character",
                                     method = "character", args = "list"))
+
+#' sampleWeights class
+#'
+#' @slot a The sample weights for the fist group
+#' @slot b The sample weights for the second group
+#' @slot total The sample weights for the overall sample
+#'
+#' @export
 setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numeric"))
 
 #' Estimate causal weights
@@ -334,6 +342,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
   return(output)
 }
 
+# calculate balancing weights
 calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
                             method = c("SBW",ot.methods()),
                             solver = c("mosek","gurobi","cplex"),
@@ -390,6 +399,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   return(output)
 }
 
+#calculate weights from the quadratic program
 calc_weight_qp <- function(data, constraint, estimand,
                            method, sample_weight,
                            solver, ...) {
@@ -415,6 +425,7 @@ calc_weight_qp <- function(data, constraint, estimand,
   return(res)
 }
 
+# calculate penalized divergence based weights
 calc_weight_div <- function(data, constraint, estimand,
                             method, sample_weight = NULL,
                             solver, penalty = c("entropy", "L2"), 
@@ -588,6 +599,7 @@ calc_weight_div <- function(data, constraint, estimand,
   
 }
 
+# calculate RKHS weights
 calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), method = c("RKHS", "RKHS.dose"),
                              kernel = c("RBF", "polynomial"),
                              solver = c("gurobi","cplex","mosek"), opt.hyperparam = TRUE,
@@ -696,6 +708,7 @@ calc_weight_RKHS <- function(data, estimand = c("ATE","ATC", "ATT", "cATE"), met
   return(output)
 }
 
+# calculate CBPS weights
 calc_weight_CBPS <- function(data, formula,  estimand = c("ATE","ATT", "ATC"),
                               niter = 1000, sample_weight = NULL, ...) {
   
@@ -736,6 +749,7 @@ calc_weight_CBPS <- function(data, formula,  estimand = c("ATE","ATT", "ATC"),
   
 }
 
+# return list if error thrown from solver
 calc_weight_error <- function(n0 = NULL, n1 = NULL) {
   
   if (is.null(n0) || is.null(n1)) {
@@ -746,6 +760,7 @@ calc_weight_error <- function(n0 = NULL, n1 = NULL) {
               w1 = rep(NA_real_, n1)))
 }
 
+# convert solution from quadratic solver
 convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   stopifnot(is.list(res))
@@ -815,6 +830,7 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
   return(output)
 }
 
+# combine ATT and ATC estimates to ATE
 convert_ATE <- function(weight1, weight2, transport.matrix = FALSE, ...) {
   list_weight <- list(weight1, weight2)
   check.vals <- sapply(list_weight, function(w) w$estimand)
@@ -854,6 +870,7 @@ convert_ATE <- function(weight1, weight2, transport.matrix = FALSE, ...) {
   return(output)
 }
 
+# calculate transport matrix
 calc_gamma <- function(weights, ...) {
   if (!is.null(weights$gamma)) return(weights$gamma)
   dots <- list(...)
@@ -906,6 +923,7 @@ calc_gamma <- function(weights, ...) {
   return(gamma)
 }
 
+
 ate_sample_weight <- function(sw, ...) {
   if (inherits(sw, "sampleWeights")) {
     b <- sw$total
@@ -941,6 +959,7 @@ switch_sample_weight <- function(sw,z) {
   }
 }
 
+# Get sample weights 
 get_sample_weight <- function(sw,z) {
   if (inherits(sw, "sampleWeights")) {
     return(sw)
@@ -977,10 +996,12 @@ get_sample_weight <- function(sw,z) {
   return(outmass)
 }
 
+# get treatment indicators for DataSim
 get_z.DataSim <- function(data,...) {
   return(data$get_z())
 }
 
+# get treatment indicators for data.frame
 get_z.data.frame <- function(data,...) {
   
   dots <- list(...)
@@ -1000,6 +1021,7 @@ get_z.data.frame <- function(data,...) {
   return(z)
 }
 
+# get treatment indicators for matrix
 get_z.matrix <- function(data,...) {
   
   dots <- list(...)
@@ -1019,26 +1041,31 @@ get_z.matrix <- function(data,...) {
   return(z)
 }
 
+# get number of observations for DataSim
 get_n.DataSim <- function(data,...) {
   return(data$get_n())
 }
 
+# get number of observations for data.frame
 get_n.data.frame <- function(data,...) {
   df <- prep_data(data,...)
   ns <- c(n0 = sum(df$z == 0), n1 = sum(df$z == 1))
   return(ns)
 }
 
+# get number of observations for matrix
 get_n.matrix <- function(data,...) {
   df <- prep_data(data,...)
   ns <- c(n0 = sum(df$z == 0), n1 = sum(df$z == 1))
   return(ns)
 }
 
+# get covariate dimension for DataSim
 get_p.DataSim <- function(data,...) {
   return(data$get_p())
 }
 
+# get covariate dimension for data.frame
 get_p.data.frame <- function(data,...) {
   df <- prep_data(data,...)
   if(!is.null(df$df$y)){
@@ -1048,6 +1075,7 @@ get_p.data.frame <- function(data,...) {
   }
 }
 
+# get covariate dimension for matrix
 get_p.matrix <- function(data,...) {
   df <- prep_data(data,...)
   if(!is.null(df$df$y)){

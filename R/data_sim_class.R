@@ -1,37 +1,39 @@
-# parent class
-{
+#### parent class ####
+
+#' R6 Data Generating Parent Class
+#' 
+#' @rdname DataSim
+#' 
+#' @return An [R6][R6::R6Class] object
+#' 
+#' @details Can be used to make your own data simulation class. 
+#' Should have the same slots listed in this class at a minimum, 
+#' but you can add your own, of course. An easy way to do this is
+#' to make your class inherit from this one. See the example.
+#' 
+#' @export
+#' 
+#' @example 
+#' MyClass <- R6::R6Class("MyClass", 
+#' inherit = DataSim,
+#' public = list(),
+#' private = list())
 DataSim <- R6::R6Class("DataSim",
         public = list(
-                      # clear_index = function() {
-                      #   private$index <- 1:(private$n0 + private$n1)
-                      #   private$tx_index <- which(private$z==1)
-                      #   private$ctrl_index <- which(private$z==0)
-                      # },
-                      # get_x = function() { return( private$x[private$index])},
-                      # get_y = function() { return( private$y[private$index])},
-                      # get_z = function() { return( private$z[private$index])},
+                      #' @description
+                      #' Gets the covariate data
                       get_x = function() { return( private$x)},
+                      #' @description
+                      #' Gets the outcome vector
                       get_y = function() { return( private$y)},
+                      #' @description
+                      #' Gets the treatment indicator
                       get_z = function() { return( private$z)},
+                      #' @description
+                      #' Gets the number of observations
                       get_n = function() {return(c("n0" = private$n0, "n1" = private$n1))},
-                      # get_x1 = function() {
-                      #   if(!is.character(private$x)) {
-                      #     if(is.character(private$x1)) {
-                      #       private$x1 <- private$x[private$z == 1,,drop=FALSE]
-                      #     }
-                      #     return(private$x1[private$tx_index])
-                      #   } else {
-                      #     stop("x not initialized yet")
-                      #   }
-                      # },
-                      # get_x0 = function(){
-                      #   if(!is.character(private$x)) {
-                      #     if(is.character(private$x0)) private$x0 <- private$x[private$z == 0,,drop=FALSE]
-                      #     return(private$x0[private$tx_index])
-                      #   } else {
-                      #     stop("x not initialized yet")
-                      #   }
-                      # },
+                      #' @description
+                      #' Gets the covariate data for the treated individuals
                       get_x1 = function() {
                         if(!is.character(private$x)) {
                           if(is.character(private$x1)) {
@@ -42,6 +44,8 @@ DataSim <- R6::R6Class("DataSim",
                           stop("x not initialized yet")
                         }
                       },
+                      #' @description
+                      #' Gets the covaraiate data for the control individuals
                       get_x0 = function(){
                         if(!is.character(private$x)) {
                           if(is.character(private$x0)) private$x0 <- private$x[private$z == 0,,drop=FALSE]
@@ -50,16 +54,24 @@ DataSim <- R6::R6Class("DataSim",
                           stop("x not initialized yet")
                         }
                       },
+                      #' @description
+                      #' Gets the dimensionality covariate data
                       get_p = function() {
                         return(private$p)
                       },
+                      #' @description
+                      #' Gets the individual treatment effects
                       get_tau = function() {
                         if(is.character(private$mu1) | is.character(private$mu0)) {
                           stop("Need to generate outcome data first")
                         }
                         return(private$mu1 - private$mu0)
                       },
+                      #' @description
+                      #' Generates the  data. Default is an empty function
                       gen_data = function(){NULL},
+                      #' @description
+                      #' Gets the optimal weights to get the correct expectation
                       opt_weight = function(estimand = "ATE", augment = FALSE, solver = "mosek") {
                           if(estimand == "cATE") estimand <- "ATE"
                           estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
@@ -176,6 +188,9 @@ DataSim <- R6::R6Class("DataSim",
                           return(weights)
                           
                         },
+                      #' @description
+                      #' Gets the distance of the weights from the optimal
+                      #' weights
                       opt_weight_dist = function(weight, estimand = "ATE", augment = FALSE, solver = "mosek") {
                         if(estimand == "cATE" | estimand == "feasible") estimand <- "ATE"
                         estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
@@ -192,14 +207,6 @@ DataSim <- R6::R6Class("DataSim",
                         }
                         return(dist)
                       }
-                      # ,
-                      # set_index = function(idx) {
-                      #   private$index = idx
-                      #   fulltx <- which(z==1)
-                      #   fullcn <- which(z==0)
-                      #   private$tx_index <- fulltx[fulltx %in% index]
-                      #   private$ctrl_index <- fullcn[fullcn %in% index]
-                      # }
                         
                       ),
          private = list(n = "numeric",
@@ -228,13 +235,22 @@ DataSim <- R6::R6Class("DataSim",
                        }#,
                        )
 )
-}
-# Hainmueller: 0 tx effect and mix of covariates 
-# (normal, binary, etc.)
-{
+
+
+#### Hainmueller: 0 tx effect and mix of covariates (normal, binary, etc.) ####
+
+#' Hainmueller data example
+#' 
+#' @details Generates the data as described in Hainmueller (2012).
+#' 
+#' @return An [R6][R6::R6Class] object of class [DataSim][DataSim]
+#' @export
+#' @rdname DataSim-Hainmueller
 Hainmueller <- R6::R6Class("Hainmueller", 
                            inherit = DataSim,
                            public = list(
+                             #' @description
+                             #' Generates the data
                              gen_data = function() {
                                self$gen_x()
                                self$gen_z()
@@ -242,6 +258,8 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                # private$\check_data()
                                invisible(self)
                              },
+                             #' @description
+                             #' Generates the covaraiate data
                              gen_x = function() {
                                stopifnot(length(private$n) > 0 )
                                x13 <- matrix(private$param$param_x$x_13$mean, nrow = private$n,
@@ -258,6 +276,8 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                private$check_data()
                                invisible(self)
                              },
+                             #' @description
+                             #' Generates the outcome data
                              gen_y = function() {
                                if(all(dim(private$x) == 0)) gen_x()
                                mean_y <- private$mu0 <- private$mu1 <- if(private$design =="A" | private$design == 1) {
@@ -271,6 +291,8 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                # private$check_data()
                                invisible(self)
                              },
+                             #' @description
+                             #' Generates the treatment indicator
                              gen_z = function() {
                                if(all(dim(private$x) == 0)) gen_x()
                                mean_z <- private$x %*% private$param$beta_z
@@ -290,6 +312,46 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                private$check_data()
                                invisible(self)
                              },
+                              #' @description
+                              #' Generates the the Hainmueller `R6` class
+                              #' @param n The number of observations
+                              #' @param p The dimensions of the covariates. 
+                              #' Fixed to 6.
+                              #' @param param The data generating parameters
+                              #' fed as a list.
+                              #' @param design One of "A" or "B". See details.
+                              #' @param overlap One of "high", "low", or "medium".
+                              #' See details.
+                              #' @param ... Extra arguments. Currently unused.
+                              #' 
+                              #' @details
+                              #' ## Design
+                              #' Design "A"
+                              #' is the setting where the outcome is generated 
+                              #' from a linear model, 
+                              #' \math{Y(0) = Y(1) = X_1 + X_2 + X_3 - X_4 + X_5 + X_6 + \eta} 
+                              #' and design "B" is where the outcome is 
+                              #' generated from the non-linear model 
+                              #' \math{Y(0) = Y(1) = (X_1 + X_2 +X_5 )^2 + \eta}.
+                              #' 
+                              #' ## Overlap
+                              #' The treatment indicator is generated from
+                              #' \math{Z = 1(X_1 + 2 X_2 - 2 X_3 - X_4 - 0.5 X_5 + X_6 + \nu > 0)}, where \math{\nu} 
+                              #' depends on the overlap selected. If overlap is "high",
+                              #' then \math{\nu \sim N(0, 100).} If overlap is 
+                              #' "low", then \math{\nu \sim N(0, 30).} Finally,
+                              #' if overlap is "medium", then \math{\nu} is drawn
+                              #' from a \math{\chi^2} with 5 degrees of freedom
+                              #' that is scaled and centered to have mean 0.5 and 
+                              #' variance 67.6.
+                              #'
+                              #' @return An object of class [DataSim][DataSim].
+                              #' @export
+                              #'
+                              #' @examples
+                              #' data <- Hainmueller$new(n = 100, p = 6, design = "A", overlap = "low")
+                              #' data$gen_data()
+                              #' print(data$get_x()[1:2,])
                              initialize = function(n = 100, p = 6, param = list(), design = "A", overlap = "low", ...) {
                                
                                if(p != 6) warning("'p' set to 6 automatically")
@@ -412,9 +474,9 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                           }
                            )
 )
-}
-# Kallus2019: continuous tx
-{
+
+#### Kallus2019: continuous tx ####
+
 Kallus2019 <- R6::R6Class("Kallus2019", 
                            inherit = DataSim,
                            public = list(
@@ -544,9 +606,9 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                           }
                            )
 )
-}
-# Kallus2018: binary tx
-{
+
+
+#### Kallus2018: binary tx ####
   Kallus2018 <- R6::R6Class("Kallus2018", 
                             inherit = DataSim,
                             public = list(
@@ -643,7 +705,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                            pi = "numeric"
                             )
   )
-}
+
 # Sonabed2020: indicator function mean model. added
 # skew normal covariates to reduce overlap without specifying
 # propensity score function
@@ -789,56 +851,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
 
 
 #### Kang and Schafer data ####
-{
-  
-  # ks_data <- function(tau, n, sig2, rho, y_scen = c("a", "b"), z_scen = c("a", "b")) {
-  #   
-  #   # covariate correlations
-  #   x1 <- stats::rnorm(n, 0, 1)
-  #   x2 <- stats::rnorm(n, 0, 1)
-  #   x3 <- stats::rnorm(n, 0, 1)
-  #   x4 <- stats::rnorm(n, 0, 1)
-  #   
-  #   # initial predictors
-  #   u1 <- as.numeric(scale(exp(x1/2)))
-  #   u2 <- as.numeric(scale(x2/(1 + exp(x1)) + 10))
-  #   u3 <- as.numeric(scale((x1*x3/25 + 0.6)^3))
-  #   u4 <- as.numeric(scale((x2 + x4 + 20)^2))
-  #   
-  #   # treatment probabiities
-  #   if (z_scen == "b")
-  #     e_X <- 1/(1 + exp( -(-u1 + 0.5*u2 - 0.25*u3 - 0.1*u4) ) )
-  #   else
-  #     e_X <- 1/(1 + exp( -(-x1 + 0.5*x2 - 0.25*x3 - 0.1*x4) ) )
-  #   
-  #   r_exposure <- stats::runif(n)
-  #   z <- ifelse(r_exposure < e_X, 1, 0)
-  #   
-  #   # error variance
-  #   R <- matrix(rho, nrow = 2, ncol = 2)
-  #   diag(R) <- 1
-  #   V <- diag(sqrt(sig2), nrow = 2, ncol = 2)
-  #   Sig <- V %*% R %*% V
-  #   
-  #   if (y_scen == "b")
-  #     mu <- 210 + 27.4*u1 + 13.7*u2 + 13.7*u3 + 13.7*u4
-  #   else
-  #     mu <- 210 + 27.4*x1 + 13.7*x2 + 13.7*x3 + 13.7*x4
-  #   
-  #   eval <- eigen(Sig, symmetric = TRUE)
-  #   y_init <- matrix(stats::rnorm(n*2, 0, 1), nrow = n, ncol = 2) # iid potential outcomes
-  #   y_tmp <- t(eval$vectors %*% diag(sqrt(eval$values), nrow = 2) %*% t(y_init)) # SVD
-  #   y_pot <- y_tmp + cbind(mu, mu + tau) # include causal effect
-  #   
-  #   # observed outcome
-  #   y <- z*y_pot[,2] + (1 - z)*y_pot[,1]
-  #   
-  #   # create simulation dataset
-  #   sim <- as.data.frame(cbind(y, z, x1, x2, x3, x4, u1, u2, u3, u4))
-  #   
-  #   return(sim)
-  #   
-  # }
+
   KangSchafer <- R6::R6Class("KangSchafer", 
                              inherit = DataSim,
                              public = list(
@@ -959,23 +972,35 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                             
                              )
   )
-}
+
 
 #### LaLonde data ####
-{
-  
+  #' LaLonde data example
+  #' 
+  #' @details Returns the LaLonde data as used by Dehjia and Wahba. Note the data
+  #' is fixed and `gen_data()` will just initialize the fixed data.
+  #' 
+  #' @return An [R6][R6::R6Class] object of class [DataSim][DataSim]
+  #' @export
+  #' @rdname DataSim-LaLonde
   LaLonde <- R6::R6Class("LaLonde", 
                              inherit = DataSim,
                              public = list(
+                               #' @description
+                               #' Sets up the data
                                gen_data = function() {
                                  self$gen_x()
                                  self$gen_z()
                                  self$gen_y()
                                  invisible(self)
                                },
+                               #' @description
+                               #' Returns the experimental treatment effect, $1794
                                get_tau = function() {
                                  return(1794)
                                },
+                               #' @description
+                               #' Sets up the covariate data
                                gen_x = function() {
                                  form <- as.formula("~. + I(as.numeric(re74 == 0)) + I(as.numeric(re75 == 0)) + + 0")
                                  if (private$design == "Full") {
@@ -996,6 +1021,8 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  private$check_data()
                                  invisible(self)
                                },
+                               #' @description
+                               #' Sets up the outcome data
                                gen_y = function() {
                                  if (private$design == "Full") {
                                    cn <- colnames(lalonde_full)
@@ -1015,6 +1042,8 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  private$mu1[private$z == 0] <- private$mu0[private$z == 0] + 1794
                                  invisible(self)
                                },
+                               #' @description
+                               #' Sets up the treatment indicator
                                gen_z = function() {
                                  if (private$design == "Full") {
                                    cn <- colnames(lalonde_full)
@@ -1029,6 +1058,35 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  private$check_data()
                                  invisible(self)
                                },
+                               #' @description
+                               #' Initializes the LaLonde object.
+                               #' 
+                               #' @param n Not used. 
+                               #' Maintained for symmetry with other 
+                               #' DataSim objects.
+                               #' @param p Not used.
+                               #' Maintained for symmetry with other 
+                               #' DataSim objects.
+                               #' @param param Not used.
+                               #' Maintained for symmetry with other 
+                               #' DataSim objects.
+                               #' @param design One of "NSW" or "Full". 
+                               #' "NSW" uses the original experimental data
+                               #' from the job training program while option "Full"
+                               #' uses the treated individuals from
+                               #' LaLonde's study and compares them to 
+                               #' individuals from the 
+                               #' Current Population Survey as controls.
+                               #' @param ... Not used.
+                               #' 
+                               #' @examples 
+                               #' nsw <- LaLonde$new(design = "NSW")
+                               #' nsw$data_gen()
+                               #' nsw$get_n()
+                               #' 
+                               #' obs.study <-  LaLonde$new(design = "Full")
+                               #' obs.study$data_gen()
+                               #' obs.study$get_n()
                                initialize = function(n = NULL, p = NULL, param = list(), design = "NSW", ...) {
                                  
                                  if (missing(design ) | is.null(design) ) {
@@ -1045,10 +1103,10 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                              private = list(design = "character"
                              )
   )
-}
+
 
 #### Fan et al ####
-{
+
   FanEtAl <- R6::R6Class("FanEtAl", 
                              inherit = DataSim,
                              public = list(
@@ -1199,10 +1257,10 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                             }
                              )
   )
-}
+
 
 #### Li and Li ####
-{
+
   LiLi <- R6::R6Class("LiLi", 
          inherit = DataSim,
          public = list(
@@ -1433,9 +1491,9 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                          treatment_effect = "character"
          )
   )
-}
 
-{
+
+
   HulingMak2020_univariate <- R6::R6Class("HulingMak2020_univariate", 
                              inherit = DataSim,
                              public = list(
@@ -1514,4 +1572,4 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                             tx_density = "numeric",
                                             cn_density = "numeric")
   )
-}
+

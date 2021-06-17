@@ -164,16 +164,34 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// entry
-void entry(SEXP& xx, Rcpp::NumericMatrix& y, int colX_);
-RcppExport SEXP _causalOT_entry(SEXP xxSEXP, SEXP ySEXP, SEXP colX_SEXP) {
+// cotDualL2_2_obj_
+double cotDualL2_2_obj_(const SEXP& vars_, const SEXP& QQ, const SEXP& cost_, double pf_, double lambda);
+RcppExport SEXP _causalOT_cotDualL2_2_obj_(SEXP vars_SEXP, SEXP QQSEXP, SEXP cost_SEXP, SEXP pf_SEXP, SEXP lambdaSEXP) {
 BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP& >::type xx(xxSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix& >::type y(ySEXP);
-    Rcpp::traits::input_parameter< int >::type colX_(colX_SEXP);
-    entry(xx, y, colX_);
-    return R_NilValue;
+    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
+    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
+    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
+    Rcpp::traits::input_parameter< double >::type pf_(pf_SEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    rcpp_result_gen = Rcpp::wrap(cotDualL2_2_obj_(vars_, QQ, cost_, pf_, lambda));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cotDualL2_2_grad_
+Rcpp::NumericVector cotDualL2_2_grad_(const SEXP& vars_, const SEXP& QQ, const SEXP& cost_, const SEXP& pf_, double lambda);
+RcppExport SEXP _causalOT_cotDualL2_2_grad_(SEXP vars_SEXP, SEXP QQSEXP, SEXP cost_SEXP, SEXP pf_SEXP, SEXP lambdaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
+    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
+    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
+    Rcpp::traits::input_parameter< const SEXP& >::type pf_(pf_SEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    rcpp_result_gen = Rcpp::wrap(cotDualL2_2_grad_(vars_, QQ, cost_, pf_, lambda));
+    return rcpp_result_gen;
 END_RCPP
 }
 
@@ -192,7 +210,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_similarity_calc_", (DL_FUNC) &_causalOT_similarity_calc_, 4},
     {"_causalOT_marginal_lik_gp_", (DL_FUNC) &_causalOT_marginal_lik_gp_, 2},
     {"_causalOT_kernel_calc_ot_", (DL_FUNC) &_causalOT_kernel_calc_ot_, 8},
-    {"_causalOT_entry", (DL_FUNC) &_causalOT_entry, 3},
+    {"_causalOT_cotDualL2_2_obj_", (DL_FUNC) &_causalOT_cotDualL2_2_obj_, 5},
+    {"_causalOT_cotDualL2_2_grad_", (DL_FUNC) &_causalOT_cotDualL2_2_grad_, 5},
     {"_rcpp_module_boot_stan_fit4barycenter_projection_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4barycenter_projection_mod, 0},
     {"_rcpp_module_boot_stan_fit4gp_hyper_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4gp_hyper_mod, 0},
     {"_rcpp_module_boot_stan_fit4gp_hyper_dose_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4gp_hyper_dose_mod, 0},

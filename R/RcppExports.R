@@ -41,7 +41,11 @@ kernel_calc_ot_ <- function(X_, z, p, theta_, gamma_, kernel_, calc_covariance, 
     .Call(`_causalOT_kernel_calc_ot_`, X_, z, p, theta_, gamma_, kernel_, calc_covariance, estimand)
 }
 
-entry <- function(xx, y, colX_) {
-    invisible(.Call(`_causalOT_entry`, xx, y, colX_))
+cotDualL2_2_obj_ <- function(vars_, QQ, cost_, pf_, lambda) {
+    .Call(`_causalOT_cotDualL2_2_obj_`, vars_, QQ, cost_, pf_, lambda)
+}
+
+cotDualL2_2_grad_ <- function(vars_, QQ, cost_, pf_, lambda) {
+    .Call(`_causalOT_cotDualL2_2_grad_`, vars_, QQ, cost_, pf_, lambda)
 }
 

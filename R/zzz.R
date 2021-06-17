@@ -1,5 +1,13 @@
-ot_fun_path <- torch <- NULL
+ot_fun_path <- lp_python_path <- NULL
 
+
+#' Python path
+#'
+#' @param libname default args. unused.
+#' @param pkgname default args. unused.
+#'
+#' @details sets variables with paths to python functions after installation.
+#' @keywords internal
 .onLoad <- function(libname, pkgname) {
   # np <<- reticulate::import("numpy", delay_load = TRUE)
   # scipy <<- reticulate::import("scipy", delay_load = TRUE)

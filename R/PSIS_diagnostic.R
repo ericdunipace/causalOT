@@ -66,6 +66,34 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 }
 
 
+#' Pareto-Smoothed Importance Sampling
+#'
+#' @param x a vector of weights, an object of class [causalWeights][causalWeights], or a list with slots
+#' "w0" and "w1".
+#' @param r_eff A vector of relative effective sample size with one estimate per observation. If providing
+#' an object of class [causalWeights][causalWeights], should be a list of vectors with one vector for each
+#' sample. See [psis()][loo::psis] for more details.
+#' @param ... Arguments passed to the [psis()][loo::psis] function.
+#' 
+#' @details Acts as a wrapper to the [psis()][loo::psis] function from the [loo][pkg::loo] package. It
+#' is built to handle the data types found in this package. This method is preferred to the [ESS()][ESS]
+#' function since the latter is prone to error but will not give good any indication that the estimates
+#' are problematic.
+#'
+#' @return An object of class "psis". See [psis()][loo::psis]. Will give the log of the 
+#' smoothed weights in slot `log_weights`, and in the slot `diagnostics`, it will give 
+#' the `pareto_k` parameter (see the [pareto-k-diagnostic][loo::pareto-k-diagnostic] page) and
+#' the `n_eff` estimates.
+#' 
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' x <- runif(100)
+#' w <- x/sum(x)
+#' 
+#' res <- PSIS(x = w, r_eff = x)
+#' }
 setGeneric("PSIS", function(x, r_eff = NULL, ...) UseMethod("PSIS"))
 setMethod("PSIS",  signature(x = "numeric"), PSIS.default)
 setMethod("PSIS",  signature(x = "causalWeights"), PSIS.causalWeights)

@@ -253,7 +253,8 @@ coef.ot_imputer <- function(object, tx.name, estimand, ...) {
 #' @param diameter A rough indication of the maximum distance between points, which is used to tune the espilon-scaling descent and provide a default heuristic for clustering multiscale schemes. If None, a conservative estimate will be computed on-the-fly.
 #' @param scaling specifies the ratio between successive values of sigma in the epsilon-scaling descent. This parameter allows you to specify the trade-off between speed (scaling < .4) and accuracy (scaling > .9).
 #' @param truncate If backend is "multiscale", specifies the effective support of a Gaussian/Laplacian kernel as a multiple of its standard deviation
-#' @param cost specifies the cost function that should be used instead of
+#' @param metric Set the metric. One of "Lp","sdLp", or "mahalanobis".
+#' @param cost specifies the cost function that should be used instead of the default
 #' @param kernel 
 #' @param cluster_scale If backend is "multiscale", specifies the coarse scale at which cluster centroids will be computed. If None, a conservative estimate will be computed from diameter and the ambient space’s dimension, making sure that memory overflows won’t take place.
 #' @param debias specifies if we should compute the unbiased Sinkhorn divergence instead of the classic, entropy-regularized “SoftAssign” loss.
@@ -261,12 +262,33 @@ coef.ot_imputer <- function(object, tx.name, estimand, ...) {
 #' @param verbose if backend is "multiscale", specifies whether information on the clustering and epsilon-scaling descent should be displayed in the standard output.
 #' @param backend one of "auto", "tensorized", "online", "multiscale"
 #'
-#'@description This function serves as a wrapper to Python function SamplesLoss in the GeomLoss package http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss 
+#' @description This function serves as a wrapper to Python function SamplesLoss in the GeomLoss package http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss 
 #'
-#' @return 
+#' @return a list with slots "loss", "f", "g". "loss" is the sinkhorn distance,
+#' "f" is the potential corresponding to data `x`, and "g" is the potential
+#' corresponding to data `y`.
+#' 
+#' @details Serves as an `R` interface for the `SamplesLoss` function from the 
+#' geomloss library in Python.
+#' 
 #' @export
 #'
 #' @examples
+#' x <- stats::rnorm(100, 100, 10)
+#' a <- rep(1/100, 100)
+#' 
+#' y <- stats::rnorm(50, 50, 10)
+#' b <- rep(1/50, 50)
+#' 
+#' sink <- sinkhorn_geom(x = x, y = y, a = a, b = b, power = 2,
+#'               metric = "Lp")
+#' 
+#' # sinkhorn distance, de-biased
+#' print(sink$loss)
+#' 
+#' # potentials for first 5 obs in each group
+#' print(sink$f[1:5])
+#' print(sink$g[1:5])
 sinkhorn_geom <- function(x, y, a, b, power = 2, 
                           blur = 0.05, reach = NULL, diameter = NULL,
                           scaling = 0.5, truncate = 5,
@@ -275,14 +297,18 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
                           debias=TRUE, 
                           verbose=FALSE, backend='auto', ... ) {
   
+  # retrieve python packages
   np <- reticulate::import("numpy", convert = TRUE)
   torch <- reticulate::import("torch", convert = TRUE)
   geomloss <- reticulate::import("geomloss", convert = TRUE)
   # cmake <- reticulate::import("cmake", convert = TRUE)
+  
+  # get data dimensions
   n <- nrow(x)
   m <- nrow(y)
   d <- ncol(x)
   
+  # adjust data if metric is "sdLp" or "mahalanobis"
   if (metric == "mahalanobis") {
     total <- rbind(x,y)
     U <- inv_sqrt_mat(cov(total), symmetric = TRUE)
@@ -300,6 +326,7 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
     y <- update[-(1:n),,drop = FALSE]
   }
   
+  # set up appropriate cost function for backend
   if (backend == "tensorized" || (n*m <= 5000^2 && backend != "multiscale" && backend != "online")) {
     if (power == 2) {
       cost <- geomloss$utils$squared_distances
@@ -320,14 +347,14 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
   }
   
   
-  
+  # sets up python data types
   xt <- torch$DoubleTensor(np$array(x))$contiguous()
   yt <- torch$DoubleTensor(np$array(y))$contiguous()
   at <- torch$DoubleTensor(a)$contiguous()
   bt <- torch$DoubleTensor(b)$contiguous()
   
   
-  
+  # sets up python function
   Loss <- geomloss$SamplesLoss("sinkhorn", p = power, blur = blur, reach = reach,
                       diameter = diameter, 
                       scaling = scaling, 
@@ -338,22 +365,21 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
                       verbose = verbose,
                       backend = backend)
   
+  # run python function from geomloss library
   potentials.torch <- Loss(at, xt, bt, yt)
+  
+  # get potentials
   f  <- c(potentials.torch[[1]]$float()$numpy())
   g  <- c(potentials.torch[[2]]$float()$numpy())
   
-  # diameter, ε, ε_s, ρ
-  # scale = geomloss$sinkhorn_samples$scaling_parameters(xt, yt, power, blur, reach, diameter, scaling )
-  # names(scale) <- c("diameter", "epsilon", "epsilon_s", "rho")
-  
-  #sinkhorn_cost(ε, ρ, α, β, a_x, b_y, a_y, b_x, debias=debias, potentials=potentials)
+  # use potentials to calculate the sinkhorn loss
   loss <- sum(f * a) + sum(g * b)
   
+  # setup output matrix
   retVal <- list(f = f,
                  g = g,
                  loss = loss)
   
-  # class(retVal) <- "geomSinkhorn"
   return(retVal)
   
 }

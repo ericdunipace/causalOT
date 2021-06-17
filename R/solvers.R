@@ -1,3 +1,4 @@
+# solver interface for the CPLEX optimizer
 cplex_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   dots <- list(...)
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
@@ -46,6 +47,7 @@ cplex_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   return(sol[1:qp$nvar])
 }
 
+# solver interface for the gurobi optimizer
 gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
   get.dual <- isTRUE(get.dual)
@@ -109,6 +111,7 @@ gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   }}
 }
 
+# solver interface for the mosek optimizer
 mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
   get.dual <- isTRUE(get.dual)
@@ -290,6 +293,7 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   }}
 }
 
+# QP solver wrapper
 QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
   solver <- match.arg(solver)
   # neg.weights <- isTRUE(list(...)$neg.weights)
@@ -311,7 +315,7 @@ QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
   # return(sol)
 }
 
-
+# function to convert cones from problem to a QP
 convert_cones <- function(qp) {
   if (!is.null(qp$cones)) {
     nvar <- qp$nvar
@@ -365,3 +369,4 @@ convert_cones <- function(qp) {
   }
   return(qp)
 }
+

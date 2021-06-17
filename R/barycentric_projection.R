@@ -5,9 +5,8 @@
 #' @param ... optional arguments such as "cost", the cost matrix, or the "estimand", "metric", or "p" if not provided by weights. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
 #'
 #' @return a list containing the barycentric projections with slots "control", "treated", and "observed.treatment"
-#' @export
-#'
-#' @examples
+#' 
+#' @keywords internal
 barycentric_projection <- function(data, weight, 
                                    ...) {
   
@@ -147,6 +146,7 @@ barycentric_projection <- function(data, weight,
 }
 
 
+# function to actually estimate barycenters after checks above
 barycenter_estimation <- function(gamma,x0,x1,y0,y1,
                                   estimand = c("ATT","ATC"),
                                   metric = c("mahalanobis","sdLp","Lp", "RKHS"),
@@ -316,6 +316,7 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
   return(y_out)
 }
 
+# barycenters if power = 2
 barycenter_pow2 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
   y_out <- list(y0 = rep(NA, length(y1)),
                y1 = rep(NA, length(y0)))
@@ -366,6 +367,7 @@ barycenter_pow2 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
   return(y_out)
 }
 
+# barycenters if power = 1
 barycenter_pow1 <- function(gamma,x0,x1,y0,y1,estimand,metric) {
   n0 <- length(y0)
   n1 <- length(y1)

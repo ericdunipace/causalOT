@@ -122,25 +122,41 @@ cot_dual <- function(x, target, sample_weights = NULL, constraint, metric, power
   
 }
 
+
+#' R6 Optimization Parent Class
+#' 
+#' @rdname optProblem
+#' 
+#' @return An [R6][R6::R6Class] object
+#' 
+#' @details Generic optimization class for use
+#' by the LBFGS solver
+#' 
+#' 
+#' @keywords internal
 optProblem <- R6::R6Class("optProblem", 
                           public = list(
                             get_xtx = function() NULL,
                             get_xty = function() NULL
-                            # bounds = "function",
-                            # obj  = "function",
-                            # grad = "function",
-                            # get_weight = "function",
-                            # intialize = function(delta) {
-                            #   private$delta <- delta
-                            #   invisible(self)
-                            # }
                           ),
                           private = list(
-                            # "n" = integer
                           )
                           
 )
 
+
+#' SBW optimization class
+#' 
+#' @rdname optProblem
+#' 
+#' @return An [R6][R6::R6Class] object
+#' 
+#' @details Solvers the SBW dual problem. 
+#' Note, this is the actual dual and 
+#' not the incorrect dual as derived by 
+#' Wang & Zubizarreta (2019).
+#' 
+#' @keywords internal
 sbwDualL2 <- R6::R6Class("sbwDualL2",
                          inherit = optProblem,
                          public = list(
@@ -163,58 +179,59 @@ sbwDualL2 <- R6::R6Class("sbwDualL2",
                            get_weight = function(vars) {
                              return( simplex_proj( as.numeric(self$h_star_inv(vars) ) ))
                           },
-                          bounds = function() {
+                           bounds = function() {
                             cbind(rep(-Inf, ncol(private$balance.functions)),
                                   rep(Inf ,  ncol(private$balance.functions)))
                           },
-                          init = function() {
+                           init = function() {
                             rep(0, private$nvars)
                           },
-                          get_xtx = function() {
+                           get_xtx = function() {
                             return(0.5 * crossprod(private$balance.functions))
                           },
-                          get_xty = function() {
+                           get_xty = function() {
                             return(
                               c(colMeans(private$balance.functions) - private$target.mean)
                             )
                           },
-                          penalty.factor = function() {
+                           penalty.factor = function() {
                             return(
                               private$delta * private$scale
                             )
                           },
-                         initialize = function(balance.delta,
-                                               balance.functions,
-                                               target.mean = NULL,
-                                               target.sd = NULL,
-                                               ...
-                         ) {
-                           private$delta <- balance.delta
-                           private$balance.functions     <- as.matrix(balance.functions)
-                           private$n     <- nrow(private$balance.functions)
-                           private$target.mean <- colMeans(as.matrix(target.mean))
-                           
-                           private$scale <- if (missing(target.sd) | is.null(target.sd)) {
-                             sqrt(0.5 * matrixStats::colVars( private$balance.functions ) +
-                             0.5 * matrixStats::colVars( target.mean ))
-                           } else {
-                            sqrt(0.5 * matrixStats::colVars( private$balance.functions ) +
-                                 0.5 * target.sd^2) 
+                           initialize = function(balance.delta,
+                                                 balance.functions,
+                                                 target.mean = NULL,
+                                                 target.sd = NULL,
+                                                 ...
+                           ) {
+                             private$delta <- balance.delta
+                             private$balance.functions     <- as.matrix(balance.functions)
+                             private$n     <- nrow(private$balance.functions)
+                             private$target.mean <- colMeans(as.matrix(target.mean))
+                             
+                             private$scale <- if (missing(target.sd) | is.null(target.sd)) {
+                               sqrt(0.5 * matrixStats::colVars( private$balance.functions ) +
+                               0.5 * matrixStats::colVars( target.mean ))
+                             } else {
+                              sqrt(0.5 * matrixStats::colVars( private$balance.functions ) +
+                                   0.5 * target.sd^2) 
+                             }
+                             
+                             private$nvars <- ncol(private$balance.functions)
                            }
-                           
-                           private$nvars <- ncol(private$balance.functions)
-                         }
                         ),
-                      private = list(
-                        n = "integer",
-                        nvars = "integer",
-                        scale = "numeric",
-                        balance.functions = "matrix",
-                        target.mean = "numeric",
-                        delta = "numeric"
-                      )
+                        private = list(
+                          n = "integer",
+                          nvars = "integer",
+                          scale = "numeric",
+                          balance.functions = "matrix",
+                          target.mean = "numeric",
+                          delta = "numeric"
+                        )
 )
 
+#### COT with L2 Dual ####
 cotDualL2 <- R6::R6Class("cotDualL2",
                          inherit = optProblem,
                          public = list(
@@ -514,6 +531,8 @@ cotDualL2 <- R6::R6Class("cotDualL2",
                            }
                          )
 )
+
+#### COT with additional linear constraints and L2 penalty ####
 
 cotConstDualL2 <- R6::R6Class("cotConstDualL2",
                          inherit = optProblem,
@@ -827,17 +846,32 @@ cotConstDualL2 <- R6::R6Class("cotConstDualL2",
                          )
 )
 
+
+#' Function to create balance functions
+#'
+#' @param balance a list with slots "formula", "balance.functions",
+#' "balance.mean", or "balance.sd". One of the following combinations must be provided:
+#' \itemize{
+#' \item "formula" and "x"
+#' \item "balance.functions"
+#' }
+#' @param x The data matrix for the source population.
+#' @param target Either: 1) a list with slots target.mean and target.sd
+#' or a data matrix of the target population. If a data matrix is provided
+#' then the parameter `balance` should include a formula.
+#'
+#' @return a list with slots "balance.functions", "balance.delta",
+#' "target.mean", "target.sd".
+#' @keywords internal
 balance.options <- function(balance, x, target) {
+  
+  #check if balance variable provided
   if (is.null(balance)) {
     return(list(NULL))
-  #   balance <- list()
-  #   balance$balance.functions <- model.matrix(~., data.frame(x))
-  #   target_m <- model.matrix(~., data.frame(target))
-  #   balance$target.sd <- matrixStats::colSds(target_m)
-  #   balance$target.mean <- matrix(colMeans(target_m),nrow = 1)
-  #   balance$balance.delta <- 0.2
   }
   
+  # if formula provided, will use that, otherwise uses all variables
+  # in simple linear combination, ie X_1, X_2, ..., X_d
   if (is.null(balance$formula)) {
     balance$formula <- as.formula(~. + 0)
   } else {
@@ -845,15 +879,19 @@ balance.options <- function(balance, x, target) {
     environment(balance$formula) <- environment()
   }
   
+  # if the balance functions not provided (functions of covariates to balance)
+  # will use formula to calculate from `x`. Otherwise, uses provided functions
   if (is.null(balance$balance.functions) ) {
     balance$balance.functions <- model.matrix(balance$formula, data.frame(x))
   }
   
+  # get the desired means to target. also get the scale of the target data as
+  # a measure of error. 
   if (is.null(balance$target.sd) | is.null(balance$target.mean)) target_m <- model.matrix(balance$formula, data.frame(target))
   if (is.null(balance$target.mean))  balance$target.mean <- matrix(colMeans(target_m),nrow = 1)
   if (is.null(balance$target.sd)) balance$target.sd <- matrixStats::colSds(target_m)
-  # if (is.null(balance$balance.delta)) balance$balance.delta <- 0.2
   
+  # set up final list with desired quantities
   balance$balance.functions <- as.matrix(balance$balance.functions)
   balance$balance.delta <- as.double(balance$balance.constraints)
   balance$target.mean <- as.matrix(balance$target.mean)
@@ -863,48 +901,108 @@ balance.options <- function(balance, x, target) {
   
 }
 
+#' options for the Wasserstein optimization problem
+#'
+#' @param wasserstein parts of the output list can be provided a priori
+#' @param x The source data matrix. Must be provided if wasserstein$cost is null.
+#' @param target The target data matrix. 
+#' Must be provided if wasserstein$cost is null.
+#' @param sw The sample weights of each group. not necessary if provided in
+#' `wasserstein` parameter.
+#'
+#' @return a list with slots "power", "cost","lambda","b". These are, respectively,
+#' the power of the Wasserstein distance, the cost matrix, the penalty
+#' parameter for regularization and the sample weights of the target population.
+#' 
+#' @keywords internal
 wasserstein.options <- function(wasserstein, x, target, sw) {
-    if (is.null(wasserstein) | missing(wasserstein)) {
-      # return(list(NULL))
-      wasserstein        <- list(metric = "mahalanobis")
-      wasserstein$power  <- 2
-      z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
-      wasserstein$cost   <- cost_fun(rbind(x, target), z = z, 
-                                     estimand = "ATT", power = 2, 
-                                     metric = "mahalanobis")
-      wasserstein$lambda  <- 1.0
-      wasserstein$b <- sw$b
+  
+    # the output list. can be provided as fully complete
+    if (missing(wasserstein) || is.null(wasserstein)) {
+      # wasserstein        <- list(metric = "mahalanobis")
+      # wasserstein$power  <- 2
+      # z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
+      # wasserstein$cost   <- cost_fun(rbind(x, target), z = z, 
+      #                                estimand = "ATT", power = 2, 
+      #                                metric = wasserstein$metric)
+      # wasserstein$lambda  <- 1.0
+      # wasserstein$b <- sw$b
+      wasserstein <- list()
     }
-    if (is.null(wasserstein$metric)) wasserstein$metric <- match.arg(wasserstein$metric, c("mahalanobis", "sdLp", "Lp"))
+  
+    # if the metric isn't provided, make it "mahalanobis", 
+    # otherwise match argument
+    if (is.null(wasserstein$metric)) {
+      wasserstein$metric <- "mahalanobis"
+    } else {
+      wasserstein$metric <- match.arg(wasserstein$metric, 
+                                      c("mahalanobis", "sdLp", "Lp"))
+    }
+    
+    # set wasserstein power to default if null
     if (is.null(wasserstein$power)) wasserstein$power <- 2
+    
+    # calculate the cost if not provided
     if (is.null(wasserstein$cost)) {
       z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
       wasserstein$cost <- cost_fun(rbind(x, target),
                                    z = z,
-                                  estimand = "ATT", power = 2, 
-                                  metric = "mahalanobis")
+                                  estimand = "ATT", 
+                                  power = wasserstein$power, 
+                                  metric = wasserstein$metric)
     }
-    if (is.null(wasserstein$lambda)) wasserstein$lambda <- 1.0
-    if (is.null(wasserstein$b)) wasserstein$b <- sw$b
     
-    wasserstein$metric <- match.arg(wasserstein$metric, c("mahalanobis", "sdLp", "Lp"))
+    # sets multiplication factor of regularization
+    if (is.null(wasserstein$lambda)) wasserstein$lambda <- 1.0
+    
+    # sets sample weights for target
+    if (is.null(wasserstein$b)) {
+      if (missing(sw) || is.null(sw)) {
+        sw <- list(b = rep(1, nrow(target))/nrow(target))
+      }
+      wasserstein$b <- sw$b
+    }
+    
+    # confirm data types of output list
+    wasserstein$metric <- as.character(wasserstein$metric)
     wasserstein$power  <- as.double(wasserstein$power)
     wasserstein$cost   <- as.matrix(wasserstein$cost)^wasserstein$power
     wasserstein$lambda  <- as.double(wasserstein$lambda)
     wasserstein$b      <- as.double(wasserstein$b)
     
-    stopifnot(wasserstein$power > 0)
-    stopifnot(wasserstein$lambdaa > 0)
+    stopifnot(wasserstein$power >= 1)
+    stopifnot(wasserstein$lambda >= 0)
     
     return(wasserstein)
 }
 
+#' Marginal constraints for wasserstein
+#'
+#' @param marg.wass a list with at minimum slots "marginal.constraints". Can
+#' also include "marginal.costs".
+#' @param wass output from the 
+#' [wasserstein.options][wasserstein.options()] function
+#' @param x The source data matrix. Optional if include "marginal.costs" in 
+#' `marg.wass`.
+#' @param target The target data matrix. Optional if include "marginal.costs" in 
+#' `marg.wass`.
+#'
+#' @return a list with slots "marginal.costs", "marginal.delta"
+#' @keywords internal
 marginal.wass.options <- function(marg.wass, wass, x, target) {
-  if (is.null(marg.wass) | missing(marg.wass)) {
+  
+  # if missing marg.wass, then return NULL
+  # function will assume that we don't want marginal constraints
+  if (missing(marg.wass) || is.null(marg.wass)) {
     return(list(NULL))
     marg.wass        <- list()
   }
+  
+  # if the marginal constraints aren't provided, 
+  # will assume that we don't want marginal constraints
   if (is.null(marg.wass$marginal.constraints)) return(list(NULL))
+  
+  # calculate the marginal costs for each covariate
   if (is.null(marg.wass$marginal.costs)) {
     z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
            
@@ -915,21 +1013,34 @@ marginal.wass.options <- function(marg.wass, wass, x, target) {
                                           estimand = "ATT", power = wass$power, 
                                           metric = wass$metric))
   }
-  # if (is.null(marg.wass$marginal.delta)) {
-  #   marg.wass$marginal.delta <- rep(1.0^wass$power, length(marg.wass$marginal.costs))
-  # }
   
+  # raise costs to the power in the wasserstein list
   marg.wass$marginal.costs  <- lapply(marg.wass$marginal.costs, function(cc) cc^wass$power)
-  marg.wass$marginal.delta  <- as.double(marg.wass$marginal.constraints^wass$power)
-  if (length(marg.wass$marginal.delta) != length(marg.wass$marginal.costs)) marg.wass$marginal.delta <- rep(marg.wass$marginal.delta, 
-                                                                                                           length(marg.wass$marginal.costs))
   
-  stopifnot(all(marg.wass$marginal.delta > 0))
+  # set up the marginal constraints vector
+  marg.wass$marginal.delta  <- as.double(marg.wass$marginal.constraints^wass$power)
+  if (length(marg.wass$marginal.delta) != length(marg.wass$marginal.costs)) {
+    marg.wass$marginal.delta <- rep(marg.wass$marginal.delta, 
+                                   length(marg.wass$marginal.costs))
+  }
+  
+  # make sure deltas make sense
+  stopifnot(all(marg.wass$marginal.delta >= 0))
   
   return(marg.wass)
 }
 
+
+#' Optimization controls
+#'
+#' @param control provided arguments
+#' @param method The optimization method
+#'
+#' @return A list with slots depending on the optimization method
+#' @keywords internal
 control.options <- function(control, method) {
+  
+  #sets default controls for "oem" method
   if (method == "oem") {
     if (is.null(control) | !is.list(control)) {
       control <- list(scale.factor = numeric(0),
@@ -962,7 +1073,7 @@ control.options <- function(control, method) {
                        "irls.tol", "groups",
                        "group.weights")
     
-  } else if (method == "lbfgs") {
+  } else if (method == "lbfgs") { #args for lbfgs
     
     if (is.null(control) | !is.list(control)) {
       control <- list(trace = 0L,
@@ -1177,6 +1288,8 @@ convergence <- function(old, new) {
 # }
 # 
 # convergence <- function()
+
+#### Dual optimization for L2 Wasserstein, non-COT ####
 
 fullDualL2 <- R6::R6Class("fullDualL2",
                          inherit = optProblem,
@@ -1480,6 +1593,8 @@ fullDualL2 <- R6::R6Class("fullDualL2",
                            }
                          )
 )
+
+####  ####
 
 otDualL2 <-  R6::R6Class("otDualL2",
                                inherit = optProblem,
@@ -2085,11 +2200,28 @@ cotDualL2_2 <- R6::R6Class("cotDualL2",
                            inherit = optProblem,
                            public = list(
                              obj =  function(vars) {
+                               
+                               return(
+                                 cotDualL2_2_obj_(vars, QQ = private$Q,
+                                                cost_ = private$cost, 
+                                               pf_ = as.double(private$p.fun(vars)),
+                                              lambda = as.double(private$lambda)))
+                               
+                               
                                diff <- (private$Q %*% vars - private$cost)
                                diff <- diff * (diff > 0)
                                return(-(private$p.fun(vars) - 0.5 * sum(diff^2) / private$lambda))
                              },
                              grad = function(vars) {
+                               
+                               return(
+                                 cotDualL2_2_grad_(vars_ = vars, 
+                                                 QQ = private$Q,
+                                                 cost_ = private$cost, 
+                                                 pf_ = private$p.grad.fun(vars),
+                                                 lambda = private$lambda)
+                               )
+                               
                                diff <- (private$Q %*% vars - private$cost)
                                diff <- diff * (diff > 0)
                                return(as.numeric(-(private$p.grad.fun(vars) - 
@@ -2163,7 +2295,7 @@ cotDualL2_2 <- R6::R6Class("cotDualL2",
                                # ignore negative sign and penalty functions since variance of constants is 0 and negative sign is squared
                                diff <- (private$Q %*% vars - private$cost)
                                # diff  <- diff * (diff > 0)
-                               pos.prob <- mean(diff > 0)
+                               pos.prob <- mean(as.numeric(diff) > 0)
                                return(pos.prob)
                              },
                              penalty.factor = function() {
@@ -2249,16 +2381,16 @@ cotDualL2_2 <- R6::R6Class("cotDualL2",
                                                       "4" = private$p.fun.cmb)
                                
                                private$Q  <- switch(fun.num,
-                                                    "1" = Matrix::t(vec_to_col_constraints(private$n,
+                                                    "1" = Matrix::t(vec_to_col_constraints_csparse(private$n,
                                                                                            private$m)),
-                                                    "2" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                    "2" = cbind(Matrix::t(vec_to_col_constraints_csparse(private$n,
                                                                                                  private$m)),
                                                                 -private$marginal.costs),
-                                                    "3" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                    "3" = cbind(Matrix::t(vec_to_col_constraints_csparse(private$n,
                                                                                                  private$m)),
                                                                 -private$balance.functions,
                                                                 private$balance.functions),
-                                                    "4" = cbind(Matrix::t(vec_to_col_constraints(private$n,
+                                                    "4" = cbind(Matrix::t(vec_to_col_constraints_csparse(private$n,
                                                                                                  private$m)),
                                                                 -private$marginal.costs,
                                                                 -private$balance.functions,

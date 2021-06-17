@@ -1193,7 +1193,7 @@ cg <- function(optimizer, verbose = TRUE) {
 # }
 
 
-
+# calculate the wass. distance using CGD
 fullWassCGD <- R6::R6Class("wassCGD",
                                       inherit = cgOptimizer,
                                       public = list(
@@ -1475,6 +1475,7 @@ wassCGD <- R6::R6Class("wassCGD",
                                               
 )
 
+# calculate joint weight and mapping
 jointMapAndWeights <- R6::R6Class("jointMapAndWeights",
                               inherit = cgOptimizer,
                               public = list(
@@ -1625,6 +1626,7 @@ jointMapAndWeights <- R6::R6Class("jointMapAndWeights",
                                 
 )
 
+# helper functions, no joint mapping, no outcome
 nojm_nooutcome <- function(method, penalty) {
   out <- list()
   pen.fun <- switch(penalty,
@@ -1696,7 +1698,7 @@ nojm_nooutcome <- function(method, penalty) {
   return(out)
 }
 
-
+# joint mapping, without the outcome
 jm_nooutcome <- function(method, penalty) {
   out <- list()
   pen.fun <- switch(penalty,
@@ -1772,6 +1774,7 @@ jm_nooutcome <- function(method, penalty) {
   return(out)
 }
 
+# joint mapping with linear outcome
 jm_outcome_linear <- function(method) {
   out <- list()
   if (method == "Wasserstein") {
