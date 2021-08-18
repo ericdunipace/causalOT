@@ -211,7 +211,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
       }
   } else if (meth == "Wasserstein") {
     
-    if (is.null(dots[["p"]])) dots[["p"]] <- 2
+    # if (is.null(dots[["p"]])) dots[["p"]] <- 2
     if (is.null(dots[["metric"]])) dots[["metric"]] <- "mahalanobis"
     if (is.null(dots[["add.margins"]])) dots[["add.margins"]] <- FALSE
     if (is.null(dots[["penalty"]])) dots[["penalty"]] <- "L2"
@@ -350,7 +350,7 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
     
   } else if (meth == "Constrained Wasserstein") {
     dots <- list(...)
-    if(is.null(dots[["p"]])) dots[["p"]] <- 2
+    # if(is.null(dots[["p"]])) dots[["p"]] <- 2
     if(is.null(dots[["metric"]])) dots[["metric"]] <- "mahalanobis"
     if (is.null(dots[["add.joint"]])) dots[["add.joint"]] <- TRUE
     if (is.null(dots[["add.margins"]])) dots[["add.margins"]] <- FALSE
@@ -1732,7 +1732,7 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
                                    joint   = NULL,
                                    margins = NULL,
                                    balance = NULL), 
-                    p = 2,
+                    p = NULL,
                     penalty = c("L2","entropy",
                                 "variance","none"),
                     dist = dist.metrics(), cost = NULL,
@@ -1760,8 +1760,7 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
                        sample_weight = sample_weight,
                        soc = soc))
   }
-  stopifnot(is.numeric(p))
-  stopifnot(length(p) == 1)
+  
   margmass = get_sample_weight(sample_weight, z = z)
   joint.mapping <- isTRUE(joint.mapping)
   penalty <- match.arg(penalty)
@@ -1778,12 +1777,25 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   n <- nrow(x)
   d <- ncol(x)
   
+  
+  
   n1 <- nrow(x1)
   n0 <- nrow(x0)
   
   weight.dim <- n0 * n1
   
   dist <- match.arg(dist)
+  
+  if(is.null(p)) {
+    if(penalty != "entropy") {
+      p <- floor(d/2 + 1)
+    } else {
+      p <- 2
+    }
+  }
+  stopifnot(is.numeric(p))
+  stopifnot(length(p) == 1)
+  if(p < d/2 && penalty != "entropy") warning("power of the wasserstein distance is less than rate optimal d/2 for non-entropy penalties.")
   
   if(is.null(cost) ) {
     if(add.margins) {
@@ -2090,7 +2102,7 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
                                          joint   = NULL,
                                          margins = NULL,
                                          balance = NULL), 
-                          p = 2,
+                          p = NULL,
                           penalty = c("L2","entropy",
                                       "variance", "none"),
                           dist = dist.metrics(), cost = NULL,
@@ -2103,8 +2115,6 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
                           soc = FALSE) {
   
   # estimand <- match.arg(estimand)
-  stopifnot(is.numeric(p))
-  stopifnot(length(p) == 1)
   margmass = get_sample_weight(sample_weight, z = z)
   joint.mapping <- isTRUE(joint.mapping)
   penalty <- match.arg(penalty)
@@ -2127,6 +2137,17 @@ qp_wass_const <- function(x, z, K = list(penalty = NULL,
   weight.dim <- n0 * n1
   
   dist <- match.arg(dist)
+  
+  if(is.null(p)) {
+    if(penalty != "entropy") {
+      p <- floor(d/2 + 1)
+    } else {
+      p <- 2
+    }
+  }
+  stopifnot(is.numeric(p))
+  stopifnot(length(p) == 1)
+  if(p < d/2 && penalty != "entropy") warning("power of the wasserstein distance is less than rate optimal d/2 for non-entropy penalties.")
   
   if(is.null(cost) ) {
     if(add.margins) {

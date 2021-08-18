@@ -20,17 +20,17 @@ testthat::test_that("optimal weighting works, no augmentation", {
   # debugonce( data$opt_weight)
   opt_weights_mosek  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
   opt_weights_gurobi <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
-  opt_weights_cplex  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
+  # opt_weights_cplex  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
   names(opt_weights_mosek) <-
-    names(opt_weights_gurobi) <- 
-    names(opt_weights_cplex) <- estimates
+    names(opt_weights_gurobi) <- estimates
+    # names(opt_weights_cplex) <- estimates
   
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], doubly.robust = FALSE, target = "ATE")$estimate,
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], doubly.robust = FALSE, target = "ATE")$estimate,
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()))
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], doubly.robust = FALSE, target = "ATE")$estimate,
-                              mean(data$get_tau()))
+  # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], doubly.robust = FALSE, estimand = "ATE")$estimate,
+  #                             mean(data$get_tau()))
 })
 
 testthat::test_that("optimal weighting works, augmentation", {
@@ -43,7 +43,7 @@ testthat::test_that("optimal weighting works, augmentation", {
   overlap <- "low"
   design <- "B"
   distance <- c("Lp")
-  power <- c(2)
+  power <- c(4)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment = TRUE
@@ -56,17 +56,17 @@ testthat::test_that("optimal weighting works, augmentation", {
   # debugonce( data$opt_weight)
   opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
   opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
-  opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
+  # opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
   names(opt_weights_mosek) <-
-    names(opt_weights_gurobi) <- 
-    names(opt_weights_cplex) <- estimates
+    names(opt_weights_gurobi) <- estimates
+    # names(opt_weights_cplex) <- estimates
   
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], doubly.robust = TRUE, target = "ATE")$estimate,
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], doubly.robust = TRUE, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tolerance = 0.1)
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], doubly.robust = TRUE, target = "ATE")$estimate,
+  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], doubly.robust = TRUE, estimand = "ATE")$estimate,
                               mean(data$get_tau()),tolerance = 0.1)
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], doubly.robust = TRUE, target = "ATE")$estimate,
-                              mean(data$get_tau()),tolerance = 0.1)
+  # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], doubly.robust = TRUE, estimand = "ATE")$estimate,
+  #                             mean(data$get_tau()),tolerance = 0.1)
 })
 
 testthat::test_that("optimal weighting comparison works, no augmentation", {
@@ -79,7 +79,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
   overlap <- "low"
   design <- "A"
   distance <- c("Lp")
-  power <- c(2)
+  power <- c(4)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- FALSE
@@ -120,7 +120,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
   overlap <- "low"
   design <- "A"
   distance <- c("Lp")
-  power <- c(2)
+  power <- c(4)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- TRUE

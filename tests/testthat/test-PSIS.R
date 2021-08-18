@@ -29,7 +29,7 @@ testthat::test_that("PSIS diagnostics work", {
   # debugonce(qp_wass)
   test1 <- calc_weight(data = data,
                        dist = "mahalanobis",
-                       p = 1,
+                       p = 4,
                        constraint = 0.5,
                        estimand = "ATE",
                        method = "Wasserstein",
@@ -37,13 +37,13 @@ testthat::test_that("PSIS diagnostics work", {
   
   # debugonce(mosek_solver)
   # debugonce(calc_weight_bal)
-  test2 <- calc_weight(data = data,
-                       p =1,
-                       constraint = c(1),
-                       estimand = "ATE",
-                       method = "Constrained Wasserstein",
-                       dist = "mahalanobis",
-                       solver = "mosek")
+  # test2 <- calc_weight(data = data,
+  #                      p =1,
+  #                      constraint = c(1),
+  #                      estimand = "ATE",
+  #                      method = "Wasserstein",
+  #                      dist = "mahalanobis",
+  #                      solver = "mosek")
   
   test3 <- calc_weight(data, constraint = 0.1, estimand = "ATE", method = "SBW", solver = "mosek")
   test4 <- calc_weight(data, constraint = 0.1, estimand =  "ATE", method = "Logistic", solver = "mosek")
@@ -52,35 +52,42 @@ testthat::test_that("PSIS diagnostics work", {
   test5 <- calc_weight(data, constraint = 0.1, estimand = "ATE", method = "RKHS", solver = "gurobi")
   test5b <- calc_weight(data, constraint = 0.1, estimand = "cATE", method = "RKHS", solver = "gurobi")
   
-  test6 <- calc_weight(data = data,
-                       p =1,
-                       constraint = c(2.2),
-                       estimand = "cATE",
-                       method = "Constrained Wasserstein",
-                       dist = "mahalanobis",
-                       solver = "mosek")
+  # test6 <- calc_weight(data = data,
+  #                      p =1,
+  #                      constraint = c(2.2),
+  #                      estimand = "cATE",
+  #                      method = "Constrained Wasserstein",
+  #                      dist = "mahalanobis",
+  #                      solver = "mosek")
   test7 <- calc_weight(data = data,
-                       p =1,
+                       p = 4,
                        constraint = c(2.2),
                        estimand = "cATE",
                        method = "Wasserstein",
                        dist = "mahalanobis",
                        solver = "mosek")
   
-  test8 <- calc_weight(data = data,
-                       p = 1,
-                       constraint = 100,
-                       estimand = "ATE",
-                       method = "Constrained Wasserstein",
-                       dist = "RKHS",
-                       solver="mosek",
-                       rkhs.args = list(p = test5$args$p,
-                                        theta = test5$args$theta,
-                                        gamma = test5$args$gamma))
+  # test8 <- calc_weight(data = data,
+  #                      p = 1,
+  #                      constraint = 100,
+  #                      estimand = "ATE",
+  #                      method = "Constrained Wasserstein",
+  #                      dist = "RKHS",
+  #                      solver="mosek",
+  #                      rkhs.args = list(p = test5$args$p,
+  #                                       theta = test5$args$theta,
+  #                                       gamma = test5$args$gamma))
+  # 
   
-  
-  weights <- list(CW = test1,W = test2, SBW=test3, IPW = test4, RKHS = test5,
-                  cRKHS = test5b, cCW = test6, cW = test7, rCW = test8)
+  weights <- list(CW = test1,
+                  # W = test2, 
+                  SBW=test3, IPW = test4, RKHS = test5,
+                  cRKHS = test5b, 
+                  # cCW = test6, 
+                  cW = test7
+                  # , 
+                  # rCW = test8
+                  )
   testthat::expect_warning(ps <- lapply(weights, PSIS))
   testthat::expect_warning(ps.check <- PSIS(weights))
   testthat::expect_equivalent(ps, ps.check)

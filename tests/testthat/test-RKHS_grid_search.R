@@ -20,7 +20,7 @@ testthat::test_that("RKHS grid works", {
   
   data$gen_data()
   
-  testthat::expect_silent(cplex.check  <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "cplex"))
+  # testthat::expect_silent(cplex.check  <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "cplex"))
   testthat::expect_silent(gurobi.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "gurobi"))
   # testthat::expect_error(
   #   testthat::expect_warning(
@@ -55,7 +55,7 @@ testthat::test_that("RKHS grid works, opt.hyperparam", {
   
   data$gen_data()
   
-  testthat::expect_silent(cplex.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = TRUE, solver = "cplex", iter = 10))
+  # testthat::expect_silent(cplex.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = TRUE, solver = "cplex", iter = 10))
   testthat::expect_silent(gurobi.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = TRUE, solver = "gurobi", iter = 10))
   testthat::expect_condition(mosek.check <- RKHS_grid_search(data = data, grid = NULL, 
                                                              estimand = "ATE", n.boot = 10, 

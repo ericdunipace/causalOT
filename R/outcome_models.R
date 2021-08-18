@@ -337,6 +337,7 @@ setClass("IDmodel", slots = c(fit = "numeric", residuals = "numeric"))
 setMethod("predict", signature = c(object = "IDmodel"), definition = predict.IDmodel)
 
 # calculate treatment effects from the outcome
+# also return means and predicted values for CI otherwise recalculate all of this stuff...
 outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand,
                          sample_weight, ...) {
   
@@ -363,11 +364,14 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
     
     fit_1 <- IDmodel(formula$treated, data[t_ind,,drop = FALSE],
                      weights = sample_weight$b)
+    # fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], 
+    #                    weights = sample_weight$a)
     fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], 
-                       weights = sample_weight$a)
+                       weights = w0)
     fit_0$weights <- w0
   } else if (estimand == "ATC") {
-    fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
+    # fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
+    fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = w1)
     fit_0 <- IDmodel(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
     
     f1w[t_ind] <- w1
@@ -381,8 +385,11 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
     
   } else if (estimand == "ATE") {
     
-    fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
-    fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
+    # fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = sample_weight$b)
+    # fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], weights = sample_weight$a)
+    
+    fit_1 <- model.fun(formula$treated, data[t_ind,,drop = FALSE], weights = w1)
+    fit_0 <- model.fun(formula$control, data[c_ind,,drop = FALSE], weights = w0)
     
     fit_1$weights <- w1
     fit_0$weights <- w0
@@ -407,7 +414,10 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
     #                     
     # tx_effect <- weighted.mean(x = maps$y1 - maps$y0, 
     #                            w = mw[mw != 0])
-    
+    y_1  <- weighted.mean(x = maps$y1, 
+                          w = maps$weights)
+    y_0  <- weighted.mean(x = maps$y0, 
+                          w = maps$weights)
     tx_effect <- weighted.mean(x = maps$y1 - maps$y0, 
                                w = maps$weights)
       
@@ -426,7 +436,32 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
   }
   
   
-  return(tx_effect)
+  # return(tx_effect)
+  
+  
+  # get E(Y(z)|X)
+  e_y1_x <- NA
+  e_y0_x <- NA
+  if (estimand == "ATT") {
+    # set to NA if not using outcome model...
+    if(formula$control != "y~1" && formula$control != "y ~ 1") e_y0_x <- f_0
+  } else if (estimand == "ATC") {
+    if(formula$treated != "y~1" && formula$treated != "y ~ 1") e_y1_x <- f_1
+  } else if (estimand == "ATE") {
+    # otherwise return predictions
+    if(formula$control != "y~1" && formula$control != "y ~ 1") e_y0_x <- f_0
+    if(formula$treated != "y~1" && formula$treated != "y ~ 1") e_y1_x <- f_1
+  } else {
+    stop("estimand not recognized when saving predicted values")
+  }
+  
+  # returns estimate and quantities needed for asymptotic variance
+  return(list(tx_effect = tx_effect,
+              outcome.model.fit = NULL, #no need to return it here
+              E_Y1 = y_1, #estimates of means
+              E_Y0 = y_0,
+              E_Y1_X = e_y1_x, #conditional mean estimates if specifying an outcome, otherwise should be NA
+              E_Y0_X = e_y0_x)) #should also be a vector of values for each 
 }
 
 # calculate treatment effects using a model only
@@ -452,7 +487,22 @@ outcome_calc_model <- function(data, z, weights, formula, model.fun,
 
   tx_effect <- coef(fit, tx.name = "z", estimand = estimand)["z"]
 
-  return(tx_effect)
+  # return(tx_effect)
+  e_y1_x <- predict(fit, newdata = cbind(data, z = 1))
+  e_y0_x <- predict(fit, newdata = cbind(data, z = 0))
+  
+  y_1 <- mean(e_y1_x)
+  y_0 <- mean(e_y0_x)
+  
+  stopifnot(isTRUE(all.equal(y_1 - y_0,  tx_effect, check.attributes = FALSE)))
+  
+  return(list(tx_effect = tx_effect,
+              outcome.model.fit = fit, #return the model so we can use HW se if possible
+              E_Y1 = y_1, #estimates of means
+              E_Y0 = y_0,
+              E_Y1_X = e_y1_x, #conditional mean estimates from model
+              E_Y0_X = e_y0_x))
+  
 }
 
 # set-up formula for treatment effects
@@ -464,7 +514,7 @@ calc_form <- function(formula, doubly.robust, target, split.model) {
       formula$control <- as.formula(formula$control)
       
     } else {
-      formula <= as.formula(formula)
+      formula <- as.formula(formula)
     }
     return(formula)
   }
@@ -532,10 +582,23 @@ calc_hajek <- function(weights, target, hajek) {
 #' @slot formula The formula for the outcome model.
 #' @slot weights The weights as an object of class [causalWeights][causalWeights]
 #' @slot estimand A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE". 
+#' @slot variance.components Objects for the asymptotic variance calculation designed so expensive models
+#' don't have to be re-fit.
 #' @slot options A list with the arguments from the [estimate_effect][estimate_effect()] function. See details.
 #' @slot call The call from the [estimate_effect][estimate_effect()] function.
 #' 
-#' @details The `options` slot is a list with slots
+#' @details 
+#' 
+#' The `variance.components` slot is a list with slots
+#' \itemize{
+#' \item `E_Y1`: The mean if the target population had all been treated.
+#' \item `E_Y0`: The mean if the target population had all received control
+#' \item `E_Y1_X`: The predicted conditional mean if the target population had all been treated.
+#' \item `E_Y0_X`: The predicted conditional mean if the target population had all received control.
+#' }
+#' Note that for "ATT" and "ATC" estimands, `E_Y1_X` or `E_Y0_X` will be NA, respectively.
+#' 
+#' Meanwhile, the `options` slot is a list with slots
 #' \itemize{
 #' \item `hajek`: Were weights normalized to sum to 1 (TRUE/FALSE)
 #' \item `doubly.robust`: Was an augmented estimator used? (TRUE/FALSE)
@@ -556,6 +619,7 @@ setClass("causalEffect", slots = c(estimate = "numeric",
                                    formula = "formula",
                                    weights = "causalWeights",
                                    estimand = "character",
+                                   variance.components = "list",
                                    options = "list",
                                    call = "call"))
 
@@ -612,8 +676,8 @@ estimate_effect <- function(data, formula = NULL, weights,
   hajek   <- isTRUE(hajek)
   split.model <- isTRUE(split.model)
   
-  if (is.null(estimand)) {
-    if (!is.null(target)) estimand <- target
+  if (missing(estimand) || is.null(estimand)) {
+    # if (!is.null(target)) estimand <- target
     if (inherits(weights, "causalWeights")) {
       estimand <- switch(weights$estimand,
                        "ATT" = "ATT",
@@ -621,25 +685,27 @@ estimate_effect <- function(data, formula = NULL, weights,
                        "ATE" = "ATE",
                        "cATE" = "ATE",
                        "feasible" = "feasible")
+    } else {
+      stop("Estimand must be specified or weight object of class causalWeights given.")
     }
-  } else if (missing(estimand) & !missing(target)) {
-    estimand <- target
-    estimand <- switch(estimand,
-                       "ATT" = "ATT",
-                       "ATC" = "ATC",
-                       "ATE" = "ATE",
-                       "cATE" = "ATE",
-                       "feasible" = "feasible")
-    estimand <- match.arg(estimand)
-  } else if (missing(estimand)) {
-    if (inherits(weights, "causalWeights")) {
-      estimand <- switch(weights$estimand,
-                         "ATT" = "ATT",
-                         "ATC" = "ATC",
-                         "ATE" = "ATE",
-                         "cATE" = "ATE",
-                         "feasible" = "feasible")
-    }
+  # } else if (missing(estimand) && !missing(target)) {
+  #   estimand <- target
+  #   estimand <- switch(estimand,
+  #                      "ATT" = "ATT",
+  #                      "ATC" = "ATC",
+  #                      "ATE" = "ATE",
+  #                      "cATE" = "ATE",
+  #                      "feasible" = "feasible")
+  #   estimand <- match.arg(estimand)
+  # } else if (missing(estimand)) {
+  #   if (inherits(weights, "causalWeights")) {
+  #     estimand <- switch(weights$estimand,
+  #                        "ATT" = "ATT",
+  #                        "ATC" = "ATC",
+  #                        "ATE" = "ATE",
+  #                        "cATE" = "ATE",
+  #                        "feasible" = "feasible")
+  #   }
   } else {
     estimand <- switch(estimand,
                        "ATT" = "ATT",
@@ -649,37 +715,66 @@ estimate_effect <- function(data, formula = NULL, weights,
                        "feasible" = "feasible")
     estimand <- match.arg(estimand)
   }
-  # targ <- match.arg(target)
+  if(inherits(weights, "causalWeights")) {
+    if(!(weights$method %in% c("Logistic","None","CBPS"))) {
+      hajek <- TRUE
+    }
+  }
   
   #set up model structures
-  model.fun <- calc_model(model)
-  formula <- calc_form(formula, dr, estimand, split.model)
+  #gets model function, or returns "lm" by default
+  model.fun <- calc_model(model) 
+  #gets specified formula, or returns "~1" (no formula) by default
+  formula <- calc_form(formula, dr, estimand, split.model) 
+  # changes weights to hajek weights (sum to 1) if desired 
   weights <- calc_hajek(weights, estimand, hajek)
   
   #setup data
-  prep.data <- prep_data(data,...)
+  prep.data <- prep_data(data,...) #separates outcome, tx indicator, covariates
   sample_weight <- get_sample_weight(sample_weight, prep.data$z)
   
   #get estimate
-  estimate <- if (split.model) {
-    outcome_calc(prep.data$df, prep.data$z, weights, formula, model.fun,
-                           matched, estimand, sample_weight,
+  estimation.return <- if (split.model) {
+    #estimates separate models on each treatment group
+    outcome_calc(prep.data$df, prep.data$z, weights, 
+                 formula, model.fun,
+                 matched, estimand, sample_weight,
                  ...)
   } else {
-    outcome_calc_model(prep.data$df, prep.data$z, weights, formula, model.fun,
+    #estimates one model, such as a linear regression, on data jointly
+    #i.e., all treatment groups thrown into the same model
+    outcome_calc_model(prep.data$df, prep.data$z, weights, 
+                       formula, model.fun,
                        matched, estimand, ...)
   }
+  
+  estimate <- estimation.return$tx_effect
+  
+  # get model fun if not null
+  if (is.null(model)) {
+    model.fun <- NULL
+  }
+  
+  #save covariates + tx indicator
   output.df <- cbind(prep.data$df, z = prep.data$z)
+  
+  #set attributes for other functions such as ci
   attr(output.df, "balance.covariates") <- attributes(prep.data$df)$balance.covariates
   attr(output.df, "outcome") <- attributes(prep.data$df)$outcome
   attr(output.df, "treatment.indicator") <- "z"
   
+  #setup output list
   output <- list(estimate = estimate,
                  data = output.df,
                  model = model.fun,
                  formula = formula,
                  weights = weights,
                  estimand = estimand,
+                 outcome.model.fit = estimation.return$outcome.model.fit,
+                 variance.components = list(E_Y1 = estimation.return$E_Y1,
+                   E_Y0 = estimation.return$E_Y0,
+                   E_Y1_X = estimation.return$E_Y1_X,
+                   E_Y0_X = estimation.return$E_Y0_X),
                  options = list(hajek = hajek,
                                 doubly.robust = doubly.robust,
                                 matched = matched,
@@ -691,7 +786,10 @@ estimate_effect <- function(data, formula = NULL, weights,
                                 ),
                  call = match.call())
   
+  #set class
   class(output) <- "causalEffect"
+  
+  #return output list
   return(output)
 }
 
@@ -720,6 +818,7 @@ estimate_effect <- function(data, formula = NULL, weights,
 #' @examples
 #' \dontrun{
 #' # set-up data
+#' set.seed(1234)
 #' data <- Hainmueller$new()
 #' data$gen_data()
 #' 
@@ -727,18 +826,256 @@ estimate_effect <- function(data, formula = NULL, weights,
 #' weight <- calc_weight(data, method = "Logistic")
 #' tx_eff <- estimate_effect(data = data, weights = weight)
 #' 
+#' # run ci with bootstrap
 #' confint(tx_eff)
+#' # output:
+#' # $CI
+#' #      2.5%     97.5% 
+#' # -1.032536  0.472624 
+#' #
+#' # $SD
+#' # [1] 0.3794913
+#' 
+#' # Warning message:
+#' # glm.fit: fitted probabilities numerically 0 or 1 occurred
 #' }
-confint.causalEffect <- function(object, parm, level = 0.95, method = c("bootstrap", "asymptotic", "jackknife"), ...) {
+confint.causalEffect <- function(object, parm, level = 0.95, 
+                                 method = c("asymptotic", "bootstrap",  "jackknife"), 
+                                 ...) {
   method <- match.arg(method)
   if (method == "bootstrap") {
     return(ci_boot_ce(object, parm, level, ...))
   } else if (method == "jackknife") {
     return(ci_jack_ce(object, parm, level, ...))
+  } else if (method == "asymptotic") {
+    return(ci_asympt(object, parm, level, ...))
   } else {
     stop("confidence interval method not currently implemented")
   }
   
+  
+}
+
+ci_asympt <- function(object, parm, level, ...) {
+  
+  if (object$options$split.model == FALSE && 
+      !is.null(object$outcome.model.fit) && 
+      "vcov" %in% attributes(methods(class = class(object$outcome.model.fit))  )$info$generic) {
+    SDS <- sqrt(diag(sandwich::vcovHC(object$outcome.model.fit)))
+    SD <- SDS["z"]
+    
+    # get levels
+    quant.lower <- (1 - level) * 0.5
+    quant.upper <- 1 - quant.lower
+    CI <- c(qnorm(c(quant.lower, quant.upper),
+                mean = object$estimate, sd = SD))
+    
+    return(list(CI = CI,
+                SD = SD
+                ))
+  } else {
+    return(ci_semiparm_eff(object, parm, level, ...))
+  }
+  
+}
+
+ci_semiparm_eff <- function(object, parm, level, ...) {
+  
+  # calculates variance of estimating y(z)
+  semipar_var <- function(y, z, yhat, w, e_y, n) {
+    resid <- w * y * z - e_y - yhat * (w * z - 1)
+    return( mean( resid^2 ) / denom )
+  }
+  
+  # mean(w^2/n^2 *z *(y - yhat)) + mean((w * z * yhat - tau)^2)
+  
+  semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, tau, n) {
+    E_var_y1_given_x <- mean(w * z * (y - yhat_1)^2)
+    E_var_y0_given_x <- mean(w * (1-z) * (y - yhat_0)^2)
+    var_tau  <- mean( ((yhat_1 - yhat_0) - tau)^2 )
+    return((E_var_y1_given_x + E_var_y0_given_x + var_tau)/n)
+  }
+  
+  semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, tau, n) {
+    E_var_y1_given_x <- mean(w * z * (y - yhat_1)^2)
+    E_var_y0_given_x <- mean(w * (1-z) * (y - yhat_0)^2)
+    var_tau  <- mean( ((yhat_1 - yhat_0) - tau)^2 )
+    return(mean((w * z * (y - yhat_1) - w * (1 - z) * (y - yhat_0) + (yhat_1 - yhat_0) - tau)^2) / n )
+  }
+  
+  # semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, tau) {
+  #   return(mean((w * z * (y - yhat_1) - w * (1-z) * (y - yhat_0) + (yhat_1 - yhat_0) - tau)^2 ))
+  # }
+  
+  # from jose paper
+  # semipar_var <- function(y, z, yhat, w, e_y) {
+  #   resid <- w * y * z - e_y - yhat * (w*z - 1)
+  #   return(mean(resid^2))
+  # }
+  
+  # semipar_var <- function(y, z, yhat, w, e_y) {
+  #   # resid <- w * y * z - e_y - yhat * (w*z - 1)
+  #   # return(mean(resid^2))
+  #   mean(w * z * (y - yhat)^2) + mean((yhat - e_y)^2)
+  # }
+  
+  model.fun <- object$model
+  form <- object$formula
+  estimand <- object$estimand
+  
+  if (is.null(form)) {
+    form <- calc_form(formula, object$options$doubly.robust, estimand, object$options$split.model) 
+  } else {
+    environment(form$treated) <- environment(form$control) <- environment()
+  }
+  
+  
+  if(is.null(model.fun)) {
+    if("model" %in% ...names()) {
+      model.fun <- calc_model(model)
+    } else {
+      "Must specify an argument 'model' as input to this function or in the effect estimation function"
+    }
+  }
+  
+  if(is.null(form)) {
+    if("formula" %in% ...names()) {
+      form <- calc_form(formula = formula, 
+                        doubly.robust = object$options$doubly.robust, 
+                        target = object$estimand,
+                        split.model = object$options$split.model,
+                        )
+    } else {
+      "Must specify an argument 'formula' as input to this function or in the effect estimation function"
+    }
+  }
+  
+  # treatment effect
+  tau  <- object$estimate #estimated treatment effect
+  
+  # get variance components
+  E_Y1 <- object$variance.component$E_Y1 #expectation of Y(1)
+  E_Y0 <- object$variance.component$E_Y0 #expectation of Y(0)
+  E_Y1_X <- object$variance.component$E_Y1_X  #estimated values of E(Y(1) | X)
+  E_Y0_X <- object$variance.component$E_Y0_X  #estimated values of E(Y(0) | X)
+  
+  #get observed values of outcome
+  data.obj <- object$data
+  z       <- data.obj[,object$options$treatment.indicator]
+  y       <- data.obj[,object$options$outcome]
+  n       <- length(y)
+  n1      <- sum(z)
+  n0      <- n-n1
+  
+  weights <- object$weights
+  
+  orders  <- order(z)
+  w       <- c(weights$w0, weights$w1)
+  
+  # if (object$options$hajek == TRUE) {
+  #   if (estimand == "ATE") {
+  #     w <- w * n
+  #     denom <- n
+  #   } else if (estimand == "ATT") {
+  #     w <- w * n1
+  #     denom <- n1
+  #   } else if (estimand == "ATC") {
+  #     w <- w * n0
+  #     denom <- n0
+  #   }
+  # } else {
+  #   if (estimand == "ATE") {
+  #     denom <- n
+  #   } else if (estimand == "ATT") {
+  #     denom <- n1
+  #   } else if (estimand == "ATC") {
+  #     denom <- n0
+  #   }
+  # }
+  if (estimand == "ATE") {
+    w <- w * n
+    denom <- n
+  } else if (estimand == "ATT") {
+    w <- w * n1
+    denom <- n1
+  } else if (estimand == "ATC") {
+    w <- w * n0
+    denom <- n0
+  }
+
+  y       <- y[orders]
+  z       <- sort(z)
+  
+  
+  # get conditional mean predictions for each unit
+  if ( estimand == "ATE" && ( any(is.na(E_Y1_X)) || any(is.na(E_Y0_X)) ) ) {
+    x     <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
+    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
+    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
+    
+    E_Y0_X <- predict(fit_0, newdata = x)
+    E_Y1_X <- predict(fit_1, newdata = x)
+    
+  } else if (estimand == "ATT" && any(is.na(E_Y0_X)) ) {
+    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
+    
+    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
+    
+    E_Y0_X <- predict(fit_0, newdata = x)
+  } else if (estimand == "ATC" && any(is.na(E_Y1_X)) ) {
+    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
+    
+    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
+    
+    E_Y1_X <- predict(fit_1, newdata = x)
+  } 
+  
+  # get variance estimates
+  # semipar_var(y, z, yhat, w, e_y)
+  if (estimand == "ATE" ) {
+    E_Y0_X <- E_Y0_X[orders]
+    E_Y1_X <- E_Y1_X[orders]
+    VAR_Y1 <- semipar_var(y, z = z,
+                          yhat = E_Y1_X, w = w, e_y = E_Y1,
+                          n = denom)
+    VAR_Y0 <- semipar_var(y, z = 1 - z, 
+                          yhat = E_Y0_X, w = w, e_y = E_Y0,
+                          n = denom)
+    VAR    <- semipar_var_ate(y, z = z, yhat_1 = E_Y1_X,
+                              yhat_0 = E_Y0_X, w, tau = tau,
+                              n = denom)
+    # VAR <- (n1/n * VAR_Y1 + n0/n * VAR_Y0)
+    # VAR <- (VAR_Y1 + VAR_Y0)
+    
+  } else if (estimand == "ATT" ) {
+    E_Y0_X <- E_Y0_X[orders]
+    VAR_Y1 <- var(y[z==1]) # assuming var(Y | Z) = var(Y(Z))
+    VAR_Y0 <- semipar_var(y, z = 1 - z, yhat = E_Y0_X, w = w, e_y = E_Y0, n = denom)
+    VAR <- VAR_Y1 + VAR_Y0/denom
+  } else if (estimand == "ATC"  ) {
+    E_Y1_X <- E_Y1_X[orders]
+    VAR_Y1 <- semipar_var(y, z = z,     yhat = E_Y1_X, w = w, e_y = E_Y1, n = denom)
+    VAR_Y0 <- var(y[z==0]) # assuming var(Y | Z) = var(Y(Z))
+    VAR <- VAR_Y1 + VAR_Y0/n0
+  }
+  
+  
+  SD  <- sqrt(VAR)
+  
+  # get levels
+  quant.lower <- (1 - level) * 0.5
+  quant.upper <- 1 - quant.lower
+  
+  # calculate CI
+  LWR <- qnorm(quant.lower, mean = tau, sd = SD)
+  UPR <- qnorm(quant.upper, mean = tau, sd = SD)
+  
+  output <- list(
+                  CI = c(LWR, UPR),
+                  SD = SD
+                )
+  
+  return(output)
   
 }
 

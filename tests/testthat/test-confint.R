@@ -35,25 +35,25 @@ testthat::test_that("confint works for sbw causaleffect", {
   testthat::expect_equivalent(ci$SD, 856.4893, tol = 1e-3)
 })
 
-testthat::test_that("confint works for c wass causaleffect", {
-  testthat::skip_on_cran()
-  set.seed(2323420)
-  sim <- LaLonde$new(design = "NSW")
-  sim$gen_data()
-  
-  weight <- calc_weight(sim, constraint = 2.1, estimand = "ATT",
-                        metric = "mahalanobis", power = 2,
-                        method = "Constrained Wasserstein", solver = "mosek")
-  
-  est <- estimate_effect(data = sim, weights = weight, 
-                         estimand = "ATT", model = "lm", doubly.robust = FALSE,
-                         matched = FALSE)
-  
-  # debugonce(ci_boot_ce)
-  ci <- confint.causalEffect(est, level = 0.95, method = "bootstrap", n.boot = 10)
-  testthat::expect_equivalent(ci$CI, c(832, 2580  ), tol = 1)
-  testthat::expect_equivalent(ci$SD, 621.9692, tol = 1e-3)
-})
+# testthat::test_that("confint works for c wass causaleffect", {
+#   testthat::skip_on_cran()
+#   set.seed(2323420)
+#   sim <- LaLonde$new(design = "NSW")
+#   sim$gen_data()
+#   
+#   weight <- calc_weight(sim, constraint = 2.1, estimand = "ATT",
+#                         metric = "mahalanobis", power = 2,
+#                         method = "Constrained Wasserstein", solver = "mosek")
+#   
+#   est <- estimate_effect(data = sim, weights = weight, 
+#                          estimand = "ATT", model = "lm", doubly.robust = FALSE,
+#                          matched = FALSE)
+#   
+#   # debugonce(ci_boot_ce)
+#   ci <- confint.causalEffect(est, level = 0.95, method = "bootstrap", n.boot = 10)
+#   testthat::expect_equivalent(ci$CI, c(832, 2580  ), tol = 1)
+#   testthat::expect_equivalent(ci$SD, 621.9692, tol = 1e-3)
+# })
 
 testthat::test_that("confint works for NNM causaleffect", {
   set.seed(2323420)
@@ -134,8 +134,8 @@ testthat::test_that("confint calibrated for logistic causaleffect", {
                          matched = FALSE)
   
   # debugonce(ci_boot_ce)
-  ci <- confint.causalEffect(est, level = 0.05, method = "bootstrap", n.boot = 1000,
-                             verbose = TRUE)
+  ci <- confint.causalEffect(est, level = 0.95, method = "bootstrap", n.boot = 1000,
+                             verbose = FALSE)
   testthat::expect_equivalent(ci$CI, c(-6.538542,  1.690153 ), tol = 1e-3)
   testthat::expect_equivalent(ci$SD, 2.302784, tol = 1e-3)
   # true est 0.115, sd ~ 1.72, true CI (-3.54, 2.97)
@@ -157,7 +157,7 @@ testthat::test_that("confint works for NNM causaleffect", {
                          matched = FALSE)
   
   # debugonce(ci_boot_ce)
-  ci <- confint.causalEffect(est, level = 0.05, method = "bootstrap", n.boot = 1000,
+  ci <- confint.causalEffect(est, level = 0.95, method = "bootstrap", n.boot = 1000,
                              verbose = TRUE)
   testthat::expect_equivalent(ci$CI, c(396.3799, 3185.4339  ), tol = 1e-3)
   testthat::expect_equivalent(ci$SD, 706.7932, tol = 1e-3)

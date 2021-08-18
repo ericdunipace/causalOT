@@ -10,8 +10,7 @@ testthat::test_that("qp_wass gives error if power has length > 1 ", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 1:2
-  
+  power <- 4:5
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
                                     design = design, overlap = overlap)
@@ -40,7 +39,7 @@ testthat::test_that("qp_wass has correct dimensions, no marginals", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 2
+  power <- 4
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -75,7 +74,7 @@ testthat::test_that("qp_wass has correct dimensions, marginals", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 2
+  power <- 4
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -111,7 +110,7 @@ testthat::test_that("qp_wass works with sample weights", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 2
+  power <- 4
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 

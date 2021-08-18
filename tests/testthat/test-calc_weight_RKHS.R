@@ -91,7 +91,7 @@ testthat::test_that("check RKHS kernel optimal for hainmueller", {
                                                   opt.method = "stan", verbose = FALSE,
                                                   algorithm = "LBFGS"))
   
-  est <- estimate_effect(data = data, weights = out, target = "ATE")
+  est <- estimate_effect(data = data, weights = out, estimand = "ATE")
   
   # testthat::expect_lte( abs(est$estimate - 0), 1)
   

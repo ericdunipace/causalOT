@@ -145,6 +145,7 @@ optProblem <- R6::R6Class("optProblem",
 )
 
 
+##### SBW ####
 #' SBW optimization class
 #' 
 #' @rdname optProblem
@@ -1253,7 +1254,7 @@ dual_opt <- function(x, target,
               fit = fit))
 }
 
-convergence <- function(old, new) {
+convergence <- function(old, new, tol) {
   
 }
 
@@ -2002,6 +2003,8 @@ otDualL2_self_lambda <-  R6::R6Class("otDualL2",
 )
 
 
+#### Entropy dual ####
+
 otDualEntropy <-  R6::R6Class("otDualEntropy",
                          inherit = optProblem,
                          public = list(
@@ -2139,7 +2142,8 @@ otDualEntropy <-  R6::R6Class("otDualEntropy",
                          )
 )  
 
-  
+
+#### ot dual optimization function ####
 otDualOpt <- function(x, z, p, metric, lambda, penalty = "L2", optimizer = NULL, sample_weight = NULL, self = FALSE, control = NULL, ...) {
   
   if (is.null(optimizer)) {
@@ -2149,7 +2153,7 @@ otDualOpt <- function(x, z, p, metric, lambda, penalty = "L2", optimizer = NULL,
     cost <- cost_fun(x = x, z = z, p = p, metric = metric, estimand = "ATT")
     if (!self ) {
       optimizer <- switch(penalty,
-                        "L2" = otDualL2$new(lambda,
+                        "L2" = cotDualL2$new(lambda,
                                               cost,
                                               p,
                                               a,
@@ -2195,7 +2199,8 @@ otDualOpt <- function(x, z, p, metric, lambda, penalty = "L2", optimizer = NULL,
   return(list(f = f, g = g, lambda =  lambda, optimizer = optimizer, fit = fit))
   
 }
-  
+
+#### backup cotDuall2 ####
 cotDualL2_2 <- R6::R6Class("cotDualL2",
                            inherit = optProblem,
                            public = list(
@@ -2517,11 +2522,13 @@ cotDualL2_2 <- R6::R6Class("cotDualL2",
                            )
 )
 
+#### cot_dual opt ####
 
 cot_dual_opt <- function(x, target, 
                          init = NULL,
                          sample_weights = NULL, 
                          method = c("SBW", "Wasserstein"),
+                         penalty = c("KL","Entropy","L2"),
                          wasserstein = list(metric = c("mahalanobis"),
                                             power = 2,
                                             cost = NULL,
@@ -2597,3 +2604,10 @@ cot_dual_opt <- function(x, target,
               optimizer = optimizer))
 }
 
+f_c <- function(b,C,f) {
+  return(lambda * log(b) - lambda * log(colSums(exp(C - f))))
+}
+
+semi_dual <- function(C,f,a,b, lambda) {
+  sum(f*a) + sum(f_c(b,C,f) * b) - lambda
+}

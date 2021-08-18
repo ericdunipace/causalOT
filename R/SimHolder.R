@@ -274,7 +274,7 @@
                              }
                              
                              if (!is.null(Wass$confidence.interval) ) {
-                               private$wass.opt$confidence.interval <- isTRUE(Wass$confidence.interval)
+                               private$wass.opt$confidence.interval <- match.arg(Wass$confidence.interval, c("asymptotic", "bootstrap"))
                              } else {
                                private$wass.opt$confidence.interval <- FALSE
                              }
@@ -630,6 +630,8 @@
                                                     if ( isTRUE(o$add.divergence) ) {
                                                       if (isTRUE(o$add.margins)) next
                                                       if (isTRUE(o$joint.mapping)) next
+                                                      if (isTRUE(!is.null(o$formula[[1]]) && !is.na(o$formula[[1]]))) next
+                                                      delta <- list(penalty = 1e4)
                                                     }
                                                   }
                                                   private$weight.calc(cur = cur, 
@@ -700,8 +702,8 @@
                                                                                     split.model = split,
                                                                                     estimand = est,
                                                                                     model = match.fun(mods))
-                                                          if ( method == "Wasserstein" && private$wass.opt$confidence.interval ) {
-                                                            ci.out <- confint(esteff)
+                                                          if ( method == "Wasserstein" && !isFALSE(private$wass.opt$confidence.interval )) {
+                                                            ci.out <- confint(esteff, method = private$wass.opt$confidence.interval)
                                                             data.table::set(private$output.dt, i = iter, j = "confidence.interval", 
                                                                             value = list(c(ci.out$CI)))
                                                           }

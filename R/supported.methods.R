@@ -13,7 +13,7 @@ supported.methods <- function() {
            "CBPS",
            "RKHS", "RKHS.dose", "NNM", 
            "Wasserstein",
-           "Constrained Wasserstein",
+           # "Constrained Wasserstein",
            "None"))
 }
 

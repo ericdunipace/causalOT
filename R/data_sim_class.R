@@ -280,13 +280,18 @@ Hainmueller <- R6::R6Class("Hainmueller",
                              #' Generates the outcome data
                              gen_y = function() {
                                if(all(dim(private$x) == 0)) gen_x()
-                               mean_y <- private$mu0 <- private$mu1 <- if(private$design =="A" | private$design == 1) {
-                                 private$x %*% private$param$beta_y
-                               } else if (private$design =="B" | private$design == 2) {
-                                 (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2
-                               } else {
-                                 stop("design must be one of 'A' or 'B'")
-                               }
+                               mean_y <- private$mu0 <- private$mu1 <- 
+                                 if(private$design =="A" || private$design == 1) {
+                                   private$x %*% private$param$beta_y
+                                 } else if (private$design =="B" || private$design == 2) {
+                                   (private$x[,c(1,2,5)] %*% private$param$beta_y[1:3])^2
+                                 } else if (private$design == "C" || private$design == 3) {
+                                   cos(private$x[,1] * private$x[,3])^2 * private$param$beta_y[1] +
+                                     private$x[,1]^2 * private$x[,5] * private$param$beta_y[2] +
+                                     private$x[,3]^2 * private$param$beta_y[3]
+                                 } else {
+                                   stop("design must be one of 'A' or 'B' or 'C'")
+                                 }
                                private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
                                # private$check_data()
                                invisible(self)
@@ -365,7 +370,7 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                if(missing(design ) | is.null(design) ) {
                                  private$design <- "A"
                                } else {
-                                 private$design <- match.arg(design, c("A","B"))
+                                 private$design <- match.arg(design, c("A","B","C"))
                                }
                                if( missing(overlap) | is.null(overlap) ) {
                                  private$overlap <- "low"
@@ -401,7 +406,8 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                             default_param <- list(
                                               beta_z = c(1,2,-2,-1,-0.5,1),
                                               beta_y = list(A = c(1,1,1,-1,1,1),
-                                                            B = c(1,1,1)),
+                                                            B = c(1,1,1),
+                                                            C = c(1, -1, 1)),
                                               sigma_z= list(low = sqrt(30),
                                                             medium = sqrt(67.6/10),
                                                             high = sqrt(100)),

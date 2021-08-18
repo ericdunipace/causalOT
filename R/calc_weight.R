@@ -74,6 +74,10 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
     grid.search <- FALSE
   }
   
+  if(args$method == "Wasserstein" && isTRUE(args$add.divergence) ) {
+    grid.search <- FALSE
+  }
+  
   output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein","SCM")) {
     # args$method <- NULL
     # if(is.null(args$grid)) 
@@ -178,7 +182,8 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
   dots <- list(...)
   cost <- dots[["cost"]]
   p <- dots[["p"]]
-  if (is.null(p)) p <- 2
+  if (is.null(p)) p <- floor(ncol(x)/2 + 1)
+  if(p < ncol(x)/2) warning("power of distance metric is not rate optimal for nearest neighbor matching (p > ncol(x)/2)")
   if (is.null(dots[["metric"]])) dots$metric <- "mahalanobis"
   if (dots[["metric"]] == "RKHS" & is.null(dots$rkhs.args) & is.null(dots[["cost"]])) {
     if (is.null(dots$opt.method)) dots$opt.method <- "stan"
@@ -345,30 +350,39 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
 # calculate balancing weights
 calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
                             method = c("SBW",ot.methods()),
-                            solver = c("mosek","gurobi","cplex"),
+                            solver = c("lbfgs","mosek","gurobi","cplex"),
                             sample_weight = NULL,
                             add.divergence = FALSE,
                             ...) {
   method <- match.arg(method)
   estimand <- match.arg(estimand)
   sample_weight <- get_sample_weight(sample_weight, get_z(data, ...))
-  if (isTRUE(add.divergence) && method == "Wasserstein") {
-    run.divergence <- 2L
-  } else {
-    run.divergence <- 1L
-  }
+  
   
   solver <- match.arg(solver)
   
-  res <- switch(run.divergence,
+  if(add.divergence == TRUE) {
+    solver <- "div"
+  }
+  
+  solve.method <- switch(solver,
+                         "lbfgs" = 1L,
+                         "div" = 2L,
+                         3L)
+  
+  res <- switch(solve.method,
+                calc_weight_lbfgs(data = data, constraint = constraint,  estimand = estimand, 
+                                  method = method, sample_weight = sample_weight,
+                                  solver = solver,
+                                  ...),
+                calc_weight_div(data = data, constraint = constraint,  estimand = estimand, 
+                                method = method, sample_weight = sample_weight,
+                                solver = solver,
+                                ...),
                 calc_weight_qp(data = data, constraint = constraint,  estimand = estimand, 
                                    method = method, sample_weight = sample_weight,
                                solver = solver,
-                                   ...),
-                calc_weight_div(data = data, constraint = constraint,  estimand = estimand, 
-                                    method = method, sample_weight = sample_weight,
-                                solver = solver,
-                                    ...)
+                                   ...)
                 )
   
   ns <- get_n(data, ...)
@@ -425,6 +439,19 @@ calc_weight_qp <- function(data, constraint, estimand,
   return(res)
 }
 
+# #lbfgs dual solver
+# calc_weight_div <- function(data = data, constraint = constraint,  estimand = estimand, 
+#                 method = method, sample_weight = sample_weight,
+#                 solver = solver, penalty = c("entropy","L2"),
+#                 cost = NULL,
+#                 p = NULL,
+#                 niter = 2000,
+#                 ...) {
+#   
+#   
+#   
+# }
+
 # calculate penalized divergence based weights
 calc_weight_div <- function(data, constraint, estimand,
                             method, sample_weight = NULL,
@@ -434,9 +461,9 @@ calc_weight_div <- function(data, constraint, estimand,
                             metric = dist.metrics(),
                             p = 2,
                             niter = 2000,
-                            tol = 1e-7,
-                            search = "mirror-nocgd",
-                            stepsize = 1e-1,
+                            tol = 1e-5,
+                            search = "mirror-accelerated",
+                            stepsize = 1e-2,
                             reach = NULL,
                             diameter = NULL,
                             scaling = 0.5, truncate = 5,
@@ -541,10 +568,13 @@ calc_weight_div <- function(data, constraint, estimand,
     cg(optimizer0, verbose = verbose)
     cg(optimizer1, verbose = verbose)
     
-    return(list(list(sol = optimizer0$get_weight()) , 
-                list(sol = optimizer1$get_weight())))
+    return(list(list(sol = optimizer0$get_weight(),
+                     dual = optimizer0$get_param()) , 
+                list(sol = optimizer1$get_weight(),
+                     dual = optimizer1$get_param())))
     
   } else if (estimand == "ATC") {
+    sample_weight[c("a","b")] <- sample_weight[c("b","a")]
     optimizer <- optClass$new(X1 = X1, X2 = X0, 
                               cost = cost,
                               qp_solver = solver,
@@ -567,7 +597,7 @@ calc_weight_div <- function(data, constraint, estimand,
     
     cg(optimizer, verbose = verbose)
     
-    return(list(sol = t(optimizer$get_weight()), dual = optimizer$get_param()))
+    return(list(list(sol = t(optimizer$get_weight()), dual = optimizer$get_param())))
            
     
   } else if (estimand == "ATT") {
@@ -593,7 +623,7 @@ calc_weight_div <- function(data, constraint, estimand,
     
     cg(optimizer, verbose = verbose)
     
-    return(list(sol = optimizer$get_weight(),dual = optimizer$get_param()))
+    return(list(list(sol = optimizer$get_weight(),dual = optimizer$get_param())))
   }
   
   

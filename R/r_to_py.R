@@ -260,11 +260,13 @@ coef.ot_imputer <- function(object, tx.name, estimand, ...) {
 #' @param debias specifies if we should compute the unbiased Sinkhorn divergence instead of the classic, entropy-regularized “SoftAssign” loss.
 #' @param potentials When this parameter is set to True, the SamplesLoss layer returns a pair of optimal dual potentials 𝐹 F  and 𝐺 G , sampled on the input measures, instead of differentiable scalar value. These dual vectors (𝐹(𝑥𝑖)) ( F ( x i ) )  and (𝐺(𝑦𝑗)) ( G ( y j ) )  are encoded as Torch tensors, with the same shape as the input weights (𝛼𝑖) ( α i )  and (𝛽𝑗) ( β j )
 #' @param verbose if backend is "multiscale", specifies whether information on the clustering and epsilon-scaling descent should be displayed in the standard output.
-#' @param backend one of "auto", "tensorized", "online", "multiscale"
+#' @param backend one of "auto", "tensorized", "online", or "multiscale"
 #'
-#' @description This function serves as a wrapper to Python function SamplesLoss in the GeomLoss package http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss 
+#' @description This function serves as an R wrapper to the Python function SamplesLoss in the 
+#' GeomLoss package 
+#' <http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss>
 #'
-#' @return a list with slots "loss", "f", "g". "loss" is the sinkhorn distance,
+#' @return a list with slots "loss", "f", "g". "loss" is the Sinkhorn distance,
 #' "f" is the potential corresponding to data `x`, and "g" is the potential
 #' corresponding to data `y`.
 #' 
@@ -333,12 +335,21 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
     } else if (power == 1) {
       reticulate::source_python(file = lp_python_path)
       cost <- l1_loss
+    } else {
+      # reticulate::source_python(file = lp_python_path)
+      # cost <- lp_loss
+      cost <- paste0("Sum(Pow(X-Y,", power,"))")
+      backend <- "online"
+      power <- 1L
     }
   } else if (n*m > 5000^2 || backend == "multiscale" || backend == "online") {
     if (power == 2) {
       cost <- "SqDist(X,Y)"
     } else if (power == 1) {
-      cost <- "Abs(X - Y)"
+      cost <- "Sum(Abs(X - Y))"
+    } else {
+      cost <- paste0("Sum(Pow(X-Y,", power,"))")
+      power <- 1L
     }
     pykeops <- reticulate::import("pykeops", convert = TRUE)
     pykeops$clean_pykeops()

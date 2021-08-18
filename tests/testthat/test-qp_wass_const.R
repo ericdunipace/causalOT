@@ -10,7 +10,7 @@ testthat::test_that("qp_wass_const correct", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 2
+  power <- 4
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -44,7 +44,7 @@ testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 1:2
+  power <- 4:5
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -74,7 +74,7 @@ testthat::test_that("qp_wass_const correct", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 2
+  power <- 4
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -114,7 +114,7 @@ testthat::test_that("qp_wass_const correct, margins", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 2
+  power <- 4
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -185,7 +185,7 @@ testthat::test_that("qp_wass_const correct, margins with sw", {
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
-  power <- 2
+  power <- 4
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 

@@ -30,13 +30,13 @@ testthat::test_that("barycenter projection pow2, lp", {
              estimand = e, metric = "Lp"))
   
   
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  testthat::expect_warning(weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
                                                        estimand = e, 
-                                                       method = "Constrained Wasserstein",
+                                                       method = "Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
-                                                       cost = cost[[e]]))
+                                                       cost = cost[[e]])))
   
   
   testthat::expect_equal(c(crossprod(weights[[1]]$gamma, y0) * 1/colSums(weights[[1]]$gamma)), 
@@ -82,14 +82,14 @@ testthat::test_that("barycenter projection pow2, mahalanobis", {
   cost <- lapply(estimates, function(e)
     cost_fun(data$get_x(), data$get_z(), power = power,
              estimand = e, metic = "mahalanobis"))  
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  testthat::expect_warning(weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
                                                        estimand = e, 
-                                                       method = "Constrained Wasserstein",
+                                                       method = "Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
                                                        cost = cost[[e]],
-                                                       transport.matrix = TRUE))
+                                                       transport.matrix = TRUE)))
   
   
   testthat::expect_equal(c(crossprod(weights[[1]]$gamma, y0)*n1), 
@@ -173,14 +173,14 @@ testthat::test_that("barycenter projection pow1, mahalanobis", {
     cost_fun(data$get_x(), data$get_z(), power = power,
              estimand = e, metic = "mahalanobis")) 
   
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  testthat::expect_warning(weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
                                                        estimand = e, 
-                                                       method = "Constrained Wasserstein",
+                                                       method = "Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
                                                        cost = cost[[e]],
-                                                       transport.matrix = TRUE))
+                                                       transport.matrix = TRUE)))
   
   
   testthat::expect_equal(c((t(U) %*% apply(weights[[1]]$gamma,2,function(w) matrixStats::colWeightedMedians(x=dt0, w=w)))[p+1,]), 
@@ -260,14 +260,14 @@ testthat::test_that("barycenter projection pow1, lp", {
     cost_fun(data$get_x(), data$get_z(), power = power,
              estimand = e, metic = "Lp")) 
   
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  testthat::expect_warning(weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
                                                        estimand = e, 
-                                                       method = "Constrained Wasserstein",
+                                                       method = "Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
                                                        cost = cost[[e]],
-                                                       transport.matrix = TRUE))
+                                                       transport.matrix = TRUE)))
   
   
   testthat::expect_equal(c(apply(weights[[1]]$gamma,2,function(w) matrixStats::weightedMedian(x=y0, w=w))), 
@@ -316,7 +316,7 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
                                                        estimand = e, 
-                                                       method = "Constrained Wasserstein",
+                                                       method = "Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
                                                        cost = cost[[e]],
@@ -328,7 +328,7 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   
 })
 
-testthat::test_that("barycenter projection pow3, lp", {
+testthat::test_that("barycenter projection pow4, lp", {
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -336,7 +336,7 @@ testthat::test_that("barycenter projection pow3, lp", {
   overlap <- "low"
   design <- "B"
   distance <- c("Lp")
-  power <- 3
+  power <- 4
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
@@ -361,7 +361,7 @@ testthat::test_that("barycenter projection pow3, lp", {
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
                                                        estimand = e, 
-                                                       method = "Constrained Wasserstein",
+                                                       method = "Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
                                                        cost = cost[[e]],
@@ -372,7 +372,7 @@ testthat::test_that("barycenter projection pow3, lp", {
 
 })
 
-testthat::test_that("barycenter projection pow3, lp", {
+testthat::test_that("barycenter projection pow4, lp", {
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -380,7 +380,7 @@ testthat::test_that("barycenter projection pow3, lp", {
   overlap <- "low"
   design <- "B"
   distance <- c("Lp")
-  power <- 3
+  power <- 4
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
@@ -405,14 +405,14 @@ testthat::test_that("barycenter projection pow3, lp", {
   gamma0 <- matrix(rep(1/n0/n1,n1),n0,n1, byrow = TRUE)
   
   # debugonce(barycenter_estimation)
-  testthat::expect_equal(11.616492354609432525,
+  testthat::expect_equal(16.118159135815048444,
                          barycenter_estimation(gamma1, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATT", metric = "Lp", power = power)$y0[1],
                          check.attributes = FALSE)
   
   
 })
 
-testthat::test_that("barycenter projection pow3, mahalanobis", {
+testthat::test_that("barycenter projection pow4, mahalanobis", {
   set.seed(23483)
   n <- 2^6
   p <- 6
@@ -420,7 +420,7 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   overlap <- "low"
   design <- "B"
   distance <- c("mahalanobis")
-  power <- 3
+  power <- 4
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
@@ -456,7 +456,7 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   # print(barycenter_estimation(gamma1, x0 = x0, x1 = x1, y0 = y0, 
   #                             y1 = y1, estimand = "ATT", metric = "mahalanobis", power = power,
   #                             method = "optim")$y0[1], digits = 20)
-  testthat::expect_equal(10.411723543077098242,
+  testthat::expect_equal(12.623257847612290306,
                          barycenter_estimation(gamma1, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATT", metric = "mahalanobis", power = power)$y0[1],
                          check.attributes = FALSE)
   

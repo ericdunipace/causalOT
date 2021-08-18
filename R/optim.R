@@ -6,12 +6,13 @@ cg <- function(optimizer, verbose = TRUE) {
   if (verbose) pb <- txtProgressBar(min = 0, max = floor(optimizer$get_niter()/10), style = 3)
   for (i in 1:optimizer$get_niter()) {
     optimizer$solve_param()
+    if (optimizer$converged() && i > 1) break
     optimizer$solve_S()
     optimizer$step()
-    if (optimizer$converged()) break
     if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
   }
   if (verbose) close(pb)
+  # optimizer$solve_param()
   return(invisible(optimizer))
 }
 
@@ -208,6 +209,7 @@ cg <- function(optimizer, verbose = TRUE) {
                              public = list(
                                converged = function() {
                                  private$f_val <- sum(private$f_pot * private$a) + sum(private$g_pot * private$b)
+                                 # print(private$f_val)
                                  f_val_diff <- abs(private$f_val - private$f_val_old)
                                  # if ((i %% 100) == 0) message(round(sum(private$a * y[z==0]), digits = 3), ", ", appendLF = FALSE)
                                  # message(round(private$a * y[z==0]))
@@ -258,7 +260,9 @@ cg <- function(optimizer, verbose = TRUE) {
                                  fmat <- matrix(private$f_pot, private$n1, private$n2)
                                  gmat <- matrix(private$g_pot, private$n1, private$n2, byrow = TRUE)
                                  eta <- (fmat + gmat - private$cost)/private$lambda
-                                 return( exp(eta) * matrix(private$a, private$n1, private$n2) * matrix(private$b, private$n1, private$n2, byrow = TRUE))
+                                 pi_raw <- exp(eta) * matrix(private$a, private$n1, private$n2) * matrix(private$b, private$n1, private$n2, byrow = TRUE)
+                                 pi <- round_pi(pi_raw, private$a, private$b)
+                                 return( pi )
                                },
                                # f = function() {
                                #   fmat <- matrix(private$f_pot, private$n1, private$n2)
@@ -312,8 +316,9 @@ cg <- function(optimizer, verbose = TRUE) {
                                },
                                solve_param = function() {
                                  
-                                 sol <- sinkhorn_geom(private$X1, private$X2, private$a, 
-                                                      private$b, power = private$p, 
+                                 sol <- sinkhorn_geom(x = private$X1, y = private$X2, 
+                                                      a = private$a, 
+                                                      b = private$b, power = private$p, 
                                                       blur = private$lambda, reach = private$sinkhorn_args$reach, 
                                                       diameter = private$sinkhorn_args$diameter,
                                                       scaling = private$sinkhorn_args$scaling, 
@@ -326,11 +331,10 @@ cg <- function(optimizer, verbose = TRUE) {
                                  private$f_pot <- sol$f
                                  private$g_pot <- sol$g
                                  
-                                 
-                                 
                                },
                                solve_S = function() {
-                                 if (private$search != "mirror-nocgd") {
+                                 if (private$search != "mirror-nocgd" && 
+                                     private$search != "mirror-accelerated") {
                                    private$qp <- qp_dual(f = private$f_pot,
                                                          g = private$g_pot,
                                                          b = private$b)
@@ -417,6 +421,21 @@ cg <- function(optimizer, verbose = TRUE) {
                                    eta <- private$stepsize / sqrt(private$cur_iter)
                                    prop <- old_a * exp(-eta * df_val)
                                    private$a <- prop/sum(prop)
+                                 } else if (private$search == "mirror-accelerated") {
+                                   
+                                   step_ <- (private$cur_iter + 1)/2
+                                   
+                                   
+                                   private$a_tilde <- private$a_tilde * exp(- private$stepsize * step_ * df_val)
+                                   private$a_tilde <- private$a_tilde/sum(private$a_tilde)
+                                   
+                                   private$a_hat <- (1 - 1/step_) * private$a_hat + 1/step_ * private$a_tilde
+                                   
+                                   step_ <- step_ + 0.5
+                                   
+                                   private$a <- (1 - 1/step_) * private$a_hat + 1/step_ * private$a_tilde
+                                   # update parameters next
+                                   
                                  }
                                  
 
@@ -431,7 +450,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                                    power = 2,
                                                    niter = 1000,
                                                    tol = 1e-7,
-                                                   search = "mirror-nocgd",
+                                                   search = "mirror-accelerated",
                                                    stepsize = 1e-1,
                                                    sample_weight = NULL,
                                                    reach = NULL,
@@ -450,7 +469,9 @@ cg <- function(optimizer, verbose = TRUE) {
                                if (missing(niter) || length(niter) == 0) niter <- 1000
                                if (missing(tol) || length(tol) == 0) tol <= 1e-7 
                                private$search <- match.arg(search, c("armijo","mirror",
-                                                                     "fixed", "mirror-nocgd"))
+                                                                     "fixed", "mirror-nocgd",
+                                                                     "mirror-accelerated"
+                                                                     ))
                                
                                private$cur_iter <- 0
                                
@@ -461,8 +482,9 @@ cg <- function(optimizer, verbose = TRUE) {
                                z <- c(rep(0, private$n1), rep(1, private$n2))
                                
                                sw  <- get_sample_weight(sample_weight, z)
-                               private$a <- sw$a
+                               private$a <- private$a_hat <- private$a_tilde <- sw$a
                                private$b <- sw$b
+                               
                                
                                if (missing(cost) || length(cost) == 0) {
                                  private$cost <- cost_fun(x = x, z = z, power = power, metric = metric,
@@ -483,6 +505,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                  # }
                                }
                                private$maxcost <- max(private$cost)
+                               if (is.null(diameter)) diameter <- private$maxcost
                                private$stepsize <- stepsize * sqrt(2 * private$maxcost)
                                # if (add.mapping) private$cost <- private$cost / max(private$cost)
                                
@@ -543,7 +566,9 @@ cg <- function(optimizer, verbose = TRUE) {
                            ),
                            private = list(
                              "a" = "numeric",
+                             "a_hat" = "numeric",
                              "a_old" = "numeric",
+                             "a_tilde" = "numeric",
                              # "add.mapping" = "logical",
                              # "add.margins" = "logical",
                              "b" = "numeric",
@@ -643,7 +668,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                               constraint = list(joint = NULL,
                                                                 penalty = private$lambda,
                                                                 margins = NULL),
-                                              penalty = "entropy",
+                                              penalty = "L2",
                                               power = private$power,
                                               metric = private$metric,
                                               niter = private$niter,
@@ -1906,4 +1931,59 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
   return(list(alpha = NULL, phi1 = phi_a1))
 }
   
-
+wass_div_opt <- function(X0, X1, lambda, a = NULL, b = NULL, niter = 1e3, step = 1e-1, 
+                         tol = 1e-5, ...) {
+  
+  convergence <- function(old, new, tol) {
+    diff <- abs(old - new) 
+    vals <- diff /old
+    vals[diff == 0] <- 0
+    all(vals < tol)
+  }
+  
+  n <- nrow(X0)
+  m <- nrow(X1)
+  
+  if(is.null(a)) a <- rep(1/n, n)
+  if(is.null(b)) b <- rep(1/m, m)
+  # b_pot <- sinkhorn_geom(x = X1, y =X1,
+  #                        a = b, b = b,
+  #                        ...)
+  # 
+  # q_ <- b_pot$g
+  
+  a_hat <- a_tilde <- a_ <-  a
+  a_old_ <- rep(0,length(a))
+  
+  norm_const <- norm_const_old <- 1
+  
+  pot_update <- step_ <- f <- NULL
+  f_old <- Inf
+  
+  for (i in 1:niter) {
+    
+    step_ <- (i + 1)/2
+    
+    a_ <- (1 - 1/step_) * a_hat + 1/step_ * a_tilde
+    
+    a_old_ <- a_
+    
+    pot_update <- sinkhorn_geom(x = X0, y =X1,
+                                a = a_, b = b, blur = lambda,
+                                ...)
+    
+    f <- sum(a_ * pot_update$f) + sum(b * pot_update$g)
+    
+    if(convergence(f, f_old, tol)) break
+    f_old <- f
+    
+    a_tilde <- a_tilde * exp(- step * step_ * pot_update$f)
+    a_tilde <- a_tilde/sum(a_tilde)
+    
+    a_hat <- (1 - 1/step_) * a_hat + 1/step_ * a_tilde
+    
+    
+  }
+  
+  return(a_)
+}

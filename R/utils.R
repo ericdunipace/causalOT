@@ -60,6 +60,28 @@ robust_sqrt_mat <- function(X) {
   return(Matrix::Matrix(chol(X), sparse = TRUE))
 }
 
+round_pi <- function(raw_pi, a, b) {
+  n <- length(a)
+  m <- length(b)
+  
+  x <- a/rowSums(raw_pi)
+  x[x > 1] <- 1
+  
+  y <- b/colSums(raw_pi)
+  y[y > 1] <- 1
+  
+  X <- diag(x)
+  Y <- diag(y)
+  
+  pi_prime <-  X %*% raw_pi
+  pi_2_prime <- raw_pi %*% Y
+  err_row <- a - rowSums(pi_prime)
+  err_col <- b - colSums(pi_2_prime)
+  
+  return(pi_2_prime + matrix(err_row, n, m) * matrix(err_col,n,m,byrow=TRUE)/ sum(abs(err_row)))
+  
+}
+
 sqrt_mat <- function(X, symmetric = FALSE) {
   p <- ncol(X)
   decomp <- eigen(X, symmetric = symmetric)
@@ -314,6 +336,36 @@ log_sum_exp2 <- function(x,y) {
   temp <- cbind(x,y) - mx
   temp[mx == -Inf,] <- -Inf
   return(log(rowSums(exp(temp))) + mx)
+}
+
+# log sum exp function by column
+col_log_sum_exp <- function(x) {
+  # if(is.vector(x)) {
+  if(all(is.infinite(x))) return(x[1])
+  mx <- apply(x,2,max)
+  mx_mat <- matrix(mx,nrow(x),ncol(x),byrow=TRUE)
+  x_temp <- x - mx_mat
+  return(log(colSums(exp(x_temp))) + mx)
+  # } else if (is.matrix(x)) {
+  #   mx <- apply(x, 1, max)
+  #   x_temp <- x - mx
+  #   return(log(rowSums(exp(x_temp)))+ mx)
+  # }
+}
+
+# log sum exp function by row
+row_log_sum_exp <- function(x) {
+  # if(is.vector(x)) {
+  if(all(is.infinite(x))) return(x[1])
+  mx <- apply(x,1,max)
+  mx_mat <- matrix(mx,nrow(x),ncol(x))
+  x_temp <- x - mx_mat
+  return(log(rowSums(exp(x_temp))) + mx)
+  # } else if (is.matrix(x)) {
+  #   mx <- apply(x, 1, max)
+  #   x_temp <- x - mx
+  #   return(log(rowSums(exp(x_temp)))+ mx)
+  # }
 }
 
 # make vector sum to 1

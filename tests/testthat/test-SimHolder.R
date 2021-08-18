@@ -21,7 +21,7 @@ methods <- c('Logistic',
              'RKHS',
              'NNM', 
              "Wasserstein", 
-             'Constrained Wasserstein',
+             # 'Constrained Wasserstein',
              'None',
              'gp'
 )
@@ -749,12 +749,12 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_type(original$get_z(), "double")
   testthat::expect_type(original$get_y(), "double")
   testthat::expect_equal(unique(sh$get.output()$method), c("SBW","Wasserstein",
-                                                           "Constrained Wasserstein",
+                                                           # "Constrained Wasserstein",
                                                            "SCM"))
   testthat::expect_equal(unique(sh2$get.output()$penalty),
-                         c(NA, "none","L2","variance", "entripy"))
+                         c(NA, "none","L2","variance", "entropy"))
   testthat::expect_equal(unique(sh2$get.output()$method), c("SBW","Wasserstein",
-                                                           "Constrained Wasserstein",
+                                                           # "Constrained Wasserstein",
                                                            "SCM"))
   
   
@@ -784,7 +784,9 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_equal(unique(sh3$get.output()$penalty),
                          c(NA, "none"))
   testthat::expect_equal(unique(sh3$get.output()$method),
-                         c("SBW","Wasserstein","Constrained Wasserstein","SCM"))
+                         c("SBW","Wasserstein",
+                           # "Constrained Wasserstein",
+                           "SCM"))
   
   
   sh4 <- SimHolder$new(nsim = 1,
@@ -838,6 +840,7 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_warning(sh5$run())
   output <- sh5$get.output()
   testthat::expect_true("add.divergence" %in% colnames(output))
+  testthat::expect_true(all(c(NA, FALSE, TRUE) %in% as.logical(unique(output[,"add.divergence"])$add.divergence)))
   testthat::expect_true(all(unique(output$add.divergence) %in% c(NA, TRUE, FALSE)))
 })
 
@@ -976,7 +979,7 @@ testthat::test_that("SimHolder runs confidence intervals", {
                                   metrics = distance,
                                   constrained.wasserstein.target = c("SBW"),
                                   add.margins = c(FALSE),
-                                  confidence.interval = TRUE
+                                  confidence.interval = "asymptotic"
                       ))
   
   

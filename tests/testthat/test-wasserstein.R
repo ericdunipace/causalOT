@@ -8,7 +8,7 @@ testthat::test_that("runs for current causal weights", {
   overlap <- "low"
   design <- "A"
   distance <- c("Lp")
-  power <- c(2)
+  power <- c(4)
   solver <- "gurobi"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
@@ -25,7 +25,7 @@ testthat::test_that("runs for current causal weights", {
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 4, 
                                                        estimand = e, 
-                                                       method = "Constrained Wasserstein",
+                                                       method = "Wasserstein",
                                                        solver = "gurobi",
                                                        p = power,
                                                        cost = cost))

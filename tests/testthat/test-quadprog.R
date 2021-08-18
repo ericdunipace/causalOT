@@ -11,7 +11,7 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp", {
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
-  method <- "Constrained Wasserstein"
+  method <- "Wasserstein"
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -28,20 +28,20 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp", {
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATC", method = method,cost = cost)
   
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n0,n0), mean(cost^power)))
+                              c(1, rep(1/n0,n0)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATT", method = method, cost = cost)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n1,n1), mean(cost^power)))
+                              c(1, rep(1/n1,n1)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATE", method = method)
   
   cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
   cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
-                              c(1, rep(1/n,n),mean(cost_n0^power)))
+                              c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
-                              c(1, rep(1/n,n), mean(cost_n1^power)))
+                              c(1, rep(1/n,n)))
   
   
 })
@@ -59,7 +59,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
-  method <- "Constrained Wasserstein"
+  method <- "Wasserstein"
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -84,7 +84,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
                             outcome = "y")
   
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n0,n0),mean(cost^power)))
+                              c(1, rep(1/n0,n0)))
   
   qp <- quadprog.data.frame(df, constraint = constraint, 
                          estimand = "ATT", 
@@ -93,7 +93,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
                          treatment.indicator = "z",
                          outcome = "y")
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n1,n1),mean(cost^power)))
+                              c(1, rep(1/n1,n1)))
   
   qp <- quadprog.data.frame(df, constraint = constraint, 
                          estimand = "ATE", method = method,
@@ -104,9 +104,9 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
   cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
   cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
-                              c(1, rep(1/n,n),mean(cost_n0^power)))
+                              c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
-                              c(1, rep(1/n,n),mean(cost_n1^power)))
+                              c(1, rep(1/n,n)))
   
   
 })
@@ -124,7 +124,7 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp with sample_weig
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
-  method <- "Constrained Wasserstein"
+  method <- "Wasserstein"
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -149,11 +149,11 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp with sample_weig
                          sample_weight = sample_weights)
   
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n0,n0),mean(cost^power)))
+                              c(1, rep(1/n0,n0)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATT", method = method, cost = cost)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n1,n1),mean(cost^power)))
+                              c(1, rep(1/n1,n1)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATE", 
                          method = method,
@@ -162,9 +162,9 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp with sample_weig
   cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
   cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
-                              c(1, rep(1/n,n),mean(cost_n0^power)))
+                              c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
-                              c(1, rep(1/n,n),mean(cost_n1^power)))
+                              c(1, rep(1/n,n)))
   
   
 })
@@ -182,7 +182,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp with sample w
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
-  method <- "Constrained Wasserstein"
+  method <- "Wasserstein"
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -214,7 +214,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp with sample w
                             sample_weight = sample_weights)
   
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n0,n0),mean(cost^power)))
+                              c(1, rep(1/n0,n0)))
   
   qp <- quadprog.data.frame(df, constraint = constraint, 
                             estimand = "ATT", 
@@ -224,7 +224,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp with sample w
                             outcome = "y",
                             sample_weight = sample_weights)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n1,n1),mean(cost^power)))
+                              c(1, rep(1/n1,n1)))
   
   qp <- quadprog.data.frame(df, constraint = constraint, 
                             estimand = "ATE", method = method,
@@ -236,9 +236,9 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp with sample w
   cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
   cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
-                              c(1, rep(1/n,n),mean(cost_n0^power)))
+                              c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
-                              c(1, rep(1/n,n),mean(cost_n1^power)))
+                              c(1, rep(1/n,n)))
   
   
 })
@@ -315,7 +315,7 @@ testthat::test_that("quadprog.DataSim does mapping", {
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
-  method <- "Constrained Wasserstein"
+  method <- "Wasserstein"
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -333,12 +333,12 @@ testthat::test_that("quadprog.DataSim does mapping", {
                          joint.mapping = TRUE)
   
   testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n1)] %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n0,n0), mean(cost^power)))
+                              c(1, rep(1/n0,n0)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATT", method = method, 
                          cost = cost, joint.mapping = TRUE)
   testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n1)] %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n1,n1), mean(cost^power)))
+                              c(1, rep(1/n1,n1)))
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATE", method = method
                          , joint.mapping = TRUE)
@@ -346,9 +346,9 @@ testthat::test_that("quadprog.DataSim does mapping", {
   cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
   cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n)] %*% rep(1/(n0*n), n0*n))@x,
-                              c(1, rep(1/n,n),mean(cost_n0^power)))
+                              c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A[,1:(n*n1)] %*% rep(1/(n*n1), n*n1))@x,
-                              c(1, rep(1/n,n), mean(cost_n1^power)))
+                              c(1, rep(1/n,n)))
   
   
 })
@@ -366,7 +366,7 @@ testthat::test_that("quadprog.DataSim various penalties", {
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 10
   power <- 2
-  method <- "Constrained Wasserstein"
+  method <- "Wasserstein"
   
   #### get simulation functions ####
   data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -384,7 +384,8 @@ testthat::test_that("quadprog.DataSim various penalties", {
                          penalty = "L2")
   
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n0,n0), mean(cost^power)))
+                              c(1, rep(1/n0,n0)
+                                ))
   
   testthat::expect_equivalent(qp[[1]]$obj$Q, Matrix::Diagonal(n0*n1,1))
   
@@ -392,7 +393,8 @@ testthat::test_that("quadprog.DataSim various penalties", {
                          penalty = "entropy")
   
   testthat::expect_equivalent((qp[[1]]$LC$A %*% c(rep(1/(n0*n1), n0*n1), rep(0, n0*n1)))@x,
-                              c(1, rep(1/n0,n0), mean(cost^power)))
+                              c(1, rep(1/n0,n0)
+                                ))
   testthat::expect_equivalent(qp[[1]]$obj$Q, NULL)
   testthat::expect_equivalent(length(qp[[1]]$obj$L), 2 * n0 * n1)
   
@@ -401,7 +403,8 @@ testthat::test_that("quadprog.DataSim various penalties", {
                          penalty = "variance")
   
   testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n1)] %*% rep(1/(n0*n1), n0*n1))@x,
-                              c(1, rep(1/n0,n0), mean(cost^power)))
+                              c(1, rep(1/n0,n0)
+                                ))
   testthat::expect_equivalent(qp[[1]]$obj$Q,  NULL)
   testthat::expect_equivalent(length(qp[[1]]$obj$L[1:(n0*n1)]), n0 * n1)
   
