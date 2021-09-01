@@ -235,12 +235,17 @@ testthat::test_that("SimHolder runs", {
   testthat::expect_type(original$get_z(), "double")
   testthat::expect_type(original$get_y(), "double")
   
-  out <- sh$get.output()
+  testthat::expect_silent(
+    {out <- sh$get.output()
   outcome <- sh$get.outcome(out)
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
+  wass <- sh$get.wass(out)}
+  )
   testthat::expect_equal(unique(out$method), methods)
+  testthat::expect_true("E_Y1" %in% colnames(out))
+  testthat::expect_true("E_Y0" %in% colnames(out))
 })
 
 testthat::test_that("SimHolder runs, only ATE", {
@@ -314,7 +319,10 @@ testthat::test_that("SimHolder runs, only ATE", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
+  wass <- sh$get.wass(out)
   testthat::expect_equal(unique(out$method ), methods)
+  testthat::expect_true("E_Y1" %in% colnames(out))
+  testthat::expect_true("E_Y0" %in% colnames(out))
   
   
   sh <- SimHolder$new(nsim = nsims,
@@ -418,6 +426,7 @@ testthat::test_that("SimHolder runs ot imputer", {
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
   psis <- sh$get.psis(out)
+  wass <- sh$get.wass(out)
   testthat::expect_equal(unique(out$method ), methods)
 })
 
@@ -500,7 +509,7 @@ testthat::test_that("SimHolder runs with formula options", {
   outcome <- sh$get.outcome(out)
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
-  psis <- sh$get.psis(out)
+  psis <- sh$get.psis(out); wass <- sh$get.wass(out)
   testthat::expect_equal(unique(out$method ), c('Logistic', 'SBW',"NNM",'Wasserstein'))
 })
 
@@ -578,7 +587,7 @@ testthat::test_that("SimHolder runs,verbose", {
   outcome <- sh$get.outcome(out)
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
-  psis <- sh$get.psis(out)
+  psis <- sh$get.psis(out); wass <- sh$get.wass(out)
   })
 })
 
@@ -649,7 +658,7 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
   outcome <- sh$get.outcome(out)
   ess <- sh$get.ESS.frac(out)
   diag <- sh$get.diagnostics(out)
-  psis <- sh$get.psis(out)
+  psis <- sh$get.psis(out); wass <- sh$get.wass(out)
   })
 })
 
@@ -789,6 +798,7 @@ testthat::test_that("SimHolder with grid works", {
                            "SCM"))
   
   
+  
   sh4 <- SimHolder$new(nsim = 1,
                        dataSim = original,
                        grid.search = TRUE,
@@ -842,6 +852,21 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_true("add.divergence" %in% colnames(output))
   testthat::expect_true(all(c(NA, FALSE, TRUE) %in% as.logical(unique(output[,"add.divergence"])$add.divergence)))
   testthat::expect_true(all(unique(output$add.divergence) %in% c(NA, TRUE, FALSE)))
+  testthat::expect_true("E_Y1" %in% colnames(output))
+  testthat::expect_true("E_Y0" %in% colnames(output))
+  testthat::expect_true("E_Y1" %in% colnames(output))
+  testthat::expect_true("E_Y0" %in% colnames(output))
+  
+  testthat::expect_silent(
+    {out <- sh5$get.output()
+    outcome <- sh5$get.outcome(out)
+    ess <- sh5$get.ESS.frac(out)
+    diag <- sh5$get.diagnostics(out)
+    psis <- sh5$get.psis(out)
+    wass <- sh5$get.wass(out)}
+  )
+  
+  
 })
 
 testthat::test_that("SimHolder with grid works, opt.hyperparam", {
@@ -996,5 +1021,77 @@ testthat::test_that("SimHolder runs confidence intervals", {
   
   testthat::expect_true(inherits(output$confidence.interval[1], "list"))
   
+  
+  
+  
+  #### Sim param ####
+  n <- 2^5
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("sdLp")
+  power <- c(2)
+  ground_power <- 1
+  std_mean_diff <- c(0.2,0.3)
+  solver <- "mosek"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p,
+                              design = design, overlap = overlap)
+  # SimHolder$debug("initialize")
+  # SimHolder$debug("update")
+  # SimHolder$debug("estimate")
+  # SimHolder$debug("model_estimate")
+  # SimHolder$debug("get_delta")
+  # SimHolder$debug("method.setup")
+  # SimHolder$debug("cost.setup")
+  # SimHolder$debug("get_cost")
+  # SimHolder$debug("max.cond.calc")
+  sh <- SimHolder$new(nsim = nsims,
+                      dataSim = original,
+                      grid.search = TRUE,
+                      truncations = std_mean_diff,
+                      methods = c("NNM"),
+                      estimands = "ATE",
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      model.augmentation = "both",
+                      match = "both",
+                      solver = "gurobi",
+                      Wass = list(wass_powers = power,
+                                  ground_powers = ground_power,
+                                  metrics = distance,
+                                  constrained.wasserstein.target = c("SBW"),
+                                  add.margins = c(FALSE),
+                                  confidence.interval = "bootstrap"
+                      ))
+  
+  
+  testthat::expect_warning(
+    {
+      
+      sh$run()
+      warn <- warnings()
+    }
+  )
+  if (!is.null(warn)) warn.fun()
+  
+  output <- sh$get.output()
+  
+  testthat::expect_true(inherits(output$confidence.interval[1], "list"))
+  testthat::expect_true("E_Y1" %in% colnames(output))
+  testthat::expect_true("E_Y0" %in% colnames(output))
+  
+  testthat::expect_silent(
+    {out <- sh$get.output()
+    outcome <- sh$get.outcome(out)
+    ess <- sh$get.ESS.frac(out)
+    diag <- sh$get.diagnostics(out)
+    psis <- sh$get.psis(out)
+    wass <- sh$get.wass(out)}
+  )
   
 })
