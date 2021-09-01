@@ -41,6 +41,51 @@ wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL, ...) {
   }
 }
 
+wasserstein_p.default <- function(a, b, p = 1, tplan = NULL, cost = NULL, ...) {
+  
+  if (is.numeric(a)) {
+    if (!isTRUE(all.equal(sum(a) ,1))) a <- renormalize(a)
+  }
+  if (is.numeric(b)) {
+    if (!isTRUE(all.equal(sum(b) ,1))) b <- renormalize(b)
+  }
+  if (is.null(cost)) {
+    stop("cost matrix must be specified if only masses are given")
+  }
+  # cost_a <- list(...)$cost_a
+  # cost_b <- list(...)$cost_b
+  # if (is.null(tplan)) {
+  #   if ( isFALSE(list(...)$neg.weights) ) {
+  #     nzero_row <- a > 0
+  #     nzero_col <- b > 0
+  #   } else {
+  #     nzero_row <- a != 0
+  #     nzero_col <- b != 0
+  #   }
+  #   a <- a[nzero_row]
+  #   b <- b[nzero_col]
+  #   cost <- cost[nzero_row, nzero_col, drop = FALSE]
+  #   
+  #   if (!is.null(cost_a) && !is.null(cost_b)) {
+  #     cost_a <- cost_a[nzero_row, nzero_row, drop = FALSE]
+  #     cost_b <- cost_b[nzero_col, nzero_col, drop = FALSE]
+  #   }
+  # }
+  n_a <- length(a)
+  n_b <- length(b)  
+  if (n_a == 1) {
+    return(c((sum(c(cost^p) * c(b)))^(1/p)))
+  } else if ( n_b == 1) {
+    return(c((sum(c(cost^p) * c(a)))^(1/p)))
+  } else {
+    
+    
+      return(approxOT::wasserstein(a = a, b = b, p = p, ground_p = p, tplan = tplan, cost = cost,
+                                   ...))
+    
+  }
+}
+
 wasserstein_p.causalWeights <- function(a, b = NULL, p = 1, tplan = NULL, cost = NULL,...) {
   mass_a <- as.numeric(a$w0)
   mass_b <- as.numeric(a$w1)

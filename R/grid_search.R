@@ -748,7 +748,9 @@ separate_weights_ATE <- function(weights) {
     weights1[[i]]$gamma <- weights1[[i]]$gamma[[2]]
     
     weights0[[i]]$args$constraint <- weights0[[i]]$args$constraint[1]
-    weights1[[i]]$args$constraint <- weights1[[i]]$args$constraint[2]
+    if (length(weights1[[i]]$args$constraint) == 2) {
+      weights1[[i]]$args$constraint <- weights1[[i]]$args$constraint[2]
+    } 
     
     weights0[[i]]$estimand <- "ATT"
     weights1[[i]]$estimand <- "ATT"
@@ -849,6 +851,7 @@ wass_dist_helper <- function(...) {
   # names(argn) <- names(args)
   f.call <- as.call(setNames(c(list(quote(wasserstein_p)), argn), c("",names(args))))
   return(eval(f.call, envir = args))
+  
 }
 
 # cost defaults
@@ -1514,7 +1517,15 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
   } else {
     p <- p.temp
   }
-  
+  if(wass.method == "sinkhorn") {
+    nzero_a <- which(weight$w0 != 0)
+    nzero_b <- which(weight$w1 != 0)
+    
+    if(!is.null(x0) && !is.null(x1)) {
+      return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
+                               power = p, blur = 1, debias = TRUE, cost = NULL, scaling = 0.2)$loss,0)^(1/p))
+    }
+  }
   # if (estimand == "ATE") {
   #   w0 <- w1 <- weight
   #   w0$gamma <- w1$gamma <- NULL
@@ -1541,9 +1552,11 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
     } else {
       cc <- cost#[rowCount > 0, colCount > 0]
     }
-    return(wass_dist_helper(a = weight, b = NULL,
-                         cost = cc, X = x0, Y = x1,
-                         p = p, method = wass.method, niter = wass.iter, ...))
+     
+      return(wass_dist_helper(a = weight, b = NULL,
+                              cost = cc, X = x0, Y = x1,
+                              p = p, method = wass.method, niter = wass.iter, ...))
+    
   # }
 }
 
@@ -1578,6 +1591,9 @@ setup_boot_args <- function(boot.idx, weight.list, wass.dat, cost, p,
   
   entropy.meth.sel <- wass.method %in% c("sinkhorn","greenkhorn")
   
+  if(entropy.meth.sel == "greenkhorn") {
+    
+  }
   if (is.null(cost_a) && isTRUE(unbiased) && entropy.meth.sel) {
     cost_a <- cost_fun(rbind(x0,x0), z = c(rep(1,n0),
                                            rep(0,n0)),

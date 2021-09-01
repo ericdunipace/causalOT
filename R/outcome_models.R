@@ -149,6 +149,11 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   
   return(tau)
 }
+
+# weights in lmer model
+lmer_cot <- function(formula, data, weights) {
+  
+}
   
 # use barycentric mapping
 mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
