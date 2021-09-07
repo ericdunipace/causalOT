@@ -5,12 +5,17 @@ cg <- function(optimizer, verbose = TRUE) {
   optimizer$solve_G()
   if (verbose) pb <- txtProgressBar(min = 0, max = floor(optimizer$get_niter()/10), style = 3)
   for (i in 1:optimizer$get_niter()) {
-    optimizer$solve_param()
-    if (optimizer$converged() && i > 1) break
-    optimizer$solve_S()
     optimizer$step()
+    optimizer$solve_S()
+    optimizer$solve_param()
+    print(optimizer$f())
+    if (optimizer$converged() && i > 1) {
+      if(verbose) message("\nConverged")
+      break
+    }
     if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
   }
+  optimizer$solve_S()
   if (verbose) close(pb)
   # optimizer$solve_param()
   return(invisible(optimizer))
@@ -206,6 +211,119 @@ cg <- function(optimizer, verbose = TRUE) {
   wassDiv <- R6::R6Class("wassDiv", 
                             inherit = cgOptimizer,
                             public = list(
+                              calc_gamma = function() {
+                                # lambdas <- 10^(-3:log10(private$lambda))
+                                # weights <- lapply(lambdas, function(blur) {
+                                #   optprob <- sinkhorn_geom(x = private$X1, y = private$X2,
+                                #                            a = private$a,
+                                #                            b = private$b, power = private$p,
+                                #                            blur = blur, reach = private$sinkhorn_args$reach,
+                                #                            diameter = private$sinkhorn_args$diameter,
+                                #                            scaling = private$sinkhorn_args$scaling,
+                                #                            truncate = private$sinkhorn_args$truncate,
+                                #                            metric = "Lp", kernel = private$sinkhorn_args$kernel,
+                                #                            cluster_scale=private$sinkhorn_args$cluster_scale,
+                                #                            debias=FALSE,
+                                #                            verbose=private$sinkhorn_args$verbose,
+                                #                            backend=private$sinkhorn_args$backend);
+                                #   raw_pi <- private$dual_to_primal(optprob$f, optprob$g, blur);
+                                #   weights <- list(w0 = private$a,
+                                #                   w1 = private$b,
+                                #                   gamma = round_pi(raw_pi/sum(raw_pi), private$a, private$b),
+                                #                   method = "Wasserstein", estimand = "ATT",
+                                #                   args = list(penalty = blur,
+                                #                               div.pen = private$lambda));
+                                #   class(weights) <- "causalWeights";
+                                #   return(weights)
+                                # })
+                                
+                                # med.cost <- median(private$cost)
+                                # cost_p  <- (private$cost)^(1/private$p)
+                                # lambdas <- 10^(-1:log10(private$lambda))
+                                # weights <- lapply(lambdas, function(blur) {
+                                #   tplan <- approxOT::transport_plan_given_C(mass_x = private$a,
+                                #                                             mass_y = private$b,
+                                #                                             p = private$p,
+                                #                                             cost = cost_p,
+                                #                                             method = "sinkhorn",
+                                #                                             epsilon = blur / med.cost,
+                                #                                             niter = 1e4)
+                                #   gamma <- matrix(0, private$n1, private$n2)
+                                #   gamma[dist_2d_to_1d(tplan$from, tplan$to, private$n1, private$n2)] <- tplan$mass
+                                #   weights <- list(w0 = private$a,
+                                #                   w1 = private$b,
+                                #                   gamma = gamma,
+                                #                   method = "Wasserstein", estimand = "ATT",
+                                #                   args = list(penalty = blur,
+                                #                               div.pen = private$lambda));
+                                #   class(weights) <- "causalWeights";
+                                #   return(weights)
+                                # })
+                                # 
+                                # n.boot <- 1e2
+                                # K <- 10
+                                # R <- 10
+                                # eval.method <- match.arg(eval.method)
+                                # wass.method <- "sinkhorn"
+                                # wass.iter <- 1e3
+                                # estimand <- "ATT"
+                                # method <- "Wasserstein"
+                                # solver <- "LBFGS"
+                                # 
+                                # weight <- eval_weights(weights, 
+                                #                       args = list(x0 = private$X1,
+                                #                                                x1 = private$X2,
+                                #                                                x = rbind(private$X1,
+                                #                                                          private$X2),
+                                #                                                z = c(rep(0,private$n1),
+                                #                                                      rep(1, private$n2)),
+                                #                                                grid = lambdas,  
+                                #                                                n.boot = n.boot,
+                                #                                                K = K, 
+                                #                                                R = R,
+                                #                                                eval.method = eval.method,
+                                #                                                wass.method = wass.method,
+                                #                                                wass.iter = wass.iter,
+                                #                                                sample_weight = list(a = private$a,
+                                #                                                                     b = private$b,
+                                #                                                                     total = renormalize(c(private$a * private$n1,
+                                #                                                                                         private$b * private$n2))),
+                                #                                                estimand = "ATT", 
+                                #                                                method = "Wasserstein", 
+                                #                                                solver = private$search, 
+                                #                                                metric = private$metric,
+                                #                                                p = private$p, 
+                                #                                                cost = private$cost, 
+                                #                                                add.joint = TRUE,
+                                #                                                add.margins = FALSE, 
+                                #                                                joint.mapping = FALSE,
+                                #                                                neg.weights = FALSE,
+                                #                                                cgd = FALSE, 
+                                #                                                verbose = isTRUE(verbose)))
+                                # private$gamma <- weight$gamma
+                                # private$gamma.lambda <- weight$args$penalty
+                                
+                                med.cost <- median(private$cost)
+                                cost_p  <- (private$cost)^(1/private$p)
+                                min.lambda <- max(private$cost)/abs(.Machine$double.min.exp) + 0.01
+                                tplan <- approxOT::transport_plan_given_C(mass_x = private$a,
+                                                                          mass_y = private$b,
+                                                                          p = private$p,
+                                                                          cost = cost_p,
+                                                                          method = "sinkhorn",
+                                                                          epsilon = min.lambda / med.cost,
+                                                                          niter = 1e4)
+                                private$gamma <- matrix(0, private$n1, private$n2)
+                                private$gamma[dist_2d_to_1d(tplan$from, tplan$to, private$n1, private$n2)] <- tplan$mass
+                                private$gamma.lambda <- min.lambda
+                                
+                              },
+                              calc_scm_bary_proj = function() {
+
+                                op <- list()
+                                # op$obj <-
+
+                              },
                               converged = function() {
                                 private$f_val <- sum(private$f_pot * private$a) + sum(private$g_pot * private$b)
                                 # print(private$f_val)
@@ -261,7 +379,7 @@ cg <- function(optimizer, verbose = TRUE) {
                               return_cw = function() {
                                 out <- list(w0 = private$a,
                                             w1 = private$b,
-                                            gamma = self$get_weight(),
+                                            gamma = private$gamma,
                                             estimand = "ATT",
                                             method = "Wasserstein",
                                             args = list(
@@ -540,8 +658,6 @@ cg <- function(optimizer, verbose = TRUE) {
                               "a_hat" = "numeric",
                               "a_old" = "numeric",
                               "a_tilde" = "numeric",
-                              # "add.mapping" = "logical",
-                              # "add.margins" = "logical",
                               "b" = "numeric",
                               "cost" = "numeric",
                               "cost_idx" = "numeric",
@@ -553,6 +669,8 @@ cg <- function(optimizer, verbose = TRUE) {
                               "G" = "numeric",
                               "G_old" = "numeric",
                               "g_pot" = "numeric",
+                              "gamma" = "matrix",
+                              "gamma.lambda" = "numeric",
                               "lambda" = "numeric",
                               "maxcost" = "numeric",
                               "metric" = "character",
@@ -568,7 +686,14 @@ cg <- function(optimizer, verbose = TRUE) {
                               "solver" = "function",
                               "tol" = "numeric",
                               "X1" = "matrix",
-                              "X2" = "matrix"
+                              "X2" = "matrix",
+                              "dual_to_primal" = function(f,g, lambda) {
+                                fmat <- matrix(f, private$n1, private$n2)
+                                gmat <- matrix(g, private$n1, private$n2, byrow = TRUE)
+                                eta <- (fmat + gmat - private$cost)/lambda
+                                pi_raw <- exp(eta) * matrix(private$a, private$n1, private$n2) * matrix(private$b, private$n1, private$n2, byrow = TRUE)
+                                return( pi_raw )
+                              }
                             )
                             
                             
@@ -581,40 +706,29 @@ cg <- function(optimizer, verbose = TRUE) {
                            inherit = wassDiv,
                              public = list(
                                converged = function() {
-                                 private$f_val <- sum(private$f_pot * private$a) + sum(private$g_pot * private$b)
+                                 private$f_val <- self$f()
                                  # print(private$f_val)
                                  f_val_diff <- abs(private$f_val - private$f_val_old)
-                                 # if ((i %% 100) == 0) message(round(sum(private$a * y[z==0]), digits = 3), ", ", appendLF = FALSE)
-                                 # message(round(private$a * y[z==0]))
-                                 # message(private$f_val, ", ", appendLF = FALSE)
-                                 # diff_param <- (private$param - private$param_old)
-                                 # paramnorm <-  sum(diff_param^2)/sum(private$param_old^2)
-                                 # if(is.nan(paramnorm) & sum(diff_param^2) == 0 ) paramnorm <- 0
-                                 # diff_G <- (private$G - private$G_old)
-                                 # Gnorm <- sum(diff_G^2)/sum(private$G_old^2)
-                                 # if(is.nan(Gnorm) & sum(diff_G^2) == 0 ) Gnorm <- 0
+                                 
                                  nan.check <- isTRUE(any(is.nan(private$a)) || is.nan(private$f_val))
                                  
-                                 converged <- isTRUE(f_val_diff / abs(private$f_val_old) < private$tol)  ||
-                                   isTRUE(sum(abs(private$a_old - private$a)) < private$tol) ||
-                                   nan.check
-                                 # message(sum(abs(private$a_old - private$a)), ", ", appendLF = FALSE)
-                                 # ||
-                                 #   isTRUE(f_val_diff < private$tol) 
-                                 # || (isTRUE( sqrt(paramnorm) < private$tol) &&
-                                 #   isTRUE( sqrt(Gnorm) < private$tol) )
-                                 # private$G_old <- private$G
-                                 # private$param_old <- private$param
+                                 # converged <- isTRUE(f_val_diff / abs(private$f_val_old) < private$tol)  ||
+                                 #   isTRUE(sum(abs(private$a_old - private$a)) < private$tol) ||
+                                 #   nan.check
+                                 
+                                 converged <- isTRUE(f_val_diff / abs(private$f_val_old) < private$tol)  || nan.check
+                                 
                                  if (nan.check) warning("NaN found in parameters! Try reducing the step size.")
                                  private$f_val_old <- private$f_val
                                  private$a_old <- private$a
                                  return(converged)
                                },
-                               # f = function() {
-                               #   return(
-                               #     sum(private$f_pot * private$a) + sum(private$g_pot * private$b)
-                               #   )
-                               # },
+                               f = function() {
+                                 return(
+                                   c(private$torch$add(private$torch$dot(private$f_pot, private$pydat$at$detach()), 
+                                               private$torch$dot(private$g_pot, private$pydat$bt))$numpy())
+                                 )
+                               },
                                # df = function() {
                                #   return(private$f_pot)
                                #   
@@ -665,17 +779,22 @@ cg <- function(optimizer, verbose = TRUE) {
                                #   return(list(f = private$f_pot,
                                #               g = private$g_pot))
                                # },
+                               get_a = function() {
+                                 return(private$a)
+                               },
                                get_niter = function() {
                                  return(private$niter)
                                },
                                get_weight = function() {
                                  
-                                 fmat <- matrix(private$f_pot, private$n1, private$n2)
-                                 gmat <- matrix(private$g_pot, private$n1, private$n2, byrow = TRUE)
-                                 eta <- (fmat + gmat - private$cost)/private$lambda
-                                 pi_raw <- exp(eta) * matrix(private$a, private$n1, private$n2) * matrix(private$b, private$n1, private$n2, byrow = TRUE)
-                                 pi <- round_pi(pi_raw, private$a, private$b)
-                                 return( pi )
+                                 # fmat <- matrix(c(private$f_pot$numpy()), private$n1, private$n2)
+                                 # gmat <- matrix(c(private$g_pot$numpy()), private$n1, private$n2, byrow = TRUE)
+                                 # eta <- (fmat + gmat - private$cost)/private$lambda
+                                 # pi_raw <- exp(eta) * matrix(private$a, private$n1, private$n2) * matrix(private$b, private$n1, private$n2, byrow = TRUE)
+                                 # pi <- round_pi(pi_raw, private$a, private$b)
+                                 # return( pi )
+                                 if(!is.matrix(private$gamma)) self$calc_gamma()
+                                 return(private$gamma)
                                },
                                return_cw = function() {
                                  out <- list(w0 = private$a,
@@ -684,6 +803,9 @@ cg <- function(optimizer, verbose = TRUE) {
                                              estimand = "ATT",
                                              method = "Wasserstein",
                                              args = list(
+                                               dual = list(f = c(private$f_pot$numpy()),
+                                                           g = c(private$g_pot$numpy())),
+                                               solver = private$solver,
                                                constraint = list(joint = NULL,
                                                                  penalty = private$lambda,
                                                                  margins = NULL),
@@ -695,7 +817,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                                add.margins = private$add.margins,
                                                joint.mapping = FALSE,
                                                add.divergence = TRUE,
-                                               conditional.gradient = TRUE))
+                                               conditional.gradient = if(private$search %in% c("armijo")){TRUE}else{FALSE},
+                                               search = private$search))
                                  class(out) <- "causalWeights"
                                  return(out)
                                },
@@ -703,33 +826,50 @@ cg <- function(optimizer, verbose = TRUE) {
                                  self$solve_param()
                                  private$f_val_old <- self$f()
                                  private$a_old <- private$a
+                                 if (private$search == "armijo") {
+                                   private$op <- private$op_update(f = c(private$f_pot$numpy()),
+                                                                   g = private$g_pot,
+                                                                   a = private$a,
+                                                                   b = private$b,
+                                                                   op = private$op)
+                                   private$S <- private$solver(private$op)$sol
+                                 }
                                },
                                solve_param = function() {
                                  
-                                 sol <- sinkhorn_geom(x = private$X1, y = private$X2, 
-                                                      a = private$a, 
-                                                      b = private$b, power = private$p, 
-                                                      blur = private$lambda, reach = private$sinkhorn_args$reach, 
-                                                      diameter = private$sinkhorn_args$diameter,
-                                                      scaling = private$sinkhorn_args$scaling, 
-                                                      truncate = private$sinkhorn_args$truncate,
-                                                      metric = "Lp", kernel = private$sinkhorn_args$kernel,
-                                                      cluster_scale=private$sinkhorn_args$cluster_scale, 
-                                                      debias=private$sinkhorn_args$debias, 
-                                                      verbose=private$sinkhorn_args$verbose, 
-                                                      backend=private$sinkhorn_args$backend)
-                                 private$f_pot <- sol$f
-                                 private$g_pot <- sol$g
+                                 sol <- private$otModel$forward(private$pydat$at$detach(), 
+                                                                private$pydat$xt, 
+                                                                private$pydat$bt, 
+                                                                private$pydat$yt)
+                                 private$f_pot <- sol[[1]][[0]]
+                                 private$g_pot <- sol[[2]][[0]]
+                                 # sol <- sinkhorn_geom(x = private$X1, y = private$X2, 
+                                 #                      a = private$a, 
+                                 #                      b = private$b, power = private$p, 
+                                 #                      blur = private$lambda, reach = private$sinkhorn_args$reach, 
+                                 #                      diameter = private$sinkhorn_args$diameter,
+                                 #                      scaling = private$sinkhorn_args$scaling, 
+                                 #                      truncate = private$sinkhorn_args$truncate,
+                                 #                      metric = "Lp", kernel = private$sinkhorn_args$kernel,
+                                 #                      cluster_scale=private$sinkhorn_args$cluster_scale, 
+                                 #                      debias=private$sinkhorn_args$debias, 
+                                 #                      verbose=private$sinkhorn_args$verbose, 
+                                 #                      backend=private$sinkhorn_args$backend)
+                                 # 
+                                 # private$f_pot <- sol$f
+                                 # private$g_pot <- sol$g
+                                 
+                                 
                                  
                                },
                                solve_S = function() {
-                                 if (private$search != "mirror-nocgd" && 
-                                     private$search != "mirror-accelerated") {
-                                   private$qp <- qp_dual(f = private$f_pot,
+                                 if (private$search == "armijo" || (private$search == "pgd" && private$cur_iter > 0)) {
+                                   private$op <- private$op_update(f = c(private$f_pot$numpy()),
                                                          g = private$g_pot,
-                                                         b = private$b)
-                                   private$S <- private$solver(private$qp)$sol
-                                   
+                                                         a = private$a,
+                                                         b = private$b,
+                                                         op = private$op)
+                                   private$S <- private$solver(private$op)$sol
                                    # private$S <- as.numeric(private$f_pot == min(private$f_pot))
                                    
                                    # grad <- self$df()
@@ -740,12 +880,14 @@ cg <- function(optimizer, verbose = TRUE) {
                                step = function() {
                                  
                                  private$cur_iter <- private$cur_iter + 1L
-                                 f_val <- self$f()
-                                 df_val <- self$df()
+                                 
+                                 df_val <- c(self$df()$numpy())
                                  
                                  old_a <- private$a
                                  
                                  if (private$search == "armijo") {
+                                   f_val <- self$f()
+                                   
                                    deltaG <- private$S - old_a
                                    derphi0 <- sum(deltaG * df_val)
                                    f <- function(x, dx, alpha, ...) {
@@ -754,11 +896,17 @@ cg <- function(optimizer, verbose = TRUE) {
                                      # proj <- x * exp( dx * alpha)
                                      # private$a <- proj / sum(proj)
                                      private$a <- x + dx * alpha
+                                     private$a[private$a < 0] <- 0
+                                     private$a <- renormalize(private$a)
+                                     l_a <- log(private$a)
+                                     l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
+                                     private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
+                                     private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
                                      self$solve_param()
                                      
                                      
                                      loss <- self$f() #self$f()
-                                     if (loss < 0) return(f_val)
+                                     # if (loss < 0) return(f_val)
                                      return(loss)
                                    }
                                    
@@ -773,44 +921,28 @@ cg <- function(optimizer, verbose = TRUE) {
                                      if ( !is.null(search_res$alpha)) {
                                        search_res$alpha = min(1, max(search_res$alpha,0))
                                        private$a <- old_a + search_res$alpha * deltaG
+                                       private$a[private$a < 0] <- 0
+                                       private$a <- renormalize(private$a)
+                                       l_a <- log(private$a)
+                                       l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
+                                       private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
+                                       private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
                                      }
                                      
                                    } else {
                                      private$a <- old_a
                                    }
-                                 } else if (private$search == "fixed") {
-                                   deltaG <- private$S - old_a
-                                   derphi0 <- sum(deltaG * df_val)
-                                   if (-derphi0 >  private$tol) {
-                                     alpha <- min(max(private$stepsize * -derphi0 / sum(deltaG^2), 0), 1)
-                                     private$a <- old_a + alpha * deltaG
-                                   }
                                  } else if (private$search == "mirror") {
                                    
-                                   deltaG <- exp(private$S) - exp(old_a)
-                                   derphi0 <- sum(deltaG * df_val)
-                                   if (-derphi0 >  private$tol) {
-                                     # eta <- private$stepsize / sqrt(i)
-                                     alpha <- min(private$stepsize * -derphi0 / sum(deltaG^2))
-                                     prop <- log(exp(old_a) + deltaG * alpha)
-                                     private$a <- prop/sum(prop)
-                                   }
-                                 } else if (private$search == "mirror-nocgd") {
-                                   # epsilon <- private$stepsize / sqrt(private$cur_iter)
-                                   # epsilon <- private$stepsize * sqrt(2 * private$maxcost / private$cur_iter)
-                                   # if (f_val > private$tol) {
-                                   #   M_k = sum(df_val^2)
-                                   #   h_k <- epsilon/M_k
-                                   #   prop <- old_a * exp(-h_k * df_val)
-                                   # } else {
-                                   #   dg  = -df_val
-                                   #   M_k = sum(dg^2)
-                                   #   h_k <- epsilon/M_k
-                                   #   prop <- old_a * exp(-h_k * dg)
-                                   # }
                                    eta <- private$stepsize / sqrt(private$cur_iter)
                                    prop <- old_a * exp(-eta * df_val)
                                    private$a <- prop/sum(prop)
+                                   
+                                   l_a <- log(private$a)
+                                   l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
+                                   private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
+                                   private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                   
                                  } else if (private$search == "mirror-accelerated") {
                                    
                                    step_ <- (private$cur_iter + 1)/2
@@ -824,15 +956,26 @@ cg <- function(optimizer, verbose = TRUE) {
                                    step_ <- step_ + 0.5
                                    
                                    private$a <- (1 - 1/step_) * private$a_hat + 1/step_ * private$a_tilde
+                                   
+                                   l_a <- log(private$a)
+                                   l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
+                                   private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
+                                   private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                   
                                    # update parameters next
                                    
+                                 } else if (private$search == "LBFGS" || private$search == "pgd") {
+                                   private$optimizer$zero_grad()
+                                   private$optimizer$step(private$closure)
+                                   private$pydat$at <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                   private$a <- c(private$pydat$at$numpy())
                                  }
                                  
 
                                },
                              initialize = function(X1, X2, 
                                                    cost,
-                                                   qp_solver = c("mosek", "gurobi", 
+                                                   prog_solver = c("mosek", "gurobi", 
                                                                  "cplex"),
                                                    lambda = 100,
                                                    add.margins = FALSE,
@@ -840,7 +983,11 @@ cg <- function(optimizer, verbose = TRUE) {
                                                    power = 2,
                                                    niter = 1000,
                                                    tol = 1e-7,
-                                                   search = "mirror-accelerated",
+                                                   search = c("LBFGS",
+                                                              "pgd",
+                                                              "armijo",
+                                                              "mirror",
+                                                              "mirror-accelerated"),
                                                    stepsize = 1e-1,
                                                    sample_weight = NULL,
                                                    reach = NULL,
@@ -850,6 +997,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                                    cluster_scale = NULL, 
                                                    debias = TRUE, 
                                                    verbose = FALSE, backend='auto',
+                                                   balance.function.formula = NULL,
+                                                   balance.function.delta = NULL,
                                                    ...
                              ) {
                                metric    <- match.arg(metric, dist.metrics())
@@ -858,10 +1007,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                private$penalty <- "entropy"
                                if (missing(niter) || length(niter) == 0) niter <- 1000
                                if (missing(tol) || length(tol) == 0) tol <= 1e-7 
-                               private$search <- match.arg(search, c("armijo","mirror",
-                                                                     "fixed", "mirror-nocgd",
-                                                                     "mirror-accelerated"
-                                                                     ))
+                               private$search <- match.arg(search)
                                
                                private$cur_iter <- 0
                                
@@ -879,12 +1025,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                if (missing(cost) || length(cost) == 0) {
                                  private$cost <- cost_fun(x = x, z = z, power = power, metric = metric,
                                                           estimand = "ATT")^power
-                                 # if (add.margins) {
-                                 #   costqp <- c(lapply(1:ncol(X1), function(d) cost_fun(x = x[,d,drop = FALSE], z = z, power = power, metric = metric,
-                                 #                                                       estimand = "ATT")),
-                                 #               list(private$cost^(1/power)))
-                                 # } else {
-                                 # costqp <- private$cost^(1/power)
+                                 
                                  # }
                                } else {
                                  # if (add.margins) {
@@ -906,10 +1047,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                # stopifnot(all(c("obj", "LC","bounds","nvar") %in% names(private$qp)))
                                # names(private$qp$obj$L) <- c(rep("cost",length(private$cost)), rep("pen", length(private$qp$obj$L) - length(cost)))
                                # private$cost_idx <- grep("cost", names(private$qp$obj$L))
-                               private$solver <- switch(qp_solver,
-                                                "cplex" = cplex_solver,
-                                                "gurobi" = gurobi_solver,
-                                                "mosek" = mosek_solver)
+                               
                                private$tol <- tol
                                private$niter <- as.numeric(niter)
                                
@@ -938,6 +1076,53 @@ cg <- function(optimizer, verbose = TRUE) {
                                private$n1 <- nrow(X1)
                                private$n2 <- nrow(X2)
                                
+                               
+                               if(!is.null(balance.function.formula)) {
+                                 prog_solver <- match.arg(prog_solver)
+                                 private$solver <- switch(prog_solver,
+                                                          "cplex" = cplex_solver,
+                                                          "gurobi" = gurobi_solver,
+                                                          "mosek" = mosek_solver)
+                                 if(search != "pgd" && search != "armijo") search <- "pgd"
+                                 
+                                 # get balance functions
+                                 if (is.null(balance.function.delta)) balance.function.delta <- 0.05
+                                 
+                                 form <- form_all_squares(balance.function.formula, colnames(private$X2))
+                                 
+                                 form.temp <- as.character(form[length(form)])
+                                 form <- as.formula(paste0("~ 0 +", form.temp))
+                                 
+                                 BC <- list(source = model.matrix(formula(form), data.frame(private$X1)),
+                                            target = model.matrix(formula(form), data.frame(private$X2)),
+                                            K = balance.function.delta)
+                                 
+                                 if ( all(BC$source[,1] == 1)) BC$source <- BC$source[,-1]
+                                 if ( all(BC$target[,1] == 1)) BC$target <- BC$target[,-1]
+                                 
+                                 private$op <- switch(private$search,
+                                                      "pgd" = qp_proj(f = rep(1,private$n1), 
+                                                                      g = rep(1, private$n2), 
+                                                                      a = private$a, 
+                                                                      b = private$b, 
+                                                                      BC = BC),
+                                                      "armijo" = lp_min_constraint(f = rep(1,private$n1), 
+                                                                                   g = rep(1, private$n2), 
+                                                                                   a = private$a, 
+                                                                                   b = private$b, 
+                                                                                   BC = BC)
+                                 )
+                                 private$op_update <- switch(private$search,
+                                                             "pgd" = qp_proj_update,
+                                                             "armijo" = lp_min_constraint_update)
+                               } else {
+                                 if(private$search == "pgd" || private$search == "armijo") {
+                                   warning("Can't do projected gradient descent (pgd) or armijo without balance functions! Setting optimizer to LBFGS")
+                                   private$search <- "LBFGS"
+                                 }
+                               }
+                               
+                               
                                private$lambda <- lambda
                                
                                private$sinkhorn_args <- list(blur = private$lambda, reach = reach, 
@@ -949,8 +1134,79 @@ cg <- function(optimizer, verbose = TRUE) {
                                                              debias = debias, 
                                                              verbose = verbose, 
                                                              backend = backend)
+                               private$np <- reticulate::import("numpy", convert = TRUE)
+                               private$torch <- reticulate::import("torch", convert = TRUE)
+                               private$geomloss <- reticulate::import("geomloss", convert = TRUE)
+                               
+                               if (backend == "tensorized" || (private$n1*private$n2 <= 5000^2 && backend != "multiscale" && backend != "online")) {
+                                 if (power == 2) {
+                                   cost <- private$geomloss$utils$squared_distances
+                                 } else if (power == 1) {
+                                   reticulate::source_python(file = lp_python_path)
+                                   cost <- l1_loss
+                                 } else {
+                                   # reticulate::source_python(file = lp_python_path)
+                                   # cost <- lp_loss
+                                   cost <- paste0("Sum(Pow(X-Y,", power,"))")
+                                   backend <- "online"
+                                   power <- 1L
+                                 }
+                               } else if (private$n1*private$n2 > 5000^2 || backend == "multiscale" || backend == "online") {
+                                 if (power == 2) {
+                                   cost <- "SqDist(X,Y)"
+                                 } else if (power == 1) {
+                                   cost <- "Sum(Abs(X - Y))"
+                                 } else {
+                                   cost <- paste0("Sum(Pow(X-Y,", power,"))")
+                                   power <- 1L
+                                 }
+                                 pykeops <- reticulate::import("pykeops", convert = TRUE)
+                                 pykeops$clean_pykeops()
+                               } else {
+                                 cost <- NULL
+                               }
+                               
+                               # if(search != "mirror" && search != "mirror-accelerated") {
                                
                                
+                               private$pydat <- list()
+                               private$pydat$xt <- private$torch$DoubleTensor(private$np$array(private$X1))$contiguous()
+                               private$pydat$yt <- private$torch$DoubleTensor(private$np$array(private$X2))$contiguous()
+                               private$pydat$at <- private$torch$DoubleTensor(private$a)$contiguous()
+                               private$pydat$l_at <- private$torch$autograd$Variable(private$torch$DoubleTensor(log(private$a))$contiguous(), requires_grad = TRUE)
+                               private$pydat$bt <- private$torch$DoubleTensor(private$b)$contiguous()
+                               
+                               
+                               # sets up python function
+                               
+                               private$otModel <- private$geomloss$SamplesLoss("sinkhorn", p = power, blur = private$sinkhorn_args$blur, 
+                                                             reach = private$sinkhorn_args$reach,
+                                                             diameter = private$sinkhorn_args$diameter, 
+                                                             scaling = private$sinkhorn_args$scaling, 
+                                                             cost = cost, kernel = private$sinkhorn_args$kernel,
+                                                             cluster_scale = private$sinkhorn_args$cluster_scale,
+                                                             debias = private$sinkhorn_args$debias,
+                                                             potentials = TRUE,
+                                                             verbose = private$sinkhorn_args$verbose,
+                                                             backend = private$sinkhorn_args$backend)
+                               if(private$search == "LBFGS" || private$search == "pgd") {
+                                 private$optimizer <- private$torch$optim$LBFGS(params = list(private$pydat$l_at),
+                                                                                lr = stepsize
+                                                                                , line_search_fn = "strong_wolfe"
+                                                                                )
+                                 private$closure <- function() { #needed for LBFGS search
+                                   private$optimizer$zero_grad()
+                                   private$pydat$at <- private$torch$softmax(private$pydat$l_at, 0L)
+                                   pot <- private$otModel$forward(private$pydat$at$detach(),
+                                                                  private$pydat$xt,
+                                                                  private$pydat$bt,
+                                                                  private$pydat$yt)
+                                   loss <- private$torch$add(private$torch$dot(pot[[1]][[0]], private$pydat$at), 
+                                                             private$torch$dot(pot[[2]][[0]], private$pydat$bt))
+                                   loss$backward()
+                                   return(loss)
+                                 }
+                               }
                                
                              }
                            ),
@@ -962,6 +1218,7 @@ cg <- function(optimizer, verbose = TRUE) {
                              # "add.mapping" = "logical",
                              # "add.margins" = "logical",
                              "b" = "numeric",
+                             "closure" = "function",
                              "cost" = "numeric",
                              "cost_idx" = "numeric",
                              "cur_iter" = "integer",
@@ -972,13 +1229,20 @@ cg <- function(optimizer, verbose = TRUE) {
                              "G" = "numeric",
                              "G_old" = "numeric",
                              "g_pot" = "numeric",
+                             "geomloss" = "python.builtin.module",
                              "lambda" = "numeric",
                              "maxcost" = "numeric",
                               "metric" = "character",
+                             "otModel" = "python.builtin.object",
+                             "optimizer" = "python.builtin.object",
                              "n1" = "numeric",
                              "n2" = "numeric",
                              "niter" = "numeric",
+                             "np" = "python.builtin.module",
+                             "op" = "list",
+                             "op_update" = "character",
                              "p" = "numeric",
+                             "pydat" = "list",
                              "penalty" = "character",
                              "S" = "numeric",
                              "search" = "character",
@@ -986,6 +1250,7 @@ cg <- function(optimizer, verbose = TRUE) {
                              "sinkhorn_args" = "list",
                              "solver" = "function",
                              "tol" = "numeric",
+                             "torch" = "python.builtin.module",
                              "X1" = "matrix",
                              "X2" = "matrix"
                            )

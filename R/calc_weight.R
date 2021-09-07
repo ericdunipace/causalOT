@@ -74,9 +74,9 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
     grid.search <- FALSE
   }
   
-  if(args$method == "Wasserstein" && isTRUE(args$add.divergence) ) {
-    grid.search <- FALSE
-  }
+  # if(args$method == "Wasserstein" && isTRUE(args$add.divergence) ) {
+  #   grid.search <- FALSE
+  # }
   
   output <- if (grid.search & method %in% c("SBW","RKHS.dose","Constrained Wasserstein","Wasserstein","SCM")) {
     # args$method <- NULL
@@ -360,12 +360,13 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   
   
   solver <- match.arg(solver)
+  solve.method <- solver
   
   if(add.divergence == TRUE) {
-    solver <- "div"
+    solve.method <- "div"
   }
   
-  solve.method <- switch(solver,
+  solve.method <- switch(solve.method,
                          "lbfgs" = 1L,
                          "div" = 2L,
                          3L)
@@ -462,7 +463,7 @@ calc_weight_div <- function(data, constraint, estimand,
                             p = 2,
                             niter = 2000,
                             tol = 1e-5,
-                            search = "mirror-accelerated",
+                            search = "LBFGS",
                             stepsize = 1e-2,
                             reach = NULL,
                             diameter = NULL,
@@ -484,7 +485,7 @@ calc_weight_div <- function(data, constraint, estimand,
   X1 <- x[z==1,,drop = FALSE]
   
   # penalty <- match.arg(penalty)
-  penalty <- "entropy" #L2 not ready yet
+  penalty <- match.arg("entropy", "L2") 
   
   optClass <- switch(penalty,
                      L2 = wassDivL2,
@@ -526,7 +527,7 @@ calc_weight_div <- function(data, constraint, estimand,
     
     optimizer0 <- optClass$new(X1 = X0, X2 = x, 
                                cost = cost0,
-                               qp_solver = solver,
+                               prog_solver = solver,
                                lambda = constraint0$penalty,
                                add.margins = FALSE,
                                metric = metric,
@@ -546,7 +547,7 @@ calc_weight_div <- function(data, constraint, estimand,
     
     optimizer1 <- optClass$new(X1 = X1, X2 = x, 
                                cost = cost1,
-                               qp_solver = solver,
+                               prog_solver = solver,
                                lambda = constraint1$penalty,
                                add.margins = FALSE,
                                metric = metric,
@@ -568,16 +569,16 @@ calc_weight_div <- function(data, constraint, estimand,
     cg(optimizer0, verbose = verbose)
     cg(optimizer1, verbose = verbose)
     
-    return(list(list(sol = optimizer0$get_weight(),
+    return(list(list(sol = optimizer0$return_cw(),
                      dual = optimizer0$get_param()) , 
-                list(sol = optimizer1$get_weight(),
+                list(sol = optimizer1$return_cw(),
                      dual = optimizer1$get_param())))
     
   } else if (estimand == "ATC") {
     sample_weight[c("a","b")] <- sample_weight[c("b","a")]
     optimizer <- optClass$new(X1 = X1, X2 = X0, 
                               cost = cost,
-                              qp_solver = solver,
+                              prog_solver = solver,
                               lambda = constraint$penalty,
                               add.margins = FALSE,
                               metric = metric,
@@ -597,13 +598,13 @@ calc_weight_div <- function(data, constraint, estimand,
     
     cg(optimizer, verbose = verbose)
     
-    return(list(list(sol = t(optimizer$get_weight()), dual = optimizer$get_param())))
+    return(list(list(sol = t(optimizer$return_cw()), dual = optimizer$get_param())))
            
     
   } else if (estimand == "ATT") {
     optimizer <- optClass$new(X1 = X0, X2 = X1, 
                               cost = cost,
-                              qp_solver = solver,
+                              prog_solver = solver,
                               lambda = constraint$penalty,
                               add.margins = FALSE,
                               metric = metric,
@@ -623,7 +624,7 @@ calc_weight_div <- function(data, constraint, estimand,
     
     cg(optimizer, verbose = verbose)
     
-    return(list(list(sol = optimizer$get_weight(),dual = optimizer$get_param())))
+    return(list(list(sol = optimizer$return_cw(),dual = optimizer$get_param())))
   }
   
   
@@ -798,12 +799,14 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
   
   if ( method %in% c("Wasserstein", "Constrained Wasserstein","SCM") ) {
     if (estimand == "ATC") {
+      if(inherits(res[[1]]$sol, "causalWeights")) return(res[[1]]$sol)
       sol <- res[[1]]$sol[1:(n0*n1)]
       output$gamma <- matrix(sol, n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
       output$w0 <- sample_weight$a
       output$w1 <- colSums(output$gamma)
       dual <- res[[1]]$dual
     } else if (estimand == "ATT") {
+      if(inherits(res[[1]]$sol, "causalWeights")) return(res[[1]]$sol)
       sol <- res[[1]]$sol[1:(n0*n1)]
       
       output$gamma <- matrix(sol, n0, n1) #matrix(sol[[1]]$result, n0, n1)
@@ -819,15 +822,22 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
       dual <- list(res[[2]]$dual,
                    res[[1]]$dual)
     } else if (estimand == "ATE") {
+      if(inherits(res[[1]]$sol, "causalWeights") &&  inherits(res[[2]]$sol, "causalWeights")) {
+        output$w0 <- res[[1]]$sol$w0
+        output$w1 <- res[[1]]$sol$w0
+        output$gamma <- list(w0 = res[[1]]$sol$gamma,
+                             w1 = res[[2]]$sol$gamma)
+      } else {
+        N <- n0 + n1
+        sol1 <- renormalize(res[[1]]$sol[1:(n0*N)])
+        sol2 <- renormalize(res[[2]]$sol[1:(n1*N)])
+        output$w0 <-  rowSums(matrix(sol1, n0, N)) #matrix(sol[[1]]$result, n0, n1)
+        output$w1 <-  rowSums(matrix(sol2, n1, N)) #matrix(sol[[2]]$result, n0, n1)
+        #note both are rowSums here
+        output$gamma <- list(w0 =  matrix(sol1, n0, N),
+                             w1 =  matrix(sol2, n1, N))
+      }
       
-      N <- n0 + n1
-      sol1 <- renormalize(res[[1]]$sol[1:(n0*N)])
-      sol2 <- renormalize(res[[2]]$sol[1:(n1*N)])
-      output$w0 <-  rowSums(matrix(sol1, n0, N)) #matrix(sol[[1]]$result, n0, n1)
-      output$w1 <-  rowSums(matrix(sol2, n1, N)) #matrix(sol[[2]]$result, n0, n1)
-      #note both are rowSums here
-      output$gamma <- list(w0 =  matrix(sol1, n0, N),
-                           w1 =  matrix(sol2, n1, N))
       dual <- list(res[[1]]$dual,
                    res[[2]]$dual)
     }

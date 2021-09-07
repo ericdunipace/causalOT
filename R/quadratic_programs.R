@@ -2587,6 +2587,71 @@ qp_dual_max <- function(f, g, b, dispersion = numeric(0)) {
   return(op)
 }
 
+qp_proj <- function(f, g, a, b, BC) {
+  n <- length(a)
+  
+  #objective function
+  obj <- list(L = c(-a),
+              Q = Matrix::Diagonal(n,x = 1))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- rbind(1, Matrix::Matrix(t(BC$source)))
+  
+  # set constraint bounds
+  sds <- matrixStats::colSds(BC$target)
+  delta_star <- BC$K * sds
+  E_target <- colMeans(BC$target)
+  
+  LC$uc <- c(1, delta_star + E_target)
+  LC$lc <- c(1, -delta_star + E_target)
+  
+  op <- list(obj = obj, LC = LC)
+  op$bounds <- list(lb = rep(0,n), ub = rep(Inf,n))
+  
+  
+  op$nvar <- n
+  return(op)
+}
+
+qp_proj_update <- function(f, g, a, b, op) {
+  op$obj$L <- c(-a)
+  
+  return(op)
+}
+
+lp_min_constraint <- function(f, g, a, b, BC) {
+  n <- length(a)
+  
+  #objective function
+  obj <- list(L = c(f))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- rbind(1, Matrix::Matrix(t(BC$source)))
+  
+  # set constraint bounds
+  sds <- matrixStats::colSds(BC$target)
+  delta_star <- BC$K * sds
+  E_target <- colMeans(BC$target)
+  
+  LC$uc <- c(1, delta_star + E_target)
+  LC$lc <- c(1, -delta_star + E_target)
+  
+  op <- list(obj = obj, LC = LC)
+  op$bounds <- list(lb = rep(0,n), ub = rep(Inf,n))
+  
+  
+  op$nvar <- n
+  return(op)
+}
+
+lp_min_constraint_update <- function(f, g, a, b, op) {
+  op$obj$L <- c(f)
+  
+  return(op)
+}
+
 
 check_wass_const <- function(opt_problem) {
   cost <- c(opt_problem$LC$A[1,])
