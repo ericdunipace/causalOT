@@ -357,13 +357,19 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   method <- match.arg(method)
   estimand <- match.arg(estimand)
   sample_weight <- get_sample_weight(sample_weight, get_z(data, ...))
-  
-  
   solver <- match.arg(solver)
+  
   solve.method <- solver
   
   if(add.divergence == TRUE) {
     solve.method <- "div"
+  }
+  if(method != "Wasserstein" && solver == "lbfgs") {
+    solver <- "mosek"
+  }
+  
+  if(method == "Wasserstein" && isTRUE(list(...)$penalty == "entropy") && solve.method != "div" && solver != "mosek" && solver != "lbfgs") {
+    solve.method <- solver <- "lbfgs"
   }
   
   solve.method <- switch(solve.method,
@@ -464,13 +470,15 @@ calc_weight_div <- function(data, constraint, estimand,
                             niter = 2000,
                             tol = 1e-5,
                             search = "LBFGS",
-                            stepsize = 1e-2,
+                            stepsize = 1e-1,
                             reach = NULL,
                             diameter = NULL,
                             scaling = 0.5, truncate = 5,
                             kernel = NULL,
                             cluster_scale = NULL, 
                             verbose = FALSE, backend='auto',
+                            formula = NULL,
+                            balance.constraints = NULL,
                             ...) {
   
   pd <- prep_data(data, )
@@ -485,7 +493,8 @@ calc_weight_div <- function(data, constraint, estimand,
   X1 <- x[z==1,,drop = FALSE]
   
   # penalty <- match.arg(penalty)
-  penalty <- match.arg("entropy", "L2") 
+  # penalty <- match.arg(penalty, c("entropy", "L2") )
+  penalty <- "entropy" #L2 not work!
   
   optClass <- switch(penalty,
                      L2 = wassDivL2,
@@ -543,7 +552,9 @@ calc_weight_div <- function(data, constraint, estimand,
                                kernel = kernel,
                                cluster_scale = cluster_scale, 
                                debias = TRUE, 
-                               verbose = verbose, backend = 'auto')
+                               verbose = verbose, backend = 'auto',
+                               balance.function.formula = formula,
+                               balance.function.delta = balance.constraints)
     
     optimizer1 <- optClass$new(X1 = X1, X2 = x, 
                                cost = cost1,
@@ -563,11 +574,13 @@ calc_weight_div <- function(data, constraint, estimand,
                                kernel = kernel,
                                cluster_scale = cluster_scale, 
                                debias = TRUE, 
-                               verbose = verbose, backend = 'auto')
+                               verbose = verbose, backend = 'auto',
+                               balance.function.formula = formula,
+                               balance.function.delta = balance.constraints)
     
     
-    cg(optimizer0, verbose = verbose)
-    cg(optimizer1, verbose = verbose)
+    cg2(optimizer0, verbose = verbose)
+    cg2(optimizer1, verbose = verbose)
     
     return(list(list(sol = optimizer0$return_cw(),
                      dual = optimizer0$get_param()) , 
@@ -576,6 +589,8 @@ calc_weight_div <- function(data, constraint, estimand,
     
   } else if (estimand == "ATC") {
     sample_weight[c("a","b")] <- sample_weight[c("b","a")]
+    if(!is.list(constraint)) constraint <- list(penalty = constraint)
+    if(!is.null(cost)) cost <- t(cost)
     optimizer <- optClass$new(X1 = X1, X2 = X0, 
                               cost = cost,
                               prog_solver = solver,
@@ -594,14 +609,18 @@ calc_weight_div <- function(data, constraint, estimand,
                               kernel = kernel,
                               cluster_scale = cluster_scale, 
                               debias = TRUE, 
-                              verbose = verbose, backend = 'auto')
+                              verbose = verbose, backend = 'auto',
+                              balance.function.formula = formula,
+                              balance.function.delta = balance.constraints)
     
-    cg(optimizer, verbose = verbose)
+    cg2(optimizer, verbose = verbose)
     
-    return(list(list(sol = t(optimizer$return_cw()), dual = optimizer$get_param())))
+    return(list(list(sol = optimizer$return_cw(), 
+                     dual = optimizer$get_param())))
            
     
   } else if (estimand == "ATT") {
+    if(!is.list(constraint)) constraint <- list(penalty = constraint)
     optimizer <- optClass$new(X1 = X0, X2 = X1, 
                               cost = cost,
                               prog_solver = solver,
@@ -620,12 +639,150 @@ calc_weight_div <- function(data, constraint, estimand,
                               kernel = kernel,
                               cluster_scale = cluster_scale, 
                               debias = TRUE, 
-                              verbose = verbose, backend = 'auto')
+                              verbose = verbose, backend = 'auto',
+                              balance.function.formula = formula,
+                              balance.function.delta = balance.constraints)
     
-    cg(optimizer, verbose = verbose)
+    cg2(optimizer, verbose = verbose)
     
-    return(list(list(sol = optimizer$return_cw(),dual = optimizer$get_param())))
+    return(list(list(sol = optimizer$return_cw(),
+                     dual = optimizer$get_param())))
   }
+  
+  
+}
+
+calc_weight_lbfgs <- function(data, constraint,  estimand, 
+                              method, sample_weight,
+                              solver, penalty = "entropy", metric = "mahalanobis",
+                              p = 2, cost = NULL,
+                              formula = NULL,
+                              balance.constraints = NULL,
+                              ...) {
+  
+  pd <- prep_data(data, )
+  z <- as.numeric(pd$z)
+  x.df <- pd$df[,!(colnames(pd$df) == "y")]
+  x <- as.matrix(x.df)
+  cn <- colnames(x.df)
+  x.df <- as.data.frame(x.df)
+  colnames(x) <- colnames(x.df) <- cn
+  
+  X0 <- x[z==0,,drop = FALSE]
+  X1 <- x[z==1,,drop = FALSE]
+  
+  # penalty <- match.arg(penalty)
+  penalty <- match.arg(penalty, c("entropy", "L2") )
+  method <- match.arg(method, c("Wasserstein"))
+  
+  if (estimand == "ATE") {
+    
+    sw1 <- list(a = sample_weight$b, b = sample_weight$total)
+    sw0 <- sw1
+    sw0$a <- sample_weight$a
+    
+    if(is.null(constraint)) {
+      stop("Must specify a penalty for optimal transport divergences")
+    }
+    
+    if(is.list(constraint)) {
+      if(length(constraint) == 2) {
+        constraint0 <- constraint[[1]]$penalty
+        constraint1 <- constraint[[2]]$penalty
+      } else {
+        constraint0 <- constraint$penalty
+        constraint1 <- constraint$penalty
+      }
+    } else {
+      constraint0 <- constraint1 <- constraint
+    }
+    
+    if (is.list(cost) && length(cost) == 2) {
+      cost0 <- cost[[1]]
+      cost1 <- cost[[2]]
+    } else {
+      cost0 <- cost1 <- cost
+    }
+    
+    sol0 <- dual_opt(x = X0, target = x, 
+             init = NULL,
+             sample_weights = sw0, 
+             method = method,
+             penalty = penalty,
+             wasserstein = list(metric = metric,
+                                power = p,
+                                cost = cost0,
+                                lambda = constraint0),
+             balance = list(balance.functions = NULL,
+                            formula = formula,
+                            balance.constraints = balance.constraints),
+             ...)
+    
+    
+    sol1 <- dual_opt(x = X1, target = x, 
+                     init = NULL,
+                     sample_weights = sw1, 
+                     method = method,
+                     penalty = penalty,
+                     wasserstein = list(metric = metric,
+                                        power = p,
+                                        cost = cost1,
+                                        lambda = constraint1),
+                     balance = list(balance.functions = NULL,
+                                    formula = formula,
+                                    balance.constraints = balance.constraints),
+                     ...)
+    
+    return(list(list(sol = sol0$weight,
+                     dual = sol0$dual,
+                     penalty = penalty) , 
+                list(sol = sol1$weight,
+                     dual = sol1$dual,
+                     penalty = penalty))
+    )
+    
+  } else if (estimand == "ATC") {
+    sample_weight[c("a","b")] <- sample_weight[c("b","a")]
+    if(!is.list(constraint)) constraint <- list(penalty = constraint)
+    sol <- dual_opt(x = X1, target = X0, 
+                     init = NULL,
+                     sample_weights = sample_weight, 
+                     method = method,
+                     penalty = penalty,
+                     wasserstein = list(metric = metric,
+                                        power = p,
+                                        cost = cost,
+                                        lambda = constraint$penalty),
+                     balance = list(balance.functions = NULL,
+                                    formula = formula,
+                                    balance.constraints = balance.constraints),
+                     ...)
+    
+    return(list(list(sol = sol$weight, dual = sol$dual,
+                     penalty = penalty)))
+    
+    
+  } else if (estimand == "ATT") {
+    if(!is.list(constraint)) constraint <- list(penalty = constraint)
+    sol <- dual_opt(x = X0, target = X1, 
+                    init = NULL,
+                    sample_weights = sample_weight, 
+                    method = method,
+                    penalty = penalty,
+                    wasserstein = list(metric = metric,
+                                       power = p,
+                                       cost = cost,
+                                       lambda = constraint$penalty),
+                    balance = list(balance.functions = NULL,
+                                   formula = formula,
+                                   balance.constraints = balance.constraints),
+                    ...)
+    
+    return(list(list(sol = sol$weight, dual = sol$dual,
+                     penalty = penalty)))
+    
+  }
+  
   
   
 }
@@ -791,7 +948,7 @@ calc_weight_error <- function(n0 = NULL, n1 = NULL) {
               w1 = rep(NA_real_, n1)))
 }
 
-# convert solution from quadratic solver
+# convert solution from solver
 convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
   output <- list(w0 = NULL, w1 = NULL, gamma = NULL)
   stopifnot(is.list(res))
@@ -799,12 +956,22 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
   
   if ( method %in% c("Wasserstein", "Constrained Wasserstein","SCM") ) {
     if (estimand == "ATC") {
-      if(inherits(res[[1]]$sol, "causalWeights")) return(res[[1]]$sol)
-      sol <- res[[1]]$sol[1:(n0*n1)]
-      output$gamma <- matrix(sol, n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
-      output$w0 <- sample_weight$a
-      output$w1 <- colSums(output$gamma)
-      dual <- res[[1]]$dual
+      if(inherits(res[[1]]$sol, "causalWeights")) {
+        output <- res[[1]]$sol
+        output$w0 <- res[[1]]$sol$w1
+        output$w1 <- res[[1]]$sol$w0
+        output$gamma <- t(res[[1]]$sol$gamma)
+        output$estimand <- "ATC"
+        
+        return(output)
+      } else {
+        sol <- res[[1]]$sol[1:(n0*n1)]
+        output$gamma <- matrix(sol, n0, n1, byrow = TRUE) #matrix(sol[[1]]$result, n0, n1)
+        output$w0 <- sample_weight$a
+        output$w1 <- colSums(output$gamma)
+        dual <- res[[1]]$dual
+      }
+      
     } else if (estimand == "ATT") {
       if(inherits(res[[1]]$sol, "causalWeights")) return(res[[1]]$sol)
       sol <- res[[1]]$sol[1:(n0*n1)]
@@ -823,10 +990,14 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
                    res[[1]]$dual)
     } else if (estimand == "ATE") {
       if(inherits(res[[1]]$sol, "causalWeights") &&  inherits(res[[2]]$sol, "causalWeights")) {
+        output <- res[[1]]$sol
         output$w0 <- res[[1]]$sol$w0
-        output$w1 <- res[[1]]$sol$w0
+        output$w1 <- res[[2]]$sol$w0
         output$gamma <- list(w0 = res[[1]]$sol$gamma,
                              w1 = res[[2]]$sol$gamma)
+        output$args$dual <- list(w0 = res[[1]]$sol$args$dual, 
+                                 w1 = res[[2]]$sol$args$dual)
+        output$estimand <- "ATE"
       } else {
         N <- n0 + n1
         sol1 <- renormalize(res[[1]]$sol[1:(n0*N)])
@@ -866,7 +1037,8 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
                    res[[2]]$dual)
     }
   }
-  output$args <- list(dual = dual)
+  penalty <- res[[1]]$penalty
+  output$args <- list(dual = dual, penalty = penalty)
   return(output)
 }
 

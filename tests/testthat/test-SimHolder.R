@@ -843,7 +843,8 @@ testthat::test_that("SimHolder with grid works", {
                                   ground_powers = ground_power,
                                   metrics = distance,
                                   niter = 5,
-                                  method = "greenkhorn",
+                                  method = "sinkhorn",
+                                  penalty = "entropy",
                                   wasserstein.distance.constraints = c(10,11),
                                   add.divergence = c(TRUE,FALSE)),
                       verbose = TRUE)

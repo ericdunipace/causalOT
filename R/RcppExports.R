@@ -41,11 +41,59 @@ kernel_calc_ot_ <- function(X_, z, p, theta_, gamma_, kernel_, calc_covariance, 
     .Call(`_causalOT_kernel_calc_ot_`, X_, z, p, theta_, gamma_, kernel_, calc_covariance, estimand)
 }
 
-cotDualL2_2_obj_ <- function(vars_, QQ, cost_, pf_, lambda) {
-    .Call(`_causalOT_cotDualL2_2_obj_`, vars_, QQ, cost_, pf_, lambda)
+cotDualL2_obj_ <- function(vars_, QQ, cost_, pf_, lambda) {
+    .Call(`_causalOT_cotDualL2_obj_`, vars_, QQ, cost_, pf_, lambda)
 }
 
-cotDualL2_2_grad_ <- function(vars_, QQ, cost_, pf_, lambda) {
-    .Call(`_causalOT_cotDualL2_2_grad_`, vars_, QQ, cost_, pf_, lambda)
+cotDualL2_grad_ <- function(vars_, QQ, cost_, pf_, lambda) {
+    .Call(`_causalOT_cotDualL2_grad_`, vars_, QQ, cost_, pf_, lambda)
+}
+
+cotDual_obj_ <- function(vars_, QQ, cost_, pf_, lambda, penalty) {
+    .Call(`_causalOT_cotDual_obj_`, vars_, QQ, cost_, pf_, lambda, penalty)
+}
+
+cotDual_grad_ <- function(vars_, QQ, cost_, pf_, lambda, penalty) {
+    .Call(`_causalOT_cotDual_grad_`, vars_, QQ, cost_, pf_, lambda, penalty)
+}
+
+sbwDual_obj_ <- function(vars_, QQ, pf_, penalty) {
+    .Call(`_causalOT_sbwDual_obj_`, vars_, QQ, pf_, penalty)
+}
+
+sbwDual_grad_ <- function(vars_, QQ, pf_, penalty) {
+    .Call(`_causalOT_sbwDual_grad_`, vars_, QQ, pf_, penalty)
+}
+
+otDualL2_obj_ <- function(vars_, a_, b_, cost_, lambda) {
+    .Call(`_causalOT_otDualL2_obj_`, vars_, a_, b_, cost_, lambda)
+}
+
+otDualL2_grad_ <- function(vars_, a_, b_, cost_, lambda) {
+    .Call(`_causalOT_otDualL2_grad_`, vars_, a_, b_, cost_, lambda)
+}
+
+otDualL2_obj_self_ <- function(vars_, a_, cost_, lambda) {
+    .Call(`_causalOT_otDualL2_obj_self_`, vars_, a_, cost_, lambda)
+}
+
+otDualL2_grad_self_ <- function(vars_, a_, cost_, lambda) {
+    .Call(`_causalOT_otDualL2_grad_self_`, vars_, a_, cost_, lambda)
+}
+
+otL2_grad_ <- function() {
+    .Call(`_causalOT_otL2_grad_`)
+}
+
+otL2_obj_ <- function() {
+    .Call(`_causalOT_otL2_obj_`)
+}
+
+otL2_grad_self_ <- function() {
+    .Call(`_causalOT_otL2_grad_self_`)
+}
+
+otL2_obj_self_ <- function() {
+    .Call(`_causalOT_otL2_obj_self_`)
 }
 

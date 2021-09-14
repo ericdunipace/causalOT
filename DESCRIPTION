@@ -17,11 +17,11 @@ Imports:
     rstantools (>= 2.0.0),
     approxOT,
     loo,
-    oem,
     pbapply,
     reticulate,
     lbfgsb3c,
-    RSpectra
+    RSpectra,
+    quadprog
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
@@ -32,13 +32,10 @@ Suggests:
     testthat (>= 2.1.0),
     CBPS,
     R6 (>= 2.4.1),
-    Rcplex,
     gurobi,
     Rmosek,
     dplyr,
     kernlab,
-    sbw,
-    approxOT,
     foreach,
     doRNG,
     parallel,

@@ -632,8 +632,9 @@
                                                     if ( isTRUE(o$add.divergence) ) {
                                                       if (isTRUE(o$add.margins)) next
                                                       if (isTRUE(o$joint.mapping)) next
-                                                      if (isTRUE(!is.null(o$formula[[1]]) && !is.na(o$formula[[1]]))) next
-                                                      delta <- list(penalty = 1e4)
+                                                      if (isTRUE(o$penalty != "entropy")) next
+                                                      # if (isTRUE(!is.null(o$formula[[1]]) && !is.na(o$formula[[1]]))) next
+                                                      # delta <- list(penalty = 1e4) #check how gridsearch handles this
                                                     }
                                                   }
                                                   private$weight.calc(cur = cur, 
@@ -1312,7 +1313,7 @@
                                                             epsilon = private$wass.opt$epsilon,
                                                             verbose = isTRUE(private$verbose),
                                                             eval.method = private$wass.opt$eval.method,
-                                                            n.boot = 1000,
+                                                            n.boot = if (method == "SBW") {1000}else{100},
                                                             K = 10,
                                                             R = private$wass.opt$cross.val.replicates),
                                                          error = function(e) {

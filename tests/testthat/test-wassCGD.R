@@ -51,10 +51,10 @@ testthat::test_that("wassCGD runs", {
                     add.margins = add.margins,
                     penalty = "L2",
                     metric = "mahalanobis",
-                    power = 4,
+                    power = 4.,
                     niter = 1000,
                     tol = 1e-3,
                     sample_weight = NULL))
   testthat::expect_silent(cg(wo, verbose = FALSE))
-  testthat::expect_equal(wo$return_cw()$args$cur_iter, 1)
+  testthat::expect_equal(wo$return_cw()$args$cur_iter, 2)
 })

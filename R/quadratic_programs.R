@@ -1747,19 +1747,19 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   # estimand <- match.arg(estimand)
   divergence <- isTRUE(divergence)
   
-  if (divergence) {
-    return(qp_wass_div(x = x, z = z, K = K, 
-                       p = p,
-                       penalty = penalty,
-                       dist = dist, cost = cost,
-                       rkhs.args = rkhs.args, add.joint = TRUE,
-                       add.margins = add.margins,
-                       joint.mapping = joint.mapping,
-                       neg.weights = neg.weights,
-                       bf = bf,
-                       sample_weight = sample_weight,
-                       soc = soc))
-  }
+  # if (divergence) {
+  #   return(qp_wass_div(x = x, z = z, K = K, 
+  #                      p = p,
+  #                      penalty = penalty,
+  #                      dist = dist, cost = cost,
+  #                      rkhs.args = rkhs.args, add.joint = TRUE,
+  #                      add.margins = add.margins,
+  #                      joint.mapping = joint.mapping,
+  #                      neg.weights = neg.weights,
+  #                      bf = bf,
+  #                      sample_weight = sample_weight,
+  #                      soc = soc))
+  # }
   
   margmass = get_sample_weight(sample_weight, z = z)
   joint.mapping <- isTRUE(joint.mapping)
