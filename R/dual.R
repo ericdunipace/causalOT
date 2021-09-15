@@ -1880,3 +1880,6 @@ cot_dual_opt <- function(x, target,
               fit = fit,
               optimizer = optimizer))
 }
+
+#### deriv of divergence ####
+# function(f,g,a,b)

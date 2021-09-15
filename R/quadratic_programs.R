@@ -2596,7 +2596,7 @@ qp_proj <- function(f, g, a, b, BC) {
   
   # linear constraints
   LC <- list()
-  LC$A <- rbind(1, Matrix::Matrix(t(BC$source)))
+  LC$A <- rbind(1, Matrix::Matrix(data = t(BC$source), sparse = TRUE))
   
   # set constraint bounds
   sds <- matrixStats::colSds(BC$target)
@@ -2628,7 +2628,7 @@ lp_min_constraint <- function(f, g, a, b, BC) {
   
   # linear constraints
   LC <- list()
-  LC$A <- rbind(1, Matrix::Matrix(t(BC$source)))
+  LC$A <- rbind(1, Matrix::Matrix(data = t(BC$source), sparse = TRUE))
   
   # set constraint bounds
   sds <- matrixStats::colSds(BC$target)

@@ -439,24 +439,11 @@ testthat::test_that("barycenter projection pow4, mahalanobis", {
   y1 <- y[z==1]
   
   
-  # cost <- causalOT::cost_calc_lp(data$get_x0(), data$get_x1(), power)
   
   gamma1 <- matrix(rep(1/n1/n0,n0),n0,n1)
   gamma0 <- matrix(rep(1/n0/n1,n1),n0,n1, byrow = TRUE)
   
-  # microbenchmark::microbenchmark(optim = barycenter_estimation(gamma1, x0 = x0, x1 = x1, y0 = y0, 
-  #                                   y1 = y1, estimand = "ATT", metric = "mahalanobis", power = power,
-  #                                   method = "optim"),
-  #                                rstan = barycenter_estimation(gamma1, x0 = x0, x1 = x1, y0 = y0, 
-  #                                                              y1 = y1, estimand = "ATT", metric = "mahalanobis",
-  #                                                              power = power,
-  #                                                              method = "rstan"))
-  
-  # debugonce(barycenter_estimation)
-  # print(barycenter_estimation(gamma1, x0 = x0, x1 = x1, y0 = y0, 
-  #                             y1 = y1, estimand = "ATT", metric = "mahalanobis", power = power,
-  #                             method = "optim")$y0[1], digits = 20)
-  testthat::expect_equal(12.623257847612290306,
+  testthat::expect_equal(11.13143461, #12.623257847612290306,
                          barycenter_estimation(gamma1, x0 = x0, x1 = x1, y0 = y0, y1 = y1, estimand = "ATT", metric = "mahalanobis", power = power)$y0[1],
                          check.attributes = FALSE)
   

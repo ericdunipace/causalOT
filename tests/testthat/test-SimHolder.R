@@ -760,7 +760,7 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_equal(unique(sh$get.output()$method), c("SBW","Wasserstein",
                                                            # "Constrained Wasserstein",
                                                            "SCM"))
-  testthat::expect_equal(unique(sh2$get.output()$penalty),
+  testthat::expect_true(unique(sh2$get.output()$penalty) %in%
                          c(NA, "none","L2","variance", "entropy"))
   testthat::expect_equal(unique(sh2$get.output()$method), c("SBW","Wasserstein",
                                                            # "Constrained Wasserstein",

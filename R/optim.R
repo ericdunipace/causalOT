@@ -6,13 +6,13 @@ cg <- function(optimizer, verbose = TRUE) {
   if (verbose) pb <- txtProgressBar(min = 0, max = floor(optimizer$get_niter()/10), style = 3)
   for (i in 1:optimizer$get_niter()) {
     optimizer$solve_param()
-    optimizer$solve_S()
-    optimizer$step()
-    # print(optimizer$f())
     if (optimizer$converged() && i > 1) {
       if(verbose) message("\nConverged")
       break
     }
+    # print(optimizer$f())
+    optimizer$solve_S()
+    optimizer$step()
     if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
   }
   optimizer$solve_S()
@@ -427,17 +427,17 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                 return(out)
                               },
                               solve_G = function() {
-                                self$solve_param()
-                                private$f_val_old <- self$f()
+                                # self$solve_param()
+                                private$f_val_old <- private$sinkhorn_args$diameter
                                 private$a_old <- private$a
-                                if (private$search == "armijo") {
-                                  private$op <- private$op_update(f = c(private$f_pot$numpy()),
-                                                                  g = private$g_pot,
-                                                                  a = private$a,
-                                                                  b = private$b,
-                                                                  op = private$op)
-                                  private$S <- private$solver(private$op)$sol
-                                }
+                                # if (private$search == "armijo") {
+                                #   private$op <- private$op_update(f = c(private$f_pot$numpy()),
+                                #                                   g = private$g_pot,
+                                #                                   a = private$a,
+                                #                                   b = private$b,
+                                #                                   op = private$op)
+                                #   private$S <- private$solver(private$op)$sol
+                                # }
                               },
                               solve_param = function() {
                                 
@@ -458,8 +458,8 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                 
                               },
                               solve_S = function() {
-                                if (private$search == "armijo" || (private$search == "pgd" && private$cur_iter > 0)) {
-                                  private$op <- private$op_update(f =  private$get_param()$f,
+                                if (private$search == "armijo" ) {
+                                  private$op <- private$op_update(f =  self$get_param()$f,
                                                                   g = private$g_pot,
                                                                   a = private$a,
                                                                   b = private$b,
@@ -570,6 +570,20 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                   private$optimizer$step(private$closure)
                                   private$pydat$at <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
                                   private$a <- c(private$pydat$at$numpy())
+                                  
+                                  if(private$search == "pgd") {
+                                    private$op <- private$op_update(f =  self$get_param()$f,
+                                                                    g = private$g_pot,
+                                                                    a = private$a,
+                                                                    b = private$b,
+                                                                    op = private$op)
+                                    private$a <- private$solver(private$op)$sol
+                                    l_a <- log(private$a)
+                                    l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
+                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
+                                    private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                    
+                                  }
                                 }
                                 
                                 
@@ -675,7 +689,7 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                                            "cplex" = cplex_solver,
                                                            "gurobi" = gurobi_solver,
                                                            "mosek" = mosek_solver)
-                                  if(search != "pgd" && search != "armijo") search <- "pgd"
+                                  if(private$search != "pgd" && private$search != "armijo") private$search <- "armijo"
                                   
                                   # get balance functions
                                   if (is.null(balance.function.delta)) balance.function.delta <- 0.05
@@ -817,8 +831,8 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                                                 private$pydat$xt, 
                                                                 private$pydat$bt, 
                                                                 private$pydat$yt)
-                                 private$f_pot <- sol[[1]][[0]]
-                                 private$g_pot <- sol[[2]][[0]]
+                                 private$f_pot <- sol[[1]]$squeeze()
+                                 private$g_pot <- sol[[2]]$squeeze()
                                  # sol <- sinkhorn_geom(x = private$X1, y = private$X2, 
                                  #                      a = private$a, 
                                  #                      b = private$b, power = private$p, 
@@ -911,8 +925,8 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                                                   private$pydat$xt,
                                                                   private$pydat$bt,
                                                                   private$pydat$yt)
-                                   loss <- private$torch$add(private$torch$dot(pot[[1]][[0]], private$pydat$at), 
-                                                             private$torch$dot(pot[[2]][[0]], private$pydat$bt))
+                                   loss <- private$torch$add(private$torch$dot(pot[[1]]$squeeze(), private$pydat$at), 
+                                                             private$torch$dot(pot[[2]]$squeeze(), private$pydat$bt))
                                    loss$backward()
                                    return(loss)
                                  }

@@ -529,6 +529,8 @@ calc_weight_div <- function(data, constraint, estimand,
       cost0 <- cost1 <- cost
     }
     
+    if( length(balance.constraints) == 1) balance.constraints <- c(balance.constraints, balance.constraints)
+    
     # if (is.null(stepsize)) {
     #   stepsize0 <- constraint0/1e5
     #   stepsize1 <- constraint1/1e5
@@ -554,7 +556,7 @@ calc_weight_div <- function(data, constraint, estimand,
                                debias = TRUE, 
                                verbose = verbose, backend = 'auto',
                                balance.function.formula = formula,
-                               balance.function.delta = balance.constraints)
+                               balance.function.delta = balance.constraints[1])
     
     optimizer1 <- optClass$new(X1 = X1, X2 = x, 
                                cost = cost1,
@@ -576,11 +578,11 @@ calc_weight_div <- function(data, constraint, estimand,
                                debias = TRUE, 
                                verbose = verbose, backend = 'auto',
                                balance.function.formula = formula,
-                               balance.function.delta = balance.constraints)
+                               balance.function.delta = balance.constraints[2])
     
     
-    cg2(optimizer0, verbose = verbose)
-    cg2(optimizer1, verbose = verbose)
+    cg(optimizer0, verbose = verbose)
+    cg(optimizer1, verbose = verbose)
     
     return(list(list(sol = optimizer0$return_cw(),
                      dual = optimizer0$get_param()) , 
@@ -613,7 +615,7 @@ calc_weight_div <- function(data, constraint, estimand,
                               balance.function.formula = formula,
                               balance.function.delta = balance.constraints)
     
-    cg2(optimizer, verbose = verbose)
+    cg(optimizer, verbose = verbose)
     
     return(list(list(sol = optimizer$return_cw(), 
                      dual = optimizer$get_param())))
@@ -643,7 +645,7 @@ calc_weight_div <- function(data, constraint, estimand,
                               balance.function.formula = formula,
                               balance.function.delta = balance.constraints)
     
-    cg2(optimizer, verbose = verbose)
+    cg(optimizer, verbose = verbose)
     
     return(list(list(sol = optimizer$return_cw(),
                      dual = optimizer$get_param())))

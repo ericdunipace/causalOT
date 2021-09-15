@@ -548,7 +548,8 @@ testthat::test_that("works for Wass divergence, grid/formula", {
                                                        add.divergence = TRUE,
                                                        stepsize = 1e-2,
                                                        formula = "~.+0",
-                                                       balance.constraint = 0.1))
+                                                       niter = 5L,
+                                                       balance.constraints = 0.1))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
@@ -576,9 +577,8 @@ testthat::test_that("works for Wass divergence, grid/formula", {
                                                        add.divergence = TRUE,
                                                        stepsize = 1e-2,
                                                        formula = "~.+0",
-                                                       balance.constraint = 0.1,
-                                                       n.boot = 10,
-                                                       verbose = TRUE))
+                                                       balance.constraints = 0.1,
+                                                       n.boot = 10))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(rep(1/n0,n0), 
                                    weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")

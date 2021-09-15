@@ -381,8 +381,14 @@
                              
                              private$solver <- match.arg(solver, c("gurobi","cplex","mosek"))
                              
-                             if(is.null(propensity.formula)) {
+                             if(is.null(propensity.formula) || missing(propensity.formula)) {
                                propensity.formula <- list()
+                             } else if (!is.list(propensity.formula) && is.character(propensity.formula)) {
+                               propensity.formula <- list(logistic = propensity.formula,
+                                    cbps = propensity.formula,
+                                    sbw = propensity.formula,
+                                    cwass = propensity.formula,
+                                    wass = propensity.formula)
                              }
                              private$ps.formula <- list(logistic = unlist(propensity.formula$Logistic),
                                                         cbps = unlist(propensity.formula$CBPS),
@@ -1122,21 +1128,21 @@
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
                                             private$method.lookup$options <- sapply(private$method, function(mm) switch(mm,
-                                                                                                                        None = list(delta = NA_real_, other = NA_character_),
-                                                                                                                        Logistic = list(delta = private$truncations,
-                                                                                                                                        formula = private$ps.formula$logistic),
-                                                                                                                        CBPS = list(delta = NA_real_,
-                                                                                                                                    formula = private$ps.formula$cbps),
-                                                                                                                        NNM = nnm_list,
-                                                                                                                        SBW = list(grid.search = private$grid.search,
-                                                                                                                                   delta = sdm,
-                                                                                                                                   formula = private$ps.formula$sbw),   
-                                                                                                                        SCM = scm_list,
-                                                                                                                        RKHS = RKHS_list,
-                                                                                                                        RKHS.dose = RKHS.dose_list,
-                                                                                                                        'Constrained Wasserstein' = Cwass_list,    
-                                                                                                                        Wasserstein = wass_list,
-                                                                                                                        gp = list(NA)))
+                                                                  None = list(delta = NA_real_, other = NA_character_),
+                                                                  Logistic = list(delta = private$truncations,
+                                                                                  formula = private$ps.formula$logistic),
+                                                                  CBPS = list(delta = NA_real_,
+                                                                              formula = private$ps.formula$cbps),
+                                                                  NNM = nnm_list,
+                                                                  SBW = list(grid.search = private$grid.search,
+                                                                             delta = sdm,
+                                                                             formula = private$ps.formula$sbw),   
+                                                                  SCM = scm_list,
+                                                                  RKHS = RKHS_list,
+                                                                  RKHS.dose = RKHS.dose_list,
+                                                                  'Constrained Wasserstein' = Cwass_list,    
+                                                                  Wasserstein = wass_list,
+                                                                  gp = list(NA)), simplify = FALSE)
                                             if("Logistic" %in% private$method) private$method.lookup$estimand[private$method.lookup$method == "Logistic"][[1]] <- private$estimand[private$estimand != "feasible"]
                                             private$max.conditions <- private$max.cond.calc()
                                             for(i in private$method) private$method.lookup$options[[i]] <- private$set.opts(private$method.lookup[i == private$method.lookup$method,])

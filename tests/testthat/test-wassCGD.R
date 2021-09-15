@@ -56,5 +56,5 @@ testthat::test_that("wassCGD runs", {
                     tol = 1e-3,
                     sample_weight = NULL))
   testthat::expect_silent(cg(wo, verbose = FALSE))
-  testthat::expect_equal(wo$return_cw()$args$cur_iter, 2)
+  testthat::expect_equal(wo$return_cw()$args$cur_iter, 1)
 })

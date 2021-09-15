@@ -537,12 +537,12 @@ testthat::test_that("test div wass", {
   estimands <- c("ATE")
   power <- c(1,2,4)
   ground_power <- 2
-  trunc <- std_mean_diff <- c(0.001, 0.01, 1)
+  std_mean_diff <- c(0.01, 0.1, 1)*100
   agumentation <- match <- "both"
-  solver <- "gurobi"
+  solver <- "mosek"
   grid.search <- TRUE
   wdc <- c(10:11)
-  methods <- c("Logistic","Wasserstein")
+  methods <- c("SBW","Wasserstein")
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -566,6 +566,7 @@ testthat::test_that("test div wass", {
                            calculate.feasible = FALSE,
                            solver = solver,
                            wass.method  = "greenkhorn",
+                           penalty = c("entropy","L2"),
                            wass.niter = 5,
                            wasserstein.distance.constraints = wdc,
                            add.divergence = c(TRUE,FALSE),
@@ -585,4 +586,32 @@ testthat::test_that("test div wass", {
   testthat::expect_equal(unique(output$outcome$add.divergence), c(NA, "TRUE", "FALSE"))
   testthat::expect_true(is.numeric(unlist(output$outcome$confidence.interval)))
   testthat::expect_true(length(unique(unlist(output$outcome$confidence.interval))) > 1)
+  
+  
+  #### Simulations with formula. takes a while. ####
+  testthat::expect_warning({
+    output2 <- sim.function(dataGen = original, 
+                           nsims = nsims, 
+                           estimands = estimands,
+                           ground_p = ground_power,
+                           methods = methods,
+                           p = power, 
+                           grid.search = grid.search,
+                           augmentation = agumentation,
+                           RKHS = list(opt = FALSE),
+                           match = match,
+                           standardized.mean.difference = std_mean_diff,
+                           distance = distance, 
+                           calculate.feasible = FALSE,
+                           solver = solver,
+                           wass.method  = "sinkhorn",
+                           penalty = c("entropy"),
+                           wass.niter = 5,
+                           propensity.formula = list(Wasserstein = "~.+0"),
+                           wasserstein.distance.constraints = wdc,
+                           add.divergence = c(TRUE),
+                           confidence.interval = "asymptotic",
+                           verbose = TRUE)
+  })
+  warn.fun()
 })

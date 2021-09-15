@@ -196,7 +196,7 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
     d_1 <- cbind(x1,y1)
     
     cov <- 0.5*(cov(d_1) + cov(d_0))
-    U    <- chol(cov)
+    U    <- sqrt_mat(cov)
     U_inv <- solve(U)
     
     y0t <- d_0 %*% U_inv
