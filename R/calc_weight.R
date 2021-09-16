@@ -492,7 +492,6 @@ calc_weight_div <- function(data, constraint, estimand,
   X0 <- x[z==0,,drop = FALSE]
   X1 <- x[z==1,,drop = FALSE]
   
-  # penalty <- match.arg(penalty)
   # penalty <- match.arg(penalty, c("entropy", "L2") )
   penalty <- "entropy" #L2 not work!
   

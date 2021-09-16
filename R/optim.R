@@ -15,33 +15,12 @@ cg <- function(optimizer, verbose = TRUE) {
     optimizer$step()
     if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
   }
-  optimizer$solve_S()
+  # optimizer$solve_S()
   if (verbose) close(pb)
   # optimizer$solve_param()
   return(invisible(optimizer))
 }
 
-cg2 <- function(optimizer, verbose = TRUE) {
-  stopifnot(inherits(optimizer, "cgOptimizer")) #needs to be R6 method
-  
-  optimizer$solve_G()
-  if (verbose) pb <- txtProgressBar(min = 0, max = floor(optimizer$get_niter()/10), style = 3)
-  for (i in 1:optimizer$get_niter()) {
-    optimizer$step()
-    optimizer$solve_S()
-    optimizer$solve_param()
-    # print(optimizer$f())
-    if (optimizer$converged() && i > 1) {
-      if(verbose) message("\nConverged")
-      break
-    }
-    if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
-  }
-  optimizer$solve_S()
-  if (verbose) close(pb)
-  # optimizer$solve_param()
-  return(invisible(optimizer))
-}
 
 #parent class
 {
@@ -684,8 +663,8 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                 
                                 
                                 if(!is.null(balance.function.formula) && !is.na(balance.function.formula)) {
-                                  prog_solver <- match.arg(prog_solver)
-                                  private$solver <- switch(prog_solver,
+                                  private$prog_solver <- match.arg(prog_solver)
+                                  private$solver <- switch(private$prog_solver,
                                                            "cplex" = cplex_solver,
                                                            "gurobi" = gurobi_solver,
                                                            "mosek" = mosek_solver)
@@ -786,6 +765,7 @@ cg2 <- function(optimizer, verbose = TRUE) {
                            "op" = "list",
                            "op_update" = "character",
                            "p" = "numeric",
+                           "prog_solver" = "character",
                            "pydat" = "list",
                            "penalty" = "character",
                            "python_running" ="logical",
@@ -976,6 +956,7 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                                                   b = private$b,
                                                                   p = private$p,
                                                                   lambda = private$lambda,
+                                                                  solver = private$prog_solver,
                                                                   debias = TRUE,
                                                                   cost = if(!is.null(private$cost) && !is.character(private$cost)) {
                                                                     private$cost^(1/private$p)
@@ -1006,10 +987,12 @@ cg2 <- function(optimizer, verbose = TRUE) {
                                       pot <- private$otModel$update_a(c(private$pydat$at$detach()$numpy()))
                                       ft <- private$torch$DoubleTensor(pot$f)
                                       gt <- private$torch$DoubleTensor(pot$g)
-                                      potentials_loss <- private$torch$add(private$torch$dot(ft, private$pydat$at), 
-                                                                                             private$torch$dot(gt, private$pydat$bt))
-                                      loss <- private$torch$sub(private$torch$DoubleTensor(list(pot$loss)), potentials_loss$detach())
-                                      loss <- private$torch$add(loss, potentials_loss)
+                                      # potentials_loss <- private$torch$add(private$torch$dot(ft, private$pydat$at), 
+                                      #                                                        private$torch$dot(gt, private$pydat$bt))
+                                      # loss <- private$torch$sub(private$torch$DoubleTensor(list(pot$loss)), potentials_loss$detach())
+                                      # loss <- private$torch$add(loss, potentials_loss)
+                                      loss <- private$torch$add(private$torch$dot(ft, private$pydat$at), 
+                                                                           private$torch$dot(gt, private$pydat$bt))
                                       loss$backward()
                                       return(loss)
                                     }

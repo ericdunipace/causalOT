@@ -510,7 +510,15 @@ testthat::test_that("works for Wass divergence", {
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   
-  
+  # weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  #                                                      constraint = list(penalty = 10000), 
+  #                                                      estimand = e, p = 2,
+  #                                                      method = "Wasserstein",
+  #                                                      solver = "mosek",
+  #                                                      search = "LBFGS",
+  #                                                      penalty = "L2",
+  #                                                      add.divergence = TRUE,
+  #                                                      stepsize = 1e-3))
   
 })
 

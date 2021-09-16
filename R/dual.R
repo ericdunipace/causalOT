@@ -58,7 +58,109 @@
                                      
                                      return(-grad)
                                    },
-                                   forward = function(...) {
+                                   forward = "function",
+                                   h_star_inv = function(vars) {
+                                     f <- self$get_f(vars)
+                                     g <- self$get_g(vars)
+                                     
+                                     fmat <- matrix(f, private$n, private$m)
+                                     gmat <- matrix(g, private$n, private$m, byrow = TRUE)
+                                     eta <- (fmat + gmat - private$cost)
+                                     return((eta * (eta > 0))/private$lambda)
+                                   },
+                                   get_a = function() {
+                                     return(private$a)
+                                   },
+                                   get_b = function() {
+                                     return(private$b)
+                                   },
+                                   get_f = function(vars) {
+                                     vars[private$fidx]
+                                   },
+                                   get_g = function(vars) {
+                                     vars[private$gidx]
+                                   },
+                                   get_lambda = function() {
+                                     return(private$lambda)
+                                   },
+                                   get_weight = function(vars) {
+                                     return( round_pi( self$h_star_inv(vars), private$a, private$b ))
+                                   },
+                                   get_dist = function(vars) {
+                                     return(
+                                       sum(private$cost * self$get_weight(vars))
+                                     )
+                                   },
+                                   update_a = "function",
+                                   
+                                   initialize = function(
+                                     x, y,
+                                     a,
+                                     b,
+                                     p,
+                                     lambda,
+                                     debias = TRUE,
+                                     solver = c("lbfgs","mosek","gurobi","quadprog"),
+                                     cost,
+                                     ...
+                                   ) {
+                                     private$lambda <- lambda
+                                     stopifnot(private$lambda > 0)
+                                     private$debias <- isTRUE(debias)
+                                     private$solver <- match.arg(solver)
+                                     
+                                     
+                                     if ( missing(cost) || is.null(cost)) {
+                                       
+                                       private$cost <- cost_calc_lp(x,y,p,"rowwise")^p
+                                     } else {
+                                       private$cost     <- as.matrix(cost^p)
+                                     }
+                                     
+                                     if (private$debias) {
+                                       private$cost_xx <- cost_calc_lp(x,x,p, "rowwise")^p
+                                       private$cost_yy <- cost_calc_lp(y,y,p, "rowwise")^p
+                                     }
+                                     
+                                     private$n     <- nrow(private$cost)
+                                     private$m     <- ncol(private$cost)
+                                     private$fidx <- 1:private$n
+                                     private$gidx <- (private$n + 1):(private$n + private$m)
+                                     private$a  <- a
+                                     private$b  <- b
+                                     private$nvars <- length(a) + length(b)
+                                     private$options <- control.options(control = list(...), method = "lbfgs")
+                                     private$init <- rep(0, private$nvars)
+                                     
+                                     self$forward <- switch(private$solver,
+                                                            "lbfgs" = private$forward_lbfgs,
+                                                            private$forward_solver)
+                                     self$update_a <- switch(private$solver,
+                                                             "lbfgs" = private$update_a_lbfgs,
+                                                             private$update_a_solver)
+                                     
+                                     if (private$solver != "lbfgs") {
+                                       
+                                       ### X to Y ####
+                                       private$qp_xy <- private$solver_setup(private$cost, private$a, private$b)
+                                       
+                                       if (private$debias) {
+                                         private$qp_xx <- private$solver_setup(private$cost_xx, private$a, private$a)
+                                         private$qp_yy <- private$solver_setup(private$cost_yy, private$b, private$b)
+                                       }
+                                     }
+                                   }
+                                 ),
+                                 private = list(
+                                   a = "numeric",
+                                   b = "numeric",
+                                   cost    = "matrix",
+                                   cost_xx = "matrix",
+                                   cost_yy = "matrix",
+                                   debias  = "logical",
+                                   f = "numeric",
+                                   fidx = "integer",
+                                   forward_lbfgs = function(...) {
                                      
                                      fit <- lbfgsb3c::lbfgsb3c(par = private$init,
                                                                fn = otDualL2_obj_,
@@ -117,39 +219,110 @@
                                                   g = g,
                                                   loss = objective))
                                    },
-                                   h_star_inv = function(vars) {
-                                     f <- self$get_f(vars)
-                                     g <- self$get_g(vars)
+                                   forward_solver = function(...) {
                                      
-                                     fmat <- matrix(f, private$n, private$m)
-                                     gmat <- matrix(g, private$n, private$m, byrow = TRUE)
-                                     eta <- (fmat + gmat - private$cost)
-                                     return((eta * (eta > 0))/private$lambda)
+                                     fit <- QPsolver(private$qp_xy, solver = private$solver, get.dual = TRUE)
+                                     
+                                     objective <- fit$value
+                                     private$f <- f <- self$get_f(fit$dual[,1] - fit$dual[,2])
+                                     private$g <- g <- self$get_g(fit$dual[,1] - fit$dual[,2])
+                                     
+                                     if (private$debias) {
+                                       fit_xx <-  QPsolver(private$qp_xx, solver = private$solver, get.dual = TRUE)
+                                       fit_yy <-  QPsolver(private$qp_yy, solver = private$solver, get.dual = TRUE)
+                                       
+                                       private$p <- self$get_f(fit_xx$dual[,1] - fit_xx$dual[,2])
+                                       private$q <- fit_yy$dual[1:private$m + private$m,1] - fit_yy$dual[1:private$m + private$m,2]
+                                       
+                                       f <- f - private$p
+                                       g <- g - private$q
+                                       
+                                       private$loss_yy <- fit_yy$value
+                                       
+                                       objective <- objective - 0.5 * fit_xx$value - 0.5 * private$loss_yy 
+                                       
+                                     }
+                                     
+                                     return(list (f = f,
+                                                  g = g,
+                                                  loss = objective))
                                    },
-                                   get_a = function() {
-                                     return(private$a)
+                                   g = "numeric",
+                                   gidx = "integer",
+                                   init = "numeric",
+                                   lambda = "numeric",
+                                   loss_xy = "numeric",
+                                   loss_xx = "numeric",
+                                   loss_yy = "numeric",
+                                   m = "integer",
+                                   n = "integer",
+                                   nvars = "integer",
+                                   options = "list",
+                                   p = "numeric",
+                                   q = "numeric",
+                                   qp_xy = "list",
+                                   qp_xx = "list",
+                                   qp_yy = "list",
+                                   solver = "character",
+                                   solver_setup = function(cost, a, b) {
+                                     n0 <- length(a)
+                                     n1 <- length(b)
+                                     qp <- list(obj = list(L = c(as.numeric(cost))),
+                                                LC = NULL)
+                                     
+                                     sum_const <- Matrix::sparseMatrix(i = rep(1, n0*n1),
+                                                                          j = 1:(n0*n1),
+                                                                          x = rep(1, n1 * n0),
+                                                                          dims = c(1, n0*n1))
+                                     col_const <- vec_to_col_constraints(n0,n1)
+                                     row_const <- vec_to_row_constraints(n0,n1)
+                                     
+                                     qp$LC$A <- rbind(row_const,
+                                                                 col_const,
+                                                                 sum_const)
+                                     qp$LC$uc <- qp$LC$lc <- c(a,
+                                                                 b,
+                                                                 1)
+                                     qp$bounds <- list(lb = rep(0, n0*n1), ub = rep(Inf, n0*n1))
+                                     soc <- if(private$solver == "mosek") {TRUE} else {FALSE}
+                                     qp <- qp_pen(qp, n0, n1, a, b, "L2", private$lambda, soc = soc, divergence = FALSE)
+                                     return(qp)
                                    },
-                                   get_b = function() {
-                                     return(private$b)
+                                   update_a_solver = function(a, ...) {
+                                     private$a <- a
+                                     
+                                     private$qp_xy$LC$lc[1:private$n] <- private$qp_xy$LC$uc[1:private$n] <- a
+                                     
+                                     
+                                     fit <- QPsolver(private$qp_xy, solver = private$solver, get.dual = TRUE)
+                                     
+                                     objective <- fit$value
+                                     private$f <- f <- self$get_f(fit$dual[,1] - fit$dual[,2])
+                                     private$g <- g <- self$get_g(fit$dual[,1] - fit$dual[,2])
+                                     
+                                     if (private$debias) {
+                                       private$qp_xx$LC$lc[1:(2*private$n)] <- private$qp_xx$LC$uc[1:(2*private$n)] <- a
+                                       fit_xx <-  QPsolver(private$qp_xx, solver = private$solver, get.dual = TRUE)
+                                       
+                                       private$p <- self$get_f(fit_xx$dual[,1] - fit_xx$dual[,2])
+                                       
+                                       
+                                       
+                                       f <- f - private$p
+                                       g <- g - private$q
+                                       
+                                       objective <- objective - 0.5 * (fit_xx$value) - 0.5 * private$loss_yy #objectives are neg due to lbfgs requirement
+                                       
+                                     }
+                                     
+                                     
+                                     
+                                     
+                                     return(list (f = f,
+                                                  g = g,
+                                                  loss = objective))
                                    },
-                                   get_f = function(vars) {
-                                     vars[private$fidx]
-                                   },
-                                   get_g = function(vars) {
-                                     vars[private$gidx]
-                                   },
-                                   get_lambda = function() {
-                                     return(private$lambda)
-                                   },
-                                   get_weight = function(vars) {
-                                     return( round_pi( self$h_star_inv(vars), private$a, private$b ))
-                                   },
-                                   get_dist = function(vars) {
-                                     return(
-                                       sum(private$cost * self$get_weight(vars))
-                                     )
-                                   },
-                                   update_a = function(a, ...) {
+                                   update_a_lbfgs = function(a, ...) {
                                      private$a <- a
                                      
                                      fit <- lbfgsb3c::lbfgsb3c(par = rep(0, private$n + private$m),
@@ -187,7 +360,7 @@
                                          # private$p <- rep(0, private$n)
                                          # fit_xx$value <- objective * 2
                                        } 
-                                         private$p <- fit_xx$par
+                                       private$p <- fit_xx$par
                                        
                                        
                                        
@@ -204,66 +377,7 @@
                                      return(list (f = f,
                                                   g = g,
                                                   loss = objective))
-                                   },
-                                   initialize = function(
-                                     x, y,
-                                     a,
-                                     b,
-                                     p,
-                                     lambda,
-                                     debias = TRUE,
-                                     cost,
-                                     ...
-                                   ) {
-                                     private$lambda <- lambda
-                                     stopifnot(private$lambda > 0)
-                                     private$debias <- isTRUE(debias)
-                                     
-                                     if( missing(cost) || is.null(cost)) {
-                                       
-                                       private$cost <- cost_calc_lp(x,y,p,"rowwise")^p
-                                     } else {
-                                       private$cost     <- as.matrix(cost^p)
-                                     }
-                                     
-                                     if(debias) {
-                                       private$cost_xx <- cost_calc_lp(x,x,p, "rowwise")^p
-                                       private$cost_yy <- cost_calc_lp(y,y,p, "rowwise")^p
-                                     }
-                                     
-                                     private$n     <- nrow(private$cost)
-                                     private$m     <- ncol(private$cost)
-                                     private$fidx <- 1:private$n
-                                     private$gidx <- (private$n + 1):(private$n + private$m)
-                                     private$a  <- a
-                                     private$b  <- b
-                                     private$nvars <- length(a) + length(b)
-                                     private$options <- control.options(control = list(...), method = "lbfgs")
-                                     private$init <- rep(0, private$nvars)
                                    }
-                                 ),
-                                 private = list(
-                                   a = "numeric",
-                                   b = "numeric",
-                                   cost    = "matrix",
-                                   cost_xx = "matrix",
-                                   cost_yy = "matrix",
-                                   debias  = "logical",
-                                   f = "numeric",
-                                   fidx = "integer",
-                                   g = "numeric",
-                                   gidx = "integer",
-                                   init = "numeric",
-                                   lambda = "numeric",
-                                   loss_xy = "numeric",
-                                   loss_xx = "numeric",
-                                   loss_yy = "numeric",
-                                   m = "integer",
-                                   n = "integer",
-                                   nvars = "integer",
-                                   options = "list",
-                                   p = "numeric",
-                                   q = "numeric"
                                  )
   )
   
