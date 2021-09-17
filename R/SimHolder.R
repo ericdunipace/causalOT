@@ -1202,22 +1202,22 @@
                                               wass.output <- data.frame(w0 = causalOT::sinkhorn_geom(x = private$simulator$get_x0(), 
                                                                                      y = private$simulator$get_x(),
                                                                                      a = private$weights[[estimand]]$w0,
-                                                                                     b = b,
+                                                                                     b = b, scaling = 0.8,
                                                                                      power = 2,
-                                                                                     blur = 1, metric = "Lp")$loss,
+                                                                                     blur = 10, metric = "Lp")$loss,
                                                                   w1 = causalOT::sinkhorn_geom(x = private$simulator$get_x1(), 
                                                                                           y = private$simulator$get_x(),
                                                                                           a = private$weights[[estimand]]$w1,
-                                                                                          b = b,
+                                                                                          b = b, scaling = 0.8,
                                                                                           power = 2,
-                                                                                          blur = 1, metric = "Lp")$loss)
+                                                                                          blur = 10, metric = "Lp")$loss)
                                             } else if (estimand == "ATC") {
                                               wass.output <- data.frame(w0 = causalOT::sinkhorn_geom(x = private$simulator$get_x0(), 
                                                                                      y = private$simulator$get_x1(),
                                                                                      a = private$weights[[estimand]]$w0,
                                                                                      b = private$weights[[estimand]]$w1,
-                                                                                     power = 2,
-                                                                                     blur = 1, metric = "Lp")$loss,
+                                                                                     power = 2, scaling = 0.8,
+                                                                                     blur = 10, metric = "Lp")$loss,
                                                                   w1 = NA)
                                             } else if (estimand == "ATT") {
                                               wass.output <- data.frame(w0 = NA, 
@@ -1225,8 +1225,8 @@
                                                                                           y = private$simulator$get_x1(),
                                                                                           a = private$weights[[estimand]]$w0,
                                                                                           b = private$weights[[estimand]]$w1,
-                                                                                          power = 2,
-                                                                                          blur = 1, metric = "Lp")$loss)
+                                                                                          power = 2, scaling = 0.8,
+                                                                                          blur = 10, metric = "Lp")$loss)
                                             } else {
                                               stop("estimand not found in wass.calc")
                                             }
