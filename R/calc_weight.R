@@ -361,15 +361,21 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   
   solve.method <- solver
   
-  if(add.divergence == TRUE) {
+  if(add.divergence == TRUE && method == "Wasserstein") {
     solve.method <- "div"
   }
+  
   if(method != "Wasserstein" && solver == "lbfgs") {
     solver <- "mosek"
   }
   
   if(method == "Wasserstein" && isTRUE(list(...)$penalty == "entropy") && solve.method != "div" && solver != "mosek" && solver != "lbfgs") {
     solve.method <- solver <- "lbfgs"
+  }
+  
+  if (solver == "lbfgs" && method != "Wasserstein") {
+    solver <- "mosek"
+    solve.method <- "mosek"
   }
   
   solve.method <- switch(solve.method,
