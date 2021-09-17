@@ -226,7 +226,7 @@ wass_grid_search <- function(data, grid = NULL,
                              grid.length = 7,
                              estimand = c("ATT", "ATC","cATE","ATE"),
                              K = 10, R = 10,
-                             n.boot = 1000,
+                             n.boot = 100,
                              eval.method = c("bootstrap", "cross.validation"),
                              method = c("Wasserstein","Constrained Wasserstein", "SCM"),
                              sample_weight = NULL,
@@ -342,6 +342,7 @@ wass_grid_search <- function(data, grid = NULL,
                cost = cost, 
                add.joint = add.joint,
                add.margins = add.margins, 
+               add.divergence = add.divergence,
                joint.mapping = joint.mapping,
                neg.weights = neg.weights,
                cgd = cgd, 
@@ -1268,63 +1269,88 @@ pen.fun.grid <- function(x, z,
     } else {
       return(list(list(penalty = 0.0)))
     }
-  } 
-  
-  if(add.divergence) {
-    min.val <- NULL
-    bottom <- 0.05
-    top    <- 5e6
-  } else {
-    min.val <- 0
-    bottom <- 1e-3
-    top    <- 1e6
+  } else if (penalty == "L2") {
+    bottom <- 1e-5 * n
+    top    <- 1e4 * n
+  } else if (penalty == "entropy") {
+    bottom <- 1e-2
+    top    <- 1e4
   }
   
-  if (estimand == "ATE") {
-    cost1 <- cost[[1]]
-    cost0 <- cost[[2]]
-    D <- length(cost1)
-    
-    if (add.margins) {
-      cost1 <- cost1[[D]]
-      cost0 <- cost0[[D]]
-    }
-    mc1 <- median(cost1)
-    mc0 <- median(cost0)
-    
-    if (joint.mapping) {
-      mc1 <- mc1/median(cost1)
-      mc0 <- mc0/median(cost0)
-    }
-    
-    grid0 <- lapply(c(min.val, exp(seq(log(bottom * mc0), log(top * mc0), length.out = grid.length ))),
-                   function(nn) nn)
-    
-    grid1 <- lapply(c(min.val, exp(seq(log(bottom * mc1) , log(top * mc1), length.out = grid.length ))),
-                   function(nn) nn)
-    
-    grid <- lapply(1:grid.length, function(gg) list(list(penalty = grid0[[gg]]), 
-                                                    list(penalty = grid1[[gg]])))
+  if ( estimand == "ATE") {
+    grid0 <- grid1 <- switch(penalty,
+                    "L2" = lapply(exp(seq(log(bottom) , log(top), length.out = grid.length )),
+                                  function(nn) nn),
+                    "entropy" = lapply(10^(seq(log10(bottom), log10(top), length.out = grid.length)), function(nn) nn))
+
+
+      grid <- lapply(1:grid.length, function(gg) list(list(penalty = grid0[[gg]]),
+                                                      list(penalty = grid1[[gg]])))
   } else {
-    
-    D <- length(cost)
-    
-    if (add.margins) {
-      cost <- cost[[D]]
-    }
-    mc <- median(cost)
-    
-    if (joint.mapping) {
-      mc <- mc/median(cost)
-    }
-    grid <- lapply(c(min.val,exp(seq(log(bottom * mc), 
-                               log(top * mc) , 
-                               length.out = grid.length ))),
-                   function(nn) list(penalty = nn))
-    
+    grid <- switch(penalty,
+                    "L2" = lapply(exp(seq(log(bottom) , log(top), length.out = grid.length )),
+                                  function(nn) list(penalty = nn)),
+                    "entropy" = lapply(10^(seq(log10(bottom), log10(top), length.out = grid.length )), 
+                                       function(nn) list(penalty = nn)))
   }
   
   return(grid)
+  
+  # if(add.divergence) {
+  #   min.val <- NULL
+  #   bottom <- 0.05
+  #   top    <- 5e6
+  # } else {
+  #   min.val <- 0
+  #   bottom <- 1e-3
+  #   top    <- 1e6
+  # }
+  
+  # if (estimand == "ATE") {
+  #   cost1 <- cost[[1]]
+  #   cost0 <- cost[[2]]
+  #   D <- length(cost1)
+  #   
+  #   if (add.margins) {
+  #     cost1 <- cost1[[D]]
+  #     cost0 <- cost0[[D]]
+  #   }
+  #   mc1 <- median(cost1)
+  #   mc0 <- median(cost0)
+  #   
+  #   if (joint.mapping) {
+  #     mc1 <- mc1/median(cost1)
+  #     mc0 <- mc0/median(cost0)
+  #   }
+  #   
+  #   grid0 <- lapply(c(min.val, exp(seq(log(bottom * mc0), log(top * mc0), length.out = grid.length ))),
+  #                  function(nn) nn)
+  #   
+  #   grid1 <- lapply(c(min.val, exp(seq(log(bottom * mc1) , log(top * mc1), length.out = grid.length ))),
+  #                  function(nn) nn)
+  #   
+  #   grid <- lapply(1:grid.length, function(gg) list(list(penalty = grid0[[gg]]), 
+  #                                                   list(penalty = grid1[[gg]])))
+  # } else {
+  #   
+  #   D <- length(cost)
+  #   
+  #   if (add.margins) {
+  #     cost <- cost[[D]]
+  #   }
+  #   mc <- median(cost)
+  #   
+  #   if (joint.mapping) {
+  #     mc <- mc/median(cost)
+  #   }
+  #   grid <- lapply(c(min.val,exp(seq(log(bottom * mc), 
+  #                              log(top * mc) , 
+  #                              length.out = grid.length ))),
+  #                  function(nn) list(penalty = nn))
+  #   
+  # }
+  # 
+  # return(grid)
   
 }
 
@@ -1462,7 +1488,7 @@ wass_grid_default <- function(x, z, grid.length,
   
     
   get_defaults <- switch(method,
-                         "Constrained Wasserstein" = as.name("cwass.fun.grid"),
+                         # "Constrained Wasserstein" = as.name("cwass.fun.grid"),
                          "Wasserstein" = as.name("wass.fun.grid"),
                          "SCM" = as.name("scm.fun.grid"),
                          "Sliced Wasserstein" = NULL)
@@ -1523,7 +1549,7 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
     
     if(!is.null(x0) && !is.null(x1)) {
       return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
-                               power = p, blur = 1, debias = TRUE, cost = NULL, scaling = 0.2)$loss,0)^(1/p))
+                               power = p, blur = 10, debias = TRUE, cost = NULL, scaling = 0.1)$loss,0)^(1/p))
     }
   }
   # if (estimand == "ATE") {

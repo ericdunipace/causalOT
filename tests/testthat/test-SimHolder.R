@@ -760,7 +760,7 @@ testthat::test_that("SimHolder with grid works", {
   testthat::expect_equal(unique(sh$get.output()$method), c("SBW","Wasserstein",
                                                            # "Constrained Wasserstein",
                                                            "SCM"))
-  testthat::expect_equal(unique(sh2$get.output()$penalty),
+  testthat::expect_true(unique(sh2$get.output()$penalty) %in%
                          c(NA, "none","L2","variance", "entropy"))
   testthat::expect_equal(unique(sh2$get.output()$method), c("SBW","Wasserstein",
                                                            # "Constrained Wasserstein",
@@ -843,7 +843,8 @@ testthat::test_that("SimHolder with grid works", {
                                   ground_powers = ground_power,
                                   metrics = distance,
                                   niter = 5,
-                                  method = "greenkhorn",
+                                  method = "sinkhorn",
+                                  penalty = "entropy",
                                   wasserstein.distance.constraints = c(10,11),
                                   add.divergence = c(TRUE,FALSE)),
                       verbose = TRUE)

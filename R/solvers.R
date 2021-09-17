@@ -102,7 +102,7 @@ gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
     dual_vars <- NULL
   }
   
-  return(list(sol = sol, dual = dual_vars))
+  return(list(sol = sol, dual = dual_vars, value = res$objval))
   
   if (dots$save.solution) {
     return(list(result = sol, res = res))
@@ -254,7 +254,7 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   opts$writebefore <- dots$writebefore
   opts$writeafter <- dots$writeafter
   
-  
+  if(is.null(opts$soldetail)) opts$soldetail <- 1L
   # dots <- list(...)
   # model$sol <- c(dots$init.sol)
   
@@ -283,7 +283,7 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
     dual_vars <-  NULL
   }
   
-  return(list(sol = sol, dual = dual_vars))
+  return(list(sol = sol, dual = dual_vars, value = res$sol$itr$pobjval))
   
   
   if (dots$save.solution) {

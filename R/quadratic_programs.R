@@ -1747,19 +1747,19 @@ qp_wass <- function(x, z, K = list(penalty = NULL,
   # estimand <- match.arg(estimand)
   divergence <- isTRUE(divergence)
   
-  if (divergence) {
-    return(qp_wass_div(x = x, z = z, K = K, 
-                       p = p,
-                       penalty = penalty,
-                       dist = dist, cost = cost,
-                       rkhs.args = rkhs.args, add.joint = TRUE,
-                       add.margins = add.margins,
-                       joint.mapping = joint.mapping,
-                       neg.weights = neg.weights,
-                       bf = bf,
-                       sample_weight = sample_weight,
-                       soc = soc))
-  }
+  # if (divergence) {
+  #   return(qp_wass_div(x = x, z = z, K = K, 
+  #                      p = p,
+  #                      penalty = penalty,
+  #                      dist = dist, cost = cost,
+  #                      rkhs.args = rkhs.args, add.joint = TRUE,
+  #                      add.margins = add.margins,
+  #                      joint.mapping = joint.mapping,
+  #                      neg.weights = neg.weights,
+  #                      bf = bf,
+  #                      sample_weight = sample_weight,
+  #                      soc = soc))
+  # }
   
   margmass = get_sample_weight(sample_weight, z = z)
   joint.mapping <- isTRUE(joint.mapping)
@@ -2584,6 +2584,71 @@ qp_dual_max <- function(f, g, b, dispersion = numeric(0)) {
   }
   
   op$nvar <- n
+  return(op)
+}
+
+qp_proj <- function(f, g, a, b, BC) {
+  n <- length(a)
+  
+  #objective function
+  obj <- list(L = c(-a),
+              Q = Matrix::Diagonal(n,x = 1))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- rbind(1, Matrix::Matrix(data = t(BC$source), sparse = TRUE))
+  
+  # set constraint bounds
+  sds <- matrixStats::colSds(BC$target)
+  delta_star <- BC$K * sds
+  E_target <- colMeans(BC$target)
+  
+  LC$uc <- c(1, delta_star + E_target)
+  LC$lc <- c(1, -delta_star + E_target)
+  
+  op <- list(obj = obj, LC = LC)
+  op$bounds <- list(lb = rep(0,n), ub = rep(Inf,n))
+  
+  
+  op$nvar <- n
+  return(op)
+}
+
+qp_proj_update <- function(f, g, a, b, op) {
+  op$obj$L <- c(-a)
+  
+  return(op)
+}
+
+lp_min_constraint <- function(f, g, a, b, BC) {
+  n <- length(a)
+  
+  #objective function
+  obj <- list(L = c(f))
+  
+  # linear constraints
+  LC <- list()
+  LC$A <- rbind(1, Matrix::Matrix(data = t(BC$source), sparse = TRUE))
+  
+  # set constraint bounds
+  sds <- matrixStats::colSds(BC$target)
+  delta_star <- BC$K * sds
+  E_target <- colMeans(BC$target)
+  
+  LC$uc <- c(1, delta_star + E_target)
+  LC$lc <- c(1, -delta_star + E_target)
+  
+  op <- list(obj = obj, LC = LC)
+  op$bounds <- list(lb = rep(0,n), ub = rep(Inf,n))
+  
+  
+  op$nvar <- n
+  return(op)
+}
+
+lp_min_constraint_update <- function(f, g, a, b, op) {
+  op$obj$L <- c(f)
+  
   return(op)
 }
 

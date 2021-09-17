@@ -466,3 +466,21 @@ theme_cot <- function(base_size = 11, base_family = "",
   
 }
 
+#' Covert the 2-dimensional index to 1-dimensional index
+#'
+#' @param i Index of row
+#' @param j Index of column
+#' @param n Total number of rows
+#' @param m Total number of columns
+#'
+#' @return a 1d index for easy matrix entry
+#' 
+#' #' @keywords internal
+dist_2d_to_1d <- function (i, j, n, m) {
+  valid <- (i >= 1) & (j >= 1) & (i <= n) & (j <= m)
+  k <- (j - 1) * n + i
+  k[!valid] <- NA_real_
+  return(k)
+}
+
+

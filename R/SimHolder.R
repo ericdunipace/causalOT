@@ -381,8 +381,14 @@
                              
                              private$solver <- match.arg(solver, c("gurobi","cplex","mosek"))
                              
-                             if(is.null(propensity.formula)) {
+                             if(is.null(propensity.formula) || missing(propensity.formula)) {
                                propensity.formula <- list()
+                             } else if (!is.list(propensity.formula) && is.character(propensity.formula)) {
+                               propensity.formula <- list(logistic = propensity.formula,
+                                    cbps = propensity.formula,
+                                    sbw = propensity.formula,
+                                    cwass = propensity.formula,
+                                    wass = propensity.formula)
                              }
                              private$ps.formula <- list(logistic = unlist(propensity.formula$Logistic),
                                                         cbps = unlist(propensity.formula$CBPS),
@@ -632,8 +638,9 @@
                                                     if ( isTRUE(o$add.divergence) ) {
                                                       if (isTRUE(o$add.margins)) next
                                                       if (isTRUE(o$joint.mapping)) next
-                                                      if (isTRUE(!is.null(o$formula[[1]]) && !is.na(o$formula[[1]]))) next
-                                                      delta <- list(penalty = 1e4)
+                                                      if (isTRUE(o$penalty != "entropy")) next
+                                                      # if (isTRUE(!is.null(o$formula[[1]]) && !is.na(o$formula[[1]]))) next
+                                                      # delta <- list(penalty = 1e4) #check how gridsearch handles this
                                                     }
                                                   }
                                                   private$weight.calc(cur = cur, 
@@ -1121,21 +1128,21 @@
                                             # if(!any(private$metric == "RKHS")) wass_list$RKHS.metric <- Cwass_list$RKHS.metric <- NULL
                                             wass_list$std_diff <- NA
                                             private$method.lookup$options <- sapply(private$method, function(mm) switch(mm,
-                                                                                                                        None = list(delta = NA_real_, other = NA_character_),
-                                                                                                                        Logistic = list(delta = private$truncations,
-                                                                                                                                        formula = private$ps.formula$logistic),
-                                                                                                                        CBPS = list(delta = NA_real_,
-                                                                                                                                    formula = private$ps.formula$cbps),
-                                                                                                                        NNM = nnm_list,
-                                                                                                                        SBW = list(grid.search = private$grid.search,
-                                                                                                                                   delta = sdm,
-                                                                                                                                   formula = private$ps.formula$sbw),   
-                                                                                                                        SCM = scm_list,
-                                                                                                                        RKHS = RKHS_list,
-                                                                                                                        RKHS.dose = RKHS.dose_list,
-                                                                                                                        'Constrained Wasserstein' = Cwass_list,    
-                                                                                                                        Wasserstein = wass_list,
-                                                                                                                        gp = list(NA)))
+                                                                  None = list(delta = NA_real_, other = NA_character_),
+                                                                  Logistic = list(delta = private$truncations,
+                                                                                  formula = private$ps.formula$logistic),
+                                                                  CBPS = list(delta = NA_real_,
+                                                                              formula = private$ps.formula$cbps),
+                                                                  NNM = nnm_list,
+                                                                  SBW = list(grid.search = private$grid.search,
+                                                                             delta = sdm,
+                                                                             formula = private$ps.formula$sbw),   
+                                                                  SCM = scm_list,
+                                                                  RKHS = RKHS_list,
+                                                                  RKHS.dose = RKHS.dose_list,
+                                                                  'Constrained Wasserstein' = Cwass_list,    
+                                                                  Wasserstein = wass_list,
+                                                                  gp = list(NA)), simplify = FALSE)
                                             if("Logistic" %in% private$method) private$method.lookup$estimand[private$method.lookup$method == "Logistic"][[1]] <- private$estimand[private$estimand != "feasible"]
                                             private$max.conditions <- private$max.cond.calc()
                                             for(i in private$method) private$method.lookup$options[[i]] <- private$set.opts(private$method.lookup[i == private$method.lookup$method,])
@@ -1195,22 +1202,22 @@
                                               wass.output <- data.frame(w0 = causalOT::sinkhorn_geom(x = private$simulator$get_x0(), 
                                                                                      y = private$simulator$get_x(),
                                                                                      a = private$weights[[estimand]]$w0,
-                                                                                     b = b,
+                                                                                     b = b, scaling = 0.8,
                                                                                      power = 2,
-                                                                                     blur = 1, metric = "Lp")$loss,
+                                                                                     blur = 10, metric = "Lp")$loss,
                                                                   w1 = causalOT::sinkhorn_geom(x = private$simulator$get_x1(), 
                                                                                           y = private$simulator$get_x(),
                                                                                           a = private$weights[[estimand]]$w1,
-                                                                                          b = b,
+                                                                                          b = b, scaling = 0.8,
                                                                                           power = 2,
-                                                                                          blur = 1, metric = "Lp")$loss)
+                                                                                          blur = 10, metric = "Lp")$loss)
                                             } else if (estimand == "ATC") {
                                               wass.output <- data.frame(w0 = causalOT::sinkhorn_geom(x = private$simulator$get_x0(), 
                                                                                      y = private$simulator$get_x1(),
                                                                                      a = private$weights[[estimand]]$w0,
                                                                                      b = private$weights[[estimand]]$w1,
-                                                                                     power = 2,
-                                                                                     blur = 1, metric = "Lp")$loss,
+                                                                                     power = 2, scaling = 0.8,
+                                                                                     blur = 10, metric = "Lp")$loss,
                                                                   w1 = NA)
                                             } else if (estimand == "ATT") {
                                               wass.output <- data.frame(w0 = NA, 
@@ -1218,8 +1225,8 @@
                                                                                           y = private$simulator$get_x1(),
                                                                                           a = private$weights[[estimand]]$w0,
                                                                                           b = private$weights[[estimand]]$w1,
-                                                                                          power = 2,
-                                                                                          blur = 1, metric = "Lp")$loss)
+                                                                                          power = 2, scaling = 0.8,
+                                                                                          blur = 10, metric = "Lp")$loss)
                                             } else {
                                               stop("estimand not found in wass.calc")
                                             }
@@ -1312,7 +1319,7 @@
                                                             epsilon = private$wass.opt$epsilon,
                                                             verbose = isTRUE(private$verbose),
                                                             eval.method = private$wass.opt$eval.method,
-                                                            n.boot = 1000,
+                                                            n.boot = if (method == "SBW") {1000}else{100},
                                                             K = 10,
                                                             R = private$wass.opt$cross.val.replicates),
                                                          error = function(e) {
