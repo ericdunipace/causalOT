@@ -487,7 +487,7 @@ calc_weight_div <- function(data, constraint, estimand,
                             balance.constraints = NULL,
                             ...) {
   
-  pd <- prep_data(data, )
+  pd <- prep_data(data, ...)
   z <- as.numeric(pd$z)
   x.df <- pd$df[,!(colnames(pd$df) == "y")]
   x <- as.matrix(x.df)

@@ -13,7 +13,8 @@ cg <- function(optimizer, verbose = TRUE) {
     # print(optimizer$f())
     optimizer$solve_S()
     optimizer$step()
-    if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
+    # if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
+    if (verbose) setTxtProgressBar(pb, i)
   }
   # optimizer$solve_S()
   if (verbose) close(pb)
