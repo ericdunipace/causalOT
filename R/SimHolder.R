@@ -118,7 +118,7 @@
                                                              niter = 0,
                                                              epsilon = 0.05,
                                                              powers = 2,
-                                                             ground_powers = 2,
+                                                             # ground_powers = 2,
                                                              metrics = "Lp",
                                                              constrained.wasserstein.target = c("RKHS", "SBW"),
                                                              wasserstein.distance.constraints = NULL,
@@ -167,7 +167,7 @@
                                            niter = 1e3,
                                            epsilon = 1, # 0.05,
                                            powers = 2,
-                                           ground_powers = 2,
+                                           # ground_powers = 2,
                                            metrics = "mahalanobis",
                                            constrained.wasserstein.target = c("SBW"),
                                            wasserstein.distance.constraints = NULL,
@@ -196,7 +196,7 @@
                              }
                              
                              if(!is.null(Wass$wass_powers)) {
-                               private$ground_powers  <- as.numeric(Wass$ground_powers)
+                               private$ground_powers  <- private$wass_powers #as.numeric(Wass$ground_powers)
                              } else {
                                private$ground_powers <- 2.0
                              }
@@ -433,9 +433,10 @@
                              n_m <- length(private$metric)
                              n_w <- length(private$wass_powers)
                              nrows <- n_g * n_m * n_w
+                             nrows <- n_m * n_w
                              
                              private$wass_df <- list(metric = rep(private$metric, each = n_g * n_w))
-                             private$wass_df$ground_p <- rep_len(rep(private$ground_powers, each = n_w), length.out = nrows)
+                             # private$wass_df$ground_p <- rep_len(rep(private$ground_powers, each = n_w), length.out = nrows)
                              private$wass_df$wass_p <- rep_len(private$wass_powers, length.out = nrows)
                              private$wass_df$dist <- vector("list",nrows)
                              
@@ -507,15 +508,20 @@
                                           #     },
                                           cost.setup = function() {
                                             n_g <- length(private$ground_powers)
+                                            n_g <- length(private$wass_powers)
                                             n_m <- length(private$metric)
                                             nrows <- n_g * n_m
+                                            nrows <- n_m
                                             ns <- private$simulator$get_n()
                                             # private$costs <- vector("list", n_g)
                                             # names(private$costs) <- private$metric
                                             # list(metric = rep(private$metric, each = n_g))
                                             private$costs <- sapply(private$metric, 
-                                                                    function(i) sapply(as.character(private$ground_powers), 
-                                                                                       function(j) sapply(unique(c("ATT", private$estimand)),
+                                                                    function(i) 
+                                                                      # sapply(as.character(private$ground_powers), 
+                                                                      sapply(as.character(private$wass_powers), 
+                                                                                       function(j)
+                                                                                         sapply(unique(c("ATT", private$estimand)),
                                                                                                   function(k) 
                                                                                                     matrix(0, nrow = ns["n0"], 
                                                                                                            ncol = ns["n1"] ), simplify = FALSE),
@@ -527,7 +533,8 @@
                                             z  <- private$simulator$get_z()
                                             for(i in as.character(private$metric)) {
                                               if(i == "RKHS") next
-                                              for (j in as.character(private$ground_powers)) {
+                                              # for (j in as.character(private$ground_powers)) {
+                                              for (j in as.character(private$wass_powers)) {
                                                 # function(X, Y, ground_p, direction, metric)
                                                 for(k in as.character(private$estimand)) {
                                                   private$costs[[i]][[j]][[k]] <- cost_fun(x=x, z=z,
@@ -1079,12 +1086,12 @@
                                                                                 opt.method = private$RKHS$opt.method)
                                             RKHS_list$delta <- NULL
                                             nnm_list <- list(metric = private$metric,
-                                                                        ground_p = private$ground_powers,
+                                                                        # ground_p = private$ground_powers,
                                                                         wass_p = private$wass_powers,
                                                                         delta = NA
                                             )
                                             Cwass_list <- list(metric = private$metric,
-                                                               ground_p = private$ground_powers,
+                                                               # ground_p = private$ground_powers,
                                                                wass_p = private$wass_powers,
                                                                std_diff = switch(private$cwass.targ,
                                                                                  "SBW" = sdm, 
@@ -1100,7 +1107,7 @@
                                                                neg.weights = private$wass.opt$neg.weights
                                             )
                                             wass_list <- list( metric = private$metric,
-                                                              ground_p = private$ground_powers,
+                                                              # ground_p = private$ground_powers,
                                                               wass_p = private$wass_powers,
                                                               std_diff = switch(private$cwass.targ,
                                                                                 "SBW" = sdm, 

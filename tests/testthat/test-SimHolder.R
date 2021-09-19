@@ -292,6 +292,7 @@ testthat::test_that("SimHolder runs, only ATE", {
                       model.augmentation = "both",
                       match = "both",
                       solver = "gurobi",
+                      # verbose = TRUE,
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
                                   metrics = distance,
