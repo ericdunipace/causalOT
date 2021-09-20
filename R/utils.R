@@ -60,6 +60,24 @@ robust_sqrt_mat <- function(X) {
   return(Matrix::Matrix(chol(X), sparse = TRUE))
 }
 
+# round_pi <- function(f,g, cost, lambda, a, b) {
+#   n <- length(a)
+#   m <- length(b)
+#   
+#   f_prime <- log(a) - f/lambda + row_log_sum_exp((matrix(g, n, m, byrow = TRUE) - cost)/lambda)
+#   f_prime <- f_prime * (f_prime < 0)
+#   
+#   g_prime <- log(b) - g/lambda + col_log_sum_exp((matrix(f, n, m) - cost)/lambda)
+#   g_prime <- g_prime * (g_prime < 0)
+#   
+#   pi_prime <- exp((matrix(f_prime, n, m) + matrix(g_prime, n, m, byrow = TRUE) - cost)/lambda)
+#   err_row <- a - rowSums(pi_prime)
+#   err_col <- b - colSums(pi_prime)
+#   
+#   return(pi_prime + matrix(err_row, n, m) * matrix(err_col,n,m,byrow=TRUE)/ sum(abs(err_row)))
+#   
+# }
+
 round_pi <- function(raw_pi, a, b) {
   n <- length(a)
   m <- length(b)
@@ -73,9 +91,9 @@ round_pi <- function(raw_pi, a, b) {
   X <- diag(x)
   Y <- diag(y)
   
-  pi_prime <-  X %*% raw_pi
-  pi_2_prime <- raw_pi %*% Y
-  err_row <- a - rowSums(pi_prime)
+  pi_prime <-  matrix(x, n, m) *  raw_pi
+  pi_2_prime <- pi_prime * matrix(y, n, m, byrow = TRUE)
+  err_row <- a - rowSums(pi_2_prime)
   err_col <- b - colSums(pi_2_prime)
   
   return(pi_2_prime + matrix(err_row, n, m) * matrix(err_col,n,m,byrow=TRUE)/ sum(abs(err_row)))

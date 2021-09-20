@@ -1301,7 +1301,8 @@ dual_opt <- function(x, target,
                      balance = list(balance.functions = NULL,
                                     formula = NULL,
                                     balance.constraints = NULL),
-                     control = list(maxit = 2e3)
+                     control = list(maxit = 2e3),
+                     ...
 ) {
   
   method <- match.arg(method)

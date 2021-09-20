@@ -314,12 +314,37 @@ cg <- function(optimizer, verbose = TRUE) {
                                                                           cost = cost_p,
                                                                           method = "sinkhorn",
                                                                           epsilon = min.lambda / med.cost,
-                                                                          niter = 1e4)
+                                                                          niter = 1e2)
                                 mass <- tplan$mass
                                 mass[mass < 0] <- 0
                                 private$gamma <- matrix(0, private$n1, private$n2)
                                 private$gamma[dist_2d_to_1d(tplan$from, tplan$to, private$n1, private$n2)] <- renormalize(mass)
-                                # private$gamma.lambda <- min.lambda
+                                
+                                # blur <- 1e-3
+                                # optprob <- sinkhorn_geom(x = private$X1, y = private$X2,
+                                #             a = private$a,
+                                #             b = private$b, power = private$p,
+                                #             blur = blur, reach = private$sinkhorn_args$reach,
+                                #             diameter = private$sinkhorn_args$diameter,
+                                #             scaling = private$sinkhorn_args$scaling,
+                                #             truncate = private$sinkhorn_args$truncate,
+                                #             metric = "Lp", kernel = private$sinkhorn_args$kernel,
+                                #             cluster_scale = private$sinkhorn_args$cluster_scale,
+                                #             debias=FALSE,
+                                #             verbose=private$sinkhorn_args$verbose,
+                                #             backend=private$sinkhorn_args$backend)
+                                # raw_pi <- private$dual_to_primal(optprob$f, optprob$g, blur)
+                                # Total <- sum(raw_pi)
+                                # if (is.character(private$cost)) {
+                                #   private$cost <- cost_calc_lp(private$X1, private$X2,
+                                #                                p = private$p, direction = "rowwise")^private$p
+                                # }
+                                # private$gamma <- round_pi(optprob$f + blur * log(private$a), 
+                                #                           optprob$g + blur * log(private$b), 
+                                #                           private$cost, blur, 
+                                #                           private$a, private$b)
+                                # private$gamma <- round_pi(raw_pi/Total, 
+                                #                           private$a, private$b)
                                 
                               },
                               calc_scm_bary_proj = function() {
@@ -746,6 +771,16 @@ cg <- function(optimizer, verbose = TRUE) {
                            "cost_idx" = "numeric",
                            "cur_iter" = "integer",
                            "d" = "numeric",
+                           "dual_to_primal" = function(f, g, blur) {
+                             if(is.character(private$cost)) {
+                               private$cost <- cost_calc_lp(private$X1, private$X2,
+                                                                                         p = private$p, direction = "rowwise")^private$p
+                             }
+                             return(tcrossprod(private$a, private$b) * exp((matrix(f, private$n1, private$n2) +
+                                                                      matrix(g, private$n1, private$n2, byrow = TRUE) -
+                                                                      private$cost)/blur))
+                             
+                           },
                            "f_pot" = "numeric",
                            "f_val" = "numeric",
                            "f_val_old" = "numeric",
