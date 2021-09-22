@@ -549,7 +549,7 @@
                                               for (j in as.character(private$wass_powers)) {
                                                 # function(X, Y, ground_p, direction, metric)
                                                 for(k in as.character(private$estimand)) {
-                                                  private$costs[[i]][[j]][[k]] <- cost_fun(x=x, z=z,
+                                                  private$costs[[i]][[j]][[k]] <- causalOT::cost_fun(x = x, z = z,
                                                                                     power = as.numeric(j), 
                                                                                     metric = i,
                                                                                     estimand = k)
