@@ -352,7 +352,7 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
       power <- 1L
     }
     pykeops <- reticulate::import("pykeops", convert = TRUE)
-    pykeops$clean_pykeops()
+    # pykeops$clean_pykeops()
   } else {
     cost <- NULL
   }
