@@ -379,7 +379,7 @@
                                private$outcome.formula <- list(none = NULL, augmentation = NULL)
                              }
                              
-                             private$solver <- match.arg(solver, c("gurobi","cplex","mosek"))
+                             
                              
                              if(is.null(propensity.formula) || missing(propensity.formula)) {
                                propensity.formula <- list()
@@ -425,6 +425,18 @@
                              private$match <- match.arg(match, c("both", "yes", "no"))
                              private$split <- match.arg(split.models, c("both", "yes", "no"))
                              # private$cost.setup()
+                             
+                             private$solver <- match.arg(solver, c("mosek","gurobi","cplex","lbfgs","quadprog"))
+                             # if(is.character(solver)) {
+                             #   private$solver <- match.arg(solver, c("mosek","gurobi","cplex","lbfgs","quadprog"))
+                             # } else if (is.list(solver)) {
+                             #   solver <- lapply(solver, function(sname) match.arg(sname, c("mosek","gurobi","cplex","lbfgs","quadprog")))
+                             #   # solver.find <- f.call.list.no.eval("switch", list.args = solver)
+                             #   private$solver <- lapply(private$method ,  function(mm) f.call.list(fun = "switch", list.args = c(EXPR = mm, solver.find$envir)))
+                             #   names(private$solver) <- private$method
+                             # } else {
+                             #   stop("argument `solver` must be a character specifying same solver for all methods or a named list specifying the solver for each method")
+                             # }
                              
                              private$temp.output <- vector("list", length = private$nmethod)
                              names(private$temp.output) <- private$method
@@ -625,6 +637,17 @@
                                             esteff <- ci.out <- NULL
                                             for (solver in cur$solver) {
                                               for (o in cur$options[[1]]) {
+                                                if (method == "Wasserstein") {
+                                                  if ( isTRUE(o$add.divergence) ) {
+                                                    if (isTRUE(o$add.margins)) next
+                                                    if (isTRUE(o$joint.mapping)) next
+                                                    if (isTRUE(o$penalty != "entropy")) next
+                                                    # if (isTRUE(!is.null(o$formula[[1]]) && !is.na(o$formula[[1]]))) next
+                                                    # delta <- list(penalty = 1e4) #check how gridsearch handles this
+                                                  } else {
+                                                    if (isTRUE(o$penalty == "entropy")) solver <- "lbfgs"
+                                                  }
+                                                }
                                                 if (private$verbose && (method == "Wasserstein" | method == "Constrained Wasserstein"  | method == "SCM") ) print(o)
                                                 # if (method == "Wasserstein" || method == "Constrained Wasserstein") {
                                                   # if (isTRUE(o$penalty == "entropy") && isTRUE(o$joint.mapping == TRUE) ) next
@@ -641,15 +664,7 @@
                                                   if ( isTRUE(method == "NNM") & isTRUE(est == "feasible")) next
                                                   if ( isTRUE(method == "Constrained Wasserstein") & isTRUE(o$penalty == "none")) next
                                                   if ( isTRUE(o$neg.weights) && isTRUE(o$penalty == "entropy")) next
-                                                  if (method == "Wasserstein") {
-                                                    if ( isTRUE(o$add.divergence) ) {
-                                                      if (isTRUE(o$add.margins)) next
-                                                      if (isTRUE(o$joint.mapping)) next
-                                                      if (isTRUE(o$penalty != "entropy")) next
-                                                      # if (isTRUE(!is.null(o$formula[[1]]) && !is.na(o$formula[[1]]))) next
-                                                      # delta <- list(penalty = 1e4) #check how gridsearch handles this
-                                                    }
-                                                  }
+                                                  
                                                   private$weight.calc(cur = cur, 
                                                                       estimand = est, 
                                                                       solver = solver,
@@ -1124,11 +1139,11 @@
                                                               add.divergence = private$wass.opt$add.divergence
                                                               
                                             )
-                                            scm_list <- list(  delta = sdm,
-                                                               grid.search = private$grid.search,
+                                            scm_list <- list(  delta = NA,
+                                                               grid.search = FALSE,#private$grid.search,
                                                                # add.margins = private$wass.opt$add.margins,
                                                                joint.mapping = TRUE,
-                                                               penalty = private$wass.opt$penalty,
+                                                               penalty = "none",#private$wass.opt$penalty,
                                                                neg.weights = private$wass.opt$neg.weights
                                                                
                                             )

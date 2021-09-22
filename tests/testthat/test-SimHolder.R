@@ -1097,3 +1097,163 @@ testthat::test_that("SimHolder runs confidence intervals", {
   )
   
 })
+
+testthat::test_that("SimHolder wass entropy turns to lbfgs", {
+  testthat::skip_on_cran()
+  # testthat::skip("Interactive only")
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^5
+  p <- 6
+  nsims <- 2
+  overlap <- "high"
+  design <- "A"
+  distance <- c("sdLp")
+  power <- c(2)
+  std_mean_diff <- c(0.2,0.3)
+  solver <- "mosek"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p,
+                              design = design, overlap = overlap)
+  # SimHolder$debug("initialize")
+  # SimHolder$debug("update")
+  # SimHolder$debug("estimate")
+  # SimHolder$debug("model_estimate")
+  # SimHolder$debug("get_delta")
+  # SimHolder$debug("method.setup")
+  # SimHolder$debug("cost.setup")
+  # SimHolder$debug("get_cost")
+  # SimHolder$debug("max.cond.calc")
+  sh <- SimHolder$new(nsim = nsims,
+                      methods = c("SBW","Wasserstein"),
+                      dataSim = original,
+                      grid.search = TRUE,
+                      truncations = std_mean_diff,
+                      RKHS = list(opt = FALSE),
+                      standardized.difference.means = std_mean_diff,
+                      outcome.model = list("lm"),
+                      outcome.formula = list(none = NULL,
+                                             augmentation = NULL),
+                      solver = solver,
+                      verbose = TRUE,
+                      Wass = list(wass_powers = power,
+                                  metrics = distance,
+                                  constrained.wasserstein.target = c("SBW"),
+                                  penalty = c("entropy")
+                      ))
+  # the cost of one was all NA and the weights too...
+  # sh$run()
+  testthat::expect_warning(
+    {
+      
+      sh$run()
+      warn <- warnings()
+    }
+  )
+  if (!is.null(warn)) warn.fun()
+  testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
+  testthat::expect_type(original$get_x0(), "double")
+  testthat::expect_type(original$get_x1(), "double")
+  testthat::expect_type(original$get_z(), "double")
+  testthat::expect_type(original$get_y(), "double")
+  
+  testthat::expect_silent(
+    {out <- sh$get.output()
+    outcome <- sh$get.outcome(out)
+    ess <- sh$get.ESS.frac(out)
+    diag <- sh$get.diagnostics(out)
+    psis <- sh$get.psis(out)
+    wass <- sh$get.wass(out)}
+  )
+  testthat::expect_equal(unique(out$method), c("SBW","Wasserstein"))
+  testthat::expect_true("E_Y1" %in% colnames(out))
+  testthat::expect_true("E_Y0" %in% colnames(out))
+  testthat::expect_true("lbfgs" %in% out$solver)
+})
+
+# testthat::test_that("SimHolder runs with different solver args", {
+#   testthat::skip_on_cran()
+#   # testthat::skip("Interactive only")
+#   set.seed(9867)
+#   
+#   #### Load Packages ####
+#   library(causalOT)
+#   
+#   #### Sim param ####
+#   n <- 2^5
+#   p <- 6
+#   nsims <- 2
+#   overlap <- "high"
+#   design <- "A"
+#   distance <- c("sdLp")
+#   power <- c(2)
+#   ground_power <- 1
+#   std_mean_diff <- c(0.2,0.3)
+#   solver <- list(Wasserstein = "lbfgs", SBW = "mosek")
+#   
+#   #### get simulation functions ####
+#   original <- Hainmueller$new(n = n, p = p,
+#                               design = design, overlap = overlap)
+#   # SimHolder$debug("initialize")
+#   # SimHolder$debug("update")
+#   # SimHolder$debug("estimate")
+#   # SimHolder$debug("model_estimate")
+#   # SimHolder$debug("get_delta")
+#   # SimHolder$debug("method.setup")
+#   # SimHolder$debug("cost.setup")
+#   # SimHolder$debug("get_cost")
+#   # SimHolder$debug("max.cond.calc")
+#   sh <- SimHolder$new(nsim = nsims,
+#                       methods = c("SBW","Wasserstein"),
+#                       dataSim = original,
+#                       grid.search = FALSE,
+#                       truncations = std_mean_diff,
+#                       standardized.difference.means = std_mean_diff,
+#                       outcome.model = list("lm"),
+#                       outcome.formula = list(none = NULL,
+#                                              augmentation = NULL),
+#                       model.augmentation = "both",
+#                       match = "both",
+#                       solver = solver,
+#                       verbose = TRUE,
+#                       Wass = list(wass_powers = power,
+#                                   ground_powers = ground_power,
+#                                   metrics = distance,
+#                                   constrained.wasserstein.target = c("SBW"),
+#                                   add.margins = c(TRUE, FALSE),
+#                                   joint.mapping = c(FALSE, TRUE),
+#                                   penalty = c("none", "L2", "entropy", "variance")
+#                       ))
+#   # the cost of one was all NA and the weights too...
+#   # sh$run()
+#   testthat::expect_warning(
+#     {
+#       
+#       sh$run()
+#       warn <- warnings()
+#     }
+#   )
+#   if (!is.null(warn)) warn.fun()
+#   testthat::expect_equal(class(sh$get.output()), c("data.table", "data.frame"))
+#   testthat::expect_type(original$get_x0(), "double")
+#   testthat::expect_type(original$get_x1(), "double")
+#   testthat::expect_type(original$get_z(), "double")
+#   testthat::expect_type(original$get_y(), "double")
+#   
+#   testthat::expect_silent(
+#     {out <- sh$get.output()
+#     outcome <- sh$get.outcome(out)
+#     ess <- sh$get.ESS.frac(out)
+#     diag <- sh$get.diagnostics(out)
+#     psis <- sh$get.psis(out)
+#     wass <- sh$get.wass(out)}
+#   )
+#   testthat::expect_equal(unique(out$method), methods)
+#   testthat::expect_true("E_Y1" %in% colnames(out))
+#   testthat::expect_true("E_Y0" %in% colnames(out))
+# })

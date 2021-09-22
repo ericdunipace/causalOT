@@ -1470,14 +1470,15 @@ balance.options <- function(balance, x, target) {
   }
   
   if(is.list(balance)) {
-    if(is.null(balance$formula) && is.null(balance$balance.functions) &&
-       is.null(balance$balance.constraints)) return(balance)
+    if((is.null(balance$formula) || is.na(balance$formula)) && 
+       (is.null(balance$balance.functions) || is.na(balance$balance.functions) ) &&
+       (is.null(balance$balance.constraints) || is.na(balance$balance.constraints))) return(balance)
   }
   
   # if formula provided, will use that, otherwise uses all variables
   # in simple linear combination, ie X_1, X_2, ..., X_d
-  if (is.null(balance$formula)) {
-    balance$formula <- as.formula(~. + 0)
+  if (is.null(balance$formula) || is.na(balance$formula)) {
+    return(list(NULL)) #balance$formula <- as.formula(~. + 0)
   } else {
     form <- form_all_squares(balance$formula, colnames(x))
     form.temp <- as.character(form[length(form)])
@@ -1487,7 +1488,7 @@ balance.options <- function(balance, x, target) {
   
   # if the balance functions not provided (functions of covariates to balance)
   # will use formula to calculate from `x`. Otherwise, uses provided functions
-  if (is.null(balance$balance.functions) ) {
+  if (is.null(balance$balance.functions) || is.na(balance$balance$functions)) {
     balance$balance.functions <- model.matrix(balance$formula, data.frame(x))
   }
   
