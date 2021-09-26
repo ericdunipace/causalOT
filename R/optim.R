@@ -576,7 +576,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                   private$optimizer$zero_grad()
                                   private$optimizer$step(private$closure)
                                   private$pydat$at <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
-                                  private$a <- c(private$pydat$at$numpy())
+                                  private$a <- c(private$pydat$at$cpu()$numpy())
                                   
                                   if(private$search == "pgd") {
                                     private$op <- private$op_update(f =  self$get_param()$f,
