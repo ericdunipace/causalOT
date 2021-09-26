@@ -360,10 +360,10 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
   dtype <- if(use_cuda){torch$cuda$FloatTensor} else {torch$FloatTensor}
   
   # sets up python data types
-  xt <- dtype(np$array(x))
-  yt <- dtype(np$array(y))
-  at <- dtype(a)
-  bt <- dtype(b)
+  xt <- dtype(np$array(x))$contiguous()
+  yt <- dtype(np$array(y))$contiguous()
+  at <- dtype(a)$contiguous()
+  bt <- dtype(b)$contiguous()
   
   
   # sets up python function

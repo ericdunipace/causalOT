@@ -11,7 +11,7 @@ cg <- function(optimizer, verbose = TRUE) {
       if(verbose) message("\nConverged")
       break
     }
-    # print(optimizer$f())
+    print(optimizer$f())
     optimizer$solve_S()
     optimizer$step()
     # if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
@@ -744,7 +744,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                                               truncate = truncate,
                                                               metric = "Lp", kernel = kernel,
                                                               cluster_scale = cluster_scale, 
-                                                              debias = debias, 
+                                                              debias = TRUE, # debias, 
                                                               verbose = verbose, 
                                                               backend = backend)
                                 # sets up python function
@@ -917,11 +917,11 @@ cg <- function(optimizer, verbose = TRUE) {
                                
                                
                                private$pydat <- list()
-                               private$pydat$xt <- dtype(private$np$array(private$X1))
-                               private$pydat$yt <- dtype(private$np$array(private$X2))
-                               private$pydat$at <- dtype(private$a)
-                               private$pydat$l_at <- private$torch$autograd$Variable(dtype(log(private$a)), requires_grad = TRUE)
-                               private$pydat$bt <- dtype(private$b)
+                               private$pydat$xt <- dtype(private$np$array(private$X1))$contiguous()
+                               private$pydat$yt <- dtype(private$np$array(private$X2))$contiguous()
+                               private$pydat$at <- dtype(private$a)$contiguous()
+                               private$pydat$l_at <- private$torch$autograd$Variable(dtype(log(private$a)), requires_grad = TRUE)$contiguous()
+                               private$pydat$bt <- dtype(private$b)$contiguous()
                                
                                # private$pydat$l_at <- private$pydat$l_at$to(device)
                                # private$pydat$at <- private$pydat$at$to(device)
