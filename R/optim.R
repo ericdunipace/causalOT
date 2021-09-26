@@ -885,7 +885,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                dtype <- if(use_cuda){private$torch$cuda$DoubleTensor} else {private$torch$DoubleTensor}
                                private$device <- private$torch$device(if(use_cuda){"cuda"} else {"cpu"})
                                
-                               if (private$sinkhorn_args$backend == "tensorized" || (private$n1*private$n2 <= 5000^2 && private$sinkhorn_args$backend != "multiscale" && private$sinkhorn_args$backend != "online")) {
+                               if (private$sinkhorn_args$backend == "tensorized" || (private$n1 <= 5000 && private$n2 <= 5000 && private$sinkhorn_args$backend != "multiscale" && private$sinkhorn_args$backend != "online")) {
                                  if (private$p == 2) {
                                    cost <- private$geomloss$utils$squared_distances
                                  } else if (private$p == 1) {
@@ -898,7 +898,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                    private$sinkhorn_args$backend <- "online"
                                    private$p <- 1L
                                  }
-                               } else if (private$n1*private$n2 > 5000^2 || private$sinkhorn_args$backend == "multiscale" || private$sinkhorn_args$backend == "online") {
+                               } else if (private$n1 > 5000 || private$n2 > 5000 || private$sinkhorn_args$backend == "multiscale" || private$sinkhorn_args$backend == "online") {
                                  if (private$p == 2) {
                                    cost <- "SqDist(X,Y)"
                                  } else if (private$p == 1) {
@@ -920,7 +920,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                private$pydat$xt <- dtype(private$np$array(private$X1))$contiguous()
                                private$pydat$yt <- dtype(private$np$array(private$X2))$contiguous()
                                private$pydat$at <- dtype(private$a)$contiguous()
-                               private$pydat$l_at <- private$torch$autograd$Variable(dtype(log(private$a)), requires_grad = TRUE)$contiguous()
+                               private$pydat$l_at <- private$torch$autograd$Variable(dtype(log(private$a))$contiguous(), requires_grad = TRUE)
                                private$pydat$bt <- dtype(private$b)$contiguous()
                                
                                # private$pydat$l_at <- private$pydat$l_at$to(device)
