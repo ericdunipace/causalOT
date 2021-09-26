@@ -482,11 +482,12 @@ cg <- function(optimizer, verbose = TRUE) {
                                 
                                 private$cur_iter <- private$cur_iter + 1L
                                 
-                                df_val <- c(self$df())
+                                
                                 
                                 old_a <- private$a
                                 
                                 if (private$search == "armijo") {
+                                  df_val <- c(self$df())
                                   f_val <- self$f()
                                   
                                   deltaG <- private$S - old_a
@@ -536,7 +537,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                     private$a <- old_a
                                   }
                                 } else if (private$search == "mirror") {
-                                  
+                                  df_val <- c(self$df())
                                   eta <- private$stepsize / sqrt(private$cur_iter)
                                   prop <- old_a * exp(-eta * df_val)
                                   private$a <- prop/sum(prop)
@@ -549,7 +550,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                   }
                                   
                                 } else if (private$search == "mirror-accelerated") {
-                                  
+                                  df_val <- c(self$df())
                                   step_ <- (private$cur_iter + 1)/2
                                   
                                   
@@ -565,8 +566,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                   if (private$python_running) {
                                     l_a <- log(private$a)
                                     l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
-                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
-                                    private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$to(private$device)
+                                    private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)$to(private$device)
                                   }
                                   
                                   # update parameters next
@@ -586,8 +587,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                     private$a <- private$solver(private$op)$sol
                                     l_a <- log(private$a)
                                     l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
-                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
-                                    private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()$to(private$device)
+                                    private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)$to(private$device)
                                     
                                   }
                                 }
@@ -753,7 +754,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                   private$np <- reticulate::import("numpy", convert = TRUE)
                                   private$torch <- reticulate::import("torch", convert = TRUE)
                                   private$geomloss <- reticulate::import("geomloss", convert = TRUE)
-                                  
+                                  use_cuda <- private$torch$cuda$is_available()
+                                  private$device <- private$torch$device(if(use_cuda){"cuda"} else {"cpu"})
                                 }
                                 
                                 private$specific_initialize()
@@ -772,6 +774,7 @@ cg <- function(optimizer, verbose = TRUE) {
                            "cost_idx" = "numeric",
                            "cur_iter" = "integer",
                            "d" = "numeric",
+                           "device" = "python.builtin.module",
                            "dual_to_primal" = function(f, g, blur) {
                              if(is.character(private$cost)) {
                                private$cost <- cost_calc_lp(private$X1, private$X2,
@@ -834,12 +837,12 @@ cg <- function(optimizer, verbose = TRUE) {
                                  )
                                },
                                df = function() {
-                                 return(private$f_pot$numpy())
+                                 return(private$f_pot$cpu()$numpy())
                                },
                                get_param = function() {
                                  return(
-                                   list(f = as.numeric(private$f_pot$numpy()),
-                                       g = as.numeric(private$g_pot$numpy()))
+                                   list(f = as.numeric(private$f_pot$cpu()$numpy()),
+                                       g = as.numeric(private$g_pot$cpu()$numpy()))
                                  )
                                },
                                solve_param = function() {
@@ -880,6 +883,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                
                                use_cuda <- private$torch$cuda$is_available()
                                dtype <- if(use_cuda){private$torch$cuda$FloatTensor} else {private$torch$FloatTensor}
+                               private$device <- private$torch$device(if(use_cuda){"cuda"} else {"cpu"})
                                
                                if (private$sinkhorn_args$backend == "tensorized" || (private$n1*private$n2 <= 5000^2 && private$sinkhorn_args$backend != "multiscale" && private$sinkhorn_args$backend != "online")) {
                                  if (private$p == 2) {
