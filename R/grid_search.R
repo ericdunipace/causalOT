@@ -1549,7 +1549,7 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
     
     if(!is.null(x0) && !is.null(x1)) {
       return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
-                               power = p, blur = 10, debias = TRUE, cost = NULL, scaling = 0.1)$loss,0)^(1/p))
+                               power = p, blur = 10, debias = TRUE, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
     }
   }
   # if (estimand == "ATE") {
@@ -1698,6 +1698,25 @@ wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric,
       pbapply::pboptions(type = "timer", style = 3, char = "=")
     } else {
       pbapply::pboptions(type = "none")
+    }
+    if(wass.method == "sinkhorn") {
+      if (metric == "mahalanobis") {
+        total <- rbind(x0,x1)
+        
+        U <- inv_sqrt_mat(cov(total), symmetric = TRUE)
+        
+        update <- (total - matrix(colMeans(total), nrow = n0+n1,
+                                  ncol = d, byrow = TRUE)) %*% U
+        
+        x0 <- update[1:n0,,drop = FALSE]
+        x1 <- update[-(1:n1),,drop = FALSE]
+        
+      } else if (metric == "sdLp") {
+        total <- rbind(x0,x1)
+        update <- scale(total)
+        x0 <- update[1:n,,drop = FALSE]
+        x1 <- update[-(1:n),,drop = FALSE]
+      }
     }
     output <- pbapply::pbsapply(weights, function(ww) {
       boot.args$envir$MoreArgs$weight <- ww

@@ -150,10 +150,161 @@ gp_pred <- function(formula = NULL, data, weights=NULL,
   return(tau)
 }
 
-# weights in lmer model
-lmer_cot <- function(formula, data, weights) {
+# gp model predict
+predict.gp <- function(object, newdata = NULL, na.action = na.pass, ...) {
+  test_pos_def_inv <- function(x,y) {
+    e <- eigen(x, symmetric = TRUE)
+    if (any(e$values <= 0)) {
+      min.e <- min(e$values)
+      e$values <- e$values - min.e
+    }
+    p <- length(e$values)
+    return(e$vectors %*% diag(1 / e$values, nrow = p, ncol = p) %*% 
+             crossprod(e$vectors, y))
+  }
+  tt <- terms(object)
+  if (missing(newdata) || is.null(newdata)) {
+    X <- object$x
+  } else {
+    Terms <- delete.response(tt)
+    m <- model.frame(Terms, newdata, na.action = na.action, 
+                     xlev = object$xlevels)
+    if (!is.null(cl <- attr(Terms, "dataClasses"))) 
+      .checkMFClasses(cl, m)
+    X <- model.matrix(Terms, m, contrasts.arg = object$contrasts)
+  }
+  param <- object$param
+  n <- nrow(object$x)
+  
+      kernel_cov <- diag(param$sigma_2,n,n) + 
+        param$gamma * exp(-0.5 * param$theta * 
+                               cost_calc_lp(object$x, object$x, ground_p = 2, direction = "rowwise" )^2)
+      kernel_cross <- param$gamma * exp(-0.5 *  param$theta * 
+                                              cost_calc_lp(object$x, X, ground_p = 2, direction = "rowwise" )^2)
+  
+    pred <- crossprod(kernel_cross, test_pos_def_inv(kernel_cov, object$y))
+    if(object$is.standardized) pred <- pred * object$sd.y + object$m.y
+  
+  return(pred)
+}
+
+# get reisdual from gp object
+residuals.gp <- function(object, pred = NULL, ...) {
+  
+  if(!is.null(pred)) {
+    y <- object$y * object$sd.y + object$m.y
+    
+    stopifnot(length(y) == length(pred))
+    return(y - pred)
+  } else {
+    return(object$residuals)
+  }
   
 }
+
+#gp model fit
+gp <- function(formula = NULL, data, weights = NULL, ...) {
+  cl <- match.call()
+  mf <- match.call(expand.dots = FALSE)
+  m <- match(c("formula", "data", "weights"), names(mf), 0L)
+  mf <- mf[c(1L, m)]
+  mf$drop.unused.levels <- TRUE
+  mf[[1L]] <- quote(stats::model.frame)
+  mf <- eval(mf, parent.frame())
+  
+  mt <- attr(mf, "terms")
+  y <- model.response(mf, "numeric")
+  
+  x <- model.matrix(mt, mf, contrasts)
+  
+  dist_mat <- cost_calc_lp(x, x, ground_p = 2)^2
+  
+  y_std <- scale(y)
+  arguments <- list(
+    data = list(N = as.integer(length(y)),
+                y = c(y_std),
+                discrep = dist_mat,
+                p = 0.0,
+                kernel = 2L,
+                a = 0.,
+                b = 0.),
+    ...,
+    as_vector = FALSE
+  )
+  formals.stan <- c("iter", "save_iterations", 
+                    "refresh", "init_alpha", "tol_obj", "tol_grad", "tol_param", 
+                    "tol_rel_obj", "tol_rel_grad", "history_size",
+                    "object", "data", "seed", "init", "check_data",
+                    "sample_file", "algorithm", "verbose", "hessian", 
+                    "as_vector", "draws", "constrained", "importance_resampling")
+  arguments <- arguments[!duplicated(names(arguments))]
+  arguments <- arguments[names(arguments) %in% formals.stan]
+  if(is.null(arguments$object)) {
+      arguments$object <- stanmodels$gp_hyper
+  }
+  if(is.null(arguments$algorithm)) {
+    arguments$algorithm <- "Newton"
+  }
+  
+  argn <- lapply(names(arguments), as.name)
+  names(argn) <- names(arguments)
+  f.call <- as.call(c(list(call("::", as.name("rstan"), 
+                                as.name("optimizing"))), argn))
+  
+  param <- list()
+  tune.fun <- function(x, l, u) {
+    abs(0.01 - pgamma(l, exp(x[1]), exp(x[2]))) + abs(0.01 - pgamma(u, exp(x[1]), exp(x[2]), lower.tail = FALSE))
+  }
+  
+  #gp
+  l = sqrt(min(arguments$data$discrep[lower.tri(arguments$data$discrep)]))
+  u = sqrt(max(arguments$data$discrep))
+  tuned <- optim(par = runif(2), fn = tune.fun, l = l, u = u)
+  if (tuned$convergence == 0) {
+    arguments$data$a <- exp(tuned$par[1])
+    arguments$data$b <- exp(tuned$par[2])
+  }
+  if (arguments$algorithm != "Newton") {
+    res <- lapply(1:10, function(i) eval(f.call, envir = arguments))
+    res <- res[[which.max(sapply(res, function(r) r$par$marg_lik))]]
+  } else {
+    res <- eval(f.call, envir = arguments)
+  }
+  if (!is.null(res$par$theta_half)) {
+    param$theta <- c(1/res$par$theta_half^2)
+  }
+  if (!is.null(res$par$gamma_half)) param$gamma <- c(res$par$gamma_half^2)
+  param$sigma_2   <- c(res$par$sigma_half^2)
+  
+  output <- list()
+  class(output) <- "gp"
+  
+  output$param <- param
+  output$residuals <- NA_real_
+  output$fitted.values <- NA_real_
+  output$df.residual <- length(y) - length(param) + 1
+  output$xlevels <- .getXlevels(mt, mf)
+  output$call <- cl
+  output$terms <- mt
+  output$model <- mf
+  output$is.standardized <- TRUE
+  output$sd.y <- sd(y)
+  output$m.y  <- mean(y)
+  output$x <- x
+  output$y <- y_std
+  
+  output$fitted.values <- predict.gp(object = output)
+  output$residuals <- y - output$fitted.values 
+  output$marg_lik <- res$par$marg_lik
+  
+  return(output)
+}
+
+setClass("gp")
+setMethod("predict", signature = c(object = "gp"),
+          definition = predict.gp)
+setMethod("residuals", signature = c(object = "gp"),
+          definition = residuals.gp)
   
 # use barycentric mapping
 mapping <- function(data, z, weights, estimand, f1, f0, sw, ...) {
@@ -427,7 +578,7 @@ outcome_calc <- function(data, z, weights, formula, model.fun, matched, estimand
                                w = maps$weights)
       
   } else {
-    mu_1  <- weighted.mean(f_1, nonmap_sw)
+    mu_1  <- weighted.mean(f_1, nonmap_sw) 
     mu_0  <- weighted.mean(f_0, nonmap_sw)
     e_1   <- residuals(fit_1, 
                        pred = f_1[t_ind])
@@ -937,7 +1088,8 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   
   if(is.null(model.fun)) {
     if("model" %in% ...names()) {
-      model.fun <- calc_model(model)
+      
+      model.fun <- calc_model(list(...)$model)
     } else {
       "Must specify an argument 'model' as input to this function or in the effect estimation function"
     }
@@ -945,7 +1097,7 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   
   if(is.null(form)) {
     if("formula" %in% ...names()) {
-      form <- calc_form(formula = formula, 
+      form <- calc_form(formula = list(...)$formula, 
                         doubly.robust = object$options$doubly.robust, 
                         target = object$estimand,
                         split.model = object$options$split.model,
@@ -1056,12 +1208,12 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
     E_Y0_X <- E_Y0_X[orders]
     VAR_Y1 <- var(y[z==1]) # assuming var(Y | Z) = var(Y(Z))
     VAR_Y0 <- semipar_var(y, z = 1 - z, yhat = E_Y0_X, w = w, e_y = E_Y0, n = denom)
-    VAR <- VAR_Y1 + VAR_Y0/denom
+    VAR <- (VAR_Y1 + VAR_Y0)/n1
   } else if (estimand == "ATC"  ) {
     E_Y1_X <- E_Y1_X[orders]
     VAR_Y1 <- semipar_var(y, z = z,     yhat = E_Y1_X, w = w, e_y = E_Y1, n = denom)
     VAR_Y0 <- var(y[z==0]) # assuming var(Y | Z) = var(Y(Z))
-    VAR <- VAR_Y1 + VAR_Y0/n0
+    VAR <- (VAR_Y1 + VAR_Y0)/n0
   }
   
   

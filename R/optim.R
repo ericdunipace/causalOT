@@ -3,7 +3,8 @@ cg <- function(optimizer, verbose = TRUE) {
   stopifnot(inherits(optimizer, "cgOptimizer")) #needs to be R6 method
   
   optimizer$solve_G()
-  if (verbose) pb <- txtProgressBar(min = 0, max = floor(optimizer$get_niter()/10), style = 3)
+  # if (verbose) pb <- txtProgressBar(min = 0, max = floor(optimizer$get_niter()/10), style = 3)
+  if (verbose) pb <- txtProgressBar(min = 0, max = optimizer$get_niter(), style = 3)
   for (i in 1:optimizer$get_niter()) {
     optimizer$solve_param()
     if (optimizer$converged() && i > 1) {
@@ -877,6 +878,9 @@ cg <- function(optimizer, verbose = TRUE) {
                                private$torch <- reticulate::import("torch", convert = TRUE)
                                private$geomloss <- reticulate::import("geomloss", convert = TRUE)
                                
+                               use_cuda <- private$torch$cuda$is_available()
+                               dtype <- if(use_cuda){private$torch$cuda$FloatTensor} else {private$torch$FloatTensor}
+                               
                                if (private$sinkhorn_args$backend == "tensorized" || (private$n1*private$n2 <= 5000^2 && private$sinkhorn_args$backend != "multiscale" && private$sinkhorn_args$backend != "online")) {
                                  if (private$p == 2) {
                                    cost <- private$geomloss$utils$squared_distances
@@ -909,12 +913,14 @@ cg <- function(optimizer, verbose = TRUE) {
                                
                                
                                private$pydat <- list()
-                               private$pydat$xt <- private$torch$DoubleTensor(private$np$array(private$X1))$contiguous()
-                               private$pydat$yt <- private$torch$DoubleTensor(private$np$array(private$X2))$contiguous()
-                               private$pydat$at <- private$torch$DoubleTensor(private$a)$contiguous()
-                               private$pydat$l_at <- private$torch$autograd$Variable(private$torch$DoubleTensor(log(private$a))$contiguous(), requires_grad = TRUE)
-                               private$pydat$bt <- private$torch$DoubleTensor(private$b)$contiguous()
+                               private$pydat$xt <- dtype(private$np$array(private$X1))
+                               private$pydat$yt <- dtype(private$np$array(private$X2))
+                               private$pydat$at <- dtype(private$a)
+                               private$pydat$l_at <- private$torch$autograd$Variable(dtype(log(private$a)), requires_grad = TRUE)
+                               private$pydat$bt <- dtype(private$b)
                                
+                               # private$pydat$l_at <- private$pydat$l_at$to(device)
+                               # private$pydat$at <- private$pydat$at$to(device)
                                
                                # sets up python function
                                

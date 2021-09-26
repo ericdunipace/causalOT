@@ -294,7 +294,7 @@ coef.ot_imputer <- function(object, tx.name, estimand, ...) {
 sinkhorn_geom <- function(x, y, a, b, power = 2, 
                           blur = 0.05, reach = NULL, diameter = NULL,
                           scaling = 0.5, truncate = 5,
-                          metric = "sdLp", kernel = NULL,
+                          metric = "Lp", kernel = NULL,
                           cluster_scale=NULL, 
                           debias=TRUE, 
                           verbose=FALSE, backend='auto', ... ) {
