@@ -833,7 +833,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                f = function() {
                                  return(
                                    c(private$torch$add(private$torch$dot(private$f_pot, private$pydat$at$detach()), 
-                                               private$torch$dot(private$g_pot, private$pydat$bt))$numpy())
+                                               private$torch$dot(private$g_pot, private$pydat$bt))$cpu()$numpy())
                                  )
                                },
                                df = function() {
