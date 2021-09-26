@@ -1705,8 +1705,8 @@ wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric,
         
         U <- inv_sqrt_mat(cov(total), symmetric = TRUE)
         
-        update <- (total - matrix(colMeans(total), nrow = n0+n1,
-                                  ncol = d, byrow = TRUE)) %*% U
+        update <- (total - matrix(colMeans(total), nrow = n0 + n1,
+                                  ncol = ncol(total), byrow = TRUE)) %*% U
         
         x0 <- update[1:n0,,drop = FALSE]
         x1 <- update[-(1:n0),,drop = FALSE]
