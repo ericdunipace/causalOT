@@ -356,13 +356,14 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
   } else {
     cost <- NULL
   }
-  
+  use_cuda <- torch$cuda$is_available()
+  dtype <- if(use_cuda){torch$cuda$FloatTensor} else {torch$FloatTensor}
   
   # sets up python data types
-  xt <- torch$DoubleTensor(np$array(x))$contiguous()
-  yt <- torch$DoubleTensor(np$array(y))$contiguous()
-  at <- torch$DoubleTensor(a)$contiguous()
-  bt <- torch$DoubleTensor(b)$contiguous()
+  xt <- dtype(np$array(x))
+  yt <- dtype(np$array(y))
+  at <- dtype(a)
+  bt <- dtype(b)
   
   
   # sets up python function
@@ -380,11 +381,12 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
   potentials.torch <- Loss(at, xt, bt, yt)
   
   # get potentials
-  f  <- c(potentials.torch[[1]]$float()$numpy())
-  g  <- c(potentials.torch[[2]]$float()$numpy())
+  f  <- c(potentials.torch[[1]]$cpu()$numpy())
+  g  <- c(potentials.torch[[2]]$cpu()$numpy())
   
   # use potentials to calculate the sinkhorn loss
-  loss <- sum(f * a) + sum(g * b)
+  loss <- c(torch$add(torch$dot(potentials.torch[[1]]$squeeze(), at), 
+                            torch$dot(potentials.torch[[2]]$squeeze(), bt))$cpu()$numpy())
   
   # setup output matrix
   retVal <- list(f = f,

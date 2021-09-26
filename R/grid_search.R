@@ -1709,13 +1709,13 @@ wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric,
                                   ncol = d, byrow = TRUE)) %*% U
         
         x0 <- update[1:n0,,drop = FALSE]
-        x1 <- update[-(1:n1),,drop = FALSE]
+        x1 <- update[-(1:n0),,drop = FALSE]
         
       } else if (metric == "sdLp") {
         total <- rbind(x0,x1)
         update <- scale(total)
-        x0 <- update[1:n,,drop = FALSE]
-        x1 <- update[-(1:n),,drop = FALSE]
+        x0 <- update[1:n0,,drop = FALSE]
+        x1 <- update[-(1:n0),,drop = FALSE]
       }
     }
     output <- pbapply::pbsapply(weights, function(ww) {
