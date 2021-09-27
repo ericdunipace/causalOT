@@ -581,7 +581,7 @@ calc_weight_div <- function(data, constraint, estimand,
                                kernel = kernel,
                                cluster_scale = cluster_scale, 
                                debias = TRUE, 
-                               verbose = verbose, backend = 'auto',
+                               verbose = verbose, backend = backend,
                                balance.function.formula = formula,
                                balance.function.delta = balance.constraints[2])
     
@@ -616,7 +616,7 @@ calc_weight_div <- function(data, constraint, estimand,
                               kernel = kernel,
                               cluster_scale = cluster_scale, 
                               debias = TRUE, 
-                              verbose = verbose, backend = 'auto',
+                              verbose = verbose, backend = backend,
                               balance.function.formula = formula,
                               balance.function.delta = balance.constraints)
     
@@ -646,7 +646,7 @@ calc_weight_div <- function(data, constraint, estimand,
                               kernel = kernel,
                               cluster_scale = cluster_scale, 
                               debias = TRUE, 
-                              verbose = verbose, backend = 'auto',
+                              verbose = verbose, backend = backend,
                               balance.function.formula = formula,
                               balance.function.delta = balance.constraints)
     
