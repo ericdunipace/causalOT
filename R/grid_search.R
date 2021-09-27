@@ -1678,6 +1678,26 @@ wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric,
     n0 <- nrow(x0)
     n1 <- nrow(x1)
     
+    if(wass.method == "sinkhorn") {
+      if (metric == "mahalanobis") {
+        total <- rbind(x0,x1)
+        
+        U <- inv_sqrt_mat(cov(total), symmetric = TRUE)
+        
+        update <- (total - matrix(colMeans(total), nrow = n0 + n1,
+                                  ncol = ncol(total), byrow = TRUE)) %*% U
+        
+        x0 <- update[1:n0,,drop = FALSE]
+        x1 <- update[-(1:n0),,drop = FALSE]
+        
+      } else if (metric == "sdLp") {
+        total <- rbind(x0,x1)
+        update <- scale(total)
+        x0 <- update[1:n0,,drop = FALSE]
+        x1 <- update[-(1:n0),,drop = FALSE]
+      }
+    }
+    
     boot.idx <- get_boot(n.boot, n0, n1, sample_weight, wass.method, ...)
     
     boot.args <- setup_boot_args(boot.idx = boot.idx, 
@@ -1699,25 +1719,7 @@ wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric,
     } else {
       pbapply::pboptions(type = "none")
     }
-    if(wass.method == "sinkhorn") {
-      if (metric == "mahalanobis") {
-        total <- rbind(x0,x1)
-        
-        U <- inv_sqrt_mat(cov(total), symmetric = TRUE)
-        
-        update <- (total - matrix(colMeans(total), nrow = n0 + n1,
-                                  ncol = ncol(total), byrow = TRUE)) %*% U
-        
-        x0 <- update[1:n0,,drop = FALSE]
-        x1 <- update[-(1:n0),,drop = FALSE]
-        
-      } else if (metric == "sdLp") {
-        total <- rbind(x0,x1)
-        update <- scale(total)
-        x0 <- update[1:n0,,drop = FALSE]
-        x1 <- update[-(1:n0),,drop = FALSE]
-      }
-    }
+    
     output <- pbapply::pbsapply(weights, function(ww) {
       boot.args$envir$MoreArgs$weight <- ww
       return(mean(eval(boot.args$expr, envir = boot.args$envir)^p))
