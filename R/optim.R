@@ -882,7 +882,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                private$geomloss <- reticulate::import("geomloss", convert = TRUE)
                                
                                use_cuda <- private$torch$cuda$is_available()
-                               dtype <- if(use_cuda){private$torch$cuda$DoubleTensor} else {private$torch$DoubleTensor}
+                               dtype <- if(use_cuda){private$torch$cuda$FloatTensor} else {private$torch$FloatTensor}
                                private$device <- private$torch$device(if(use_cuda){"cuda"} else {"cpu"})
                                
                                if (private$sinkhorn_args$backend == "tensorized" || (private$n1 <= 5000 && private$n2 <= 5000 && private$sinkhorn_args$backend != "multiscale" && private$sinkhorn_args$backend != "online")) {
