@@ -357,7 +357,7 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
     cost <- NULL
   }
   use_cuda <- torch$cuda$is_available()
-  dtype <- if(use_cuda){torch$cuda$FloatTensor} else {torch$FloatTensor}
+  dtype <- if(use_cuda){torch$cuda$DoubleTensor} else {torch$DoubleTensor}
   
   # sets up python data types
   xt <- dtype(np$array(x))$contiguous()
