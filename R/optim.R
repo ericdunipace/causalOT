@@ -899,6 +899,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                    private$p <- 1L
                                  }
                                } else if (private$n1 > 5000 || private$n2 > 5000 || private$sinkhorn_args$backend == "multiscale" || private$sinkhorn_args$backend == "online") {
+                                 if(private$sinkhorn_args$backend == "tensorized") private$sinkhorn_args$backend <- "online"
                                  if (private$p == 2) {
                                    cost <- "SqDist(X,Y)"
                                  } else if (private$p == 1) {
