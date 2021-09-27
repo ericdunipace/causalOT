@@ -11,7 +11,7 @@ cg <- function(optimizer, verbose = TRUE) {
       if(verbose) message("\nConverged")
       break
     }
-    print(optimizer$f())
+    # cat("iter:", i, ", objective: ", optimizer$f(),"\n")
     optimizer$solve_S()
     optimizer$step()
     # if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)

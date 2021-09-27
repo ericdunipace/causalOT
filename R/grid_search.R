@@ -1549,7 +1549,7 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
     
     if(!is.null(x0) && !is.null(x1)) {
       return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
-                               power = p, blur = 10, debias = TRUE, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
+                               power = p, blur = 1000, debias = TRUE, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
     }
   }
   # if (estimand == "ATE") {
