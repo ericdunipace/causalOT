@@ -801,7 +801,7 @@
                                                                                                                             Treated = 1)))
                                                   #PSIS
                                                   data.table::set(private$output.dt, i = iter, j = "psis.ess.frac", value = list(c(w0 = 1,
-                                                                                                                                      w1 = 1)))
+                                                                                                                                   w1 = 1)))
                                                   data.table::set(private$output.dt, i = iter, j = "psis.k", value = list(list(w0 = NA_real_,
                                                                                                                                w1 = NA_real_)))
                                                   #opt wt dist
@@ -970,7 +970,8 @@
                                               nc <- private$simulator$get_p()
                                               min_x <- matrix(apply(private$simulator$get_x(),2,min), 1,nc, byrow = TRUE)
                                               max_x <- matrix(apply(private$simulator$get_x(),2,max), 1,nc, byrow = TRUE)
-                                              delta <- 0.05 * cost_calc_lp(min_x, max_x, opts$wass_p)^opts$wass_p
+                                              # delta <- c(0.05 * cost_calc_lp(min_x, max_x, opts$wass_p)^opts$wass_p)
+                                              delta <- c(cost_calc_lp(min_x, max_x, opts$wass_p)^opts$wass_p)
                                               if(estimand == "ATE") {
                                                 out <- list(list(penalty = delta), list(penalty = delta))
                                               } else {

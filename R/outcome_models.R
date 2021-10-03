@@ -1012,13 +1012,128 @@ confint.causalEffect <- function(object, parm, level = 0.95,
   
 }
 
+# default vcovHC in sandwich doesn't give correct results for models with 0 weights for some observations!!!
+# meatHC <- function (x, type = c("HC3", "const", "HC", "HC0", "HC1", "HC2",
+#                                 "HC4", "HC4m", "HC5"), omega = NULL, ...)
+# {
+#   if (is.list(x) && !is.null(x$na.action))
+#     class(x$na.action) <- "omit"
+#   X <- model.matrix(x)
+#   if (any(alias <- is.na(coef(x))))
+#     X <- X[, !alias, drop = FALSE]
+#   attr(X, "assign") <- NULL
+#   n <- NROW(X)
+#   diaghat <- try(hatvalues(x), silent = TRUE)
+#   df <- n - NCOL(X)
+#   ef <- sandwich::estfun(x, ...)
+#   res <- rowMeans(ef/X, na.rm = TRUE)
+#   all0 <- apply(abs(ef) < .Machine$double.eps, 1L, all)
+#   res[all0] <- 0
+#   if (any(all0) && substr(type, 1L, 1L) == "c") {
+#     if (inherits(x, "glm")) {
+#       res <- as.vector(residuals(x, "working")) * weights(x,
+#                                                           "working")
+#       if (!(substr(x$family$family, 1L, 17L) %in% c("poisson",
+#                                                     "binomial", "Negative Binomial"))) {
+#         res <- res * sum(weights(x, "working"), na.rm = TRUE)/sum(res^2,
+#                                                                   na.rm = TRUE)
+#       }
+#     }
+#     else if (inherits(x, "lm")) {
+#       res <- as.vector(residuals(x))
+#       if (!is.null(weights(x)))
+#         res <- res * weights(x)
+#     }
+#   }
+#   pos <- weights(x) > 0
+#   if(sum(pos) < n) {
+#     diaghat_full <- rep(0, n)
+#     diaghat_full[pos] <- diaghat
+#     diaghat <- diaghat_full
+#   }
+#   if (is.null(omega)) {
+#     type <- match.arg(type)
+#     if (type == "HC")
+#       type <- "HC0"
+#     switch(type, const = {
+#       omega <- function(residuals, diaghat, df) rep(1,
+#                                                     length(residuals)) * sum(residuals^2)/df
+#     }, HC0 = {
+#       omega <- function(residuals, diaghat, df) residuals^2
+#     }, HC1 = {
+#       omega <- function(residuals, diaghat, df) residuals^2 *
+#         length(residuals)/df
+#     }, HC2 = {
+#       omega <- function(residuals, diaghat, df) residuals^2/(1 -
+#                                                                diaghat)
+#     }, HC3 = {
+#       omega <- function(residuals, diaghat, df) residuals^2/(1 -
+#                                                                diaghat)^2
+#     }, HC4 = {
+#       omega <- function(residuals, diaghat, df) {
+#         n <- length(residuals)
+#         p <- as.integer(round(sum(diaghat), digits = 0))
+#         delta <- pmin(4, n * diaghat/p)
+#         residuals^2/(1 - diaghat)^delta
+#       }
+#     }, HC4m = {
+#       omega <- function(residuals, diaghat, df) {
+#         gamma <- c(1, 1.5)
+#         n <- length(residuals)
+#         p <- as.integer(round(sum(diaghat), digits = 0))
+#         delta <- pmin(gamma[1], n * diaghat/p) + pmin(gamma[2],
+#                                                       n * diaghat/p)
+#         residuals^2/(1 - diaghat)^delta
+#       }
+#     }, HC5 = {
+#       omega <- function(residuals, diaghat, df) {
+#         k <- 0.7
+#         n <- length(residuals)
+#         p <- as.integer(round(sum(diaghat), digits = 0))
+#         delta <- pmin(n * diaghat/p, pmax(4, n * k *
+#                                             max(diaghat)/p))
+#         residuals^2/sqrt((1 - diaghat)^delta)
+#       }
+#     })
+#   }
+#   if (is.function(omega))
+#     omega <- omega(res, diaghat, df)
+#   rval <- sqrt(omega) * X
+#   rval <- crossprod(rval)/n
+#   return(rval)
+# }
+# 
+# 
+# vcovHC.lm <- function (x, type = c("HC3", "const", "HC", "HC0", "HC1", "HC2",
+#                                    "HC4", "HC4m", "HC5"), omega = NULL, sandwich = TRUE, ...)
+# {
+#   type <- match.arg(type)
+#   rval <- causalOT::meatHC(x, type = type, omega = omega)
+#   if (sandwich)
+#     rval <- sandwich::sandwich(x, meat. = rval, ...)
+#   return(rval)
+# }
+
 ci_asympt <- function(object, parm, level, ...) {
   
   if (object$options$split.model == FALSE && 
       !is.null(object$outcome.model.fit) && 
       "vcov" %in% attributes(methods(class = class(object$outcome.model.fit))  )$info$generic) {
-    SDS <- sqrt(diag(sandwich::vcovHC(object$outcome.model.fit)))
-    SD <- SDS["z"]
+    if(!is.null(object$outcome.model.fit$weights) && any(object$outcome.model.fit$weights == 0)) {
+      # E_Y1 <- object$variance.component$E_Y1 #expectation of Y(1)
+      # E_Y0 <- object$variance.component$E_Y0 #expectation of Y(0)
+      # E_Y1_X <- object$variance.component$E_Y1_X  #estimated values of E(Y(1) | X)
+      # E_Y0_X <- object$variance.component$E_Y0_X 
+      # object$formula <-
+      # object$outcome.model.fit <- NULL
+      # return(ci_semiparm_eff(object, parm, level = level, ...))
+      SDS <- sqrt(diag(vcov(object$outcome.model.fit,...)))
+      SD <- SDS["z"]
+    } else {
+      SDS <- sqrt(diag(sandwich::vcovHC(object$outcome.model.fit,...)))
+      SD <- SDS["z"]
+    }
+    
     
     # get levels
     quant.lower <- (1 - level) * 0.5
