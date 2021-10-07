@@ -1024,7 +1024,7 @@ testthat::test_that("works for probit vs logit", {
   testthat::expect_silent(
     weight.check[[estimates[2]]] <- calc_weight(data = data, 
                                                 constraint = NULL,
-                                                method = "PRobit",
+                                                method = "Probit",
                                                 estimand = estimates[2]
     )
   )

@@ -436,14 +436,14 @@ cg <- function(optimizer, verbose = TRUE) {
                                 # self$solve_param()
                                 private$f_val_old <- private$sinkhorn_args$diameter
                                 private$a_old <- private$a
-                                # if (private$search == "armijo") {
-                                #   private$op <- private$op_update(f = c(private$f_pot$numpy()),
-                                #                                   g = private$g_pot,
-                                #                                   a = private$a,
-                                #                                   b = private$b,
-                                #                                   op = private$op)
-                                #   private$S <- private$solver(private$op)$sol
-                                # }
+                                if (private$search == "armijo") {
+                                  private$op <- private$op_update(f = rep(1, private$n1),
+                                                                  g = private$g_pot,
+                                                                  a = private$a,
+                                                                  b = private$b,
+                                                                  op = private$op)
+                                  private$a <- private$solver(private$op)$sol
+                                }
                               },
                               solve_param = function() {
                                 
