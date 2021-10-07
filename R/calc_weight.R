@@ -125,7 +125,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
     # f.call <- as.call(c(list(as.name("calc_weight_CBPS")), argn))
     # eval(f.call, envir = args)
     calc_weight_CBPS(data = data, estimand = estimand, ...)
-  } else if ( method != "Logistic") {
+  } else if ( method != "Logistic" && method != "Probit") {
     f.call <- as.call(c(list(as.name("calc_weight_bal")), argn))
     eval(f.call, envir = args)
     # do.call("calc_weight_bal", list(data, constraint,  estimand = estimand, 
@@ -133,7 +133,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
     #                                 ...))
   } else {
     if (estimand == "cATE") estimand <- "ATE"
-    calc_weight_glm(data = data, constraint = constraint, estimand = estimand, formula = formula, ...)
+    calc_weight_glm(data = data, constraint = constraint, estimand = estimand, formula = formula, method = method, ...)
   }
   
   if (isTRUE(transport.matrix)) {
@@ -304,6 +304,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
 #'
 #' @keywords internal
 calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
+                            method = c("Logistic","Probit"),
                             ...) {
   dots <- list(...)
   pd <- prep_data(data,...)
@@ -319,8 +320,12 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
   if ( is.null(dots$formula) ) {
     dots$formula <- formula(z ~ .)
   }
+  method <- match.arg(method)
+  fam <- switch(method,
+                "Logistic" = binomial(link = "logit"),
+                "Probit" = binomial(link = "probit"))
   dots$formula <- form_all_squares(dots$formula, colnames(df))
-  mod <- glm(dots$formula, data.frame(z = z, df), family = binomial(link = "logit"))
+  mod <- glm(dots$formula, data.frame(z = z, df), family = fam)
   pred <- predict(mod, type = "response")
   
   if (isTRUE(constraint > 0) & isTRUE(constraint < 1)) {
@@ -331,8 +336,10 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
     pred[pred > up]  <- up
     pred[pred < low] <- low
   }
-  output <- list(w0 = NULL, w1 = NULL, gamma = NULL, estimand = estimand, method = "Logistic",
-                 args = c(constraint = constraint , dots))
+  output <- list(w0 = NULL, w1 = NULL, gamma = NULL, 
+                 args = c(constraint = constraint , dots),
+                 estimand = estimand, method = "Logistic"
+                 )
   if (estimand == "ATT") {
     output$w1 <- rep(1/n1,n1)
     output$w0 <- pred[z == 0]/(1 - pred[z == 0]) * 1/n1

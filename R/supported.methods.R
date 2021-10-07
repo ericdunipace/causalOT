@@ -8,11 +8,13 @@
 #' @examples
 #' supported.methods()
 supported.methods <- function() {
-  return(c("Logistic","SBW", "SCM", 
+  return(c("Wasserstein",
+           "Logistic", "Probit",
+           "SBW", "SCM", 
            # "EBW",
            "CBPS",
            "RKHS", "RKHS.dose", "NNM", 
-           "Wasserstein",
+           
            # "Constrained Wasserstein",
            "None"))
 }

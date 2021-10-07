@@ -966,3 +966,74 @@ testthat::test_that("works for SCM grid", {
   
 })
 
+testthat::test_that("works for probit vs logit", {
+  
+  set.seed(23483)
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  distance <- c("Lp")
+  power <- c(1,2)
+  solver <- "mosek"
+  estimates <- c("ATT", "ATC", "ATE")
+  
+  #### get simulation functions ####
+  data <- causalOT::Hainmueller$new(n = n, p = p, 
+                                    design = design, overlap = overlap)
+  data$gen_data()
+  ns <- data$get_n()
+  n0 <- ns["n0"]
+  n1 <- ns["n1"]
+  
+  weight.check <- vector("list", length(estimates))
+  names(weight.check) <- estimates
+  # testthat::expect_warning(
+  weight.check[[estimates[1]]] <- calc_weight(data = data, 
+                                              constraint = NULL,
+                                              method = "Logistic",
+                                              estimand = estimates[1])
+  # )
+  testthat::expect_silent(
+    weight.check[[estimates[2]]] <- calc_weight(data = data, 
+                                                constraint = NULL,
+                                                method = "Logistic",
+                                                estimand = estimates[2]
+                                                )
+  )
+  testthat::expect_silent(
+    weight.check[[estimates[3]]] <- calc_weight(data = data, 
+                                                constraint = NULL,
+                                                method = "Logistic",
+                                                estimand = estimates[3])
+  )
+  
+  for (w in weight.check) testthat::expect_equal(names(w), arg.names)
+  
+  
+  weight.check <- vector("list", length(estimates))
+  names(weight.check) <- estimates
+  
+  # testthat::expect_warning(
+  weight.check[[estimates[1]]] <- calc_weight(data = data, 
+                                              constraint = NULL,
+                                              method = "Probit",
+                                              estimand = estimates[1])
+  # )
+  testthat::expect_silent(
+    weight.check[[estimates[2]]] <- calc_weight(data = data, 
+                                                constraint = NULL,
+                                                method = "PRobit",
+                                                estimand = estimates[2]
+    )
+  )
+  testthat::expect_silent(
+    weight.check[[estimates[3]]] <- calc_weight(data = data, 
+                                                constraint = NULL,
+                                                method = "Probit",
+                                                estimand = estimates[3])
+  )
+  
+  for (w in weight.check) testthat::expect_equal(names(w), arg.names)
+})
