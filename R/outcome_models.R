@@ -1215,7 +1215,7 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
       form <- calc_form(formula = list(...)$formula, 
                         doubly.robust = object$options$doubly.robust, 
                         target = object$estimand,
-                        split.model = object$options$split.model,
+                        split.model = object$options$split.model
                         )
     } else {
       "Must specify an argument 'formula' as input to this function or in the effect estimation function"
