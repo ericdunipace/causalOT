@@ -358,13 +358,26 @@ cg <- function(optimizer, verbose = TRUE) {
                                 private$f_val <- self$f()
                                 f_val_diff <- abs(private$f_val - private$f_val_old)
                                 
-                                nan.check <- isTRUE(any(is.nan(private$a)) || is.nan(private$f_val))
+                                # nan.check <- isTRUE(any(is.nan(private$a)) || is.nan(private$f_val))
+                                
+                                nan.check <- isTRUE(is.nan(private$f_val))
                                 
                                 # converged <- isTRUE(f_val_diff / abs(private$f_val_old) < private$tol)  ||
                                 #   isTRUE(sum(abs(private$a_old - private$a)) < private$tol) ||
                                 #   nan.check
                                 
-                                converged <- isTRUE(f_val_diff / abs(private$f_val_old) < private$tol)  || nan.check
+                                relsame <- isTRUE(f_val_diff / abs(private$f_val_old) < private$tol)  || nan.check
+                                private$converged.count <- if(relsame) {
+                                  private$converged.count + as.integer(relsame)
+                                } else {
+                                  0L
+                                }
+                                  
+                                if(private$search == "LBFGS") {
+                                  converged <- isTRUE(private$converged.count >= 2)
+                                } else {
+                                  converged <- isTRUE(private$converged.count >= 1)
+                                }
                                 
                                 if (nan.check) warning("NaN found in parameters! Try reducing the step size.")
                                 private$f_val_old <- private$f_val
@@ -475,6 +488,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                   
                                   # grad <- self$df()
                                   # private$S <- renormalize(as.numeric(grad == min(grad)))
+                                } else if (private$search == "LBFGS") {
+                                  private$scheduler$step(private$f_val)
                                 }
                                 
                               },
@@ -575,6 +590,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                 } else if (private$search == "LBFGS" || private$search == "pgd") {
                                   private$optimizer$zero_grad()
                                   private$optimizer$step(private$closure)
+                                  
                                   private$pydat$at <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
                                   private$a <- c(private$pydat$at$cpu()$numpy())
                                   
@@ -757,7 +773,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                   use_cuda <- private$torch$cuda$is_available()
                                   private$device <- private$torch$device(if(use_cuda){"cuda"} else {"cpu"})
                                 }
-                                
+                                private$converged.count <- 0L
                                 private$specific_initialize()
                               }
                             ),
@@ -770,6 +786,7 @@ cg <- function(optimizer, verbose = TRUE) {
                            # "add.margins" = "logical",
                            "b" = "numeric",
                            "closure" = "function",
+                           "converged.count" = "integer",
                            "cost" = "numeric",
                            "cost_idx" = "numeric",
                            "cur_iter" = "integer",
@@ -811,6 +828,7 @@ cg <- function(optimizer, verbose = TRUE) {
                            "python_running" ="logical",
                            "S" = "numeric",
                            "search" = "character",
+                           "scheduler" = "python.builtin.object",
                            "specific_initialize" = function(){},
                            "stepsize" = "numeric",
                            "sinkhorn_args" = "list",
@@ -908,7 +926,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                    cost <- paste0("Sum(Pow(X-Y,", private$p,"))")
                                    private$p <- 1L
                                  }
-                                 pykeops <- reticulate::import("pykeops", convert = TRUE)
+                                 # pykeops <- reticulate::import("pykeops", convert = TRUE)
                                  # pykeops$clean_pykeops()
                                } else {
                                  cost <- NULL
@@ -945,6 +963,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                                                                 lr = private$stepsize
                                                                                 , line_search_fn = "strong_wolfe"
                                  )
+                                 private$scheduler <- private$torch$optim$lr_scheduler$ReduceLROnPlateau(optimizer = private$optimizer, mode = "min", patience = 0L)
+                                 
                                  private$closure <- function() { #needed for LBFGS search
                                    private$optimizer$zero_grad()
                                    private$pydat$at <- private$torch$softmax(private$pydat$l_at, 0L)

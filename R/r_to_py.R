@@ -304,6 +304,8 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
   torch <- reticulate::import("torch", convert = TRUE)
   geomloss <- reticulate::import("geomloss", convert = TRUE)
   # cmake <- reticulate::import("cmake", convert = TRUE)
+  if(!is.matrix(x)) x <- as.matrix(x)
+  if(!is.matrix(y)) y <- as.matrix(y)
   
   # get data dimensions
   n <- nrow(x)

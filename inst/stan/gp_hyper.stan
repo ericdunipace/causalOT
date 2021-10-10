@@ -70,7 +70,7 @@ data {
   vector[N] y;
   matrix[N,N] discrep;
   real p;
-  int<lower = 1, upper = 3> kernel;
+  int<lower = 1, upper = 3> kernel; //1 = polynomial, 2 = expo, 3 = linear
   real a;
   real b;
 }
