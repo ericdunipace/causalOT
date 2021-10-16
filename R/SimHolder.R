@@ -967,16 +967,43 @@
                                               #   #                temp.wass$wass_p == opts$wass_p )
                                               #   # delta <- temp.wass$dist[[idx]]
                                               # } 
-                                              nc <- private$simulator$get_p()
-                                              min_x <- matrix(apply(private$simulator$get_x(),2,min), 1,nc, byrow = TRUE)
-                                              max_x <- matrix(apply(private$simulator$get_x(),2,max), 1,nc, byrow = TRUE)
-                                              # delta <- c(0.05 * cost_calc_lp(min_x, max_x, opts$wass_p)^opts$wass_p)
-                                              delta <- c(cost_calc_lp(min_x, max_x, opts$wass_p)^opts$wass_p)
-                                              if(estimand == "ATE") {
-                                                out <- list(list(penalty = delta), list(penalty = delta))
+                                              if(is.na(opts$delta) || is.null(opts$delta)) {
+                                                cost_temp <- private$costs[[opts$metric]][[as.character(opts$wass_p)]][estimand]
+                                                if(is.null(cost_temp)) {
+                                                  nc <- private$simulator$get_p()
+                                                  
+                                                  if(opts$metric == "sdLp") {
+                                                    x  <- scale(private$simulator$get_x())
+                                                  } else if (opts$metric == "mahalanobis") {
+                                                    U  <- inv_sqrt_mat(private$simulator$get_x())
+                                                    x  <- scale(private$simulator$get_x(), scale = FALSE) %*% U
+                                                  } else {
+                                                    x <- private$simulator$get_x()
+                                                  }
+                                                  min_x <- matrix(apply(x,2,min), 1, nc, byrow = TRUE)
+                                                  max_x <- matrix(apply(x,2,max), 1, nc, byrow = TRUE)
+                                                  # delta <- c(0.05 * cost_calc_lp(min_x, max_x, opts$wass_p)^opts$wass_p)
+                                                  delta <- rep(c(cost_calc_lp(min_x, max_x, opts$wass_p)^opts$wass_p), 2)
+                                                  
+                                                } else {
+                                                  if(estimand == "ATE") {
+                                                    delta <- sapply(cost_temp[[1]], function(cc) max(cc)^opts$wass_p)
+                                                  } else {
+                                                    delta <- max(cost_temp[[1]])^opts$wass_p
+                                                  }
+                                                  
+                                                }
+                                                
                                               } else {
-                                                out <- list(penalty = delta)
+                                                delta <- rep(opts$delta, 2)
                                               }
+                                              
+                                              if (estimand == "ATE") {
+                                                out <- list(list(penalty = delta[1]), list(penalty = delta[2]))
+                                              } else {
+                                                out <- list(penalty = delta[1])
+                                              }
+                                              
                                               return(out)
                                             } else if (method == "RKHS") {
                                               return(NA_real_)
@@ -1130,7 +1157,7 @@
                                                                                 "RKHS" = NA,
                                                                                 "RKHS.dose" = lambdas),
                                                               # RKHS.metric = private$RKHS$metric,
-                                                              delta = sdm,
+                                                              delta = wdc,
                                                               grid.search = private$grid.search,
                                                               formula = private$ps.formula$wass,
                                                               add.margins = private$wass.opt$add.margins,
@@ -1227,7 +1254,7 @@
                                                                                      a = private$weights[[estimand]]$w0,
                                                                                      b = b, scaling = 0.8,
                                                                                      power = 2,
-                                                                                     blur = 10, metric = "Lp")$loss,
+                                                                                     blur = 100, metric = "Lp")$loss,
                                                                   w1 = causalOT::sinkhorn_geom(x = private$simulator$get_x1(), 
                                                                                           y = private$simulator$get_x(),
                                                                                           a = private$weights[[estimand]]$w1,
@@ -1296,6 +1323,7 @@
                                               gamma <- private$RKHS$gamma
                                               sigma_2 <- private$RKHS$sigma_2
                                               lambda <- delta
+                                              if(grid.search) lambda <- 1e3
                                               power <- p[[1]]
                                               # kernel <- private$RKHS$kernel
                                             }

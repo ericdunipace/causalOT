@@ -208,6 +208,7 @@ RKHS_grid_search <- function(data, grid = NULL,
 #' @param wass.iter Number of iterations to run algorithm
 #' @param epsilon Used to calculated the penalty factor for the `wass.method`.
 #'  `lambda = epsilon*median(cost)`.
+#' @param lambda For the Sinkhorn wass.method, the lambda value directly,
 #' @param unbiased Should an de-biased Sinkhorn distance be used for `wass.method`?
 #' @param add.joint Add the joint cost matrix?
 #' @param add.margins Add the marginal constraints
@@ -232,6 +233,7 @@ wass_grid_search <- function(data, grid = NULL,
                              sample_weight = NULL,
                              wass.method = "sinkhorn", wass.iter = 1e3,
                              epsilon = 1,
+                             lambda = 1e2,
                              unbiased = TRUE,
                              add.joint = TRUE,
                              add.margins = FALSE,
@@ -333,6 +335,7 @@ wass_grid_search <- function(data, grid = NULL,
                eval.method = eval.method,
                wass.method = wass.method,
                wass.iter = wass.iter,
+               lambda = lambda,
                sample_weight = sample_weight,
                estimand = estimand, 
                method = method, 
@@ -1546,10 +1549,12 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
   if(wass.method == "sinkhorn") {
     nzero_a <- which(weight$w0 != 0)
     nzero_b <- which(weight$w1 != 0)
+    lambda <- list(...)$lambda
+    if(is.na(lambda) || is.null(lambda)) lambda <- 1e2
     
     if(!is.null(x0) && !is.null(x1)) {
       return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
-                               power = p, blur = 1000, debias = TRUE, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
+                               power = p, blur = lambda, debias = TRUE, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
     }
   }
   # if (estimand == "ATE") {
