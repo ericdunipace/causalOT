@@ -665,7 +665,12 @@ outcome_calc_model <- function(data, z, weights, formula, model.fun,
 calc_form <- function(formula, doubly.robust, target, split.model) {
   if (!is.null(formula)) {
     if ( isTRUE(split.model) ) {
-      stopifnot(isTRUE(all(names(formula) %in% c("treated","control"))))
+      if(!(isTRUE(all(names(formula) %in% c("treated","control"))) &&
+                  isTRUE(!is.null(names(formula))))) {
+        stop(
+          "`formula` must be specified as list with slots 'treated' and 'control'"
+        )
+      }
       formula$treated <- as.formula(formula$treated)
       formula$control <- as.formula(formula$control)
       
@@ -1194,20 +1199,14 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   form <- object$formula
   estimand <- object$estimand
   
-  if (is.null(form)) {
-    form <- calc_form(formula, object$options$doubly.robust, estimand, object$options$split.model) 
-  } else {
-    environment(form$treated) <- environment(form$control) <- environment()
-  }
-  
-  
   if(is.null(model.fun)) {
     if("model" %in% ...names()) {
       
       model.fun <- calc_model(list(...)$model)
     } else {
-      "Must specify an argument 'model' as input to this function or in the effect estimation function"
+      stop("Must specify an argument 'model' as input to this function or in the effect estimation function")
     }
+    form <- NULL
   }
   
   if(is.null(form)) {
@@ -1217,9 +1216,12 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
                         target = object$estimand,
                         split.model = object$options$split.model
                         )
+      environment(form$treated) <- environment(form$control) <- environment()
     } else {
-      "Must specify an argument 'formula' as input to this function or in the effect estimation function"
+      stop("Must specify an argument 'formula' as input to this function or in the effect estimation function")
     }
+  } else {
+    environment(form$treated) <- environment(form$control) <- environment()
   }
   
   # treatment effect
@@ -1240,7 +1242,30 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   n0      <- n-n1
   
   weights <- object$weights
+  # get conditional mean predictions for each unit
+  if ( estimand == "ATE" && ( any(is.na(E_Y1_X)) || any(is.na(E_Y0_X)) ) ) {
+    x     <- data.obj[, object$options$balance.covariates, drop = FALSE]
+    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
+    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
+    
+    E_Y0_X <- predict(fit_0, newdata = x)
+    E_Y1_X <- predict(fit_1, newdata = x)
+    
+  } else if (estimand == "ATT" && any(is.na(E_Y0_X)) ) {
+    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
+    
+    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
+    
+    E_Y0_X <- predict(fit_0, newdata = x)
+  } else if (estimand == "ATC" && any(is.na(E_Y1_X)) ) {
+    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
+    
+    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
+    
+    E_Y1_X <- predict(fit_1, newdata = x)
+  } 
   
+  # reorder data
   orders  <- order(z)
   w       <- c(weights$w0, weights$w1)
   
@@ -1277,30 +1302,6 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
 
   y       <- y[orders]
   z       <- sort(z)
-  
-  
-  # get conditional mean predictions for each unit
-  if ( estimand == "ATE" && ( any(is.na(E_Y1_X)) || any(is.na(E_Y0_X)) ) ) {
-    x     <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
-    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
-    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
-    
-    E_Y0_X <- predict(fit_0, newdata = x)
-    E_Y1_X <- predict(fit_1, newdata = x)
-    
-  } else if (estimand == "ATT" && any(is.na(E_Y0_X)) ) {
-    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
-    
-    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
-    
-    E_Y0_X <- predict(fit_0, newdata = x)
-  } else if (estimand == "ATC" && any(is.na(E_Y1_X)) ) {
-    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
-    
-    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
-    
-    E_Y1_X <- predict(fit_1, newdata = x)
-  } 
   
   # get variance estimates
   # semipar_var(y, z, yhat, w, e_y)
