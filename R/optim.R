@@ -543,8 +543,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                       if(private$python_running) {
                                         l_a <- log(private$a)
                                         l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
-                                        private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
-                                        private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                        private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()$to(private$device)
+                                        private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)$to(private$device)
                                       }
                                     }
                                     
