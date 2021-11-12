@@ -517,8 +517,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                     private$a <- renormalize(private$a)
                                     l_a <- log(private$a)
                                     l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
-                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()
-                                    private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
+                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()$to(private$device)
+                                    private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)$to(private$device)
                                     self$solve_param()
                                     
                                     
@@ -2029,7 +2029,7 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
   }
   
   # Otherwise, compute the minimizer of a quadratic interpolant:
-  alpha1 = -(derphi0) * alpha0^2 / 2.0 / (phi_a0 - phi0 - derphi0 * alpha0)
+  alpha1 = -(derphi0) * alpha0 ^ 2 / 2.0 / (phi_a0 - phi0 - derphi0 * alpha0)
   phi_a1 = phi(x, dx, alpha1)
   if ((phi_a1 <= (phi0 + c1 * alpha1 * derphi0) )  && (alpha1 >= 0) ) {
     return(list(alpha = alpha1, phi1 = phi_a1))
