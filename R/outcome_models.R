@@ -1125,17 +1125,20 @@ ci_asympt <- function(object, parm, level, ...) {
       !is.null(object$outcome.model.fit) && 
       "vcov" %in% attributes(methods(class = class(object$outcome.model.fit))  )$info$generic) {
     if(!is.null(object$outcome.model.fit$weights) && any(object$outcome.model.fit$weights == 0)) {
-      # E_Y1 <- object$variance.component$E_Y1 #expectation of Y(1)
-      # E_Y0 <- object$variance.component$E_Y0 #expectation of Y(0)
-      # E_Y1_X <- object$variance.component$E_Y1_X  #estimated values of E(Y(1) | X)
-      # E_Y0_X <- object$variance.component$E_Y0_X 
-      # object$formula <-
-      # object$outcome.model.fit <- NULL
-      # return(ci_semiparm_eff(object, parm, level = level, ...))
-      SDS <- sqrt(diag(vcov(object$outcome.model.fit,...)))
+    #   # E_Y1 <- object$variance.component$E_Y1 #expectation of Y(1)
+    #   # E_Y0 <- object$variance.component$E_Y0 #expectation of Y(0)
+    #   # E_Y1_X <- object$variance.component$E_Y1_X  #estimated values of E(Y(1) | X)
+    #   # E_Y0_X <- object$variance.component$E_Y0_X 
+    #   # object$formula <-
+    #   # object$outcome.model.fit <- NULL
+    #   # return(ci_semiparm_eff(object, parm, level = level, ...))
+      SDS <- sqrt(diag(sandwich::vcovBS(object$outcome.model.fit,...)))
       SD <- SDS["z"]
     } else {
-      SDS <- sqrt(diag(sandwich::vcovHC(object$outcome.model.fit,...)))
+      vcov_mat <- tryCatch(sandwich::vcovCL(object$outcome.model.fit,...),
+                           error = sandwich::vcovBS(object$outcome.model.fit,...),
+                           warning = sandwich::vcovBS(object$outcome.model.fit,...))
+      SDS <- sqrt(diag(vcov_mat))
       SD <- SDS["z"]
     }
     
@@ -1252,13 +1255,13 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
     E_Y1_X <- predict(fit_1, newdata = x)
     
   } else if (estimand == "ATT" && any(is.na(E_Y0_X)) ) {
-    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
+    x    <- data.obj[, object$options$balance.covariates, drop = FALSE]
     
     fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
     
     E_Y0_X <- predict(fit_0, newdata = x)
   } else if (estimand == "ATC" && any(is.na(E_Y1_X)) ) {
-    x    <- data.obj[orders, object$options$balance.covariates, drop = FALSE]
+    x    <- data.obj[, object$options$balance.covariates, drop = FALSE]
     
     fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
     
