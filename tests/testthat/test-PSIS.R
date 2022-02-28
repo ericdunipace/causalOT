@@ -83,7 +83,7 @@ testthat::test_that("PSIS diagnostics work", {
                   # W = test2, 
                   SBW=test3, IPW = test4, 
                   # RKHS = test5,
-                  cRKHS = test5b, 
+                  # cRKHS = test5b, 
                   # cCW = test6, 
                   cW = test7
                   # , 
