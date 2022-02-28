@@ -574,7 +574,7 @@ testthat::test_that("works for Wass divergence, grid/formula", {
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   
-  testthat::skip("only interactive")
+  testthat::skip("Interactive only")
   # grid search
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        grid.search = TRUE,

@@ -75,7 +75,7 @@ testthat::test_that("confint works for NNM causaleffect", {
 })
 
 testthat::test_that("confint calibrated for NNM causaleffect", {
-  testthat::skip("interactive unit test only")
+  testthat::skip("Interactive only")
   set.seed(2323420)
   sim <- Hainmueller$new(overlap = "low", design = "B",
                          n = 2^9, p = 6)
@@ -120,7 +120,7 @@ testthat::test_that("confint calibrated for NNM causaleffect", {
 })
 
 testthat::test_that("confint calibrated for logistic causaleffect", {
-  testthat::skip("interactive unit test only")
+  testthat::skip("Interactive only")
   set.seed(2323420)
   sim <- Hainmueller$new(overlap = "low", design = "B",
                          n = 2^9, p = 6)
@@ -143,7 +143,7 @@ testthat::test_that("confint calibrated for logistic causaleffect", {
 })
 
 testthat::test_that("confint works for NNM causaleffect", {
-  testthat::skip("interactive only")
+  testthat::skip("Interactive only")
   set.seed(2323420)
   sim <- LaLonde$new(design = "Full")
   sim$gen_data()
