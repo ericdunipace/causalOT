@@ -28,7 +28,6 @@ Suggests:
     CBPS,
     data.table (>= 1.12.8),
     R6 (>= 2.4.1),
-    gurobi,
     Rmosek,
     dplyr,
     kernlab,
