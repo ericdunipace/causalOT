@@ -240,7 +240,7 @@ gp <- function(formula = NULL, data, weights = NULL, ...) {
   arguments <- arguments[!duplicated(names(arguments))]
   arguments <- arguments[names(arguments) %in% formals.stan]
   if(is.null(arguments$object)) {
-      arguments$object <- stanmodels$gp_hyper
+      arguments$object <- stanbuilder("gp_hyper")
   }
   if(is.null(arguments$algorithm)) {
     arguments$algorithm <- "Newton"
@@ -974,6 +974,7 @@ estimate_effect <- function(data, formula = NULL, weights,
 #' error of the causal effects. If method is "bootstrap" and `boot.method` is "m-out-of-n", then there will
 #' also be a slot named "unadjusted" giving the unadjusted confidence interval and standard error estimate
 #' for reference.
+#' @method confint causalEffect
 #' @export
 #'
 #' @examples
@@ -988,7 +989,8 @@ estimate_effect <- function(data, formula = NULL, weights,
 #' tx_eff <- estimate_effect(data = data, weights = weight)
 #' 
 #' # run ci with bootstrap
-#' confint(tx_eff)
+#' confint(tx_eff, model = "lm",   
+#'     formula = list(treated = "y ~ .", control = "y ~ ."))
 #' # output:
 #' # $CI
 #' #      2.5%     97.5% 
@@ -1113,7 +1115,7 @@ confint.causalEffect <- function(object, parm, level = 0.95,
 #                                    "HC4", "HC4m", "HC5"), omega = NULL, sandwich = TRUE, ...)
 # {
 #   type <- match.arg(type)
-#   rval <- causalOT::meatHC(x, type = type, omega = omega)
+#   rval <- causalOT:::meatHC(x, type = type, omega = omega)
 #   if (sandwich)
 #     rval <- sandwich::sandwich(x, meat. = rval, ...)
 #   return(rval)

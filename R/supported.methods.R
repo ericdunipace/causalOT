@@ -1,21 +1,21 @@
 #' Supported weighting methods
 #'
-#' @return A character vector with values "Logistic","SBW", "SCM", 
-#' "CBPS", "RKHS", "RKHS.dose", "NNM", "Wasserstein",
-#' "Constrained Wasserstein", and "None".
+#' @return A character vector with values "Logistic", "Probit", "SBW", "SCM", 
+#' "CBPS",  "NNM", 
+#' "Wasserstein" or equivalently "COT",
+#'  and "None".
 #' @export
 #'
 #' @examples
 #' supported.methods()
 supported.methods <- function() {
-  return(c("Wasserstein",
+  return(c("Wasserstein", "COT",
            "Logistic", "Probit",
            "SBW", "SCM", 
            # "EBW",
            "CBPS",
-           "RKHS", "RKHS.dose", "NNM", 
-           
-           # "Constrained Wasserstein",
+           # "RKHS", "RKHS.dose", 
+           "NNM", 
            "None"))
 }
 

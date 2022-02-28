@@ -98,9 +98,9 @@ wasserstein_p.causalWeights <- function(a, b = NULL, p = 1, tplan = NULL, cost =
 
 wasserstein_p.matrix <- function(a, b, p = 1, tplan = NULL, cost = NULL, dist = "Lp",...) {
   if(is.null(cost)) {
-    cost.calc <- switch(dist, "Lp" = causalOT::cost_calc_lp,
-                        "mahalanobis" = causalOT::cost_mahalanobis,
-                        "sdLp" = causalOT::cost_calc_sdlp)
+    cost.calc <- switch(dist, "Lp" = causalOT:::cost_calc_lp,
+                        "mahalanobis" = causalOT:::cost_mahalanobis,
+                        "sdLp" = causalOT:::cost_calc_sdlp)
     cost <- cost.calc(a, b, p, direction = "rowwise")
   }
   if(!is.null(tplan)) {

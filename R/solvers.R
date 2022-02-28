@@ -293,8 +293,59 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   }}
 }
 
+quadprog_solver <- function(qp, ...) {
+  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  get.dual <- isTRUE(get.dual)
+  
+  num_param <- length(c(as.numeric(qp$obj$L)))
+  
+  #convert away cones
+  qp <- convert_cones(qp)
+  qp <- bc_to_gt_const(qp)
+  
+  model <- list()
+  
+  if(!is.null(qp$obj$Q) ){
+    model$Dmat <- as.matrix(qp$obj$Q)
+  } else {
+    model$Dmat <- matrix(0, nrow= num_param, ncol = num_param)
+  }
+  model$dvec <- -c(as.numeric(qp$obj$L))
+  if (is.null(model$c)) model$dvec <- rep(0, num_param)
+  model$Amat <- as.matrix(qp$LC$A)
+  
+  #translate bounds to inequality constraints
+  model$Amat <- rbind(model$Amat,
+                   diag(1, nrow = num_param, ncol = num_param),
+                   diag(-1, nrow = num_param, ncol = num_param))
+  model$bvec <- c(qp$LC$vals, qp$bounds$lb, -qp$bounds$ub)
+  
+  res <- quadprog::solve.QP(Dmat = model$Dmat, dvec = model$dvec,
+                            Amat = model$Amat, bvec = model$bvec,
+                            meq = 0, factorized = FALSE)
+  if (is.nan(res$response$code) || res$response$code != 0 || res$sol$itr$solsta != "OPTIMAL") {
+    # browser()
+    warning("Algorithm did not converge!!! Mosek solver message: ", res$response$msg)
+  }
+  if (res$sol$itr$solsta == "PRIMAL_INFEASIBLE_CER" || res$sol$itr$prosta == "PRIMAL_INFEASIBLE") stop("Problem infeasible")
+  sol <- res$solution
+  sol <- sol * as.numeric(sol > 0)
+  
+  if (all(sol == 0)) stop("All weights are 0!")
+  dual_vars <-  NULL
+  
+  return(list(sol = sol, dual = dual_vars, value = res$value))
+  
+  
+  if (dots$save.solution) {
+    return(list(result = sol, res = res))
+  } else {{
+    return(list(result = sol))
+  }}
+}
+
 # QP solver wrapper
-QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
+QPsolver <- function(qp, solver = c("quadprog", "mosek","gurobi","cplex"), ...) {
   solver <- match.arg(solver)
   # neg.weights <- isTRUE(list(...)$neg.weights)
   
@@ -306,7 +357,8 @@ QPsolver <- function(qp, solver = c("mosek","gurobi","cplex"), ...) {
   res <- switch(solver,
                 "cplex" = cplex_solver(qp, ...),
                 "gurobi" = gurobi_solver(qp, ...),
-                "mosek" = mosek_solver(qp, ...))
+                "mosek" = mosek_solver(qp, ...),
+                "quadprog" = quadprog_solver(qp, ...))
   
   # res$sol <- renormalize(res$sol)
   return(res)

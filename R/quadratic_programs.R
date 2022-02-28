@@ -1728,6 +1728,29 @@ bc_to_dir_const <- function(qp) {
   return(qp)
 }
 
+bc_to_gt_const <- function(qp) { #for quadprog only
+  lc <- qp$LC$lc
+  uc <- qp$LC$uc
+  A  <- qp$LC$A
+  
+  
+  equal_l <- which(lc == uc)
+  equal_u <- which(uc == lc)
+  lt    <- which(lc != uc & !is.infinite(uc))
+  gt    <- which(lc != uc & !is.infinite(lc))
+  
+  vals <- c(lc[equal], -lc[equal], -uc[lt], lc[gt])
+  
+  A   <- rbind(A[equal,, drop = FALSE],
+               -A[equal,, drop = FALSE],
+               -A[lt,, drop = FALSE],
+               A[gt,, drop = FALSE])
+  
+  qp$LC$A <- A
+  qp$LC$vals <- vals
+  return(qp)
+}
+
 qp_wass <- function(x, z, K = list(penalty = NULL,
                                    joint   = NULL,
                                    margins = NULL,

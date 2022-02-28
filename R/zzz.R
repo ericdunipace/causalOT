@@ -14,4 +14,7 @@ ot_fun_path <- lp_python_path <- NULL
   # torch <<- reticulate::import("torch", delay_load = TRUE)
   ot_fun_path <<- file.path(system.file(package="causalOT"), "Python/r_to_OT_imputer.py")
   lp_python_path <<- file.path(system.file(package="causalOT"), "Python/python_lp.py")
+  # cot_stanmodels <- vector("list", 3L)
+  # names(cot_stanmodels) <- c("barycenter_projection", "gp_hyper_dose", "gp_hyper")
+  # assign("cot_stanmodels", cot_stanmodels, envir = topenv())
 }

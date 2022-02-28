@@ -23,10 +23,16 @@ check_python_modules <- function(method = "auto", conda = "auto") {
   #   stop("Required python package not installed. Package missing: ","utils")
   #   # reticulate::py_install("utils", method = method, conda = conda)
   # }
-  if(!reticulate::py_module_available("logging")) {
-    stop("Required python package not installed. Package missing: ","logging")
-    # reticulate::py_install("logging", method = method, conda = conda)
-  }
+  # if(!reticulate::py_module_available("logging")) {
+  #   stop("Required python package not installed. Package missing: ","logging")
+  #   # reticulate::py_install("logging", method = method, conda = conda)
+  # }
+}
+
+skip_if_no_geomloss <- function() {
+  have_geomloss <- reticulate::py_module_available("geomloss")
+  if (!have_geomloss)
+    skip("geomloss not available for testing")
 }
 
 ot_imputer <- function(formula, data, subset,
@@ -245,37 +251,38 @@ coef.ot_imputer <- function(object, tx.name, estimand, ...) {
   
 }
 
+
+
 #' Sinkhorn Loss
+#' 
+#' This function serves as an R wrapper to the Python function SamplesLoss in the GeomLoss package <http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss>
 #'
+#' @param x covariates for the first set of samples. Should be of class matrix.
+#' @param y covariates for the second set of samples. Should be of class matrix.
+#' @param a The empirical measure of the first set of samples.
+#' @param b The empirical measure of the second set of samples.
 #' @param power power of the optimal transport distance.
-#' @param blur The finest level of detail that should be handled by the loss function - in order to prevent overfitting on the samples’ locations.
+#' @param blur The finest level of detail that should be handled by the loss function to prevent overfitting on the samples/ locations.
 #' @param reach specifies the typical scale associated to the constraint strength
 #' @param diameter A rough indication of the maximum distance between points, which is used to tune the espilon-scaling descent and provide a default heuristic for clustering multiscale schemes. If None, a conservative estimate will be computed on-the-fly.
 #' @param scaling specifies the ratio between successive values of sigma in the epsilon-scaling descent. This parameter allows you to specify the trade-off between speed (scaling < .4) and accuracy (scaling > .9).
 #' @param truncate If backend is "multiscale", specifies the effective support of a Gaussian/Laplacian kernel as a multiple of its standard deviation
 #' @param metric Set the metric. One of "Lp","sdLp", or "mahalanobis".
 #' @param cost specifies the cost function that should be used instead of the default
-#' @param kernel 
-#' @param cluster_scale If backend is "multiscale", specifies the coarse scale at which cluster centroids will be computed. If None, a conservative estimate will be computed from diameter and the ambient space’s dimension, making sure that memory overflows won’t take place.
-#' @param debias specifies if we should compute the unbiased Sinkhorn divergence instead of the classic, entropy-regularized “SoftAssign” loss.
-#' @param potentials When this parameter is set to True, the SamplesLoss layer returns a pair of optimal dual potentials 𝐹 F  and 𝐺 G , sampled on the input measures, instead of differentiable scalar value. These dual vectors (𝐹(𝑥𝑖)) ( F ( x i ) )  and (𝐺(𝑦𝑗)) ( G ( y j ) )  are encoded as Torch tensors, with the same shape as the input weights (𝛼𝑖) ( α i )  and (𝛽𝑗) ( β j )
+#' @param cluster_scale If backend is "multiscale", specifies the coarse scale at which cluster centroids will be computed. If NULL, a conservative estimate will be computed from diameter and the ambient space's dimension, making sure that memory overflows won't take place.
+#' @param debias specifies if we should compute the unbiased Sinkhorn divergence instead of the classic, entropy-regularized "SoftAssign" loss.
+#' @param potentials When this parameter is set to TRUE, returns a pair of optimal dual potentials.
 #' @param verbose if backend is "multiscale", specifies whether information on the clustering and epsilon-scaling descent should be displayed in the standard output.
 #' @param backend one of "auto", "tensorized", "online", or "multiscale"
-#'
-#' @description This function serves as an R wrapper to the Python function SamplesLoss in the 
-#' GeomLoss package 
-#' <http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss>
 #'
 #' @return a list with slots "loss", "f", "g". "loss" is the Sinkhorn distance,
 #' "f" is the potential corresponding to data `x`, and "g" is the potential
 #' corresponding to data `y`.
 #' 
-#' @details Serves as an `R` interface for the `SamplesLoss` function from the 
-#' geomloss library in Python.
-#' 
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' x <- stats::rnorm(100, 100, 10)
 #' a <- rep(1/100, 100)
 #' 
@@ -291,10 +298,11 @@ coef.ot_imputer <- function(object, tx.name, estimand, ...) {
 #' # potentials for first 5 obs in each group
 #' print(sink$f[1:5])
 #' print(sink$g[1:5])
+#' }
 sinkhorn_geom <- function(x, y, a, b, power = 2, 
                           blur = 0.05, reach = NULL, diameter = NULL,
                           scaling = 0.5, truncate = 5,
-                          metric = "Lp", kernel = NULL,
+                          metric = "Lp",
                           cluster_scale=NULL, 
                           debias=TRUE, 
                           verbose=FALSE, backend='auto', ... ) {
@@ -372,7 +380,7 @@ sinkhorn_geom <- function(x, y, a, b, power = 2,
   Loss <- geomloss$SamplesLoss("sinkhorn", p = power, blur = blur, reach = reach,
                       diameter = diameter, 
                       scaling = scaling, 
-                      cost = cost, kernel = kernel,
+                      cost = cost, kernel = NULL,
                       cluster_scale = cluster_scale,
                       debias = debias,
                       potentials = TRUE,

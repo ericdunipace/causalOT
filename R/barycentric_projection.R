@@ -7,6 +7,7 @@
 #' @return a list containing the barycentric projections with slots "control", "treated", and "observed.treatment"
 #' 
 #' @keywords internal
+#' @keywords internal
 barycentric_projection <- function(data, weight, 
                                    ...) {
   
@@ -269,9 +270,9 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
     arguments <- arguments[names(arguments) %in% formals.stan]
     if(is.null(arguments$object)) {
       if(metric == "Lp") {
-        arguments$object <- stanmodels$barycenter_projection
+        arguments$object <- stanbuilder("barycenter_projection")
       } else if (metric == "mahalanobis") {
-        arguments$object <- stanmodels$barycenter_projection
+        arguments$object <- stanbuilder("barycenter_projection")
       }
     }
     

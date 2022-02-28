@@ -28,29 +28,20 @@ analy.vars  <- c("patID", "sitecode", "tx", "age","age_est",
                  "induced_labor", "augmented_labor", "oxytocin_3rd_stage",
                  "other_uterotonics", "early_cordclamp", "control_cordtraction",
                  "uterine_massage", "datetime_placenta",
-                 # "pphloss", 
                  "bloodlossattx",
                  "datetime_pph_tx", "pph_dx_method",
                  "cum_blood_20m"
-                 # , "bl_cat100"
-                 # , "overallbld"
-                 # m "addbldloss"
 )
 analysis.form.B <- as.formula(cum_blood_20m ~ tx + age + 
                                 no_educ +
-                                # woman_educ + 
                                 num_livebirth +
-                                # woman_occup + husband_occup +
-                                # woman_prof + husband_prof +
                                 cur_married +
-                                # married +  
                                 gest_age + prev_pph + hb_test + 
                                 induced_labor +
                                 augmented_labor +
                                 oxytocin_3rd_stage + early_cordclamp +
                                 control_cordtraction + uterine_massage + 
                                 placenta + bloodlossattx 
-                              # + pph_dx_method
 )
 
 analysis.form.A <- update(analysis.form.B, ~ . - induced_labor - augmented_labor -
@@ -110,43 +101,13 @@ miso$woman_prof <- ifelse(miso$woman_occup == "unemployed", 1, 0)
 miso$husband_prof <- ifelse(miso$husband_occup == "unemployed" |
                               miso$husband_occup == "not applicable", 1, 0)
 
-mA <- miso[miso$study == "study A, no oxy prophylaxis", analy.vars] #no prophylaxis
 mB <- miso[miso$study == "study B, oxy prophylaxis", analy.vars] #prophylaxis
 
-# clean data A
-drop.colsA <- c("age_est", "hosp_deliv", "induced_labor",
-                "augmented_labor", "oxytocin_3rd_stage",
-                "other_uterotonics")
-mA$woman_occup_2 <- factor(mA$woman_occup_2)
-# mA <- mA[, -match(drop.colsA, colnames(mA))]
-mA$datetime_delivery <- as.POSIXct(mA$datetime_delivery, 
-                                   origin = "1582-10-14", tz = "GMT")
-mA$datetime_placenta <- as.POSIXct(mA$datetime_placenta, 
-                                   origin = "1582-10-14", tz = "GMT")
-mA$datetime_pph_tx   <- as.POSIXct(mA$datetime_pph_tx, 
-                                   origin = "1582-10-14", tz = "GMT")
-mA$placenta <- ifelse(mA$datetime_pph_tx >= mA$datetime_placenta, 1, 0)
-mA$tx  <- ifelse(mA$tx == "800mcg miso SL", 1, 0 )
-
-dropforanaly <- c("sitecode",
-                  "datetime_pph_tx",
-                  "datetime_placenta", "datetime_delivery"
-)
-mAf <- model.frame(analysis.form.A, data = mA)
-ma  <- cbind(cum_blood_20m = model.response(mAf), 
-             model.matrix(terms(mAf), mAf)[,-1])
-ma_sitecode <- mA$sitecode[rownames(mA) %in% rownames(ma)]
-# ma <- ma[, -match(c("woman_educother"), colnames(ma))]
-
-# clean data B
+# clean data
 mB$age[is.na(mB$age)] <- mB$age_est[is.na(mB$age)]
 mB <- mB[!is.na(mB$woman_occup), ]
 
-# drop.colsB <- c("age_est", "hosp_deliv",
-#                 "oxytocin_3rd_stage",
-#                 "other_uterotonics")
 mB$woman_occup_2 <- factor(mB$woman_occup_2)
-# mB <- mB[, -match(drop.colsB, colnames(mB))]
 mB$datetime_delivery <- as.POSIXct(mB$datetime_delivery, 
                                    origin = "1582-10-14", tz = "GMT")
 mB$datetime_placenta <- as.POSIXct(mB$datetime_placenta, 
@@ -154,95 +115,11 @@ mB$datetime_placenta <- as.POSIXct(mB$datetime_placenta,
 mB$datetime_pph_tx   <- as.POSIXct(mB$datetime_pph_tx, 
                                    origin = "1582-10-14", tz = "GMT")
 mB$placenta <- ifelse(mB$datetime_pph_tx >= mB$datetime_placenta, 1, 0)
+mB$placenta_time <- difftime(mB$datetime_placenta, mB$datetime_delivery,
+                             units = "mins")
 mB$tx  <- ifelse(mB$tx == "800mcg miso SL", 1, 0 )
 
 
-mBaf <- model.frame(analysis.form.A, data = mB)
-mb_fora  <- cbind(cum_blood_20m = model.response(mBaf), 
-                  model.matrix(terms(mBaf), mBaf)[,-1])
-mb_fora_sitecode <- mB$sitecode[rownames(mB) %in% rownames(mb_fora)]
-
-mab <- rbind(cbind(r =  1, ma), cbind(r  = 0, mb_fora))
-
-mab_sitecode <- factor(c(as.character(ma_sitecode), as.character(mb_fora_sitecode)))
-
-mBaf %>% 
-   mutate(sitecode = mb_fora_sitecode) %>% 
-   group_by(sitecode) %>% 
-   summarise(stat = t.test(x = cum_blood_20m[tx == 1],
-                           y = cum_blood_20m[tx == 0])$statistic,
-             mean.y1 = mean(cum_blood_20m[tx == 1]),
-             mean.y0 = mean(cum_blood_20m[tx == 0]),
-             tx.effect = mean(cum_blood_20m[tx == 1]) - mean(cum_blood_20m[tx == 0]),
-             CI.lwr = t.test(x = cum_blood_20m[tx == 1],
-                             y = cum_blood_20m[tx == 0])$conf.int[1],
-             CI.upr = t.test(x = cum_blood_20m[tx == 1],
-                             y = cum_blood_20m[tx == 0])$conf.int[2],
-             n0 = sum(tx == 0),
-             n1 = sum(tx == 1))
-
-mAf %>% 
-   mutate(sitecode = ma_sitecode) %>% 
-   group_by(sitecode) %>% 
-   summarise(stat = t.test(x = cum_blood_20m[tx == 1],
-                           y = cum_blood_20m[tx == 0])$statistic,
-             mean.y1 = mean(cum_blood_20m[tx == 1]),
-             mean.y0 = mean(cum_blood_20m[tx == 0]),
-             tx.effect = mean(cum_blood_20m[tx == 1]) - mean(cum_blood_20m[tx == 0]),
-             CI.lwr = t.test(x = cum_blood_20m[tx == 1],
-                             y = cum_blood_20m[tx == 0])$conf.int[1],
-             CI.upr = t.test(x = cum_blood_20m[tx == 1],
-                             y = cum_blood_20m[tx == 0])$conf.int[2],
-             n0 = sum(tx == 0),
-             n1 = sum(tx == 1))
-
-
-#### Egypt data ####
-
-mab_egypt <- mab[grepl("Egypt", mab_sitecode),]
-
-r <- mab_egypt[,"r"]
-tx <- mab_egypt[,"tx"]
-mab_egypt_11 <- mab_egypt[r == 1 & tx == 1,]
-mab_egypt_10 <- mab_egypt[r == 1 & tx == 0,]
-mab_egypt_01 <- mab_egypt[r == 0 & tx == 1,]
-mab_egypt_00 <- mab_egypt[r == 0 & tx == 0,]
-
-mab_tx  <- rbind(mab_egypt_11, mab_egypt_01)
-mab_cnt <- rbind(mab_egypt_10, mab_egypt_00)
-mab_att <- rbind(mab_egypt_11, mab_egypt_00)
-mab_atc <- rbind(mab_egypt_10, mab_egypt_01)
-
-bal.cov <- colnames(mab_egypt)[-c(1:3)]
-outcome <- "cum_blood_20m"
-tx.ind <- "r"
-
-rbind(overall = mean_bal(mab_egypt, weights = NULL, balance.covariates = bal.cov,
-                         treatment.indicator = tx.ind, outcome = outcome),
-      tx = mean_bal(mab_tx, weights = NULL, balance.covariates = bal.cov,
-                    treatment.indicator = tx.ind, outcome = outcome),
-      cnt = mean_bal(mab_cnt, weights = NULL, balance.covariates = bal.cov,
-                     treatment.indicator = tx.ind, outcome = outcome),
-      att = mean_bal(mab_att, weights = NULL, balance.covariates = bal.cov,
-                     treatment.indicator = tx.ind, outcome = outcome),
-      atc = mean_bal(mab_atc, weights = NULL, balance.covariates = bal.cov,
-                     treatment.indicator = tx.ind, outcome = outcome))
-
-rowMeans(rbind(overall = mean_bal(mab_egypt, weights = NULL, balance.covariates = bal.cov,
-                         treatment.indicator = tx.ind, outcome = outcome),
-      tx = mean_bal(mab_tx, weights = NULL, balance.covariates = bal.cov,
-                    treatment.indicator = tx.ind, outcome = outcome),
-      cnt = mean_bal(mab_cnt, weights = NULL, balance.covariates = bal.cov,
-                     treatment.indicator = tx.ind, outcome = outcome),
-      att = mean_bal(mab_att, weights = NULL, balance.covariates = bal.cov,
-                     treatment.indicator = tx.ind, outcome = outcome),
-      atc = mean_bal(mab_atc, weights = NULL, balance.covariates = bal.cov,
-                     treatment.indicator = tx.ind, outcome = outcome)))
-#atc seems most feasible for methods
-
-
-mab_atc <- mab_atc[, matrixStats::colSds(mab_atc) != 0]
-saveRDS(object = mab_atc, file = "../datasets/misoprostol/miso_egypt_avb.rds")
 
 #### Egypt vs others in B ####
 mBf <- model.frame(analysis.form.B, data = mB)
@@ -279,4 +156,5 @@ mb_att <- cbind(rbind(cbind(tx = 1, mb_egypt_1), cbind(tx = 0, mb_other_0)))
 
 mb_att <- mb_att[, matrixStats::colSds(mb_att) != 0]
 saveRDS(object = mb_att, file = "../datasets/misoprostol/miso_egypt.rds")
-
+pph <- mb_att
+usethis::use_data(pph, overwrite = TRUE, internal = FALSE)

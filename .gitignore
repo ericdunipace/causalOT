@@ -20,6 +20,8 @@ inst/simulations/CRASH3/results/estimates/*.*
 inst/seed_generation
 inst/cluster
 inst/stan/test
+inst/Reproduce/data/*.*
+inst/Reproduce/ReproduceCOT.log
 Output
 Plots
 Table

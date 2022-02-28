@@ -49,8 +49,8 @@ testthat::test_that("PSIS diagnostics work", {
   test4 <- calc_weight(data, constraint = 0.1, estimand =  "ATE", method = "Logistic", solver = "mosek")
   test4b <- calc_weight(data, constraint = 0.1, estimand =  "cATE", method = "Logistic", solver = "mosek")
   
-  test5 <- calc_weight(data, constraint = 0.1, estimand = "ATE", method = "RKHS", solver = "gurobi")
-  test5b <- calc_weight(data, constraint = 0.1, estimand = "cATE", method = "RKHS", solver = "gurobi")
+  # test5 <- calc_weight(data, constraint = 0.1, estimand = "ATE", method = "RKHS", solver = "gurobi")
+  # test5b <- calc_weight(data, constraint = 0.1, estimand = "cATE", method = "RKHS", solver = "gurobi")
   
   # test6 <- calc_weight(data = data,
   #                      p =1,
@@ -81,7 +81,8 @@ testthat::test_that("PSIS diagnostics work", {
   
   weights <- list(CW = test1,
                   # W = test2, 
-                  SBW=test3, IPW = test4, RKHS = test5,
+                  SBW=test3, IPW = test4, 
+                  # RKHS = test5,
                   cRKHS = test5b, 
                   # cCW = test6, 
                   cW = test7

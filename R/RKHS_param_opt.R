@@ -169,9 +169,9 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
     arguments <- arguments[names(arguments) %in% formals.stan]
     if(is.null(arguments$object)) {
       if(!is.dose) {
-        arguments$object <- stanmodels$gp_hyper
+        arguments$object <- stanbuilder("gp_hyper")
       } else{
-        arguments$object <- stanmodels$gp_hyper_dose
+        arguments$object <- stanbuilder("gp_hyper_dose")
       }
     }
     if(is.null(arguments$algorithm) & kernel == "RBF") {
@@ -299,13 +299,6 @@ rkhs_stan_binary_helper <- function(f.call, arguments) {
     res <- eval(f.call, envir = arguments)
   }
     
-    # tuned <- rstan::extract(rstan::sampling(stanmodels$prior_tune, data = arguments$data, 
-    #                                         iter=1, warmup=0, chains=1,
-    #                                         algorithm="Fixed_param",
-    #                                         verbose = FALSE),
-    #                         pars = c("alpha","beta"))
-    # arguments$data$a <- tuned$alpha
-    # arguments$data$b <- tuned$beta
   
   if(!is.null(res$par$theta_half)) {
     param$theta_1 <- if(arguments$data$kernel == 2) {

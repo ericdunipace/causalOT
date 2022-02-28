@@ -467,6 +467,7 @@ testthat::test_that("works for Wass, lbfgs formula", {
 
 testthat::test_that("works for Wass divergence", {
   testthat::skip_on_cran()
+  causalOT:::skip_if_no_geomloss()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -525,7 +526,7 @@ testthat::test_that("works for Wass divergence", {
 
 testthat::test_that("works for Wass divergence, grid/formula", {
   testthat::skip_on_cran()
-  
+  causalOT:::skip_if_no_geomloss()
   set.seed(23483)
   n <- 2^7
   p <- 6

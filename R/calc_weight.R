@@ -50,9 +50,25 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #' treatment labels or a character giving the column name.
 #' 
 #' #Constraints
-#' The constraint argument is used by the 
+#' The constraint argument is used by the balancing methods like "SBW" dnd "Wasserstein" with balancing functions.
 #'
 #' @examples
+#' set.seed(23483)
+#' n <- 2^7
+#' p <- 6
+#' overlap <- "low"
+#' design <- "A"
+#' metric <- c("Lp")
+#' power <- 1
+#' estimate <- "ATE"
+#' #### get simulation functions ####
+#' data <- causalOT::Hainmueller$new(n = n, p = p, 
+#'       design = design, overlap = overlap)
+#'       data$gen_data()
+#'       weights <- calc_weight(data = data, 
+#'       p = p,
+#'       estimand = estimate,
+#'       method = "NNM")
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = supported.methods(),
                         formula = NULL,

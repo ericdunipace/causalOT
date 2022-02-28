@@ -12,6 +12,7 @@
 ^inst/cluster$
 ^inst/output$
 ^inst/Reports$
+^inst/Reproduce$
 ^inst/sims$
 ^inst/simulations$
 ^inst/seed_generation$
@@ -20,3 +21,4 @@
 ^R/deprecated$
 ^src/deprecated$
 
+^\.github$

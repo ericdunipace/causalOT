@@ -358,10 +358,6 @@ BEGIN_RCPP
 END_RCPP
 }
 
-RcppExport SEXP _rcpp_module_boot_stan_fit4barycenter_projection_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4gp_hyper_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4gp_hyper_dose_mod();
-
 static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
     {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 4},
@@ -387,9 +383,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_otL2_obj_", (DL_FUNC) &_causalOT_otL2_obj_, 0},
     {"_causalOT_otL2_grad_self_", (DL_FUNC) &_causalOT_otL2_grad_self_, 0},
     {"_causalOT_otL2_obj_self_", (DL_FUNC) &_causalOT_otL2_obj_self_, 0},
-    {"_rcpp_module_boot_stan_fit4barycenter_projection_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4barycenter_projection_mod, 0},
-    {"_rcpp_module_boot_stan_fit4gp_hyper_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4gp_hyper_mod, 0},
-    {"_rcpp_module_boot_stan_fit4gp_hyper_dose_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4gp_hyper_dose_mod, 0},
     {NULL, NULL, 0}
 };
 

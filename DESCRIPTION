@@ -8,13 +8,10 @@ Maintainer: Eric Dunipace <edunipace@g.harvard.edu>
 Description: Uses Wasserstein distances to find optimal match weighting estimators for causal inference.
 License: GPL (>=3.0)
 Imports: 
-    data.table (>= 1.12.8),
     Matrix,
     matrixStats,
     methods,
     Rcpp (>= 1.0.3),
-    rstan (>= 2.19.3),
-    rstantools (>= 2.0.0),
     approxOT,
     loo,
     pbapply,
@@ -26,11 +23,10 @@ LinkingTo:
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
     RcppEigen (>= 0.3.3.3.0),
-    rstan (>= 2.19.3),
-    StanHeaders (>= 2.19.2)
 Suggests: 
     testthat (>= 2.1.0),
     CBPS,
+    data.table (>= 1.12.8),
     R6 (>= 2.4.1),
     gurobi,
     Rmosek,
@@ -40,9 +36,11 @@ Suggests:
     doRNG,
     parallel,
     doParallel,
-    ggplot2
+    ggplot2,
+    rstan (>= 2.19.3)
 Biarch: true
 Depends: 
     R (>= 3.4.0)
-SystemRequirements: GNU make
 Encoding: UTF-8
+RoxygenNote: 7.1.1
+LazyData: true

@@ -1,3 +1,5 @@
+testthat::skip("RKHS method deprecated")
+
 testthat::test_that("check RKHS kernel works", {
   testthat::skip_on_cran()
   set.seed(23483)

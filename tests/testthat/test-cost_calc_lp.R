@@ -12,7 +12,7 @@ testthat::test_that("cost lp 2.0", {
       mhdefault[i,j] <- sqrt(sum(((x0[i,]- x1[j,]) )^2))
     }
   }
-  mhown <- cost_calc_lp(x0,x1, 2, "rowwise")
+  mhown <- causalOT:::cost_calc_lp(x0,x1, 2, "rowwise")
   testthat::expect_equal(mhdefault, mhown)
 })
 testthat::test_that("cost lp 1.0", {
@@ -29,7 +29,7 @@ testthat::test_that("cost lp 1.0", {
       mhdefault[i,j] <- sum(abs((x0[i,]- x1[j,])))
     }
   }
-  mhown <- cost_calc_lp(x0,x1, 1, "rowwise")
+  mhown <- causalOT:::cost_calc_lp(x0,x1, 1, "rowwise")
   testthat::expect_equal(mhdefault, mhown)
 })
 testthat::test_that("cost lp 3.0", {
@@ -46,6 +46,6 @@ testthat::test_that("cost lp 3.0", {
       mhdefault[i,j] <- sum(abs((x0[i,]- x1[j,]))^3)^(1/3)
     }
   }
-  mhown <- cost_calc_lp(x0,x1, 3, "rowwise")
+  mhown <- causalOT:::cost_calc_lp(x0,x1, 3, "rowwise")
   testthat::expect_equal(mhdefault, mhown)
 })

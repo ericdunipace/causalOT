@@ -4,9 +4,9 @@
   metric <- match.arg(metric)
   
   dist <- switch(metric, 
-         "Lp" = causalOT::cost_calc_lp(x,y,ground_p = power, direction = direction),
-         "mahalanobis" = causalOT::cost_mahalanobis(x,y, ground_p = power, direction = direction),
-         "RKHS" = causalOT::cost_RKHS(X = x, Y = y, rkhs.args = rkhs.args, estimand = estimand, ...))
+         "Lp" = causalOT:::cost_calc_lp(x,y,ground_p = power, direction = direction),
+         "mahalanobis" = causalOT:::cost_mahalanobis(x,y, ground_p = power, direction = direction),
+         "RKHS" = causalOT:::cost_RKHS(X = x, Y = y, rkhs.args = rkhs.args, estimand = estimand, ...))
   
   return(dist)
   
@@ -42,15 +42,37 @@
 #' @export
 #'
 #' @examples
+#' n0 <- 100
+#' n1 <- 55
+#' d <- 5
+#' x1 <- matrix(stats::rnorm(n1*d), n1, d)
+#' x0 <- matrix(stats::rnorm(n0*d), n0, d)
+#' 
+#' x <- rbind(x0,x1)
+#' z <- c(rep(0,n0), rep(1,n1))
+#' power <- 2.0
+#' 
+#' # ATT
+#' estimand <- "ATT"
+#' metric <- "Lp"
+#' cost_ATT <- cost_fun(x, z, power = power, metric = metric, estimand = estimand)
+#' print(dim(cost_ATT))
+#' 
+#' # ATE
+#' # gives two matrices between control and full sample and treated and full sample
+#' # in a list
+#' estimand <- "ATE"
+#' cost_ATT <- cost_fun(x, z, power = power, metric = metric, estimand = estimand)
+#' length(cost_ATT)
 cost_fun <- function(x, z, power = 2, metric = dist.metrics(), 
                      estimand = "ATE", ...) {
   metric <- match.arg(metric)
   
   dist <- switch(metric, 
-                 "Lp" = causalOT::cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
-                 "mahalanobis" = causalOT::cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "sdLp" = causalOT::cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "RKHS" = causalOT::cost_RKHS(X = x, z = z, estimand = estimand, ...))
+                 "Lp" = causalOT:::cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
+                 "mahalanobis" = causalOT:::cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
+                 "sdLp" = causalOT:::cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
+                 "RKHS" = causalOT:::cost_RKHS(X = x, z = z, estimand = estimand, ...))
   
   return(dist)
   
@@ -103,7 +125,7 @@ cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")
   }
   stopifnot(ground_p > 0)
   
-  return(causalOT::cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
+  return(causalOT:::cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
 }
 
 cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"), estimand = "ATE") {
@@ -145,7 +167,7 @@ cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise
     Y <- Y[nonzero.idx, , drop = FALSE]
   }
   
-  return(causalOT::cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
+  return(causalOT:::cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
 }
 
 cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"),

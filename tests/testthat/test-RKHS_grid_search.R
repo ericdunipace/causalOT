@@ -1,3 +1,5 @@
+testthat::skip("RKHS deprecated")
+
 testthat::test_that("RKHS grid works", {
   testthat::skip_on_cran()
   set.seed(9870)
