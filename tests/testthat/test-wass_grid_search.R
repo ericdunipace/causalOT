@@ -525,7 +525,7 @@ testthat::test_that("grid search joint.map, wass", {
   
   
 })
-
+ 
 testthat::test_that("grid search scm", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("gurobi")
