@@ -199,7 +199,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   )
   testthat::expect_equivalent(wsel$args$constraint,
                               list(margins = rep(1.074658, 6), 
-                                   penalty = 20238.58), tol = 1e-3)
+                                   penalty = 640000), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -505,7 +505,7 @@ testthat::test_that("grid search joint.map, wass", {
                               eval.method = "bootstrap")
   )
   testthat::expect_equivalent(wsel2$args$constraint, list(penalty = 640,
-                                                          joint = 0.004641589), 1e-3)
+                                                          joint = 0.02154435), 1e-3)
   
   estimand <- "ATC"
   testthat::expect_warning(wsel3 <- wass_grid_search(data, grid = NULL,
