@@ -283,7 +283,81 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
     dual_vars <-  NULL
   }
   
-  return(list(sol = sol, dual = dual_vars, value = res$sol$itr$pobjval))
+  return(list(sol = renormalize(sol), dual = dual_vars, value = res$sol$itr$pobjval))
+  
+  
+  if (dots$save.solution) {
+    return(list(result = sol, res = res))
+  } else {{
+    return(list(result = sol))
+  }}
+}
+
+# solver interface for the osqp optimizer
+osqp_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
+  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+  get.dual <- isTRUE(get.dual)
+  
+  qp <- convert_cones(qp)
+  num_param <- length(c(as.numeric(qp$obj$L)))
+  
+  model <- list()
+  if(!is.null(qp$obj$Q) ){
+    model$P <- qp$obj$Q * 0.5
+  } 
+  model$q <- c(as.numeric(qp$obj$L))
+  if (is.null(model$q)) model$q <- rep(0, num_param)
+  model$A <- rbind(qp$LC$A, Matrix::diag(x = 1,
+                                                 nrow = num_param,
+                                                 ncol = num_param))
+  
+  model$l <- c(qp$LC$lc, qp$bounds$lb)
+  model$u <- c(qp$LC$uc, qp$bounds$ub)
+  
+  dots <- list(...)
+  opts <- osqp::osqpSettings(rho = 0.1, sigma = 1e-06, max_iter = 4000L,
+                             eps_abs = 0.001, eps_rel = 0.001, eps_prim_inf = 1e-04,
+                             eps_dual_inf = 1e-04, 
+                             alpha = 1.6, linsys_solver = NULL, 
+                             delta = 1e-06, polish = FALSE, polish_refine_iter = 3L,
+                             verbose = TRUE, scaled_termination = FALSE,
+                             check_termination = 25L, warm_start = TRUE, scaling = 10L,
+                             adaptive_rho = 1L, adaptive_rho_interval = 0L,
+                             adaptive_rho_tolerance = 5, adaptive_rho_fraction = 0.4)
+  if (is.null(dots$verbose)) {
+    opts$verbose <- FALSE
+  } else {
+    opts$verbose <- as.logical(dots$verbose)
+  }
+  
+  res <- osqp::solve_osqp(P = model$P, q = model$q,
+                   A = model$A, l = model$l,
+                   u = model$u, 
+                   pars = opts)
+  
+  if (res$info$status_val != 1 && res$info$status_val != 2 ) {
+    # browser()
+    warning("Algorithm did not converge!!! OSQP solver message: ", res$info$status)
+  }
+  if (res$info$status_val == -3 || res$info$status_val == -4) stop("Problem infeasible")
+  sol <- res$x[1:qp$nvar]
+  sol <- switch(neg.wt,
+                sol * as.numeric(sol > 0),
+                sol)
+  
+  if (all(sol == 0)) stop("All weights are 0!")
+  # obj_total <- out$obj
+  # 
+  # status <- out$status
+  # 
+  if (get.dual) {
+    dual_vars <- res$y[1:nrow(qp$LC$A)]
+    rownames(dual_vars) <- names(qp$LC$vals)
+  } else {
+    dual_vars <-  NULL
+  }
+  
+  return(list(sol = renormalize(sol), dual = dual_vars, value = res$info$obj_val))
   
   
   if (dots$save.solution) {
@@ -294,38 +368,39 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
 }
 
 quadprog_solver <- function(qp, ...) {
-  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
-  get.dual <- isTRUE(get.dual)
   
   num_param <- length(c(as.numeric(qp$obj$L)))
   
   #convert away cones
   qp <- convert_cones(qp)
-  qp <- bc_to_gt_const(qp)
+  qp <- bc_to_gt_const_quadprog(qp)
   
   model <- list()
   
   if(!is.null(qp$obj$Q) ){
-    model$Dmat <- as.matrix(qp$obj$Q)
+    model$Dmat <- as.matrix(qp$obj$Q) * 0.5
   } else {
     model$Dmat <- matrix(0, nrow= num_param, ncol = num_param)
   }
   model$dvec <- -c(as.numeric(qp$obj$L))
-  if (is.null(model$c)) model$dvec <- rep(0, num_param)
-  model$Amat <- as.matrix(qp$LC$A)
+  if (is.null(model$dvec)) model$dvec <- rep(0, num_param)
   
   #translate bounds to inequality constraints
-  model$Amat <- rbind(model$Amat,
-                   diag(1, nrow = num_param, ncol = num_param),
-                   diag(-1, nrow = num_param, ncol = num_param))
-  model$bvec <- c(qp$LC$vals, qp$bounds$lb, -qp$bounds$ub)
+  finite_lb <- which(!is.infinite( qp$bounds$lb))
+  finite_ub <- which(!is.infinite( qp$bounds$ub))
+  model$Amat <- cbind(as.matrix(Matrix::t(qp$LC$A)),
+                   diag(1, nrow = num_param, ncol = length(finite_lb)),
+                   diag(-1, nrow = num_param, ncol = length(finite_ub)))
+  model$bvec <- c(qp$LC$vals, 
+                  qp$bounds$lb[finite_lb], 
+                  -qp$bounds$ub[finite_ub])
   
   res <- quadprog::solve.QP(Dmat = model$Dmat, dvec = model$dvec,
                             Amat = model$Amat, bvec = model$bvec,
-                            meq = 0, factorized = FALSE)
+                            meq = qp$LC$dir_eq_num, factorized = FALSE)
   if (is.nan(res$response$code) || res$response$code != 0 || res$sol$itr$solsta != "OPTIMAL") {
     # browser()
-    warning("Algorithm did not converge!!! Mosek solver message: ", res$response$msg)
+    warning("Algorithm did not converge!!! quadprog solver message: ", res$response$msg)
   }
   if (res$sol$itr$solsta == "PRIMAL_INFEASIBLE_CER" || res$sol$itr$prosta == "PRIMAL_INFEASIBLE") stop("Problem infeasible")
   sol <- res$solution
@@ -345,7 +420,7 @@ quadprog_solver <- function(qp, ...) {
 }
 
 # QP solver wrapper
-QPsolver <- function(qp, solver = c("quadprog", "mosek","gurobi","cplex"), ...) {
+QPsolver <- function(qp, solver = supported.solvers(), ...) {
   solver <- match.arg(solver)
   # neg.weights <- isTRUE(list(...)$neg.weights)
   
@@ -358,6 +433,7 @@ QPsolver <- function(qp, solver = c("quadprog", "mosek","gurobi","cplex"), ...) 
                 "cplex" = cplex_solver(qp, ...),
                 "gurobi" = gurobi_solver(qp, ...),
                 "mosek" = mosek_solver(qp, ...),
+                "osqp" = osqp_solver(qp, ...),
                 "quadprog" = quadprog_solver(qp, ...))
   
   # res$sol <- renormalize(res$sol)
@@ -413,8 +489,11 @@ convert_cones <- function(qp) {
     }
     qp$obj$L <- c(qp$obj$L, rep(0, addl.varnum))
     
-    qp$LC$vals <- c(qp$LC$vals, unlist(constraint.list))
-    qp$LC$dir <- c(qp$LC$dir, rep("E", addl.varnum))
+    qp$LC$vals <- c(qp$LC$lc, qp$LC$uc, unlist(constraint.list))
+    qp$LC$dir <- c(rep("G", length(qp$LC$lc)), rep("L", length(qp$LC$lc)), 
+                   rep("E", addl.varnum))
+    qp$LC$lc  <- c(qp$LC$lc, unlist(constraint.list))
+    qp$LC$uc  <- c(qp$LC$uc, unlist(constraint.list))
     
     qp$bounds$lb <- c(qp$bounds$lb[-idx.constraint], rep(0, addl.varnum))
     qp$bounds$ub <- c(qp$bounds$ub[-idx.constraint], rep(Inf, addl.varnum))

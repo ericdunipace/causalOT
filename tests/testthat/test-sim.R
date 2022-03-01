@@ -16,6 +16,9 @@ warn.fun <- function() {
 
 testthat::test_that("sim.function works", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -126,6 +129,9 @@ testthat::test_that("sim.function works", {
 
 testthat::test_that("sim.function works, ATE only", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -238,6 +244,9 @@ testthat::test_that("sim.function works, ATE only", {
 
 testthat::test_that("sim.function works, propsensity formula", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -303,6 +312,9 @@ testthat::test_that("sim.function works, propsensity formula", {
 
 testthat::test_that("sim.function works, sonabend2020", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -391,6 +403,9 @@ testthat::test_that("sim.function works, sonabend2020", {
 
 testthat::test_that("sim.function works with RKHS", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive")
   set.seed(224893390) #from random.org
   
@@ -472,6 +487,9 @@ testthat::test_that("sim.function works with RKHS", {
 testthat::test_that("bug in gp code",
                     {
                       testthat::skip("Interactive only")
+                      testthat::skip_if_not_installed("gurobi")
+                      testthat::skip_if_not_installed("Rmosek")
+                      causalOT:::skip_if_no_geomloss()
                       design <- "B"
                       overlap <- "low"
                       data <- "Hainmueller"
@@ -523,7 +541,9 @@ testthat::test_that("bug in gp code",
 
 testthat::test_that("test div wass", {
   set.seed(224893390) #from random.org
-  
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   #### Load Packages ####
   library(causalOT)
   

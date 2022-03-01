@@ -23,7 +23,7 @@ testthat::test_that("confint works for sbw causaleffect", {
   sim$gen_data()
   
   weight <- calc_weight(sim, constraint = 0.05, estimand = "ATT",
-                        method = "SBW", solver = "mosek")
+                        method = "SBW", solver = "osqp")
   
   est <- estimate_effect(data = sim, weights = weight,
                          estimand = "ATT", model = "lm", doubly.robust = FALSE,
@@ -43,7 +43,7 @@ testthat::test_that("confint works for sbw causaleffect", {
 #   
 #   weight <- calc_weight(sim, constraint = 2.1, estimand = "ATT",
 #                         metric = "mahalanobis", power = 2,
-#                         method = "Constrained Wasserstein", solver = "mosek")
+#                         method = "Constrained Wasserstein", solver = "osqp")
 #   
 #   est <- estimate_effect(data = sim, weights = weight, 
 #                          estimand = "ATT", model = "lm", doubly.robust = FALSE,
@@ -62,7 +62,7 @@ testthat::test_that("confint works for NNM causaleffect", {
   
   weight <- calc_weight(sim, estimand = "ATT",
                         metric = "mahalanobis", power = 2,
-                        method = "NNM", solver = "mosek")
+                        method = "NNM", solver = "osqp")
   
   est <- estimate_effect(data = sim, weights = weight, 
                          estimand = "ATT", model = "lm", doubly.robust = FALSE,
@@ -83,7 +83,7 @@ testthat::test_that("confint calibrated for NNM causaleffect", {
   
   weight <- calc_weight(sim, estimand = "ATE",
                         metric = "Lp", power = 2,
-                        method = "NNM", solver = "mosek")
+                        method = "NNM", solver = "osqp")
   
   est <- estimate_effect(data = sim, weights = weight, 
                          estimand = "ATE", model = "lm", doubly.robust = FALSE,
@@ -106,7 +106,7 @@ testthat::test_that("confint calibrated for NNM causaleffect", {
   
   weight <- calc_weight(sim, estimand = "ATT",
                         metric = "Lp", power = 2,
-                        method = "NNM", solver = "mosek")
+                        method = "NNM", solver = "osqp")
   
   est <- estimate_effect(data = sim, weights = weight, 
                          estimand = "ATT", model = "lm", doubly.robust = FALSE,
@@ -150,7 +150,7 @@ testthat::test_that("confint works for NNM causaleffect", {
   
   weight <- calc_weight(sim, estimand = "ATT",
                         metric = "mahalanobis", power = 1,
-                        method = "NNM", solver = "mosek")
+                        method = "NNM", solver = "osqp")
   
   est <- estimate_effect(data = sim, weights = weight, 
                          estimand = "ATT", model = "lm", doubly.robust = FALSE,

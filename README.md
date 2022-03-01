@@ -57,3 +57,5 @@ print(tau_hat$estimate)
 print(ci_tau$CI)
 # -0.08814654  0.60303297
 ```
+
+### Diagnostics

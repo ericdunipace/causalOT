@@ -20,16 +20,19 @@ supported.methods <- function() {
 }
 
 #' Supported optimal transport methods
+#' 
+#' Lists the supported OT methods. Note "COT" and "Wasserstein" are equivalent.
 #'
-#' @return A character vector with values "NNM","Wasserstein", and "SCM".
+#' @return A character vector with values "NNM","Wasserstein", "COT", and "SCM".
 #' @export
 #'
 #' @examples
 #' ot.methods()
 ot.methods <- function() {
   return(c("NNM"
-           ,"Wasserstein"
-           ,"Constrained Wasserstein"
+           ,"Wasserstein",
+           "COT"
+           # ,"Constrained Wasserstein"
            ,"SCM"
            # ,"EBW"
            ))
@@ -55,4 +58,20 @@ ot.methods <- function() {
 #' dist.metrics()
 dist.metrics <- function() {
   c("sdLp", "mahalanobis",  "Lp", "RKHS" )
+}
+
+
+#' Supported solvers
+#'
+#' @return a character vector with values "lbfgs","mosek","gurobi", and "osqp"
+#' 
+#' @details The solvers "mosek" and "gurobi" are commercial solvers that require software licenses. "quadprog" uses the `osqp` R package and "lbfgs" will either use `pytorch` in Python or the `lbfgs3c` package in R, which are both free.
+#' 
+#' @export
+#'
+#' @examples
+#' dist.metrics()
+supported.solvers <- function() {
+  c("lbfgs","mosek","gurobi",
+    "osqp")
 }

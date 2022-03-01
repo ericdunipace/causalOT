@@ -78,7 +78,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   estimand <- match.arg(estimand)
   grid.search <- isTRUE(grid.search)
   args <- list(data = data, constraint = constraint, estimand = estimand, method = method, 
-               formula = formula, ...)
+               formula = formula, transport.matrix = transport.matrix, ...)
   args <- args[!duplicated(names(args))]
   argn <- lapply(names(args), as.name)
   names(argn) <- names(args)
@@ -373,7 +373,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
 # calculate balancing weights
 calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
                             method = c("SBW",ot.methods()),
-                            solver = c("lbfgs","mosek","gurobi","cplex"),
+                            solver = supported.solvers(),
                             sample_weight = NULL,
                             add.divergence = FALSE,
                             ...) {

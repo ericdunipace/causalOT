@@ -5,38 +5,38 @@ Version: 0.1
 Date: 2019-12-19
 Author: Eric Dunipace
 Maintainer: Eric Dunipace <edunipace@g.harvard.edu>
-Description: Uses Wasserstein distances to find optimal match weighting estimators for causal inference.
+Description: Uses optimal transport distances to find probabilistic matching estimators for causal inference.
 License: GPL (>=3.0)
 Imports: 
+    approxOT,
     Matrix,
     matrixStats,
     methods,
-    Rcpp (>= 1.0.3),
-    approxOT,
+    lbfgsb3c,
     loo,
+    osqp,
     pbapply,
     reticulate,
-    lbfgsb3c,
-    RSpectra,
     R6 (>= 2.4.1),
-    quadprog
+    Rcpp (>= 1.0.3),
+    RSpectra
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
     RcppEigen (>= 0.3.3.3.0),
 Suggests: 
-    testthat (>= 2.1.0),
     CBPS,
     data.table (>= 1.12.8),
-    Rmosek,
-    dplyr,
-    kernlab,
-    foreach,
-    doRNG,
-    parallel,
     doParallel,
+    doRNG,
+    dplyr,
+    foreach,
     ggplot2,
-    rstan (>= 2.19.3)
+    kernlab,
+    parallel,
+    rstan (>= 2.19.3),
+    Rmosek,
+    testthat (>= 2.1.0)
 Biarch: true
 Depends: 
     R (>= 3.4.0)

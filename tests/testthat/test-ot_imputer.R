@@ -1,6 +1,6 @@
 testthat::test_that("ot_imputer works", {
   set.seed(9867)
-  
+  causalOT:::skip_if_no_geomloss()
   #### Load Packages ####
   library(causalOT)
   
@@ -64,6 +64,7 @@ testthat::test_that("ot_imputer works", {
 testthat::test_that("ot_imputer coef works", {
   testthat::skip_on_cran()
   testthat::skip("Interactive only")
+  causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
   #### Load Packages ####

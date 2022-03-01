@@ -2,7 +2,9 @@
 testthat::test_that("grid search actually works,  wass sdlp", {
   testthat::skip_on_cran(); 
   set.seed(9867)
-  
+  # testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("Rmosek")
+  # causalOT:::skip_if_no_geomloss()
   #### Load Packages ####
   library(causalOT)
   
@@ -16,7 +18,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   method <- "Wasserstein"
   add.margins <- FALSE
   add.joint <- TRUE
@@ -39,7 +41,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
     
     wsel <- wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
-                             metric = metric, p = power, solver = "mosek",
+                             metric = metric, p = power, solver = solver,
                              wass.method = "networkflow", wass.iter = 0,
                              add.joint = add.joint, add.margins = add.margins,
                              eval.method = "bootstrap"
@@ -53,7 +55,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
   # debugonce(wass_grid_search)
   testthat::expect_silent(wsel <- wass_grid_search(data, grid = NULL,
                            estimand = estimand, n.boot = 10, method = method,
-                           metric = metric, p = power, solver = "mosek",
+                           metric = metric, p = power, solver = solver,
                            wass.method = "networkflow", wass.iter = 0,
                            add.joint = add.joint, add.margins = add.margins,
                            eval.method = "bootstrap")
@@ -64,7 +66,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
   testthat::expect_silent(
     wsel <- wass_grid_search(data, grid = NULL,
                            estimand = estimand, n.boot = 10, method = method,
-                           metric = metric, p = power, solver = "mosek",
+                           metric = metric, p = power, solver = solver,
                            wass.method = "networkflow", wass.iter = 0,
                            add.joint = add.joint, add.margins = add.margins,
                            eval.method = "bootstrap")
@@ -110,9 +112,9 @@ testthat::test_that("grid search actually works,  wass mahal", {
   estimand <- "ATT"
   testthat::expect_silent(
     
-    wsel <- wass_grid_search(data, grid = NULL,
+    wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
-                             metric = metric, p = power, solver = "mosek",
+                             metric = metric, p = power, solver = "osqp",
                              wass.method = "networkflow", wass.iter = 100,
                              add.joint = FALSE,
                              eval.method = "bootstrap")
@@ -123,9 +125,9 @@ testthat::test_that("grid search actually works,  wass mahal", {
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
-  testthat::expect_silent(wsel <- wass_grid_search(data, grid = NULL,
+  testthat::expect_silent(wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                                                     estimand = estimand, n.boot = 10, method = method,
-                                                    metric = metric, p = power, solver = "mosek",
+                                                    metric = metric, p = power, solver = "osqp",
                                                     wass.method = "networkflow", wass.iter = 100,
                                                     add.joint = FALSE,
                                                    eval.method = "bootstrap")
@@ -134,9 +136,9 @@ testthat::test_that("grid search actually works,  wass mahal", {
   estimand <- "ATE"
   # debugonce(wass_grid_search)
   testthat::expect_warning(
-    wsel <- wass_grid_search(data, grid = NULL,
+    wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
-                             metric = metric, p = power, solver = "mosek",
+                             metric = metric, p = power, solver = "osqp",
                              wass.method = "networkflow", wass.iter = 100,
                              add.joint = FALSE,
                              eval.method = "bootstrap")
@@ -147,6 +149,9 @@ testthat::test_that("grid search actually works,  wass mahal", {
 
 testthat::test_that("grid search actually works, marg wass sdlp", {
   testthat::skip_on_cran(); 
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
   #### Load Packages ####
@@ -162,7 +167,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   method <- "Wasserstein"
   add.margins <- TRUE
   add.joint <- TRUE
@@ -185,7 +190,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
     
     wsel <- wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
-                             metric = metric, p = power, solver = "mosek",
+                             metric = metric, p = power, solver = solver,
                              wass.method = "networkflow", wass.iter = 0,
                              add.joint = add.joint, add.margins = add.margins,
                              eval.method = "bootstrap"
@@ -200,7 +205,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   # debugonce(wass_grid_search)
   testthat::expect_silent(wsel <- wass_grid_search(data, grid = NULL,
                                                     estimand = estimand, n.boot = 10, method = method,
-                                                    metric = metric, p = power, solver = "mosek",
+                                                    metric = metric, p = power, solver = solver,
                                                     wass.method = "networkflow", wass.iter = 0,
                                                     add.joint = add.joint, add.margins = add.margins,
                                                    eval.method = "bootstrap")
@@ -211,7 +216,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   testthat::expect_warning(
     wsel <- wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
-                             metric = metric, p = power, solver = "mosek",
+                             metric = metric, p = power, solver = solver,
                              wass.method = "networkflow", wass.iter = 0,
                              add.joint = add.joint, add.margins = add.margins,
                              eval.method = "bootstrap")
@@ -237,7 +242,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   method <- "Wasserstein"
   add.margins <- TRUE
   add.joint <- TRUE
@@ -259,9 +264,9 @@ testthat::test_that("grid search actually works, marg wass mahal", {
   estimand <- "ATT"
   testthat::expect_warning(
     
-    wsel <- wass_grid_search(data, grid = NULL,
+    wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
-                             metric = metric, p = power, solver = "mosek",
+                             metric = metric, p = power, solver = solver,
                              wass.method = "networkflow", wass.iter = 100,
                              add.joint = add.joint, add.margins = add.margins,
                              eval.method = "bootstrap")
@@ -274,9 +279,9 @@ testthat::test_that("grid search actually works, marg wass mahal", {
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
-  testthat::expect_silent(wsel <- wass_grid_search(data, grid = NULL,
+  testthat::expect_warning(wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                                                     estimand = estimand, n.boot = 10, method = method,
-                                                    metric = metric, p = power, solver = "mosek",
+                                                    metric = metric, p = power, solver = solver,
                                                     wass.method = "networkflow", wass.iter = 100,
                                                     add.joint = add.joint, add.margins = add.margins,
                                                    eval.method = "bootstrap")
@@ -285,7 +290,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
   estimand <- "ATE"
   # debugonce(wass_grid_search)
   testthat::expect_warning(
-    wsel <- wass_grid_search(data, grid = NULL,
+    wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
                              metric = metric, p = power, solver = "mosek",
                              wass.method = "networkflow", wass.iter = 100,
@@ -298,6 +303,9 @@ testthat::test_that("grid search actually works, marg wass mahal", {
 
 testthat::test_that("grid search actually works, marg wass sdlp bal", {
   testthat::skip_on_cran(); 
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
   #### Load Packages ####
@@ -378,6 +386,9 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
 
 testthat::test_that("grid search actually works, marg wass mahal bal", {
   testthat::skip_on_cran(); 
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
   #### Load Packages ####
@@ -457,6 +468,9 @@ testthat::test_that("grid search actually works, marg wass mahal bal", {
 
 testthat::test_that("grid search joint.map, wass", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
   #### Load Packages ####
@@ -485,7 +499,7 @@ testthat::test_that("grid search joint.map, wass", {
   testthat::expect_silent(
     wsel2 <- wass_grid_search(data, grid = NULL,
                               estimand = estimand, n.boot = 10, method = "Wasserstein",
-                              metric = metric, p = power, solver = "mosek",
+                              metric = metric, p = power, solver = "osqp",
                               wass.method = "networkflow", wass.iter = 0,
                               joint.mapping = TRUE, penalty = "L2",
                               eval.method = "bootstrap")
@@ -514,6 +528,8 @@ testthat::test_that("grid search joint.map, wass", {
 
 testthat::test_that("grid search scm", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
   set.seed(9867)
   
   #### Load Packages ####
@@ -569,6 +585,8 @@ testthat::test_that("grid search scm", {
 
 testthat::test_that("grid search joint.map crossvalidation, wass", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
   set.seed(9867)
   
   #### Load Packages ####

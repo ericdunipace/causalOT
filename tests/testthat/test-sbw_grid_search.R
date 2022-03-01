@@ -10,7 +10,7 @@ testthat::test_that("grid search function works, dataSim", {
   distance <- c("Lp")
   power <- c(1,2)
   ground_power <- 2
-  solver <- "gurobi"
+  solver <- "osqp"
   estimates <- c("ATT", "ATC","feasible","ATE","cATE")
   
   #### get simulation functions ####
@@ -48,7 +48,7 @@ testthat::test_that("grid search deletes extra args", {
   distance <- c("Lp")
   power <- c(1,2)
   ground_power <- 2
-  solver <- "gurobi"
+  solver <- "osqp"
   estimates <- c("ATT", "ATC","feasible","ATE","cATE")
   
   #### get simulation functions ####

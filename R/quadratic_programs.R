@@ -1735,20 +1735,49 @@ bc_to_gt_const <- function(qp) { #for quadprog only
   
   
   equal_l <- which(lc == uc)
-  equal_u <- which(uc == lc)
+  # equal_u <- which(uc == lc)
   lt    <- which(lc != uc & !is.infinite(uc))
   gt    <- which(lc != uc & !is.infinite(lc))
   
-  vals <- c(lc[equal], -lc[equal], -uc[lt], lc[gt])
+  vals <- c(lc[equal_l], -uc[equal_l], -uc[lt], lc[gt])
   
-  A   <- rbind(A[equal,, drop = FALSE],
-               -A[equal,, drop = FALSE],
+  A   <- rbind(A[equal_l,, drop = FALSE],
+               -A[equal_l,, drop = FALSE],
                -A[lt,, drop = FALSE],
                A[gt,, drop = FALSE])
   
   qp$LC$A <- A
   qp$LC$vals <- vals
   return(qp)
+}
+
+bc_to_gt_const_quadprog <- function(qp) { #for quadprog only
+  lc <- qp$LC$lc
+  uc <- qp$LC$uc
+  A  <- qp$LC$A
+  
+  
+  equal_l <- which(lc == uc)
+  # equal_u <- which(uc == lc)
+  lt    <- which(lc != uc & !is.infinite(uc))
+  gt    <- which(lc != uc & !is.infinite(lc))
+  
+  vals <- c(lc[equal_l], -uc[lt], lc[gt])
+  
+  A   <- rbind(A[equal_l,, drop = FALSE],
+               -A[lt,, drop = FALSE],
+               A[gt,, drop = FALSE])
+  
+  qp$LC$A <- A
+  qp$LC$vals <- vals
+  qp$LC$dir_eq_num <- length(equal_l)
+  return(qp)
+}
+
+dir_to_bc <- function(qp) {
+  qp$dir
+  
+  
 }
 
 qp_wass <- function(x, z, K = list(penalty = NULL,
