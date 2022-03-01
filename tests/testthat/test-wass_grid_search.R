@@ -167,7 +167,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "osqp"
+  solver <- "Rmosek"
   method <- "Wasserstein"
   add.margins <- TRUE
   add.joint <- TRUE
@@ -486,7 +486,7 @@ testthat::test_that("grid search joint.map, wass", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "Rmosek"
   estimand <- "ATT"
   
   #### get simulation functions ####
@@ -499,7 +499,7 @@ testthat::test_that("grid search joint.map, wass", {
   testthat::expect_silent(
     wsel2 <- causalOT:::wass_grid_search(data, grid = NULL,
                               estimand = estimand, n.boot = 10, method = "Wasserstein",
-                              metric = metric, p = power, solver = "osqp",
+                              metric = metric, p = power, solver = solver,
                               wass.method = "networkflow", wass.iter = 0,
                               joint.mapping = TRUE, penalty = "L2",
                               eval.method = "bootstrap")
@@ -510,7 +510,7 @@ testthat::test_that("grid search joint.map, wass", {
   estimand <- "ATC"
   testthat::expect_warning(wsel3 <- wass_grid_search(data, grid = NULL,
                                                     estimand = estimand, n.boot = 10, method = "Wasserstein",
-                                                    metric = metric, p = power, solver = "mosek",
+                                                    metric = metric, p = power, solver = solver,
                                                     joint.mapping = TRUE,
                                                     wass.method = "networkflow", wass.iter = 0,
                                                     eval.method = "bootstrap"))
@@ -518,7 +518,7 @@ testthat::test_that("grid search joint.map, wass", {
   estimand <- "ATE"
   testthat::expect_silent(wsel4 <- wass_grid_search(data, grid = NULL,
                                                     estimand = estimand, n.boot = 10, method = "Wasserstein",
-                                                    metric = metric, p = power, solver = "mosek",
+                                                    metric = metric, p = power, solver = solver,
                                                     joint.mapping = TRUE,
                                                     wass.method = "networkflow", wass.iter = 0,
                                                     eval.method = "bootstrap"))
