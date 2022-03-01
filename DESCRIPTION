@@ -27,15 +27,9 @@ LinkingTo:
 Suggests: 
     CBPS,
     data.table (>= 1.12.8),
-    doParallel,
-    doRNG,
-    dplyr,
-    foreach,
-    ggplot2,
-    kernlab,
-    parallel,
     rstan (>= 2.19.3),
     Rmosek,
+    stats,
     testthat (>= 2.1.0)
 Biarch: true
 Depends: 
