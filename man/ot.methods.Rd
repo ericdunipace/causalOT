@@ -7,10 +7,10 @@
 ot.methods()
 }
 \value{
-A character vector with values "NNM","Wasserstein", and "SCM".
+A character vector with values "NNM","Wasserstein", "COT", and "SCM".
 }
 \description{
-Supported optimal transport methods
+Lists the supported OT methods. Note "COT" and "Wasserstein" are equivalent.
 }
 \examples{
 ot.methods()

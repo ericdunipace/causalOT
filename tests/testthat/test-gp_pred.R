@@ -272,170 +272,170 @@ testthat::test_that("gaussian process corrects non-positive def matrix rbf, Lp",
                  outcome = "y"))
 })
 
-testthat::test_that("timing is better for C code, rbf lp", {
-  testthat::skip("Interactive only")
-  n <- 2^9
-  d <- 10
-  x <- matrix(rnorm(n*d),n,d)
-  y <- rnorm(n)
-  z <- rbinom(n,1,0.5)
-  n1 <- sum(z)
-  n0 <- n - n1
-  
-  param <- list(theta = c(1.1,1.22),
-                gamma = c(0.5,0.423),
-                p = 2,
-                sigma_2 = c(1.01, 1.033),
-                is.dose = FALSE,
-                kernel = "RBF",
-                metric = "Lp",
-                is.dose = FALSE
-  )
-  df <- data.frame(x, y = y, z = z)
-  mb <- microbenchmark::microbenchmark(rcode = {
-    prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
-              treatment.indicator = "z",
-              outcome = "y")
-    xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
-    yy <- prep.data$df$y
-    zz <- prep.data$z
-    gauss_pred_r(xx,yy,zz, param)
-    },
-                                 ccode = gp_pred(data = df, param = param, estimand = "ATE", 
-                                                 balance.covariates = colnames(df)[1:d],
-                                                 treatment.indicator = "z",
-                                                 outcome = "y"),
-                                 times=100)
-  print(mb)
-  microbenchmark:::autoplot.microbenchmark(mb)
-  testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
-                      median(mb$time[mb$expr=="rcode"])
-                      )
-  
-})
-testthat::test_that("timing is better for C code, rbf mahalanobis", {
-  testthat::skip("Interactive only")
-  n <- 2^9
-  d <- 10
-  x <- matrix(rnorm(n*d),n,d)
-  y <- rnorm(n)
-  z <- rbinom(n,1,0.5)
-  n1 <- sum(z)
-  n0 <- n - n1
-  
-  param <- list(theta = c(1.1,1.22),
-                gamma = c(0.5,0.423),
-                p = 2,
-                sigma_2 = c(1.01, 1.033),
-                is.dose = FALSE,
-                kernel = "RBF",
-                metric = "mahalanobis",
-                is.dose = FALSE
-  )
-  df <- data.frame(x, y = y, z = z)
-  mb <- microbenchmark::microbenchmark(rcode = {
-    prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
-                          treatment.indicator = "z",
-                          outcome = "y")
-    xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
-    yy <- prep.data$df$y
-    zz <- prep.data$z
-    gauss_pred_r(xx,yy,zz, param)
-  },
-  ccode = gp_pred(data = df, param = param, estimand = "ATE", 
-                  balance.covariates = colnames(df)[1:d],
-                  treatment.indicator = "z",
-                  outcome = "y"),
-  times=100)
-  print(mb)
-  microbenchmark:::autoplot.microbenchmark(mb)
-  testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
-                      median(mb$time[mb$expr=="rcode"])
-  )
-  
-})
-testthat::test_that("timing is better for C code, polynomial lp", {
-  testthat::skip("Interactive only")
-  n <- 2^9
-  d <- 10
-  x <- matrix(rnorm(n*d),n,d)
-  y <- rnorm(n)
-  z <- rbinom(n,1,0.5)
-  n1 <- sum(z)
-  n0 <- n - n1
-  
-  param <- list(theta = c(1.1,1.22),
-                gamma = c(0.5,0.423),
-                p = 2,
-                sigma_2 = c(1.01, 1.033),
-                is.dose = FALSE,
-                kernel = "polynomial",
-                metric = "Lp",
-                is.dose = FALSE
-  )
-  df <- data.frame(x, y = y, z = z)
-  mb <- microbenchmark::microbenchmark(rcode = {
-    prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
-                          treatment.indicator = "z",
-                          outcome = "y")
-    xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
-    yy <- prep.data$df$y
-    zz <- prep.data$z
-    gauss_pred_r(as.matrix(xx),yy,zz, param)
-  },
-  ccode = gp_pred(data = df, param = param, estimand = "ATE", 
-                  balance.covariates = colnames(df)[1:d],
-                  treatment.indicator = "z",
-                  outcome = "y"),
-  times=100)
-  print(mb)
-  microbenchmark:::autoplot.microbenchmark(mb)
-  testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
-                      median(mb$time[mb$expr=="rcode"])
-  )
-  
-})
-testthat::test_that("timing is better for C code, polynomial mahalanobis", {
-  testthat::skip("Interactive only")
-  n <- 2^9
-  d <- 10
-  x <- matrix(rnorm(n*d),n,d)
-  y <- rnorm(n)
-  z <- rbinom(n,1,0.5)
-  n1 <- sum(z)
-  n0 <- n - n1
-  
-  param <- list(theta = c(1.1,1.22),
-                gamma = c(0.5,0.423),
-                p = 2,
-                sigma_2 = c(1.01, 1.033),
-                is.dose = FALSE,
-                kernel = "polynomial",
-                metric = "mahalanobis",
-                is.dose = FALSE
-  )
-  df <- data.frame(x, y = y, z = z)
-  mb <- microbenchmark::microbenchmark(rcode = {
-    prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
-                          treatment.indicator = "z",
-                          outcome = "y")
-    xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
-    yy <- prep.data$df$y
-    zz <- prep.data$z
-    gauss_pred_r(xx,yy,zz, param)
-  },
-  ccode = gp_pred(data = df, param = param, estimand = "ATE", 
-                  balance.covariates = colnames(df)[1:d],
-                  treatment.indicator = "z",
-                  outcome = "y"),
-  times=100)
-  print(mb)
-  microbenchmark:::autoplot.microbenchmark(mb)
-  testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
-                      median(mb$time[mb$expr=="rcode"])
-  )
-  
-})
+# testthat::test_that("timing is better for C code, rbf lp", {
+#   testthat::skip("Interactive only")
+#   n <- 2^9
+#   d <- 10
+#   x <- matrix(rnorm(n*d),n,d)
+#   y <- rnorm(n)
+#   z <- rbinom(n,1,0.5)
+#   n1 <- sum(z)
+#   n0 <- n - n1
+#   
+#   param <- list(theta = c(1.1,1.22),
+#                 gamma = c(0.5,0.423),
+#                 p = 2,
+#                 sigma_2 = c(1.01, 1.033),
+#                 is.dose = FALSE,
+#                 kernel = "RBF",
+#                 metric = "Lp",
+#                 is.dose = FALSE
+#   )
+#   df <- data.frame(x, y = y, z = z)
+#   mb <- microbenchmark::microbenchmark(rcode = {
+#     prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
+#               treatment.indicator = "z",
+#               outcome = "y")
+#     xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
+#     yy <- prep.data$df$y
+#     zz <- prep.data$z
+#     gauss_pred_r(xx,yy,zz, param)
+#     },
+#                                  ccode = gp_pred(data = df, param = param, estimand = "ATE", 
+#                                                  balance.covariates = colnames(df)[1:d],
+#                                                  treatment.indicator = "z",
+#                                                  outcome = "y"),
+#                                  times=100)
+#   print(mb)
+#   microbenchmark:::autoplot.microbenchmark(mb)
+#   testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
+#                       median(mb$time[mb$expr=="rcode"])
+#                       )
+#   
+# })
+# testthat::test_that("timing is better for C code, rbf mahalanobis", {
+#   testthat::skip("Interactive only")
+#   n <- 2^9
+#   d <- 10
+#   x <- matrix(rnorm(n*d),n,d)
+#   y <- rnorm(n)
+#   z <- rbinom(n,1,0.5)
+#   n1 <- sum(z)
+#   n0 <- n - n1
+#   
+#   param <- list(theta = c(1.1,1.22),
+#                 gamma = c(0.5,0.423),
+#                 p = 2,
+#                 sigma_2 = c(1.01, 1.033),
+#                 is.dose = FALSE,
+#                 kernel = "RBF",
+#                 metric = "mahalanobis",
+#                 is.dose = FALSE
+#   )
+#   df <- data.frame(x, y = y, z = z)
+#   mb <- microbenchmark::microbenchmark(rcode = {
+#     prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
+#                           treatment.indicator = "z",
+#                           outcome = "y")
+#     xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
+#     yy <- prep.data$df$y
+#     zz <- prep.data$z
+#     gauss_pred_r(xx,yy,zz, param)
+#   },
+#   ccode = gp_pred(data = df, param = param, estimand = "ATE", 
+#                   balance.covariates = colnames(df)[1:d],
+#                   treatment.indicator = "z",
+#                   outcome = "y"),
+#   times=100)
+#   print(mb)
+#   microbenchmark:::autoplot.microbenchmark(mb)
+#   testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
+#                       median(mb$time[mb$expr=="rcode"])
+#   )
+#   
+# })
+# testthat::test_that("timing is better for C code, polynomial lp", {
+#   testthat::skip("Interactive only")
+#   n <- 2^9
+#   d <- 10
+#   x <- matrix(rnorm(n*d),n,d)
+#   y <- rnorm(n)
+#   z <- rbinom(n,1,0.5)
+#   n1 <- sum(z)
+#   n0 <- n - n1
+#   
+#   param <- list(theta = c(1.1,1.22),
+#                 gamma = c(0.5,0.423),
+#                 p = 2,
+#                 sigma_2 = c(1.01, 1.033),
+#                 is.dose = FALSE,
+#                 kernel = "polynomial",
+#                 metric = "Lp",
+#                 is.dose = FALSE
+#   )
+#   df <- data.frame(x, y = y, z = z)
+#   mb <- microbenchmark::microbenchmark(rcode = {
+#     prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
+#                           treatment.indicator = "z",
+#                           outcome = "y")
+#     xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
+#     yy <- prep.data$df$y
+#     zz <- prep.data$z
+#     gauss_pred_r(as.matrix(xx),yy,zz, param)
+#   },
+#   ccode = gp_pred(data = df, param = param, estimand = "ATE", 
+#                   balance.covariates = colnames(df)[1:d],
+#                   treatment.indicator = "z",
+#                   outcome = "y"),
+#   times=100)
+#   print(mb)
+#   microbenchmark:::autoplot.microbenchmark(mb)
+#   testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
+#                       median(mb$time[mb$expr=="rcode"])
+#   )
+#   
+# })
+# testthat::test_that("timing is better for C code, polynomial mahalanobis", {
+#   testthat::skip("Interactive only")
+#   n <- 2^9
+#   d <- 10
+#   x <- matrix(rnorm(n*d),n,d)
+#   y <- rnorm(n)
+#   z <- rbinom(n,1,0.5)
+#   n1 <- sum(z)
+#   n0 <- n - n1
+#   
+#   param <- list(theta = c(1.1,1.22),
+#                 gamma = c(0.5,0.423),
+#                 p = 2,
+#                 sigma_2 = c(1.01, 1.033),
+#                 is.dose = FALSE,
+#                 kernel = "polynomial",
+#                 metric = "mahalanobis",
+#                 is.dose = FALSE
+#   )
+#   df <- data.frame(x, y = y, z = z)
+#   mb <- microbenchmark::microbenchmark(rcode = {
+#     prep.data <-prep_data(df, balance.covariates = colnames(df)[1:d],
+#                           treatment.indicator = "z",
+#                           outcome = "y")
+#     xx <- prep.data$df[,-c(which(colnames(prep.data$df)=="y"))]
+#     yy <- prep.data$df$y
+#     zz <- prep.data$z
+#     gauss_pred_r(xx,yy,zz, param)
+#   },
+#   ccode = gp_pred(data = df, param = param, estimand = "ATE", 
+#                   balance.covariates = colnames(df)[1:d],
+#                   treatment.indicator = "z",
+#                   outcome = "y"),
+#   times=100)
+#   print(mb)
+#   microbenchmark:::autoplot.microbenchmark(mb)
+#   testthat::expect_lt(median(mb$time[mb$expr=="ccode"]),
+#                       median(mb$time[mb$expr=="rcode"])
+#   )
+#   
+# })
 
 testthat::test_that("gaussian process prediction works rbf, lp", {
   testthat::skip("Interactive only")
