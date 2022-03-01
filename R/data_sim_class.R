@@ -1100,7 +1100,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                #' 
                                #' @examples 
                                #' nsw <- LaLonde$new(design = "NSW")
-                               #' nsw$data_gen()
+                               #' nsw$gen_data()
                                #' nsw$get_n()
                                #' 
                                #' obs.study <-  LaLonde$new(design = "Full")

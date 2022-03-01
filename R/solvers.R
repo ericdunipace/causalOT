@@ -329,6 +329,17 @@ osqp_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   } else {
     opts$verbose <- as.logical(dots$verbose)
   }
+  if (is.null(dots$adaptive_rho_interval)) {
+    opts$adaptive_rho_interval <- 0L
+  } else {
+    opts$adaptive_rho_interval <- as.integer(dots$adaptive_rho_interval)
+  }
+  if (is.null(dots$adaptive_rho_fraction)) {
+    opts$adaptive_rho_fraction <- 0.4
+  } else {
+    opts$adaptive_rho_fraction <- as.numeric(dots$adaptive_rho_fraction)
+  }
+  
   
   res <- osqp::solve_osqp(P = model$P, q = model$q,
                    A = model$A, l = model$l,

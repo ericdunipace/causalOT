@@ -342,6 +342,8 @@ testthat::test_that("works for Wass, sample weight", {
 
 testthat::test_that("works for Wass, variance", {
   testthat::skip_on_cran()
+  testthat::skip_on_
+  testthat::skip_if_not_installed(pkg = "Rmosek")
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -403,7 +405,7 @@ testthat::test_that("works for Wass, variance", {
   # #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(rep(1/n1,n1), 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  
+  testthat::skip_if_not_installed(pkg = "Rmosek")
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 10, 
                                                            estimand = e, 
@@ -429,6 +431,8 @@ testthat::test_that("works for Wass, variance", {
 
 testthat::test_that("works for Wass, entropy", {
   testthat::skip_on_cran()
+  testthat::skip_on_ci()
+  testthat::skip_if_not_installed(pkg = "Rmosek")
   set.seed(23483)
   n <- 2^7
   p <- 6

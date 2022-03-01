@@ -22,7 +22,7 @@ is fixed and `gen_data()` will just initialize the fixed data.
 ## ------------------------------------------------
 
 nsw <- LaLonde$new(design = "NSW")
-nsw$data_gen()
+nsw$gen_data()
 nsw$get_n()
 
 obs.study <-  LaLonde$new(design = "Full")
@@ -149,7 +149,7 @@ Current Population Survey as controls.}
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
 \preformatted{nsw <- LaLonde$new(design = "NSW")
-nsw$data_gen()
+nsw$gen_data()
 nsw$get_n()
 
 obs.study <-  LaLonde$new(design = "Full")
