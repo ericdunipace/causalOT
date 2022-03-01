@@ -30,9 +30,9 @@ testthat::test_that("confint works for sbw causaleffect", {
                          matched = FALSE)
   
   # debugonce(ci_boot_ce)
-  ci <- confint.causalEffect(est, level = 0.95, method = "bootstrap", n.boot = 10)
-  testthat::expect_equivalent(ci$CI, c(1254.28, 3672.03  ), tol = 1e-3)
-  testthat::expect_equivalent(ci$SD, 856.4893, tol = 1e-3)
+  ci <- causalOT:::confint.causalEffect(est, level = 0.95, method = "bootstrap", n.boot = 10)
+  testthat::expect_equivalent(ci$CI, c(1248.187, 3661.585   ), tol = 1e-3)
+  testthat::expect_equivalent(ci$SD, 856.5282, tol = 1e-3)
 })
 
 # testthat::test_that("confint works for c wass causaleffect", {

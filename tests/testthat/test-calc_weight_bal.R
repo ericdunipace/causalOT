@@ -593,22 +593,14 @@ testthat::test_that("works for SCM", {
                                    weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   testthat::skip_if_not_installed(pkg = "gurobi")
-  weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
+  testthat::expect_warning(weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = NULL, 
                                                            estimand = e, 
                                                            method = "SCM",
                                                            penalty = "none",
-                                                           solver = "gurobi"))
+                                                           solver = "gurobi")))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0),
-                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1),
-                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   # weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
   #                                                          constraint = 3, 
@@ -714,27 +706,15 @@ testthat::test_that("works for SCM, penalties", {
   # testthat::expect_match(all.equal(rep(1/n1,n1), 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::skip_if_not_installed("gurobi")
-  weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
+  testthat::expect_warning(weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = list(penalty = 30), 
                                                            estimand = e, 
                                                            method = "SCM",
                                                            penalty = "variance",
-                                                           solver = "gurobi"))
+                                                           solver = "gurobi")))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
   
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  # testthat::expect_match(all.equal(rep(1/n0,n0), 
-  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
   
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
 })
 
 testthat::test_that("works for wass, joint mapping", {
@@ -758,37 +738,15 @@ testthat::test_that("works for wass, joint mapping", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   testthat::skip_if_not_installed("gurobi")
-  weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
+  testthat::expect_warning(weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = list(joint = 1), 
                                                            estimand = e, 
                                                            method = "Wasserstein",
                                                            joint.mapping = TRUE,
                                                            penalty = "none",
-                                                           solver = "gurobi"))
+                                                           solver = "gurobi")))
   for(w in weights) testthat::expect_equal(names(w), arg.names)
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0),
-                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
-  
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1),
-                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(rep(1/n1,n1), 
-                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  
-  # weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
-  #                                                          constraint = list(joint = 1, penalty = 1), 
-  #                                                          estimand = e, 
-  #                                                          penalty = "variance",
-  #                                                          method = "Wasserstein",
-  #                                                          joint.mapping = TRUE,
-  #                                                          solver = "cplex"))
-  # for (w in weights) testthat::expect_equal(names(w), arg.names)
-  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  # testthat::expect_match(all.equal(rep(1/n0,n0),
   #                                  weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(rep(1/n0,n0),
   #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
@@ -801,6 +759,7 @@ testthat::test_that("works for wass, joint mapping", {
   #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(rep(1/n1,n1), 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
   testthat::skip_if_not_installed("Rmosek")
   weights <- lapply(estimates[1:3], function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = list(joint = 0.5,

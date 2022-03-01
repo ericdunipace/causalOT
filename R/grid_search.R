@@ -25,7 +25,7 @@ sbw_grid_search <- function(data, grid = NULL,
   estimand <- match.arg(estimand)
   
   # match solver arguments
-  solver <- match.arg(list(...)$solver, c("mosek","gurobi","cplex"))
+  solver <- match.arg(list(...)$solver, supported.solvers())
   
   # create arguments list and remove duplicates
   args <- list(data = data, constraint = grid[1],  estimand = estimand, 

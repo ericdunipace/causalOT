@@ -106,7 +106,7 @@ testthat::test_that("barycenter projection pow2, mahalanobis", {
 })
 
 testthat::test_that("barycenter projection pow1, mahalanobis", {
-  testhat::skip_if_not_installed(pkg = "gurobi")
+  testthat::skip_if_not_installed(pkg = "gurobi")
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -145,8 +145,7 @@ testthat::test_that("barycenter projection pow1, mahalanobis", {
   testthat::expect_warning(weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
                                                        estimand = e, 
-                                                       method = "Wasserstein",
-                                                       solver = "NNM",
+                                                       method = "NNM",
                                                        p = power,
                                                        cost = cost[[e]],
                                                        transport.matrix = TRUE)))
@@ -232,8 +231,7 @@ testthat::test_that("barycenter projection pow1, lp", {
   testthat::expect_warning(weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 3, 
                                                        estimand = e, 
-                                                       method = "Wasserstein",
-                                                       solver = "NNM",
+                                                       method = "NNM",
                                                        p = power,
                                                        cost = cost[[e]],
                                                        transport.matrix = TRUE)))
@@ -285,8 +283,7 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
                                                        estimand = e, 
-                                                       method = "Wasserstein",
-                                                       solver = "NNM",
+                                                       method = "NNM",
                                                        p = power,
                                                        cost = cost[[e]],
                                                        transport.matrix = TRUE))
@@ -330,8 +327,7 @@ testthat::test_that("barycenter projection pow4, lp", {
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 1.7, 
                                                        estimand = e, 
-                                                       method = "Wasserstein",
-                                                       solver = "NNM",
+                                                       method = "NNM",
                                                        p = power,
                                                        cost = cost[[e]],
                                                        transport.matrix = TRUE))

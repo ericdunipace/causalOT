@@ -39,7 +39,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
   estimand <- "ATT"
   testthat::expect_silent(
     
-    wsel <- wass_grid_search(data, grid = NULL,
+    wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
                              metric = metric, p = power, solver = solver,
                              wass.method = "networkflow", wass.iter = 0,
@@ -49,11 +49,11 @@ testthat::test_that("grid search actually works,  wass sdlp", {
     
     )
   
-  testthat::expect_lte(wsel$args$constraint$penalty - c(2474.589), 1e-3)
+  testthat::expect_lte(wsel$args$constraint$penalty - c(20238.58), 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
-  testthat::expect_silent(wsel <- wass_grid_search(data, grid = NULL,
+  testthat::expect_silent(wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                            estimand = estimand, n.boot = 10, method = method,
                            metric = metric, p = power, solver = solver,
                            wass.method = "networkflow", wass.iter = 0,
@@ -64,7 +64,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
   estimand <- "ATE"
   # debugonce(wass_grid_search)
   testthat::expect_silent(
-    wsel <- wass_grid_search(data, grid = NULL,
+    wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                            estimand = estimand, n.boot = 10, method = method,
                            metric = metric, p = power, solver = solver,
                            wass.method = "networkflow", wass.iter = 0,
@@ -188,7 +188,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   estimand <- "ATT"
   testthat::expect_warning(
     
-    wsel <- wass_grid_search(data, grid = NULL,
+    wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,
                              metric = metric, p = power, solver = solver,
                              wass.method = "networkflow", wass.iter = 0,
@@ -199,7 +199,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   )
   testthat::expect_equivalent(wsel$args$constraint,
                               list(margins = rep(1.074658, 6), 
-                                   penalty = 640000), tol = 1e-3)
+                                   penalty = 20238.58), tol = 1e-3)
   
   estimand <- "ATC"
   # debugonce(wass_grid_search)
@@ -274,7 +274,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
   )
   
   testthat::expect_equivalent(wsel$args$constraint, 
-                              list(margins = rep(1.25503, 6),
+                              list(margins = rep(1.074658, 6),
                                    penalty = 20238.58), tol = 1e-3)
   
   estimand <- "ATC"
@@ -497,7 +497,7 @@ testthat::test_that("grid search joint.map, wass", {
   #don't specify grid
   # debugonce(wass_grid_search)
   testthat::expect_silent(
-    wsel2 <- wass_grid_search(data, grid = NULL,
+    wsel2 <- causalOT:::wass_grid_search(data, grid = NULL,
                               estimand = estimand, n.boot = 10, method = "Wasserstein",
                               metric = metric, p = power, solver = "osqp",
                               wass.method = "networkflow", wass.iter = 0,
@@ -505,7 +505,7 @@ testthat::test_that("grid search joint.map, wass", {
                               eval.method = "bootstrap")
   )
   testthat::expect_equivalent(wsel2$args$constraint, list(penalty = 640,
-                                                          joint = 0.02154435), 1e-3)
+                                                          joint = 0.004641589), 1e-3)
   
   estimand <- "ATC"
   testthat::expect_warning(wsel3 <- wass_grid_search(data, grid = NULL,

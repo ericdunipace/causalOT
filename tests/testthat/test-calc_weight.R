@@ -813,8 +813,6 @@ testthat::test_that("works for SCM grid", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  for (w in weight.check) testthat::expect_equal(names(w), arg.names)
-  
   testthat::skip_if_not_installed("Rmosek")
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
