@@ -167,7 +167,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "Rmosek"
+  solver <- "mosek"
   method <- "Wasserstein"
   add.margins <- TRUE
   add.joint <- TRUE
@@ -486,7 +486,7 @@ testthat::test_that("grid search joint.map, wass", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "Rmosek"
+  solver <- "mosek"
   estimand <- "ATT"
   
   #### get simulation functions ####
