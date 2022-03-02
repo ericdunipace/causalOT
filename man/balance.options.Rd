@@ -5,6 +5,8 @@
 \title{Function to create balance functions}
 \usage{
 balance.options(balance, x, target)
+
+balance.options(balance, x, target)
 }
 \arguments{
 \item{balance}{a list with slots "formula", "balance.functions",
@@ -18,13 +20,18 @@ balance.options(balance, x, target)
 
 \item{target}{Either: 1) a list with slots target.mean and target.sd
 or a data matrix of the target population. If a data matrix is provided
-then the parameter `balance` should include a formula.}
+then the parameter \code{balance} should include a formula.}
 }
 \value{
 a list with slots "balance.functions", "balance.delta",
 "target.mean", "target.sd".
+
+a list with slots "balance.functions", "balance.delta",
+"target.mean", "target.sd".
 }
 \description{
+Function to create balance functions
+
 Function to create balance functions
 }
 \keyword{internal}

@@ -801,7 +801,7 @@ setClass("causalEffect", slots = c(estimate = "numeric",
 #' treatment group? (TRUE/FALSE)
 #' @param sample_weight The sample weights. Either NULL or an object of class
 #' [sampleWeights][sampleWeights]
-#' @param ... 
+#' @param ... Pass additional arguments to the outcome modeling functions like `lm`. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
 #'
 #' @return an object of class [causalEffect][causalEffect]
 #' @export
@@ -1358,7 +1358,7 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
 }
 
 ci_jack_ce <- function(object, parm, level, ...) {
-    est_jk <- function(i, dat, weight, n0, n1) {
+    est_jk <- function(i, dat, weight, n0, n1, dr) {
       idx_i <- 1:n0
       idx_j <- 1:n1
       if (i <= n0) {
@@ -1421,9 +1421,11 @@ ci_jack_ce <- function(object, parm, level, ...) {
     
     weight <- object$weights
     
+    dr <- object$options$doubly.robust
+    
     jk.estimates <- vapply(1:nrow(dat), FUN = est_jk, FUN.VALUE = 1, dat = dat,
                            n0 = n0, n1 = n1,
-                           weight = weight)
+                           weight = weight, dr = dr)
     var.jk <- (n - 1) / n * sum( (jk.estimates - tau)^2)
     
     upr <- tau + qnorm( 1 - (1 - level)/2) * sqrt(var.jk)

@@ -4,9 +4,9 @@ cost_fun_deprecated <- function(x, y, power = 2, metric = c("mahalanobis","Lp","
   metric <- match.arg(metric)
   
   dist <- switch(metric, 
-                 "Lp" = causalOT::cost_calc_lp(x,y,ground_p = power, direction = direction),
-                 "mahalanobis" = causalOT::cost_mahalanobis(x,y, ground_p = power, direction = direction),
-                 "RKHS" = causalOT::cost_RKHS(X=x, Y=y, rkhs.args = rkhs.args, estimand = estimand, ...))
+                 "Lp" = causalOT:::cost_calc_lp(x,y,ground_p = power, direction = direction),
+                 "mahalanobis" = causalOT:::cost_mahalanobis(x,y, ground_p = power, direction = direction),
+                 "RKHS" = causalOT:::cost_RKHS(X=x, Y=y, rkhs.args = rkhs.args, estimand = estimand, ...))
   
   return(dist)
   

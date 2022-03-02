@@ -4,7 +4,7 @@
 \alias{DataSim}
 \title{R6 Data Generating Parent Class}
 \value{
-An [R6][R6::R6Class] object
+An \link[R6:R6Class]{R6} object
 }
 \description{
 R6 Data Generating Parent Class
@@ -12,8 +12,8 @@ R6 Data Generating Parent Class
 R6 Data Generating Parent Class
 }
 \details{
-Can be used to make your own data simulation class. 
-Should have the same slots listed in this class at a minimum, 
+Can be used to make your own data simulation class.
+Should have the same slots listed in this class at a minimum,
 but you can add your own, of course. An easy way to do this is
 to make your class inherit from this one. See the example.
 }

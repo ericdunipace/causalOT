@@ -5,6 +5,8 @@
 \title{Optimization controls}
 \usage{
 control.options(control, method)
+
+control.options(control, method)
 }
 \arguments{
 \item{control}{provided arguments}
@@ -13,8 +15,12 @@ control.options(control, method)
 }
 \value{
 A list with slots depending on the optimization method
+
+A list with slots depending on the optimization method
 }
 \description{
+Optimization controls
+
 Optimization controls
 }
 \keyword{internal}

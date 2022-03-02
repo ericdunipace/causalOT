@@ -5,17 +5,19 @@
 \title{options for the Wasserstein optimization problem}
 \usage{
 wasserstein.options(wasserstein, x, target, sw)
+
+wasserstein.options(wasserstein, x, target, sw)
 }
 \arguments{
 \item{wasserstein}{parts of the output list can be provided a priori}
 
 \item{x}{The source data matrix. Must be provided if wasserstein$cost is null.}
 
-\item{target}{The target data matrix. 
+\item{target}{The target data matrix.
 Must be provided if wasserstein$cost is null.}
 
 \item{sw}{The sample weights of each group. not necessary if provided in
-`wasserstein` parameter.}
+\code{wasserstein} parameter.}
 
 \item{method}{If method is "Wasserstein", will fill out full list. Otherwise just returns generic parts.}
 }
@@ -23,8 +25,14 @@ Must be provided if wasserstein$cost is null.}
 a list with slots "power", "cost","lambda","b". These are, respectively,
 the power of the Wasserstein distance, the cost matrix, the penalty
 parameter for regularization and the sample weights of the target population.
+
+a list with slots "power", "cost","lambda","b". These are, respectively,
+the power of the Wasserstein distance, the cost matrix, the penalty
+parameter for regularization and the sample weights of the target population.
 }
 \description{
+options for the Wasserstein optimization problem
+
 options for the Wasserstein optimization problem
 }
 \keyword{internal}

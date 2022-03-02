@@ -13,7 +13,7 @@
 )
 }
 \arguments{
-\item{object}{An object of class [causalEffect][causalEffect]}
+\item{object}{An object of class \link{causalEffect}}
 
 \item{parm}{Unused. Included to match forms of other confint functions}
 
@@ -23,17 +23,17 @@
 a bootstrap confidence interval, "asymptotic" for "asymptotic" confidence intervals, and
 "jacknife" for jacknife confidence intervals. Default is "asymptotic" since it is faster.}
 
-\item{...}{Additional arguments if method is "bootstrap". Can include 
+\item{...}{Additional arguments if method is "bootstrap". Can include
 \itemize{
-\item `n.boot`. How many bootstrap samples should be used. Default is 1000.
-\item `boot.method`. One of "n-out-of-n" or "m-out-of-n". Optimal transport methods default to 
+\item \code{n.boot}. How many bootstrap samples should be used. Default is 1000.
+\item \code{boot.method}. One of "n-out-of-n" or "m-out-of-n". Optimal transport methods default to
 "m-out-of-n".
-\item `verbose`. Should a progress bar be printed? (TRUE/FALSE) Defaults to FALSE.
+\item \code{verbose}. Should a progress bar be printed? (TRUE/FALSE) Defaults to FALSE.
 }}
 }
 \value{
 A list with slots "CI" giving the confidence bounds and "SD" giving estimates of the standard
-error of the causal effects. If method is "bootstrap" and `boot.method` is "m-out-of-n", then there will
+error of the causal effects. If method is "bootstrap" and \code{boot.method} is "m-out-of-n", then there will
 also be a slot named "unadjusted" giving the unadjusted confidence interval and standard error estimate
 for reference.
 }

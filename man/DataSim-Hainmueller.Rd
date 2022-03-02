@@ -4,7 +4,7 @@
 \alias{Hainmueller}
 \title{Hainmueller data example}
 \value{
-An [R6][R6::R6Class] object of class [DataSim][DataSim]
+An \link[R6:R6Class]{R6} object of class \link{DataSim}
 }
 \description{
 Hainmueller data example
@@ -100,7 +100,7 @@ Generates the treatment indicator
 \if{html}{\out{<a id="method-new"></a>}}
 \if{latex}{\out{\hypertarget{method-new}{}}}
 \subsection{Method \code{new()}}{
-Generates the the Hainmueller `R6` class
+Generates the the Hainmueller \code{R6} class
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Hainmueller$new(
   n = 100,
@@ -117,7 +117,7 @@ Generates the the Hainmueller `R6` class
 \describe{
 \item{\code{n}}{The number of observations}
 
-\item{\code{p}}{The dimensions of the covariates. 
+\item{\code{p}}{The dimensions of the covariates.
 Fixed to 6.}
 
 \item{\code{param}}{The data generating parameters
@@ -133,29 +133,33 @@ See details.}
 \if{html}{\out{</div>}}
 }
 \subsection{Details}{
-## Design
-Design "A"
-is the setting where the outcome is generated 
-from a linear model, 
-\math{Y(0) = Y(1) = X_1 + X_2 + X_3 - X_4 + X_5 + X_6 + \eta} 
-and design "B" is where the outcome is 
-generated from the non-linear model 
-\math{Y(0) = Y(1) = (X_1 + X_2 +X_5 )^2 + \eta}.
+\subsection{Design}{
 
-## Overlap
+Design "A"
+is the setting where the outcome is generated
+from a linear model,
+\eqn{Y(0) = Y(1) = X_1 + X_2 + X_3 - X_4 + X_5 + X_6 + \eta}
+and design "B" is where the outcome is
+generated from the non-linear model
+\eqn{Y(0) = Y(1) = (X_1 + X_2 +X_5 )^2 + \eta}.
+}
+
+\subsection{Overlap}{
+
 The treatment indicator is generated from
-\math{Z = 1(X_1 + 2 X_2 - 2 X_3 - X_4 - 0.5 X_5 + X_6 + \nu > 0)}, where \math{\nu} 
+\eqn{Z = 1(X_1 + 2 X_2 - 2 X_3 - X_4 - 0.5 X_5 + X_6 + \nu > 0)}, where \eqn{\nu}
 depends on the overlap selected. If overlap is "high",
-then \math{\nu \sim N(0, 100).} If overlap is 
-"low", then \math{\nu \sim N(0, 30).} Finally,
-if overlap is "medium", then \math{\nu} is drawn
-from a \math{\chi^2} with 5 degrees of freedom
-that is scaled and centered to have mean 0.5 and 
+then \eqn{\nu \sim N(0, 100).} If overlap is
+"low", then \eqn{\nu \sim N(0, 30).} Finally,
+if overlap is "medium", then \eqn{\nu} is drawn
+from a \eqn{\chi^2} with 5 degrees of freedom
+that is scaled and centered to have mean 0.5 and
 variance 67.6.
+}
 }
 
 \subsection{Returns}{
-An object of class [DataSim][DataSim].
+An object of class \link{DataSim}.
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}

@@ -22,3 +22,5 @@
 ^src/deprecated$
 
 ^\.github$
+^doc$
+^Meta$

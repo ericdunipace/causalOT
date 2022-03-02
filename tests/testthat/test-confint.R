@@ -23,7 +23,8 @@ testthat::test_that("confint works for sbw causaleffect", {
   sim$gen_data()
   
   weight <- calc_weight(sim, constraint = 0.05, estimand = "ATT",
-                        method = "SBW", solver = "osqp")
+                        method = "SBW", solver = "osqp",
+                        adaptive_rho_interval = 10)
   
   est <- estimate_effect(data = sim, weights = weight,
                          estimand = "ATT", model = "lm", doubly.robust = FALSE,
@@ -32,8 +33,8 @@ testthat::test_that("confint works for sbw causaleffect", {
   # debugonce(ci_boot_ce)
   
   ci <- causalOT:::confint.causalEffect(est, level = 0.95, method = "bootstrap", n.boot = 10)
-  testthat::expect_equivalent(ci$CI, c(1248.187, 3661.585   ), tol = 1e-3)
-  testthat::expect_equivalent(ci$SD, 856.5282, tol = 1e-1)
+  testthat::expect_equivalent(ci$CI, c(1253.585, 3672.608    ), tol = 1e-3)
+  testthat::expect_equivalent(ci$SD, 858.3696, tol = 1e-1)
 })
 
 # testthat::test_that("confint works for c wass causaleffect", {

@@ -9,7 +9,7 @@ testthat::test_that("confirm ot kernel functions correct dose, LP", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::ot_kernel_calculation(X = x, z = z, p = p, 
+  K <- causalOT:::ot_kernel_calculation(X = x, z = z, p = p, 
                                        theta = theta, gamma = gamma, 
                                        kernel = "polynomial",
                                        metric = "Lp", is.dose = TRUE)
@@ -40,7 +40,7 @@ testthat::test_that("confirm ot kernel functions correct dose, mahalanobis", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, 
+  K <- causalOT:::kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, 
                                     kernel = "polynomial",
                                     metric = "mahalanobis", is.dose = TRUE)
   
@@ -70,7 +70,7 @@ testthat::test_that("confirm ot kernel functions correct, LP", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::ot_kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma,
+  K <- causalOT:::ot_kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma,
                                        kernel = "polynomial",
                                        metric = "Lp", is.dose = FALSE)
   
@@ -90,7 +90,7 @@ testthat::test_that("confirm ot kernel functions correct, LP", {
   testthat::expect_equal(K, K_temp)
   
   #ATT
-  K <- causalOT::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
+  K <- causalOT:::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
                                        gamma = gamma, metric = "Lp", 
                                        kernel = "polynomial",
                                        is.dose = FALSE)
@@ -112,7 +112,7 @@ testthat::test_that("confirm ot kernel functions correct, LP", {
   
   
   #ATC
-  K <- causalOT::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
+  K <- causalOT:::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
                                        gamma = gamma, metric = "Lp", 
                                        kernel = "polynomial",
                                        is.dose = FALSE)
@@ -145,7 +145,7 @@ testthat::test_that("confirm ot kernel functions correct, mahalanobis", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::ot_kernel_calculation(estimand = "ATE", X = x, z = z, p = p, theta = theta, 
+  K <- causalOT:::ot_kernel_calculation(estimand = "ATE", X = x, z = z, p = p, theta = theta, 
                                        gamma = gamma, metric = "mahalanobis", 
                                        kernel = "polynomial",
                                        is.dose = FALSE)
@@ -167,7 +167,7 @@ testthat::test_that("confirm ot kernel functions correct, mahalanobis", {
   testthat::expect_equal(K, K_temp)
   
   #ATT
-  K <- causalOT::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
+  K <- causalOT:::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
                                        gamma = gamma, metric = "mahalanobis", 
                                        kernel = "polynomial",
                                        is.dose = FALSE)
@@ -190,7 +190,7 @@ testthat::test_that("confirm ot kernel functions correct, mahalanobis", {
   
   
   #ATC
-  K <- causalOT::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
+  K <- causalOT:::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
                                        gamma = gamma, metric = "mahalanobis", 
                                        kernel = "polynomial",
                                        is.dose = FALSE)
@@ -237,7 +237,7 @@ testthat::test_that("different values of parameters, Lp", {
     theta <- c(v,v)
     gamma <- c(v,v)
     
-    K <- causalOT::ot_kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, 
+    K <- causalOT:::ot_kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, 
                                          metric = "Lp", is.dose = TRUE,
                                          kernel = "polynomial")
     
@@ -272,7 +272,7 @@ testthat::test_that("different values of parameters, mahalanobis", {
     gamma <- c(v,v)
     
     
-    K <- causalOT::ot_kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, 
+    K <- causalOT:::ot_kernel_calculation(X = x, z = z, p = p, theta = theta, gamma = gamma, 
                                          metric = "mahalanobis", is.dose = TRUE,
                                          kernel = "polynomial")
     
@@ -302,7 +302,7 @@ testthat::test_that("different values of parameters not dose, LP", {
     gamma <- c(v,v)
     
     
-    K <- causalOT::ot_kernel_calculation(estimand = "ATE", X = x, z = z, p = p, theta = theta, 
+    K <- causalOT:::ot_kernel_calculation(estimand = "ATE", X = x, z = z, p = p, theta = theta, 
                                          gamma = gamma, metric = "Lp", is.dose = FALSE,
                                          kernel = "polynomial")
     
@@ -330,7 +330,7 @@ testthat::test_that("different values of parameters not dose, LP", {
     gamma <- c(v,v)
     
     
-    K <- causalOT::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
+    K <- causalOT:::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
                                          gamma = gamma, metric = "Lp", is.dose = FALSE,
                                          kernel = "polynomial")
     
@@ -357,7 +357,7 @@ testthat::test_that("different values of parameters not dose, LP", {
     p <- v
     theta <- c(v,v)
     gamma <- c(v,v)
-    K <- causalOT::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
+    K <- causalOT:::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
                                          gamma = gamma, metric = "Lp", is.dose = FALSE,
                                          kernel = "polynomial")
     
@@ -397,7 +397,7 @@ testthat::test_that("different values of parameters not dose, mahalanobis", {
     gamma <- c(v,v)
     
     
-    K <- causalOT::ot_kernel_calculation(estimand = "ATE", X = x, z = z, p = p, theta = theta, 
+    K <- causalOT:::ot_kernel_calculation(estimand = "ATE", X = x, z = z, p = p, theta = theta, 
                                          gamma = gamma, metric = "mahalanobis", is.dose = FALSE,
                                          kernel = "polynomial")
     
@@ -426,7 +426,7 @@ testthat::test_that("different values of parameters not dose, mahalanobis", {
     gamma <- c(v,v)
     
     
-    K <- causalOT::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
+    K <- causalOT:::ot_kernel_calculation(estimand = "ATT", X = x, z = z, p = p, theta = theta, 
                                          gamma = gamma, metric = "mahalanobis", is.dose = FALSE,
                                          kernel = "polynomial")
     
@@ -454,7 +454,7 @@ testthat::test_that("different values of parameters not dose, mahalanobis", {
     p <- v
     theta <- c(v,v)
     gamma <- c(v,v)
-    K <- causalOT::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
+    K <- causalOT:::ot_kernel_calculation(estimand = "ATC", X = x, z = z, p = p, theta = theta, 
                                          gamma = gamma, metric = "mahalanobis", is.dose = FALSE,
                                          kernel = "polynomial")
     

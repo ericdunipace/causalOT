@@ -49,7 +49,7 @@ ot.methods <- function() {
 #' variance-covariance matrix. Be  warned that neither "sdLp" or "mahalanobis"
 #' may make sense for binary covariates and care should be taken. 
 #' 
-#' The "Lp" method uses the simple \math{L_p} norm, while "RKHS" 
+#' The "Lp" method uses the simple \eqn{L_p} norm, while "RKHS" 
 #' calculates the kernel for a reproducible kernel Hilbert space (RKHS).
 #' 
 #' @export

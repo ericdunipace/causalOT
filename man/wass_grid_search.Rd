@@ -31,7 +31,7 @@ wass_grid_search(
 )
 }
 \arguments{
-\item{data}{Object of class `matrix`, `data.frame`, or `DataSim`.}
+\item{data}{Object of class \code{matrix}, \code{data.frame}, or \code{DataSim}.}
 
 \item{grid}{Either NULL or a vector of values to check.}
 
@@ -49,18 +49,18 @@ wass_grid_search(
 
 \item{method}{One of "Wasserstein","Constrained Wasserstein", "SCM".}
 
-\item{sample_weight}{NULL or object of class [sampleWeights][sampleWeights]}
+\item{sample_weight}{NULL or object of class \link{sampleWeights}}
 
 \item{wass.method}{OT algorithm for evaluating balance}
 
 \item{wass.iter}{Number of iterations to run algorithm}
 
-\item{epsilon}{Used to calculated the penalty factor for the `wass.method`.
-`lambda = epsilon*median(cost)`.}
+\item{epsilon}{Used to calculated the penalty factor for the \code{wass.method}.
+\code{lambda = epsilon*median(cost)}.}
 
 \item{lambda}{For the Sinkhorn wass.method, the lambda value directly,}
 
-\item{unbiased}{Should an de-biased Sinkhorn distance be used for `wass.method`?}
+\item{unbiased}{Should an de-biased Sinkhorn distance be used for \code{wass.method}?}
 
 \item{add.joint}{Add the joint cost matrix?}
 
@@ -68,7 +68,7 @@ wass_grid_search(
 
 \item{add.divergence}{add the divergence}
 
-\item{joint.mapping}{Should the algorithm do joint mapping, 
+\item{joint.mapping}{Should the algorithm do joint mapping,
 barycentric projection and OT.}
 
 \item{verbose}{Should the function print progress?}
@@ -77,10 +77,10 @@ barycentric projection and OT.}
 
 \item{cgd}{Use conditional gradient descent?}
 
-\item{...}{extra arguments passed to [prep_data][prep_data] or [extract_x][extract_x]}
+\item{...}{extra arguments passed to \link{prep_data} or \link{extract_x}}
 }
 \value{
-object of class [causalWeights][causalWeights]
+object of class \link{causalWeights}
 }
 \description{
 Wasserstein grid search

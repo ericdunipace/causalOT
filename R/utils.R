@@ -493,7 +493,7 @@ theme_cot <- function(base_size = 11, base_family = "",
 #'
 #' @return a 1d index for easy matrix entry
 #' 
-#' #' @keywords internal
+#' @keywords internal
 dist_2d_to_1d <- function (i, j, n, m) {
   valid <- (i >= 1) & (j >= 1) & (i <= n) & (j <= m)
   k <- (j - 1) * n + i

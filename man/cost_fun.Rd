@@ -7,39 +7,46 @@
 cost_fun(x, z, power = 2, metric = dist.metrics(), estimand = "ATE", ...)
 }
 \arguments{
-\item{x}{An object of class `matrix`}
+\item{x}{An object of class \code{matrix}}
 
 \item{z}{A treatment indicator with values in 0 and 1. Should be of class
-`integer` or `vector`}
+\code{integer} or \code{vector}}
 
-\item{power}{The power used to calculate the the cost matrix: \math{\{(x-y)^{power}\}^{(1/{power})}}}
+\item{power}{The power used to calculate the the cost matrix: \eqn{\{(x-y)^{power}\}^{(1/{power})}}}
 
-\item{metric}{One of the values in [dist.metrics][dist.metrics()].}
+\item{metric}{One of the values in \link[=dist.metrics]{dist.metrics}.}
 
 \item{estimand}{The estimand desired for the weighting estimator. See details}
 
 \item{...}{Arguments passed to the RKHS calculating function including
 \itemize{
-\item `kernel`, one of "RBF", "polynomial", "linear"
-\item `rkhs.args` The arguments used to construct the kernel
-\item 
+\item \code{kernel}, one of "RBF", "polynomial", "linear"
+\item \code{rkhs.args} The arguments used to construct the kernel
+\item
 }
-`...` can also be used to handle extra arguments passed by mistake so that
+\code{...} can also be used to handle extra arguments passed by mistake so that
 an error is not thrown.}
 }
 \value{
-
+Output depends on the estimand.
+\itemize{
+\item For ATT and ATC: a matrix of dimension \deqn{n_0 \times n_1}.
+\item For ATE: a list of two matrices of dimension \deqn{n_0 \times n} and \deqn{n_1 \times n}.
+See details for more information.
+}
 }
 \description{
 Calculate cost matrix for a given estimand
 }
 \details{
-If the estimand is "ATT" or "ATC", `cost_fun` will calculate 
+If the estimand is "ATT" or "ATC", \code{cost_fun} will calculate
 the cost matrix where the rows are the control
 and the columns are the treated. If "ATE" will calculate to cost matrices
 with the first having the rows corresponding to the control individual and the
 second having rows correspond to the treated individuals. For both matrices,
-the columns will correspond to the full sample.
+the columns will correspond to the full sample. The dimensions of the output will
+depend on the estimand. For reference, let \deqn{n_1 = \sum_i z_i},
+\deqn{n_0 = \sum_i (1-z_i)}, and $n = n_1 + n_0$.
 }
 \examples{
 n0 <- 100

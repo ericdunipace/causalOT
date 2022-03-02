@@ -16,13 +16,13 @@ calc_weight(
 )
 }
 \arguments{
-\item{data}{Either a matrix, a data.frame, or a DataSim class. Arguments "balance.covariates" and "treatment.indicator" must be provided in the `...` arguments if data is of class data.frame or matrix.}
+\item{data}{Either a matrix, a data.frame, or a DataSim class. Arguments "balance.covariates" and "treatment.indicator" must be provided in the \code{...} arguments if data is of class data.frame or matrix.}
 
 \item{constraint}{The constraints for the weights. See details.}
 
 \item{estimand}{The estimand of interest. One of "ATT","ATC", or "ATE".}
 
-\item{method}{The method to estimate the causal weights. Must be one of the methods returned by [supported.methods()][supported.methods()].}
+\item{method}{The method to estimate the causal weights. Must be one of the methods returned by \code{\link[=supported.methods]{supported.methods()}}.}
 
 \item{formula}{The formula for creating the design matrix used in various methods. See details.}
 
@@ -33,28 +33,31 @@ calc_weight(
 \item{...}{Many additional arguments are possible depending on the chosen method. See details for more information. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.}
 }
 \value{
-An object of class [causalWeights][causalWeights]
+An object of class \link{causalWeights}
 }
 \description{
 Estimate causal weights
 }
 \details{
 #Data
-The following classes are recognized by the `data` variable.
- 
-## DataSim class
+The following classes are recognized by the \code{data} variable.
+\subsection{DataSim class}{
+
 The DataSim class is provided by this package for simulations. You can pass a DataSim object (once data has been simulated) to this function
 and it will be recognized and handled appropriately.
+}
 
-## data.frame or matrix
-If the `data` argument is of class `data.frame` or `matrix`, then additional arguments are necessary to pass in the dots (`...`).
-These *must* include a vector argument `balance.covariates` and an integer or character in the `treatment.indicator` argument. The 
-`balance.covariates` argument should be either an integer vector giving the column numbers of the covariates to balance or a character vector
-giving the names of the columns to balance. Similarly, the `treatment.indicator` argument should be a integer giving the column number of the 
+\subsection{data.frame or matrix}{
+
+If the \code{data} argument is of class \code{data.frame} or \code{matrix}, then additional arguments are necessary to pass in the dots (\code{...}).
+These \emph{must} include a vector argument \code{balance.covariates} and an integer or character in the \code{treatment.indicator} argument. The
+\code{balance.covariates} argument should be either an integer vector giving the column numbers of the covariates to balance or a character vector
+giving the names of the columns to balance. Similarly, the \code{treatment.indicator} argument should be a integer giving the column number of the
 treatment labels or a character giving the column name.
 
 #Constraints
 The constraint argument is used by the balancing methods like "SBW" dnd "Wasserstein" with balancing functions.
+}
 }
 \examples{
 set.seed(23483)

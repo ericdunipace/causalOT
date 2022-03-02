@@ -342,7 +342,7 @@ testthat::test_that("works for Wass, sample weight", {
 
 testthat::test_that("works for Wass, variance", {
   testthat::skip_on_cran()
-  testthat::skip_on_
+  testthat::skip_on_ci()
   testthat::skip_if_not_installed(pkg = "Rmosek")
   set.seed(23483)
   n <- 2^7

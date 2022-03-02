@@ -24,7 +24,7 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATC", method = method,cost = cost)
   
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n1), n0*n1))@x,
@@ -36,8 +36,8 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp", {
   
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATE", method = method)
   
-  cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
-  cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
+  cost_n0 <- causalOT:::cost_mahalanobis(x[z==0,], x)
+  cost_n1 <- causalOT:::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
                               c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
@@ -76,7 +76,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
   
   bal.cov <- paste0("X", 1:p)
   
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   qp <- quadprog.data.frame(df, constraint = constraint, 
                             estimand = "ATC", method = method, 
                             cost = cost, balance.covariates = bal.cov,
@@ -101,8 +101,8 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
                          treatment.indicator = "z",
                          outcome = "y")
   
-  cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
-  cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
+  cost_n0 <- causalOT:::cost_mahalanobis(x[z==0,], x)
+  cost_n1 <- causalOT:::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
                               c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
@@ -143,7 +143,7 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp with sample_weig
   sample_weights <- list(w0 = renormalize(w0),
                          w1 = renormalize(w1))
   
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   qp <- quadprog.DataSim(data, constraint = constraint, 
                          estimand = "ATC", method = method, cost = cost,
                          sample_weight = sample_weights)
@@ -159,8 +159,8 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp with sample_weig
                          method = method,
                          sample_weight = sample_weights)
   
-  cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
-  cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
+  cost_n0 <- causalOT:::cost_mahalanobis(x[z==0,], x)
+  cost_n1 <- causalOT:::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
                               c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
@@ -205,7 +205,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp with sample w
   
   bal.cov <- paste0("X", 1:p)
   
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   qp <- quadprog.data.frame(df, constraint = constraint, 
                             estimand = "ATC", method = method, 
                             cost = cost, balance.covariates = bal.cov,
@@ -233,8 +233,8 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp with sample w
                             outcome = "y",
                             sample_weight = sample_weights)
   
-  cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
-  cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
+  cost_n0 <- causalOT:::cost_mahalanobis(x[z==0,], x)
+  cost_n1 <- causalOT:::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A %*% rep(1/(n0*n), n0*n))@x,
                               c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A %*% rep(1/(n*n1), n*n1))@x,
@@ -275,7 +275,7 @@ testthat::test_that("quadprog handles all square terms", {
   sample_weights <- list(w0 = renormalize(w0),
                          w1 = renormalize(w1))
   
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   # debugonce(quadprog.DataSim)
   
   mm <- model.matrix(as.formula("~ 0 + . + I(X1^2) + I(X2^2) + I(X3^2) + I(X4^2) + I(X5^2) + I(X6^2)"),
@@ -328,7 +328,7 @@ testthat::test_that("quadprog.DataSim does mapping", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATC", method = method,cost = cost,
                          joint.mapping = TRUE)
   
@@ -343,8 +343,8 @@ testthat::test_that("quadprog.DataSim does mapping", {
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATE", method = method
                          , joint.mapping = TRUE)
   
-  cost_n0 <- causalOT::cost_mahalanobis(x[z==0,], x)
-  cost_n1 <- causalOT::cost_mahalanobis(x[z==1,], x)
+  cost_n0 <- causalOT:::cost_mahalanobis(x[z==0,], x)
+  cost_n1 <- causalOT:::cost_mahalanobis(x[z==1,], x)
   testthat::expect_equivalent((qp[[1]]$LC$A[,1:(n0*n)] %*% rep(1/(n0*n), n0*n))@x,
                               c(1, rep(1/n,n)))
   testthat::expect_equivalent((qp[[2]]$LC$A[,1:(n*n1)] %*% rep(1/(n*n1), n*n1))@x,
@@ -379,7 +379,7 @@ testthat::test_that("quadprog.DataSim various penalties", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  cost <- causalOT::cost_calc_lp(x[z == 0,], x[z == 1,])
+  cost <- causalOT:::cost_calc_lp(x[z == 0,], x[z == 1,])
   qp <- quadprog.DataSim(data, constraint = constraint, estimand = "ATC", method = method,cost = cost,
                          penalty = "L2")
   

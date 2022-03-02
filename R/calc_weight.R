@@ -169,7 +169,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
 #' @param sample_weight The sample weights
 #' @param ... 
 #'
-#' @return
+#' @return a list object returned to main [calc_weight] function
 #'
 #' @keywords internal
 calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
@@ -316,7 +316,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
 #' @param estimand 
 #' @param ... 
 #'
-#' @return 
+#' @return a list returned to the main [calc_weight()] function.
 #'
 #' @keywords internal
 calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),

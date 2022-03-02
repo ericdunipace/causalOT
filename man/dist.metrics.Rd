@@ -14,13 +14,13 @@ Supported distance metrics
 }
 \details{
 The "sdLp" method uses a metric with distances normalized by the standard
-deviation of each of the covariates `((x[,j]-y[,j])/sd(c(x[,j],y[,j])))^p`, where `x` and `y` are the data matrices in each group and `j` is a column in each matrix.
+deviation of each of the covariates \code{((x[,j]-y[,j])/sd(c(x[,j],y[,j])))^p}, where \code{x} and \code{y} are the data matrices in each group and \code{j} is a column in each matrix.
 
-The "mahalanobis" metric is related except it normalizes by the full 
+The "mahalanobis" metric is related except it normalizes by the full
 variance-covariance matrix. Be  warned that neither "sdLp" or "mahalanobis"
-may make sense for binary covariates and care should be taken. 
+may make sense for binary covariates and care should be taken.
 
-The "Lp" method uses the simple \math{L_p} norm, while "RKHS" 
+The "Lp" method uses the simple \eqn{L_p} norm, while "RKHS"
 calculates the kernel for a reproducible kernel Hilbert space (RKHS).
 }
 \examples{

@@ -293,7 +293,7 @@ wass_grid_search <- function(data, grid = NULL,
   n0 <- nrow(x0)
   n1 <- nrow(x1)
   
-  wass.dat <- cbind(z = z, x)
+  # wass.dat <- cbind(z = z, x)
   
   # set-up cost matrix
   cost <- wg_cost_setup(cost = dots$cost, p = p,
@@ -492,8 +492,8 @@ cgd_grid_fun <- function(args) {
     x1_0 <- x0
     x1_1 <- x1
     x2 <- rbind(x0,x1)
-    z_0 <- c(rep(0, nrow(x0)), rep(1,nrow(x)))
-    z_1 <- c(rep(0, nrow(x1)), rep(1,nrow(x)))
+    z_0 <- c(rep(0, nrow(x0)), rep(1,nrow(x2)))
+    z_1 <- c(rep(0, nrow(x1)), rep(1,nrow(x2)))
   } else if (args[["estimand"]] == "ATT") {
     x1 <- x0
     x2 <- x1
@@ -557,8 +557,8 @@ cgd_grid_fun <- function(args) {
                         return(list(w0 = rep(NA_real_, n0),
                                     w1 = rep(NA_real_, n1),
                                     gamma = NULL,
-                                    estimand = estimand,
-                                    method = method, args = list(constraint = delta)))})
+                                    estimand = args[["estimand"]],
+                                    method = args[["method"]], args = list(constraint = delta)))})
       # out <- do.call("calc_weight_bal", args)
       if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
       class(out) <- "causalWeights"
@@ -574,8 +574,8 @@ cgd_grid_fun <- function(args) {
                         return(list(w0 = rep(NA_real_, n0),
                                     w1 = rep(NA_real_, n1),
                                     gamma = NULL,
-                                    estimand = estimand,
-                                    method = method, args = list(constraint = delta)))})
+                                    estimand = args[["estimand"]],
+                                    method = args[["method"]], args = list(constraint = delta)))})
       # out <- do.call("calc_weight_bal", args)
       if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
       class(out) <- "causalWeights"
@@ -616,8 +616,8 @@ cgd_grid_fun <- function(args) {
                         return(list(w0 = rep(NA_real_, n0),
                                     w1 = rep(NA_real_, n1),
                                     gamma = NULL,
-                                    estimand = estimand,
-                                    method = method, args = list(constraint = delta)))})
+                                    estimand = args[["estimand"]],
+                                    method = args[["method"]], args = list(constraint = delta)))})
       # out <- do.call("calc_weight_bal", args)
       if (args[["solver"]] == "gurobi") Sys.sleep(0.1)
       class(out) <- "causalWeights"
@@ -823,13 +823,13 @@ mean_bal_boot <- function(n, z) {
   return(bootIdx)
   
   
-  dataResamp <- data[bootIdx,]
-  weightResamp <- wvec[bootIdx]
-  z <- dataResamp[,tx_ind]
-  
-  wl <- list(w0 = renormalize(weightResamp[z == 0]), w1 = renormalize(weightResamp[z == 1]))
-  bals <- mean_bal(dataResamp, weights = wl, treatment.indicator = tx_ind)
-  return(mean(bals))
+  # dataResamp <- data[bootIdx,]
+  # weightResamp <- wvec[bootIdx]
+  # z <- dataResamp[,tx_ind]
+  # 
+  # wl <- list(w0 = renormalize(weightResamp[z == 0]), w1 = renormalize(weightResamp[z == 1]))
+  # bals <- mean_bal(dataResamp, weights = wl, treatment.indicator = tx_ind)
+  # return(mean(bals))
 }
 
 mean_bal_eval <- function(wvec, data, z_orig, tx_ind, ...) {
@@ -1606,7 +1606,9 @@ get_boot <- function(n.boot, n0, n1, sample_weight, wass.method, ...) {
 }
 
 # setup args for bootstrapped eval
-setup_boot_args <- function(boot.idx, weight.list, wass.dat, cost, p,
+setup_boot_args <- function(boot.idx, weight.list, 
+                            # wass.dat, 
+                            cost, p,
                       metric, wass.method, wass.iter,add.joint,
                       x0, x1, cost_a, cost_b, unbiased, verbose, ...){
   n0 <- nrow(x0)
@@ -1707,7 +1709,7 @@ wass_boot <- function(weights, n.boot, x0, x1, cost, p, metric,
     
     boot.args <- setup_boot_args(boot.idx = boot.idx, 
                                  weight.list = weights, 
-                                 wass.dat = wass.dat, 
+                                 # wass.dat = wass.dat, 
                                  cost = cost, p,
                                  metric = metric, 
                                  wass.method = wass.method, 

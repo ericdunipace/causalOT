@@ -15,7 +15,7 @@ testthat::test_that("optimal weighting works, no augmentation", {
   augment = FALSE
   
   #### get simulation functions ####
-  data <- causalOT::Sonabend2020$new(n = n, p = p, 
+  data <- causalOT:::Sonabend2020$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -52,7 +52,7 @@ testthat::test_that("optimal weighting works, augmentation", {
   augment = TRUE
   
   #### get simulation functions ####
-  data <- causalOT::Sonabend2020$new(n = n, p = p, 
+  data <- causalOT:::Sonabend2020$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -89,7 +89,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
   augment <- FALSE
   
   #### get simulation functions ####
-  data <- causalOT::Sonabend2020$new(n = n, p = p, 
+  data <- causalOT:::Sonabend2020$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   ns <- data$get_n()

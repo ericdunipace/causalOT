@@ -7,7 +7,7 @@ testthat::test_that("function works as would expect", {
   design <- "A"
   overlap <- "high"
   
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -22,7 +22,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "A"
   overlap <- "low"
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -35,7 +35,7 @@ testthat::test_that("function works as would expect", {
 
   design <- "B"
   overlap <- "high"
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -51,7 +51,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "B"
   overlap <- "low"
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -81,7 +81,7 @@ testthat::test_that("optimal weighting works, no augmentation", {
   augment = FALSE
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new()
+  data <- causalOT:::KangSchafer$new()
   data$gen_data()
   
   # debugonce( data$opt_weight)
@@ -120,7 +120,7 @@ testthat::test_that("optimal weighting works, augmentation", {
   augment = TRUE
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new(design = design)
+  data <- causalOT:::KangSchafer$new(design = design)
   data$gen_data()
   
   # debugonce( data$opt_weight)
@@ -155,7 +155,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
   power <- 2
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new(design = design)
+  data <- causalOT:::KangSchafer$new(design = design)
   data$gen_data()
   ns <- data$get_n()
   n0 <- ns["n0"]
@@ -191,7 +191,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
   power <- 2
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new(design = design)
+  data <- causalOT:::KangSchafer$new(design = design)
   data$gen_data()
   ns <- data$get_n()
   n0 <- ns["n0"]

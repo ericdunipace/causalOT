@@ -22,7 +22,7 @@ calc_weight_glm(
 \item{...}{}
 }
 \value{
-
+a list returned to the main \code{\link[=calc_weight]{calc_weight()}} function.
 }
 \description{
 Calculate IPW using Logistic regression

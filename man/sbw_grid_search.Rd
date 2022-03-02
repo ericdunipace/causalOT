@@ -14,7 +14,7 @@ sbw_grid_search(
 )
 }
 \arguments{
-\item{data}{Object of class `matrix`, `data.frame`, or `DataSim`.}
+\item{data}{Object of class \code{matrix}, \code{data.frame}, or \code{DataSim}.}
 
 \item{grid}{Either NULL or a vector of values to check.}
 
@@ -24,10 +24,10 @@ sbw_grid_search(
 
 \item{grid.length}{Number of grid values.}
 
-\item{...}{extra arguments passed to [extract_x][extract_x]}
+\item{...}{extra arguments passed to \link{extract_x}}
 }
 \value{
-an object of class [causalWeights][causalWeights]
+an object of class \link{causalWeights}
 }
 \description{
 Grid search for SBW

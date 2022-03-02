@@ -28,3 +28,7 @@ Table
 archive
 tables
 R/deprecated
+inst/doc
+/doc/
+/Meta/
+**/.DS_Store

@@ -20,7 +20,7 @@ Imports:
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
     RSpectra,
-    stats
+    sandwich
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
@@ -30,10 +30,14 @@ Suggests:
     data.table (>= 1.12.8),
     rstan (>= 2.19.3),
     Rmosek,
-    testthat (>= 2.1.0)
+    testthat (>= 2.1.0),
+    knitr,
+    rmarkdown
 Biarch: true
 Depends: 
     R (>= 3.4.0)
 Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 LazyData: true
+VignetteBuilder: knitr

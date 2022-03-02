@@ -4,7 +4,7 @@
 \alias{LaLonde}
 \title{LaLonde data example}
 \value{
-An [R6][R6::R6Class] object of class [DataSim][DataSim]
+An \link[R6:R6Class]{R6} object of class \link{DataSim}
 }
 \description{
 LaLonde data example
@@ -13,7 +13,7 @@ LaLonde data example
 }
 \details{
 Returns the LaLonde data as used by Dehjia and Wahba. Note the data
-is fixed and `gen_data()` will just initialize the fixed data.
+is fixed and \code{gen_data()} will just initialize the fixed data.
 }
 \examples{
 
@@ -26,7 +26,7 @@ nsw$gen_data()
 nsw$get_n()
 
 obs.study <-  LaLonde$new(design = "Full")
-obs.study$data_gen()
+obs.study$gen_data()
 obs.study$get_n()
 }
 \section{Super class}{
@@ -122,24 +122,24 @@ Initializes the LaLonde object.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{n}}{Not used. 
-Maintained for symmetry with other 
+\item{\code{n}}{Not used.
+Maintained for symmetry with other
 DataSim objects.}
 
 \item{\code{p}}{Not used.
-Maintained for symmetry with other 
+Maintained for symmetry with other
 DataSim objects.}
 
 \item{\code{param}}{Not used.
-Maintained for symmetry with other 
+Maintained for symmetry with other
 DataSim objects.}
 
-\item{\code{design}}{One of "NSW" or "Full". 
+\item{\code{design}}{One of "NSW" or "Full".
 "NSW" uses the original experimental data
 from the job training program while option "Full"
 uses the treated individuals from
-LaLonde's study and compares them to 
-individuals from the 
+LaLonde's study and compares them to
+individuals from the
 Current Population Survey as controls.}
 
 \item{\code{...}}{Not used.}
@@ -153,7 +153,7 @@ nsw$gen_data()
 nsw$get_n()
 
 obs.study <-  LaLonde$new(design = "Full")
-obs.study$data_gen()
+obs.study$gen_data()
 obs.study$get_n()
 }
 \if{html}{\out{</div>}}

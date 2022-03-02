@@ -7,10 +7,10 @@
 supported.methods()
 }
 \value{
-A character vector with values "Logistic", "Probit", "SBW", "SCM", 
-"CBPS",  "NNM", 
+A character vector with values "Logistic", "Probit", "SBW", "SCM",
+"CBPS",  "NNM",
 "Wasserstein" or equivalently "COT",
- and "None".
+and "None".
 }
 \description{
 Supported weighting methods

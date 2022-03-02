@@ -1,3 +1,275 @@
+#' Function to create balance functions
+#'
+#' @param balance a list with slots "formula", "balance.functions",
+#' "balance.mean", or "balance.sd". One of the following combinations must be provided:
+#' \itemize{
+#' \item "formula" and "x"
+#' \item "balance.functions"
+#' }
+#' @param x The data matrix for the source population.
+#' @param target Either: 1) a list with slots target.mean and target.sd
+#' or a data matrix of the target population. If a data matrix is provided
+#' then the parameter `balance` should include a formula.
+#'
+#' @return a list with slots "balance.functions", "balance.delta",
+#' "target.mean", "target.sd".
+#' @keywords internal
+balance.options <- function(balance, x, target) {
+  
+  #check if balance variable provided
+  if (is.null(balance)) {
+    return(list(NULL))
+  }
+  
+  # if formula provided, will use that, otherwise uses all variables
+  # in simple linear combination, ie X_1, X_2, ..., X_d
+  if (is.null(balance$formula)) {
+    balance$formula <- as.formula(~. + 0)
+  } else {
+    balance$formula <- as.formula(balance$formula)
+    environment(balance$formula) <- environment()
+  }
+  
+  # if the balance functions not provided (functions of covariates to balance)
+  # will use formula to calculate from `x`. Otherwise, uses provided functions
+  if (is.null(balance$balance.functions) ) {
+    balance$balance.functions <- model.matrix(balance$formula, data.frame(x))
+  }
+  
+  # get the desired means to target. also get the scale of the target data as
+  # a measure of error. 
+  if (is.null(balance$target.sd) | is.null(balance$target.mean)) target_m <- model.matrix(balance$formula, data.frame(target))
+  if (is.null(balance$target.mean))  balance$target.mean <- matrix(colMeans(target_m),nrow = 1)
+  if (is.null(balance$target.sd)) balance$target.sd <- matrixStats::colSds(target_m)
+  
+  # set up final list with desired quantities
+  balance$balance.functions <- as.matrix(balance$balance.functions)
+  balance$balance.delta <- as.double(balance$balance.constraints)
+  balance$target.mean <- as.matrix(balance$target.mean)
+  balance$target.sd <- as.double(balance$target.sd)
+  if(length(balance$balance.delta) == 0) balance <- list(NULL)
+  return(balance)
+  
+}
+
+#' options for the Wasserstein optimization problem
+#'
+#' @param wasserstein parts of the output list can be provided a priori
+#' @param x The source data matrix. Must be provided if wasserstein$cost is null.
+#' @param target The target data matrix. 
+#' Must be provided if wasserstein$cost is null.
+#' @param sw The sample weights of each group. not necessary if provided in
+#' `wasserstein` parameter.
+#'
+#' @return a list with slots "power", "cost","lambda","b". These are, respectively,
+#' the power of the Wasserstein distance, the cost matrix, the penalty
+#' parameter for regularization and the sample weights of the target population.
+#' 
+#' @keywords internal
+wasserstein.options <- function(wasserstein, x, target, sw) {
+  
+  # the output list. can be provided as fully complete
+  if (missing(wasserstein) || is.null(wasserstein)) {
+    # wasserstein        <- list(metric = "mahalanobis")
+    # wasserstein$power  <- 2
+    # z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
+    # wasserstein$cost   <- cost_fun(rbind(x, target), z = z, 
+    #                                estimand = "ATT", power = 2, 
+    #                                metric = wasserstein$metric)
+    # wasserstein$lambda  <- 1.0
+    # wasserstein$b <- sw$b
+    wasserstein <- list()
+  }
+  
+  # if the metric isn't provided, make it "mahalanobis", 
+  # otherwise match argument
+  if (is.null(wasserstein$metric)) {
+    wasserstein$metric <- "mahalanobis"
+  } else {
+    wasserstein$metric <- match.arg(wasserstein$metric, 
+                                    c("mahalanobis", "sdLp", "Lp"))
+  }
+  
+  # set wasserstein power to default if null
+  if (is.null(wasserstein$power)) wasserstein$power <- 2
+  
+  # calculate the cost if not provided
+  if (is.null(wasserstein$cost)) {
+    z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
+    wasserstein$cost <- cost_fun(rbind(x, target),
+                                 z = z,
+                                 estimand = "ATT", 
+                                 power = wasserstein$power, 
+                                 metric = wasserstein$metric)
+  }
+  
+  # sets multiplication factor of regularization
+  if (is.null(wasserstein$lambda)) wasserstein$lambda <- 1.0
+  
+  # sets sample weights for target
+  if (is.null(wasserstein$b)) {
+    if (missing(sw) || is.null(sw)) {
+      sw <- list(b = rep(1, nrow(target))/nrow(target))
+    }
+    wasserstein$b <- sw$b
+  }
+  
+  # confirm data types of output list
+  wasserstein$metric <- as.character(wasserstein$metric)
+  wasserstein$power  <- as.double(wasserstein$power)
+  wasserstein$cost   <- as.matrix(wasserstein$cost)^wasserstein$power
+  wasserstein$lambda  <- as.double(wasserstein$lambda)
+  wasserstein$b      <- as.double(wasserstein$b)
+  
+  stopifnot(wasserstein$power >= 1)
+  stopifnot(wasserstein$lambda >= 0)
+  
+  return(wasserstein)
+}
+
+#' Marginal constraints for wasserstein
+#'
+#' @param marg.wass a list with at minimum slots "marginal.constraints". Can
+#' also include "marginal.costs".
+#' @param wass output from the 
+#' [wasserstein.options][wasserstein.options()] function
+#' @param x The source data matrix. Optional if include "marginal.costs" in 
+#' `marg.wass`.
+#' @param target The target data matrix. Optional if include "marginal.costs" in 
+#' `marg.wass`.
+#'
+#' @return a list with slots "marginal.costs", "marginal.delta"
+#' @keywords internal
+marginal.wass.options <- function(marg.wass, wass, x, target) {
+  
+  # if missing marg.wass, then return NULL
+  # function will assume that we don't want marginal constraints
+  if (missing(marg.wass) || is.null(marg.wass)) {
+    return(list(NULL))
+    marg.wass        <- list()
+  }
+  
+  # if the marginal constraints aren't provided, 
+  # will assume that we don't want marginal constraints
+  if (is.null(marg.wass$marginal.constraints)) return(list(NULL))
+  
+  # calculate the marginal costs for each covariate
+  if (is.null(marg.wass$marginal.costs)) {
+    z <- c(rep(0, nrow(x)), rep(1, nrow(target)))
+    
+    marg.wass$marginal.costs <- lapply(1:ncol(x), function(i) 
+      cost_fun(rbind(x[,i,drop = FALSE], 
+                     target[,i,drop = FALSE]),
+               z = z,
+               estimand = "ATT", power = wass$power, 
+               metric = wass$metric))
+  }
+  
+  # raise costs to the power in the wasserstein list
+  marg.wass$marginal.costs  <- lapply(marg.wass$marginal.costs, function(cc) cc^wass$power)
+  
+  # set up the marginal constraints vector
+  marg.wass$marginal.delta  <- as.double(marg.wass$marginal.constraints^wass$power)
+  if (length(marg.wass$marginal.delta) != length(marg.wass$marginal.costs)) {
+    marg.wass$marginal.delta <- rep(marg.wass$marginal.delta, 
+                                    length(marg.wass$marginal.costs))
+  }
+  
+  # make sure deltas make sense
+  stopifnot(all(marg.wass$marginal.delta >= 0))
+  
+  return(marg.wass)
+}
+
+
+#' Optimization controls
+#'
+#' @param control provided arguments
+#' @param method The optimization method
+#'
+#' @return A list with slots depending on the optimization method
+#' @keywords internal
+control.options <- function(control, method) {
+  
+  #sets default controls for "oem" method
+  if (method == "oem") {
+    if (is.null(control) | !is.list(control)) {
+      control <- list(scale.factor = numeric(0),
+                      maxit = 500L,
+                      tol = 1e-7,
+                      irls.maxit = 100L,
+                      irls.tol = 0.001,
+                      groups = numeric(0),
+                      group.weights = NULL
+      )
+    }
+    if (is.null(control$scale.factor))  control$scale.factor <- numeric(0)
+    if (is.null(control$maxit))         control$maxit <- 500L
+    if (is.null(control$tol))           control$tol <- 1e-7
+    if (is.null(control$irls.maxit))    control$irls.maxit <- 100L
+    if (is.null(control$irls.tol))      control$irls.tol <- 0.001
+    if (is.null(control$groups))        control$groups <- numeric(0)
+    if (is.null(control$group.weights)) control$group.weights <- NULL
+    
+    control$scale.factor <- as.numeric(control$scale.factor)
+    control$maxit <- as.integer(control$maxit)
+    control$tol   <- as.double(control$tol)
+    control$irls.maxit <- as.integer(control$irls.maxit)
+    control$irls.tol   <- as.double(control$irls.tol)
+    control$groups   <- as.numeric(control$groups)
+    if (!is.null(control$group.weights)) control$group.weights   <- as.numeric(control$group.weights)
+    
+    control.names <- c("scale.factor","maxit",
+                       "tol", "irls.maxit",
+                       "irls.tol", "groups",
+                       "group.weights")
+    
+  } else if (method == "lbfgs") { #args for lbfgs
+    
+    if (is.null(control) | !is.list(control)) {
+      control <- list(trace = 0L,
+                      factr = 1e7,
+                      pgtol = 0,
+                      abstol = 0,
+                      reltol = 0,
+                      lmm = 5,
+                      maxit = 1000L,
+                      info = FALSE
+      )
+    }
+    if (is.null(control$trace))         control$trace <- 0
+    if (is.null(control$factr))         control$factr <- 1e7
+    if (is.null(control$pgtol))         control$pgtol <- 0
+    if (is.null(control$abstol))        control$abstol <- 0
+    if (is.null(control$reltol))        control$reltol <- 0
+    if (is.null(control$lmm))           control$lmm <- 5
+    if (is.null(control$maxit))         control$maxit <- 500L
+    if (is.null(control$info))          control$info <- FALSE
+    
+    control$trace <- as.numeric(control$trace)
+    control$factr <- as.numeric(control$factr)
+    control$pgtol <- as.numeric(control$abstol)
+    control$abstol <- as.numeric(control$abstol)
+    control$reltol <- as.numeric(control$reltol)
+    control$lmm   <-   as.integer(control$lmm)
+    control$maxit <- as.integer(control$maxit)
+    control$info   <- isTRUE(control$info)
+    
+    
+    control.names <- c("trace","factr",
+                       "pgtol", "abstol",
+                       "reltol", "lmm",
+                       "maxit", "info")
+    
+  } else {
+    stop("Method ", method, " not found")
+  }
+  
+  return(control[names(control) %in% control.names])
+}
+
+
+
 #cpp functions for speed
 
 {

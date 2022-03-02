@@ -13,7 +13,7 @@ testthat::test_that("qp_wass_const correct", {
   power <- 4
   
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p, 
+  data <- causalOT:::Hainmueller$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -22,7 +22,7 @@ testthat::test_that("qp_wass_const correct", {
   ns <- data$get_n()
   n0 <- ns["n0"]
   n1 <- ns["n1"]
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   
   
   qp <- qp_wass_const(x,z,K = constraint, p = power, 
@@ -47,7 +47,7 @@ testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   power <- 4:5
   
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p, 
+  data <- causalOT:::Hainmueller$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -56,7 +56,7 @@ testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   ns <- data$get_n()
   n0 <- ns["n0"]
   n1 <- ns["n1"]
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   
   testthat::expect_error(qp <- qp_wass_const(x,z,K = constraint, p = power,cost = cost))
   
@@ -77,7 +77,7 @@ testthat::test_that("qp_wass_const correct", {
   power <- 4
   
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p, 
+  data <- causalOT:::Hainmueller$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -92,7 +92,7 @@ testthat::test_that("qp_wass_const correct", {
   w1[seq(1,n1,2)] <- 0
   sample_weights <- list(w0 = renormalize(w0),
                          w1 = renormalize(w1))
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   
   qp <- qp_wass_const(x,z,K = constraint, p = power,  cost = cost,
                       sample_weight = sample_weights)
@@ -117,7 +117,7 @@ testthat::test_that("qp_wass_const correct, margins", {
   power <- 4
   
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p, 
+  data <- causalOT:::Hainmueller$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -126,8 +126,8 @@ testthat::test_that("qp_wass_const correct, margins", {
   ns <- data$get_n()
   n0 <- ns["n0"]
   n1 <- ns["n1"]
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
-  marg.cost <- lapply(1:p, function(i) causalOT::cost_calc_lp(x[z==0,i,drop = FALSE], x[z==1,i,drop = FALSE]))
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
+  marg.cost <- lapply(1:p, function(i) causalOT:::cost_calc_lp(x[z==0,i,drop = FALSE], x[z==1,i,drop = FALSE]))
   cost.list <- c(marg.cost, list(cost))
   
   add.margins <- TRUE
@@ -157,7 +157,7 @@ testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   power <- 1:2
   
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p, 
+  data <- causalOT:::Hainmueller$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -166,7 +166,7 @@ testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   ns <- data$get_n()
   n0 <- ns["n0"]
   n1 <- ns["n1"]
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
   
   testthat::expect_error(qp <- qp_wass_const(x,z,K = constraint, p = power, cost = cost,
                                              add.margins = TRUE, add.joint = TRUE))
@@ -188,7 +188,7 @@ testthat::test_that("qp_wass_const correct, margins with sw", {
   power <- 4
   
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p, 
+  data <- causalOT:::Hainmueller$new(n = n, p = p, 
                                     design = design, overlap = overlap)
   data$gen_data()
   
@@ -197,8 +197,8 @@ testthat::test_that("qp_wass_const correct, margins with sw", {
   ns <- data$get_n()
   n0 <- ns["n0"]
   n1 <- ns["n1"]
-  cost <- causalOT::cost_calc_lp(x[z==0,], x[z==1,])
-  marg.cost <- lapply(1:p, function(i) causalOT::cost_calc_lp(x[z==0,i,drop = FALSE], x[z==1,i,drop = FALSE]))
+  cost <- causalOT:::cost_calc_lp(x[z==0,], x[z==1,])
+  marg.cost <- lapply(1:p, function(i) causalOT:::cost_calc_lp(x[z==0,i,drop = FALSE], x[z==1,i,drop = FALSE]))
   cost.list <- c(marg.cost, list(cost))
   
   add.margins <- TRUE

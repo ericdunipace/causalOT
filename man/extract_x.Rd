@@ -7,7 +7,7 @@
 extract_x(data, ...)
 }
 \arguments{
-\item{data}{An object of class `matrix`, `data.frame`, or class `DataSim`.}
+\item{data}{An object of class \code{matrix}, \code{data.frame}, or class \code{DataSim}.}
 
 \item{...}{extra arguments such as "balance.functions" and
 "treatment.indicator"}

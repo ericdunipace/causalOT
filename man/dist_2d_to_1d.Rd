@@ -17,9 +17,8 @@ dist_2d_to_1d(i, j, n, m)
 }
 \value{
 a 1d index for easy matrix entry
-
-#' @keywords internal
 }
 \description{
 Covert the 2-dimensional index to 1-dimensional index
 }
+\keyword{internal}

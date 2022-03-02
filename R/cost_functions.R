@@ -4,9 +4,9 @@
   metric <- match.arg(metric)
   
   dist <- switch(metric, 
-         "Lp" = causalOT:::cost_calc_lp(x,y,ground_p = power, direction = direction),
-         "mahalanobis" = causalOT:::cost_mahalanobis(x,y, ground_p = power, direction = direction),
-         "RKHS" = causalOT:::cost_RKHS(X = x, Y = y, rkhs.args = rkhs.args, estimand = estimand, ...))
+         "Lp" = cost_calc_lp(x,y,ground_p = power, direction = direction),
+         "mahalanobis" = cost_mahalanobis(x,y, ground_p = power, direction = direction),
+         "RKHS" = cost_RKHS(X = x, Y = y, rkhs.args = rkhs.args, estimand = estimand, ...))
   
   return(dist)
   
@@ -17,7 +17,7 @@
 #' @param x An object of class `matrix`
 #' @param z A treatment indicator with values in 0 and 1. Should be of class
 #' `integer` or `vector`
-#' @param power The power used to calculate the the cost matrix: \math{\{(x-y)^{power}\}^{(1/{power})}}
+#' @param power The power used to calculate the the cost matrix: \eqn{\{(x-y)^{power}\}^{(1/{power})}}
 #' @param metric One of the values in [dist.metrics][dist.metrics()].
 #' @param estimand The estimand desired for the weighting estimator. See details
 #' @param ... Arguments passed to the RKHS calculating function including
@@ -35,10 +35,16 @@
 #' and the columns are the treated. If "ATE" will calculate to cost matrices
 #' with the first having the rows corresponding to the control individual and the
 #' second having rows correspond to the treated individuals. For both matrices,
-#' the columns will correspond to the full sample.
+#' the columns will correspond to the full sample. The dimensions of the output will
+#'  depend on the estimand. For reference, let \deqn{n_1 = \sum_i z_i}, 
+#'  \deqn{n_0 = \sum_i (1-z_i)}, and $n = n_1 + n_0$.
 #' 
 #'
-#' @return
+#' @return Output depends on the estimand.
+#' * For ATT and ATC: a matrix of dimension \deqn{n_0 \times n_1}.
+#' * For ATE: a list of two matrices of dimension \deqn{n_0 \times n} and \deqn{n_1 \times n}.
+#' See details for more information.
+#' 
 #' @export
 #'
 #' @examples
@@ -69,10 +75,10 @@ cost_fun <- function(x, z, power = 2, metric = dist.metrics(),
   metric <- match.arg(metric)
   
   dist <- switch(metric, 
-                 "Lp" = causalOT:::cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
-                 "mahalanobis" = causalOT:::cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "sdLp" = causalOT:::cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "RKHS" = causalOT:::cost_RKHS(X = x, z = z, estimand = estimand, ...))
+                 "Lp" = cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
+                 "mahalanobis" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
+                 "sdLp" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
+                 "RKHS" = cost_RKHS(X = x, z = z, estimand = estimand, ...))
   
   return(dist)
   
@@ -125,7 +131,7 @@ cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise")
   }
   stopifnot(ground_p > 0)
   
-  return(causalOT:::cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
+  return(cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
 }
 
 cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"), estimand = "ATE") {
@@ -167,7 +173,7 @@ cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise
     Y <- Y[nonzero.idx, , drop = FALSE]
   }
   
-  return(causalOT:::cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
+  return(cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
 }
 
 cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"),

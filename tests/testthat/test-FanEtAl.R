@@ -6,7 +6,7 @@ testthat::test_that("function works as would expect", {
   p <- 100
   design <- "A"
 
-  data <- causalOT::FanEtAl$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::FanEtAl$new(n = n, p = 100, numActive = p1,
                                     design = design)
   data$gen_data()
   testthat::expect_equal(class(data$get_x()), c("matrix","array"))
@@ -20,7 +20,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "A"
   p1 <- 50
-  data <- causalOT::FanEtAl$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::FanEtAl$new(n = n, p = 100, numActive = p1,
                                     design = design)
   data$gen_data()
   testthat::expect_equal(class(data$get_x()), c("matrix","array"))
@@ -32,7 +32,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "B"
   p1 <- 4
-  data <- causalOT::FanEtAl$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::FanEtAl$new(n = n, p = 100, numActive = p1,
                                     design = design)
   data$gen_data()
   testthat::expect_equal(class(data$get_x()), c("matrix","array"))
@@ -56,7 +56,7 @@ testthat::test_that("optimal weighting works, no augmentation", {
   augment = FALSE
   
   #### get simulation functions ####
-  testthat::expect_warning(data <- causalOT::FanEtAl$new())
+  testthat::expect_warning(data <- causalOT:::FanEtAl$new())
   data$gen_data()
   
   # debugonce( data$opt_weight)
@@ -95,7 +95,7 @@ testthat::test_that("optimal weighting works, augmentation", {
   augment = TRUE
   
   #### get simulation functions ####
-  data <- causalOT::FanEtAl$new(design = design, p = 100, n = 500,
+  data <- causalOT:::FanEtAl$new(design = design, p = 100, n = 500,
                                 numActive = 4)
   data$gen_data()
   
@@ -131,7 +131,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
   power = 2
   
   #### get simulation functions ####
-  data <- causalOT::FanEtAl$new(design = design, n = 500, p = 100,
+  data <- causalOT:::FanEtAl$new(design = design, n = 500, p = 100,
                                 numActive = 4)
   data$gen_data()
   ns <- data$get_n()
@@ -168,7 +168,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
   power <- 2
   
   #### get simulation functions ####
-  data <- causalOT::FanEtAl$new(design = design, n = 500, p = 100,
+  data <- causalOT:::FanEtAl$new(design = design, n = 500, p = 100,
                                 numActive = 4)
   data$gen_data()
   ns <- data$get_n()

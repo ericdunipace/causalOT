@@ -9,7 +9,7 @@ testthat::test_that("confirm kernel functions correct, LP", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, kernel = "polynomial",
+  K <- causalOT:::kernel_calculation(X = x, z = z, p = p, theta = theta, kernel = "polynomial",
                                     gamma = gamma, metric = "Lp", is.dose = TRUE)
   
   mu_x <- colMeans(x)
@@ -38,7 +38,7 @@ testthat::test_that("confirm kernel functions correct, mahalanobis", {
   x <- matrix(rnorm(n*d),n,d)
   z <- rbinom(n, 1, 0.5)
   
-  K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, 
+  K <- causalOT:::kernel_calculation(X = x, z = z, p = p, theta = theta, 
                                     kernel = "polynomial", gamma = gamma, metric = "mahalanobis", is.dose = TRUE)
   
   mu_x <- colMeans(x)
@@ -80,7 +80,7 @@ testthat::test_that("different values of parameters, Lp", {
     theta <- c(v,v)
     gamma <- c(v,v)
     
-    K <- causalOT::kernel_calculation(X = x, z = z, p = p, kernel = "polynomial", theta = theta, gamma = gamma, metric = "Lp", is.dose = TRUE)
+    K <- causalOT:::kernel_calculation(X = x, z = z, p = p, kernel = "polynomial", theta = theta, gamma = gamma, metric = "Lp", is.dose = TRUE)
     
     K_temp <- gamma[1] * (1 + theta[1] * x_mat)^p * gamma[2] * (1 + theta[2] * z_mat)^p
     
@@ -113,7 +113,7 @@ testthat::test_that("different values of parameters, mahalanobis", {
     gamma <- c(v,v)
   
   
-    K <- causalOT::kernel_calculation(X = x, z = z, p = p, theta = theta, kernel = "polynomial",
+    K <- causalOT:::kernel_calculation(X = x, z = z, p = p, theta = theta, kernel = "polynomial",
                                       gamma = gamma, metric = "mahalanobis", is.dose = TRUE)
 
     K_temp <- gamma[1] * (1 + theta[1] * x_mat)^p * gamma[2] * (1 + theta[2] * z_mat)^p

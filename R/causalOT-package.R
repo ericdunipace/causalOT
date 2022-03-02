@@ -7,11 +7,14 @@
 #' @useDynLib causalOT, .registration = TRUE
 #' @importFrom Rcpp sourceCpp 
 #' @importFrom Rcpp evalCpp
+#' @importFrom methods as slotNames
+#' @importFrom stats .checkMFClasses .getXlevels as.formula binomial coef contrasts cov delete.response drop.terms formula glm lm median model.frame model.matrix model.response na.pass optim pgamma qchisq qnorm quantile rmultinom runif sd setNames terms var weighted.mean
+#' @importFrom utils capture.output data methods setTxtProgressBar txtProgressBar
 #' @rdname causalOT-package
 "_PACKAGE"
 
 #' An external control trial of treatments for post-partum hemorrhage
-#'
+#' 
 #' A dataset evaluating treatments for post-partum hemorrhage. The data contain a treatment group receiving misoprostol vs potential
 #' controls from other locations that received only oxytocin. This data takes the misoprostol group from Egypt and compares them to the oxytocin groups from Burkina Faso, Thailand, and two sites in Vietnam. The data is 
 #' stored as a numeric matrix.

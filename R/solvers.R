@@ -1,51 +1,51 @@
 # solver interface for the CPLEX optimizer
-cplex_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
-  dots <- list(...)
-  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
-  get.dual <- isTRUE(get.dual)
-  
-  qp <- convert_cones(qp)
-  qp <- bc_to_dir_const(qp)
-  num_param <- length(c(as.numeric(qp$obj$L)))
-  
-  if (is.null(dots$control)) {
-    control <- list(trace = 0L, round = 1L)
-  }
-  
-  if (!is.null(qp$obj$Q)) {
-    if (inherits(qp$obj$Q, "ddiMatrix")) qp$obj$Q <- as(as(qp$obj$Q, "dsparseMatrix"), "dtCMatrix")
-    if (!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "symmetricMatrix")
-    qp$obj$Q <- qp$obj$Q * 2
-  }
-  lb <- qp$bounds$lb
-  ub <- qp$bounds$ub
-  # lb <- switch(neg.wt,
-  #              0,
-  #              -Inf)
-  fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
-  invisible(capture.output( res <-
-                              Rcplex::Rcplex(cvec = c(as.numeric(qp$obj$L)), Amat = qp$LC$A, 
-                                             bvec = qp$LC$vals, Qmat = qp$obj$Q,
-                                             lb = lb, ub = ub, control = control,
-                                             objsense = "min", sense = qp$LC$dir,
-                                             vtype = "C", n = 1) , type = "message", file = fn.capt))
-  invisible(capture.output(Rcplex::Rcplex.close(), type = "message", append = TRUE, file = fn.capt))
-  
-  if (res$status != 1) warning("Algorithm did not converge!!!")
-  
-  sol <- res$xopt[1:num_param]
-  sol <- switch(neg.wt,
-                sol * as.numeric(sol > 0),
-                sol)
- if (get.dual) {
-    dual_vars <- res$extra$lambda
-    names(dual_vars) <- names(qp$LC$vals)
-  } else {
-    dual_vars <- NULL
-  }
-  return(list(sol = sol, dual = dual_vars))
-  return(sol[1:qp$nvar])
-}
+# cplex_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
+#   dots <- list(...)
+#   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+#   get.dual <- isTRUE(get.dual)
+#   
+#   qp <- convert_cones(qp)
+#   qp <- bc_to_dir_const(qp)
+#   num_param <- length(c(as.numeric(qp$obj$L)))
+#   
+#   if (is.null(dots$control)) {
+#     control <- list(trace = 0L, round = 1L)
+#   }
+#   
+#   if (!is.null(qp$obj$Q)) {
+#     if (inherits(qp$obj$Q, "ddiMatrix")) qp$obj$Q <- as(as(qp$obj$Q, "dsparseMatrix"), "dtCMatrix")
+#     if (!(inherits(qp$obj$Q, "dsCMatrix") | inherits(qp$obj$Q, "dtCMatrix"))) qp$obj$Q <- as(qp$obj$Q, "symmetricMatrix")
+#     qp$obj$Q <- qp$obj$Q * 2
+#   }
+#   lb <- qp$bounds$lb
+#   ub <- qp$bounds$ub
+#   # lb <- switch(neg.wt,
+#   #              0,
+#   #              -Inf)
+#   fn.capt <- tempfile(pattern = "cplex_capture", fileext = ".txt")
+#   invisible(capture.output( res <-
+#                               Rcplex::Rcplex(cvec = c(as.numeric(qp$obj$L)), Amat = qp$LC$A, 
+#                                              bvec = qp$LC$vals, Qmat = qp$obj$Q,
+#                                              lb = lb, ub = ub, control = control,
+#                                              objsense = "min", sense = qp$LC$dir,
+#                                              vtype = "C", n = 1) , type = "message", file = fn.capt))
+#   invisible(capture.output(Rcplex::Rcplex.close(), type = "message", append = TRUE, file = fn.capt))
+#   
+#   if (res$status != 1) warning("Algorithm did not converge!!!")
+#   
+#   sol <- res$xopt[1:num_param]
+#   sol <- switch(neg.wt,
+#                 sol * as.numeric(sol > 0),
+#                 sol)
+#  if (get.dual) {
+#     dual_vars <- res$extra$lambda
+#     names(dual_vars) <- names(qp$LC$vals)
+#   } else {
+#     dual_vars <- NULL
+#   }
+#   return(list(sol = sol, dual = dual_vars))
+#   return(sol[1:qp$nvar])
+# }
 
 # solver interface for the gurobi optimizer
 gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
@@ -78,9 +78,6 @@ gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   params <- list(OutputFlag = 0)
   
   
-  # dots <- list(...)
-  # model$pstart <- dots$init.sol
-  
   res <- gurobi::gurobi(model, params)
   if (res$status != "OPTIMAL") {
     # browser()
@@ -104,11 +101,6 @@ gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   
   return(list(sol = sol, dual = dual_vars, value = res$objval))
   
-  if (dots$save.solution) {
-    return(list(result = sol, res = res))
-  } else {{
-    return(list(result = sol))
-  }}
 }
 
 # solver interface for the mosek optimizer
@@ -378,57 +370,51 @@ osqp_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   }}
 }
 
-quadprog_solver <- function(qp, ...) {
-  
-  num_param <- length(c(as.numeric(qp$obj$L)))
-  
-  #convert away cones
-  qp <- convert_cones(qp)
-  qp <- bc_to_gt_const_quadprog(qp)
-  
-  model <- list()
-  
-  if(!is.null(qp$obj$Q) ){
-    model$Dmat <- as.matrix(qp$obj$Q) * 0.5
-  } else {
-    model$Dmat <- matrix(0, nrow= num_param, ncol = num_param)
-  }
-  model$dvec <- -c(as.numeric(qp$obj$L))
-  if (is.null(model$dvec)) model$dvec <- rep(0, num_param)
-  
-  #translate bounds to inequality constraints
-  finite_lb <- which(!is.infinite( qp$bounds$lb))
-  finite_ub <- which(!is.infinite( qp$bounds$ub))
-  model$Amat <- cbind(as.matrix(Matrix::t(qp$LC$A)),
-                   diag(1, nrow = num_param, ncol = length(finite_lb)),
-                   diag(-1, nrow = num_param, ncol = length(finite_ub)))
-  model$bvec <- c(qp$LC$vals, 
-                  qp$bounds$lb[finite_lb], 
-                  -qp$bounds$ub[finite_ub])
-  
-  res <- quadprog::solve.QP(Dmat = model$Dmat, dvec = model$dvec,
-                            Amat = model$Amat, bvec = model$bvec,
-                            meq = qp$LC$dir_eq_num, factorized = FALSE)
-  if (is.nan(res$response$code) || res$response$code != 0 || res$sol$itr$solsta != "OPTIMAL") {
-    # browser()
-    warning("Algorithm did not converge!!! quadprog solver message: ", res$response$msg)
-  }
-  if (res$sol$itr$solsta == "PRIMAL_INFEASIBLE_CER" || res$sol$itr$prosta == "PRIMAL_INFEASIBLE") stop("Problem infeasible")
-  sol <- res$solution
-  sol <- sol * as.numeric(sol > 0)
-  
-  if (all(sol == 0)) stop("All weights are 0!")
-  dual_vars <-  NULL
-  
-  return(list(sol = sol, dual = dual_vars, value = res$value))
-  
-  
-  if (dots$save.solution) {
-    return(list(result = sol, res = res))
-  } else {{
-    return(list(result = sol))
-  }}
-}
+# quadprog_solver <- function(qp, ...) {
+#   num_param <- length(c(as.numeric(qp$obj$L)))
+#   
+#   #convert away cones
+#   qp <- convert_cones(qp)
+#   qp <- bc_to_gt_const_quadprog(qp)
+#   
+#   model <- list()
+#   
+#   if(!is.null(qp$obj$Q) ){
+#     model$Dmat <- as.matrix(qp$obj$Q) * 0.5
+#   } else {
+#     model$Dmat <- matrix(0, nrow= num_param, ncol = num_param)
+#   }
+#   model$dvec <- -c(as.numeric(qp$obj$L))
+#   if (is.null(model$dvec)) model$dvec <- rep(0, num_param)
+#   
+#   #translate bounds to inequality constraints
+#   finite_lb <- which(!is.infinite( qp$bounds$lb))
+#   finite_ub <- which(!is.infinite( qp$bounds$ub))
+#   model$Amat <- cbind(as.matrix(Matrix::t(qp$LC$A)),
+#                    diag(1, nrow = num_param, ncol = length(finite_lb)),
+#                    diag(-1, nrow = num_param, ncol = length(finite_ub)))
+#   model$bvec <- c(qp$LC$vals, 
+#                   qp$bounds$lb[finite_lb], 
+#                   -qp$bounds$ub[finite_ub])
+#   
+#   res <- quadprog::solve.QP(Dmat = model$Dmat, dvec = model$dvec,
+#                             Amat = model$Amat, bvec = model$bvec,
+#                             meq = qp$LC$dir_eq_num, factorized = FALSE)
+#   # if (is.nan(res$response$code) || res$response$code != 0 || res$sol$itr$solsta != "OPTIMAL") {
+#   #   # browser()
+#   #   warning("Algorithm did not converge!!! quadprog solver message: ", res$response$msg)
+#   # }
+#   # if (res$sol$itr$solsta == "PRIMAL_INFEASIBLE_CER" || res$sol$itr$prosta == "PRIMAL_INFEASIBLE") stop("Problem infeasible")
+#   sol <- res$solution
+#   sol <- sol * as.numeric(sol > 0)
+# 
+#   if (all(sol == 0)) stop("All weights are 0!")
+#   dual_vars <-  NULL
+#   
+#   return(list(sol = sol, dual = dual_vars, value = res$value))
+#   
+#   
+# }
 
 # QP solver wrapper
 QPsolver <- function(qp, solver = supported.solvers(), ...) {
@@ -441,11 +427,12 @@ QPsolver <- function(qp, solver = supported.solvers(), ...) {
   #                     "mosek" = "mosek_solver")
   # sol <- do.call(solve.fun, list(qp, ...))
   res <- switch(solver,
-                "cplex" = cplex_solver(qp, ...),
+                # "cplex" = cplex_solver(qp, ...),
                 "gurobi" = gurobi_solver(qp, ...),
                 "mosek" = mosek_solver(qp, ...),
-                "osqp" = osqp_solver(qp, ...),
-                "quadprog" = quadprog_solver(qp, ...))
+                "osqp" = osqp_solver(qp, ...)
+                # "quadprog" = quadprog_solver(qp, ...)
+                )
   
   # res$sol <- renormalize(res$sol)
   return(res)

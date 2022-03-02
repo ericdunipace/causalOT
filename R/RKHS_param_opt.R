@@ -18,7 +18,7 @@ setClass("RKHS_param", slots = c(theta = "numeric",
                                         is.dose = logical(0)))
 
 RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp"), is.dose = FALSE, 
-                           opt.method = c("stan", "optim","bayesian.optimization"), 
+                           opt.method = c("stan", "optim"), 
                            kernel = c("RBF","polynomial","linear"),
                            estimand = c("ATC","ATT","ATE"), ...) {
   
@@ -52,42 +52,43 @@ RKHS_param_opt <- function(x, y, z, power = 2:3, metric = c("mahalanobis", "Lp")
                      "TRUE" = kern_dose,
                      "FALSE" = kern_)
   
-  if(opt.method == "bayesian.optimization") {
-    if(kernel != "polynomial") {
-      kernel <- "polynomial"
-      warning("RBF and linear kernels aren't supported for method optim. Switching to polynomial kernel")
-    }
-    scoring_fun <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
-      K <- cmb_kern(theta_0, theta_1, gamma_0, gamma_1, sigma2)
-      score <- marginal_lik_gp_(y_std, K)
-      if(is.nan(score)) score <- -.Machine$double.xmax
-      if(is.infinite(score)) score <- -.Machine$double.xmax
-      return(list(Score = score))
-    }
-    args <- list(FUN = scoring_fun, ...)
-    args <- args[!duplicated(names(args))]
-    
-    if(is.null(args$bounds)) args$bounds <- list(theta_0 = c(.Machine$double.xmin,100),
-                                                 theta_1 = c(.Machine$double.xmin,100),
-                                                 gamma_0 = c(.Machine$double.xmin,1000),
-                                                 gamma_1 = c(.Machine$double.xmin,1000),
-                                                 sigma2 = c(.Machine$double.xmin,1))
-    if(is.null(args$initPoints)) args$initPoints <- 10
-    if(is.null(args$iters.n)) args$iters.n <- 5
-    if(is.null(args$iters.k)) args$iters.k <- 1
-    res <- vals <- vector("list", length(power))
-    param <- list()
-    for(i in seq_along(power) ) {
-      p <- power[i]
-      res[[i]] <- do.call(ParBayesianOptimization::bayesOpt, args)
-      param <- ParBayesianOptimization::getBestPars(res[[i]])
-      vals[[i]] <- do.call(scoring_fun, param)
-    }
-    idx <- which.max(unlist(vals))
-    param <- ParBayesianOptimization::getBestPars(res[[idx]])
-    param$p <- power[idx]
-  } 
-  else if(opt.method == "optim") {
+  # if(opt.method == "bayesian.optimization") {
+  #   if(kernel != "polynomial") {
+  #     kernel <- "polynomial"
+  #     warning("RBF and linear kernels aren't supported for method optim. Switching to polynomial kernel")
+  #   }
+  #   scoring_fun <- function(theta_0, theta_1, gamma_0, gamma_1, sigma2) {
+  #     K <- cmb_kern(theta_0, theta_1, gamma_0, gamma_1, sigma2)
+  #     score <- marginal_lik_gp_(y_std, K)
+  #     if(is.nan(score)) score <- -.Machine$double.xmax
+  #     if(is.infinite(score)) score <- -.Machine$double.xmax
+  #     return(list(Score = score))
+  #   }
+  #   args <- list(FUN = scoring_fun, ...)
+  #   args <- args[!duplicated(names(args))]
+  #   
+  #   if(is.null(args$bounds)) args$bounds <- list(theta_0 = c(.Machine$double.xmin,100),
+  #                                                theta_1 = c(.Machine$double.xmin,100),
+  #                                                gamma_0 = c(.Machine$double.xmin,1000),
+  #                                                gamma_1 = c(.Machine$double.xmin,1000),
+  #                                                sigma2 = c(.Machine$double.xmin,1))
+  #   if(is.null(args$initPoints)) args$initPoints <- 10
+  #   if(is.null(args$iters.n)) args$iters.n <- 5
+  #   if(is.null(args$iters.k)) args$iters.k <- 1
+  #   res <- vals <- vector("list", length(power))
+  #   param <- list()
+  #   for(i in seq_along(power) ) {
+  #     p <- power[i]
+  #     res[[i]] <- do.call(ParBayesianOptimization::bayesOpt, args)
+  #     param <- ParBayesianOptimization::getBestPars(res[[i]])
+  #     vals[[i]] <- do.call(scoring_fun, param)
+  #   }
+  #   idx <- which.max(unlist(vals))
+  #   param <- ParBayesianOptimization::getBestPars(res[[idx]])
+  #   param$p <- power[idx]
+  # } 
+  # else 
+  if(opt.method == "optim") {
     if(kernel != "polynomial" ) {
       kernel <- "polynomial"
       warning("RBF and linear kernels aren't supported for method optim. Switching to polynomial kernel")

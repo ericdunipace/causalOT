@@ -343,19 +343,19 @@ Hainmueller <- R6::R6Class("Hainmueller",
                               #' Design "A"
                               #' is the setting where the outcome is generated 
                               #' from a linear model, 
-                              #' \math{Y(0) = Y(1) = X_1 + X_2 + X_3 - X_4 + X_5 + X_6 + \eta} 
+                              #' \eqn{Y(0) = Y(1) = X_1 + X_2 + X_3 - X_4 + X_5 + X_6 + \eta} 
                               #' and design "B" is where the outcome is 
                               #' generated from the non-linear model 
-                              #' \math{Y(0) = Y(1) = (X_1 + X_2 +X_5 )^2 + \eta}.
+                              #' \eqn{Y(0) = Y(1) = (X_1 + X_2 +X_5 )^2 + \eta}.
                               #' 
                               #' ## Overlap
                               #' The treatment indicator is generated from
-                              #' \math{Z = 1(X_1 + 2 X_2 - 2 X_3 - X_4 - 0.5 X_5 + X_6 + \nu > 0)}, where \math{\nu} 
+                              #' \eqn{Z = 1(X_1 + 2 X_2 - 2 X_3 - X_4 - 0.5 X_5 + X_6 + \nu > 0)}, where \eqn{\nu} 
                               #' depends on the overlap selected. If overlap is "high",
-                              #' then \math{\nu \sim N(0, 100).} If overlap is 
-                              #' "low", then \math{\nu \sim N(0, 30).} Finally,
-                              #' if overlap is "medium", then \math{\nu} is drawn
-                              #' from a \math{\chi^2} with 5 degrees of freedom
+                              #' then \eqn{\nu \sim N(0, 100).} If overlap is 
+                              #' "low", then \eqn{\nu \sim N(0, 30).} Finally,
+                              #' if overlap is "medium", then \eqn{\nu} is drawn
+                              #' from a \eqn{\chi^2} with 5 degrees of freedom
                               #' that is scaled and centered to have mean 0.5 and 
                               #' variance 67.6.
                               #'
@@ -1104,7 +1104,7 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                #' nsw$get_n()
                                #' 
                                #' obs.study <-  LaLonde$new(design = "Full")
-                               #' obs.study$data_gen()
+                               #' obs.study$gen_data()
                                #' obs.study$get_n()
                                initialize = function(n = NULL, p = NULL, param = list(), design = "NSW", ...) {
                                  

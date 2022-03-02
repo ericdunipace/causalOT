@@ -24,7 +24,7 @@ calc_weight_NNM(
 \item{...}{}
 }
 \value{
-
+a list object returned to main \link{calc_weight} function
 }
 \description{
 Calculate Nearest Neighbor Matching weights
