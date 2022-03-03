@@ -13,7 +13,7 @@ testthat::test_that("RKHS grid works", {
   distance <- c("Lp")
   power <- c(1,2)
   ground_power <- 2
-  solver <- "gurobi"
+  solver <- "mosek"
   estimands <- c("ATT", "ATC", "CATE","feasible")
   
   #### get simulation functions ####
@@ -23,7 +23,7 @@ testthat::test_that("RKHS grid works", {
   data$gen_data()
   
   # testthat::expect_silent(cplex.check  <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "cplex"))
-  testthat::expect_silent(gurobi.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "gurobi"))
+  # testthat::expect_silent(gurobi.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = FALSE, solver = "gurobi"))
   # testthat::expect_error(
   #   testthat::expect_warning(
       mosek.check  <- RKHS_grid_search(data = data, grid = NULL, 
@@ -48,7 +48,7 @@ testthat::test_that("RKHS grid works, opt.hyperparam", {
   distance <- c("Lp")
   power <- c(1,2)
   ground_power <- 2
-  solver <- "gurobi"
+  solver <- "mosek"
   estimands <- c("ATT", "ATC","feasible")
   
   #### get simulation functions ####
@@ -58,7 +58,7 @@ testthat::test_that("RKHS grid works, opt.hyperparam", {
   data$gen_data()
   
   # testthat::expect_silent(cplex.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = TRUE, solver = "cplex", iter = 10))
-  testthat::expect_silent(gurobi.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = TRUE, solver = "gurobi", iter = 10))
+  # testthat::expect_silent(gurobi.check <- RKHS_grid_search(data = data, grid = NULL, estimand = "ATE", n.boot = 10, opt.hyperparam = TRUE, solver = "gurobi", iter = 10))
   testthat::expect_condition(mosek.check <- RKHS_grid_search(data = data, grid = NULL, 
                                                              estimand = "ATE", n.boot = 10, 
                                                              opt.hyperparam = TRUE, solver = "mosek", iter = 10),
@@ -77,7 +77,7 @@ testthat::test_that("RKHS grid gives expected value", {
   overlap <- "low"
   design <- "A"
   distance <- c("Lp")
-  solver <- "gurobi"
+  solver <- "mosek"
   
   
   #### get simulation functions ####

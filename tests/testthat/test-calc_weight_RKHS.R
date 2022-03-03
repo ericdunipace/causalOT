@@ -10,7 +10,7 @@ testthat::test_that("check RKHS kernel works", {
   design <- "A"
   metric <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimands <- c("ATT", "ATC", "cATE","ATE")
   
   #### get simulation functions ####
@@ -23,15 +23,15 @@ testthat::test_that("check RKHS kernel works", {
   # debugonce(calc_weight_RKHS)
   # debugonce(quadprog.DataSim)
   testthat::expect_silent(out <- calc_weight_RKHS(data, estimand = "ATE",  opt.hyperparam = FALSE,
-                   solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
+                   solver = c("mosek"), theta = c(1,1), gamma = c(1,1), 
                    p = power[1], metric = "mahalanobis"))
   
   testthat::expect_silent(out <- calc_weight_RKHS(data, estimand = "ATT",  opt.hyperparam = FALSE,
-                                                  solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
+                                                  solver = c("mosek"), theta = c(1,1), gamma = c(1,1), 
                                                   p = power[1], metric = "mahalanobis"))
   
   testthat::expect_silent(out <- calc_weight_RKHS(data, estimand = "ATC",  opt.hyperparam = FALSE,
-                                                  solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
+                                                  solver = c("mosek"), theta = c(1,1), gamma = c(1,1), 
                                                   p = power[1], metric = "mahalanobis"))
 })
 
@@ -45,7 +45,7 @@ testthat::test_that("check RKHS kernel works with hyper param opt", {
   design <- "A"
   metric <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimands <- c("ATT", "ATC", "ATE")
   
   #### get simulation functions ####
@@ -57,11 +57,11 @@ testthat::test_that("check RKHS kernel works with hyper param opt", {
   #### run sims  ####
   # debugonce(calc_weight_RKHS)
   # debugonce(quadprog.DataSim)
-  for(e in estimands) {
-    testthat::expect_silent(out <- calc_weight_RKHS(data, estimand = e, opt.hyperparam = TRUE,
-                                                  solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
-                                                  p = power[1], metric = "mahalanobis", iter = 10))
-  }
+  # for(e in estimands) {
+  #   testthat::expect_silent(out <- calc_weight_RKHS(data, estimand = e, opt.hyperparam = TRUE,
+  #                                                 solver = c("gurobi"), theta = c(1,1), gamma = c(1,1), 
+  #                                                 p = power[1], metric = "mahalanobis", iter = 10))
+  # }
   
 })
 
@@ -76,7 +76,7 @@ testthat::test_that("check RKHS kernel optimal for hainmueller", {
   metric <- c("mahalanobis")
   kernel <- "polynomial"
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimands <- c("ATT", "ATC", "cATE","ATE")
   
   #### get simulation functions ####

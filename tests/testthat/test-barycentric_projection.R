@@ -63,7 +63,7 @@ testthat::test_that("barycenter projection pow2, mahalanobis", {
   design <- "B"
   distance <- c("Lp")
   power <- c(2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -115,7 +115,7 @@ testthat::test_that("barycenter projection pow1, mahalanobis", {
   overlap <- "low"
   design <- "B"
   distance <- c("Lp")
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -206,7 +206,7 @@ testthat::test_that("barycenter projection pow1, lp", {
   overlap <- "low"
   design <- "B"
   distance <- c("Lp")
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -258,7 +258,7 @@ testthat::test_that("barycenter projection pow3, mahalanobis", {
   design <- "B"
   distance <- c("mahalanobis")
   power <- 3
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -303,7 +303,7 @@ testthat::test_that("barycenter projection pow4, lp", {
   design <- "B"
   distance <- c("Lp")
   power <- 4
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -346,7 +346,7 @@ testthat::test_that("barycenter projection pow4, lp", {
   design <- "B"
   distance <- c("Lp")
   power <- 4
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -386,7 +386,7 @@ testthat::test_that("barycenter projection pow4, mahalanobis", {
   design <- "B"
   distance <- c("mahalanobis")
   power <- 4
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####

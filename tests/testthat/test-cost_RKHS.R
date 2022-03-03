@@ -10,7 +10,7 @@ testthat::test_that("cost rkhs works", {
   power <- c(1,2)
   ground_power <- 1:2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimand <- c("ATT", "ATC","ATE")
   
   #### get simulation functions ####

@@ -92,7 +92,7 @@ testthat::test_that("grid search actually works,  wass mahal", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   method <- "Wasserstein"
   
   
@@ -149,7 +149,7 @@ testthat::test_that("grid search actually works,  wass mahal", {
 
 testthat::test_that("grid search actually works, marg wass sdlp", {
   testthat::skip_on_cran(); 
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
@@ -303,7 +303,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
 
 testthat::test_that("grid search actually works, marg wass sdlp bal", {
   testthat::skip_on_cran(); 
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
@@ -321,7 +321,7 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   method <- "Wasserstein"
   add.joint = TRUE
   add.marginal <- TRUE
@@ -386,7 +386,7 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
 
 testthat::test_that("grid search actually works, marg wass mahal bal", {
   testthat::skip_on_cran(); 
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
@@ -404,7 +404,7 @@ testthat::test_that("grid search actually works, marg wass mahal bal", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   formula <- "~. + 0"
   balance.constraints <- 0.1
   add.joint <- TRUE
@@ -468,7 +468,7 @@ testthat::test_that("grid search actually works, marg wass mahal bal", {
 
 testthat::test_that("grid search joint.map, wass", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
@@ -528,7 +528,7 @@ testthat::test_that("grid search joint.map, wass", {
  
 testthat::test_that("grid search scm", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   set.seed(9867)
   
@@ -545,7 +545,7 @@ testthat::test_that("grid search scm", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimand <- "ATT"
   method <- "SCM"
   
@@ -585,7 +585,7 @@ testthat::test_that("grid search scm", {
 
 testthat::test_that("grid search joint.map crossvalidation, wass", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   set.seed(9867)
   
@@ -602,7 +602,7 @@ testthat::test_that("grid search joint.map crossvalidation, wass", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimand <- "ATT"
   
   #### get simulation functions ####

@@ -11,7 +11,7 @@ testthat::test_that("works for Wass", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -43,15 +43,15 @@ testthat::test_that("works for Wass", {
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
-  testthat::skip_if_not_installed("gurobi")
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                           constraint = 2, 
-                                                           estimand = e, 
-                                                           method = "Wasserstein",
-                                                           solver = "gurobi"))
-  for(w in weights) testthat::expect_equal(names(w), arg.names)
-  testthat::expect_match(all.equal(rep(1/n0,n0), 
-                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::skip_if_not_installed("gurobi")
+  # weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  #                                                          constraint = 2, 
+  #                                                          estimand = e, 
+  #                                                          method = "Wasserstein",
+  #                                                          solver = "gurobi"))
+  # for(w in weights) testthat::expect_equal(names(w), arg.names)
+  # testthat::expect_match(all.equal(rep(1/n0,n0), 
+  #                                  weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(rep(1/n0,n0), 
   #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n0,n0), 
@@ -98,7 +98,7 @@ testthat::test_that("works for Wass, grid/formula", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "ATE")
   
   #### get simulation functions ####
@@ -310,7 +310,7 @@ testthat::test_that("works for Wass divergence", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "ATE")
   
   #### get simulation functions ####
@@ -368,7 +368,7 @@ testthat::test_that("works for Wass divergence, grid/formula", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "ATE")
   
   #### get simulation functions ####
@@ -447,7 +447,7 @@ testthat::test_that("works for SBW", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -462,13 +462,13 @@ testthat::test_that("works for SBW", {
                                                        solver = "osqp"))
   sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   
-  testthat::skip_if_not_installed("gurobi")
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                           constraint = 3, 
-                                                           estimate = e, 
-                                                           method = "SBW",
-                                                           solver = "gurobi"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
+  # testthat::skip_if_not_installed("gurobi")
+  # weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  #                                                          constraint = 3, 
+  #                                                          estimate = e, 
+  #                                                          method = "SBW",
+  #                                                          solver = "gurobi"))
+  # sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   
   testthat::skip_if_not_installed("Rmosek")
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
@@ -498,7 +498,7 @@ testthat::test_that("works for SBW grid", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint <- seq(0,1, 10)
   
@@ -518,17 +518,17 @@ testthat::test_that("works for SBW grid", {
   sapply(weights[1:3], function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
   sapply(weights[4], function(w) testthat::expect_equal(w$args$standardized.mean.difference , c(10,10)))
   
-  testthat::skip_if_not_installed("gurobi")
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                       constraint = constraint, 
-                                                       grid.search = TRUE,
-                                                       grid = 10,
-                                                       estimand = e, 
-                                                       method = "SBW",
-                                                       solver = "gurobi"))
-  sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
-  sapply(weights[1:3], function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
-  sapply(weights[4], function(w) testthat::expect_equal(w$args$standardized.mean.difference , c(10,10)))
+  # testthat::skip_if_not_installed("gurobi")
+  # weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  #                                                      constraint = constraint, 
+  #                                                      grid.search = TRUE,
+  #                                                      grid = 10,
+  #                                                      estimand = e, 
+  #                                                      method = "SBW",
+  #                                                      solver = "gurobi"))
+  # sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
+  # sapply(weights[1:3], function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
+  # sapply(weights[4], function(w) testthat::expect_equal(w$args$standardized.mean.difference , c(10,10)))
   
   testthat::skip_if_not_installed("Rmosek")
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
@@ -567,7 +567,7 @@ testthat::test_that("works for Wass, sw", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####
@@ -608,27 +608,27 @@ testthat::test_that("works for Wass, sw", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   
-  testthat::skip_if_not_installed("gurobi")
-  weights <- lapply(estimates, function(e) calc_weight(data = data, 
-                                                       constraint = 2, 
-                                                       estimand = e, p = 4,
-                                                       method = "Wasserstein",
-                                                       solver = "gurobi",
-                                                       sample_weight = sample_weights))
-  for(w in weights) testthat::expect_equal(names(w), arg.names)
-  testthat::expect_match(all.equal(sample_weights$w0, 
-                                   weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(sample_weights$w0, 
-                                   weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(sample_weights$w0, 
-                                   weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
-  
-  testthat::expect_match(all.equal(sample_weights$w1, 
-                                   weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(sample_weights$w1, 
-                                   weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::expect_match(all.equal(sample_weights$w1, 
-                                   weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::skip_if_not_installed("gurobi")
+  # weights <- lapply(estimates, function(e) calc_weight(data = data, 
+  #                                                      constraint = 2, 
+  #                                                      estimand = e, p = 4,
+  #                                                      method = "Wasserstein",
+  #                                                      solver = "gurobi",
+  #                                                      sample_weight = sample_weights))
+  # for(w in weights) testthat::expect_equal(names(w), arg.names)
+  # testthat::expect_match(all.equal(sample_weights$w0, 
+  #                                  weights[[1]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(sample_weights$w0, 
+  #                                  weights[[3]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(sample_weights$w0, 
+  #                                  weights[[4]]$w0, check.attributes = FALSE), "Mean relative difference")
+  # 
+  # testthat::expect_match(all.equal(sample_weights$w1, 
+  #                                  weights[[2]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(sample_weights$w1, 
+  #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
+  # testthat::expect_match(all.equal(sample_weights$w1, 
+  #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   
   testthat::skip_if_not_installed("Rmosek")
@@ -666,7 +666,7 @@ testthat::test_that("works for Wass, grid/formula, sw", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "ATE")
   
   #### get simulation functions ####
@@ -730,7 +730,7 @@ testthat::test_that("works for NNM, sample weight", {
   design <- "A"
   metric <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   
   #### get simulation functions ####

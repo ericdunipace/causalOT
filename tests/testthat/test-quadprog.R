@@ -7,7 +7,7 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
@@ -55,7 +55,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
@@ -120,7 +120,7 @@ testthat::test_that("quadprog.DataSim uses right wasserstein qp with sample_weig
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
@@ -178,7 +178,7 @@ testthat::test_that("quadprog.data.frame uses right wasserstein qp with sample w
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
@@ -252,7 +252,7 @@ testthat::test_that("quadprog handles all square terms", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
@@ -311,7 +311,7 @@ testthat::test_that("quadprog.DataSim does mapping", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 2
@@ -362,7 +362,7 @@ testthat::test_that("quadprog.DataSim various penalties", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 10
   power <- 2

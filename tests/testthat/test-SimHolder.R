@@ -42,7 +42,7 @@ testthat::test_that("SimHolder generates object", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -58,7 +58,7 @@ testthat::test_that("SimHolder generates object", {
                                   augmentation = NULL),
             model.augmentation = "both",
             match = "both",
-            solver = "gurobi",
+            solver = "mosek",
             Wass = list(wass_powers = 2,
                         ground_powers = 2,
                         metrics = "Lp"))
@@ -81,7 +81,7 @@ testthat::test_that("SimHolder generates object", {
                       model.augmentation = "both",
                       propensity.formula = psform,
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list(wass_powers = 2,
                                   ground_powers = 2,
                                   metrics = "Lp",
@@ -106,7 +106,7 @@ testthat::test_that("SimHolder generates object, Kallus2018", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Kallus2018$new(n = n, p = p, 
@@ -122,7 +122,7 @@ testthat::test_that("SimHolder generates object, Kallus2018", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list(wass_powers = 2,
                       ground_powers = 2,
                       metrics = "Lp"))
@@ -145,7 +145,7 @@ testthat::test_that("SimHolder generates object, Sonabend2020", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Sonabend2020$new(n = n, p = p, 
@@ -170,7 +170,7 @@ testthat::test_that("SimHolder generates object, Sonabend2020", {
 
 testthat::test_that("SimHolder runs", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -189,7 +189,7 @@ testthat::test_that("SimHolder runs", {
   power <- c(2)
   ground_power <- 1
   std_mean_diff <- c(0.2,0.3)
-  solver <- "gurobi"
+  solver <- "mosek"
 
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p,
@@ -213,7 +213,7 @@ testthat::test_that("SimHolder runs", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list(wass_powers = power,
                         ground_powers = ground_power,
                         metrics = distance,
@@ -253,7 +253,7 @@ testthat::test_that("SimHolder runs", {
 
 testthat::test_that("SimHolder runs, only ATE", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -272,7 +272,7 @@ testthat::test_that("SimHolder runs, only ATE", {
   power <- c(2)
   ground_power <- 1
   std_mean_diff <- c(0.2,0.3)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p,
@@ -297,7 +297,7 @@ testthat::test_that("SimHolder runs, only ATE", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       # verbose = TRUE,
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
@@ -343,7 +343,7 @@ testthat::test_that("SimHolder runs, only ATE", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
                                   metrics = distance,
@@ -364,7 +364,7 @@ testthat::test_that("SimHolder runs, only ATE", {
 
 testthat::test_that("SimHolder runs ot imputer", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -383,7 +383,7 @@ testthat::test_that("SimHolder runs ot imputer", {
   power <- c(2)
   ground_power <- 1
   std_mean_diff <- c(0.2,0.3)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p,
@@ -407,7 +407,7 @@ testthat::test_that("SimHolder runs ot imputer", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       verbose = TRUE,
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
@@ -442,7 +442,7 @@ testthat::test_that("SimHolder runs ot imputer", {
 
 testthat::test_that("SimHolder runs with formula options", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -528,7 +528,7 @@ testthat::test_that("SimHolder runs with formula options", {
 
 testthat::test_that("SimHolder runs,verbose", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -547,7 +547,7 @@ testthat::test_that("SimHolder runs,verbose", {
   power <- c(1)
   ground_power <- 1
   std_mean_diff <- c(0.2,0.3)
-  solver <- "gurobi"
+  solver <- "mosek"
   methods <- c("Logistic", "SBW", "NNM", "Wasserstein", "Constrained Wasserstein")
   
   #### get simulation functions ####
@@ -572,7 +572,7 @@ testthat::test_that("SimHolder runs,verbose", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list(wass_powers = power,
                           ground_powers = ground_power,
                           metrics = distance,
@@ -609,7 +609,7 @@ testthat::test_that("SimHolder runs,verbose", {
 
 testthat::test_that("SimHolder runs while targeting RKHS", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -628,7 +628,7 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
   power <- c(2)
   ground_power <- 2
   std_mean_diff <- c(0.2, 0.3)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -650,7 +650,7 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list( wass_powers = power,
                       ground_powers = ground_power,
                       metrics = distance,
@@ -683,7 +683,7 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
 
 testthat::test_that("SimHolder with grid works", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -894,7 +894,7 @@ testthat::test_that("SimHolder with grid works", {
 
 testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -913,7 +913,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   power <- c(2)
   ground_power <- 2
   std_mean_diff <- c(0, 0.1, 1)
-  solver <- "gurobi"
+  solver <- "mosek"
   
   #### get simulation functions ####
   original <- Hainmueller$new(n = n, p = p, 
@@ -963,7 +963,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   #                                             augmentation = NULL),
   #                      model.augmentation = "both",
   #                      match = "both",
-  #                      solver = "gurobi",
+  #                      solver = "mosek",
   #                      wass_powers = power,
   #                      ground_powers = ground_power,
   #                      metrics = distance)
@@ -982,7 +982,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
 
 testthat::test_that("SimHolder runs confidence intervals", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
@@ -1027,7 +1027,7 @@ testthat::test_that("SimHolder runs confidence intervals", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
                                   metrics = distance,
@@ -1089,7 +1089,7 @@ testthat::test_that("SimHolder runs confidence intervals", {
                                              augmentation = NULL),
                       model.augmentation = "both",
                       match = "both",
-                      solver = "gurobi",
+                      solver = "mosek",
                       Wass = list(wass_powers = power,
                                   ground_powers = ground_power,
                                   metrics = distance,
@@ -1127,7 +1127,7 @@ testthat::test_that("SimHolder runs confidence intervals", {
 
 testthat::test_that("SimHolder wass entropy turns to lbfgs", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   testthat::skip_if_not_installed("Rmosek")
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")

@@ -7,7 +7,7 @@ testthat::test_that("qp_wass_const correct", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4
@@ -41,7 +41,7 @@ testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4:5
@@ -71,7 +71,7 @@ testthat::test_that("qp_wass_const correct", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4
@@ -111,7 +111,7 @@ testthat::test_that("qp_wass_const correct, margins", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4
@@ -151,7 +151,7 @@ testthat::test_that("qp_wass_const gives error if power has length > 1 ", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 1:2
@@ -182,7 +182,7 @@ testthat::test_that("qp_wass_const correct, margins with sw", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4
