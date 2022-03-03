@@ -7,7 +7,6 @@
 #' @return a list containing the barycentric projections with slots "control", "treated", and "observed.treatment"
 #' 
 #' @keywords internal
-#' @keywords internal
 barycentric_projection <- function(data, weight, 
                                    ...) {
   
