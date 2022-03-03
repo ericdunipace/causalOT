@@ -52,12 +52,12 @@ skip_if_no_geomloss <- function() {
 #' @param scaling specifies the ratio between successive values of sigma in the epsilon-scaling descent. This parameter allows you to specify the trade-off between speed (scaling < .4) and accuracy (scaling > .9).
 #' @param truncate If backend is "multiscale", specifies the effective support of a Gaussian/Laplacian kernel as a multiple of its standard deviation
 #' @param metric Set the metric. One of "Lp","sdLp", or "mahalanobis".
-#' @param cost specifies the cost function that should be used instead of the default
 #' @param cluster_scale If backend is "multiscale", specifies the coarse scale at which cluster centroids will be computed. If NULL, a conservative estimate will be computed from diameter and the ambient space's dimension, making sure that memory overflows won't take place.
 #' @param debias specifies if we should compute the unbiased Sinkhorn divergence instead of the classic, entropy-regularized "SoftAssign" loss.
-#' @param potentials When this parameter is set to TRUE, returns a pair of optimal dual potentials.
 #' @param verbose if backend is "multiscale", specifies whether information on the clustering and epsilon-scaling descent should be displayed in the standard output.
 #' @param backend one of "auto", "tensorized", "online", or "multiscale"
+#' @param ... not currently used. Used to absorb extra arguments passed 
+#' by other functions without throwing an error.
 #'
 #' @return a list with slots "loss", "f", "g". "loss" is the Sinkhorn distance,
 #' "f" is the potential corresponding to data `x`, and "g" is the potential

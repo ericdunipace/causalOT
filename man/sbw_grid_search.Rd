@@ -27,7 +27,7 @@ sbw_grid_search(
 \item{...}{extra arguments passed to \link{extract_x}}
 }
 \value{
-an object of class \link{causalWeights}
+an object of class \link[=causalWeights-class]{causalWeights}
 }
 \description{
 Grid search for SBW

@@ -54,9 +54,8 @@ sinkhorn(
 
 \item{backend}{one of "auto", "tensorized", "online", or "multiscale"}
 
-\item{cost}{specifies the cost function that should be used instead of the default}
-
-\item{potentials}{When this parameter is set to TRUE, returns a pair of optimal dual potentials.}
+\item{...}{not currently used. Used to absorb extra arguments passed
+by other functions without throwing an error.}
 }
 \value{
 a list with slots "loss", "f", "g". "loss" is the Sinkhorn distance,

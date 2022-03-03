@@ -28,6 +28,7 @@ LinkingTo:
 Suggests: 
     CBPS,
     data.table (>= 1.12.8),
+    gurobi,
     rstan (>= 2.19.3),
     Rmosek,
     testthat (>= 2.1.0),

@@ -13,7 +13,7 @@
 )
 }
 \arguments{
-\item{object}{An object of class \link{causalEffect}}
+\item{object}{An object of class \link[=causalEffect-class]{causalEffect}}
 
 \item{parm}{Unused. Included to match forms of other confint functions}
 

@@ -33,7 +33,7 @@ calc_weight(
 \item{...}{Many additional arguments are possible depending on the chosen method. See details for more information. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.}
 }
 \value{
-An object of class \link{causalWeights}
+An object of class \link[=causalWeights-class]{causalWeights}
 }
 \description{
 Estimate causal weights

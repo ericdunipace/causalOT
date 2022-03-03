@@ -7,7 +7,7 @@
 #' @param grid.length Number of grid values.
 #' @param ... extra arguments passed to [extract_x][extract_x]
 #'
-#' @return an object of class [causalWeights][causalWeights]
+#' @return an object of class [causalWeights][causalOT::causalWeights-class]
 #'
 #' @keywords internal
 sbw_grid_search <- function(data, grid = NULL, 
@@ -203,7 +203,7 @@ RKHS_grid_search <- function(data, grid = NULL,
 #' @param n.boot Number of bootstrapped samples
 #' @param eval.method One of "bootstrap" or "cross.validation"
 #' @param method One of "Wasserstein","Constrained Wasserstein", "SCM".
-#' @param sample_weight NULL or object of class [sampleWeights][sampleWeights]
+#' @param sample_weight NULL or object of class [sampleWeights][causalOT::sampleWeights-class]
 #' @param wass.method OT algorithm for evaluating balance
 #' @param wass.iter Number of iterations to run algorithm
 #' @param epsilon Used to calculated the penalty factor for the `wass.method`.
@@ -220,7 +220,7 @@ RKHS_grid_search <- function(data, grid = NULL,
 #' @param cgd Use conditional gradient descent?
 #' @param ... extra arguments passed to [prep_data][prep_data] or [extract_x][extract_x]
 #'
-#' @return object of class [causalWeights][causalWeights]
+#' @return object of class [causalWeights][causalOT::causalWeights-class]
 #'
 #' @keywords internal
 wass_grid_search <- function(data, grid = NULL, 

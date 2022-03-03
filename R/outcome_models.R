@@ -741,16 +741,14 @@ calc_hajek <- function(weights, target, hajek) {
 #' @slot data The original data as a `data.frame`.
 #' @slot model The function used as the outcome model.
 #' @slot formula The formula for the outcome model.
-#' @slot weights The weights as an object of class [causalWeights][causalWeights]
+#' @slot weights The weights as an object of class [causalWeights][causalOT::causalWeights-class]
 #' @slot estimand A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE". 
 #' @slot variance.components Objects for the asymptotic variance calculation designed so expensive models
 #' don't have to be re-fit.
-#' @slot options A list with the arguments from the [estimate_effect][estimate_effect()] function. See details.
-#' @slot call The call from the [estimate_effect][estimate_effect()] function.
+#' @slot options A list with the arguments from the [estimate_effect][causalOT::estimate_effect()] function. See details.
+#' @slot call The call from the [estimate_effect()][causalOT::estimate_effect] function.
 #' 
-#' @details 
-#' 
-#' The `variance.components` slot is a list with slots
+#' @details The `variance.components` slot is a list with slots
 #' \itemize{
 #' \item `E_Y1`: The mean if the target population had all been treated.
 #' \item `E_Y0`: The mean if the target population had all received control
@@ -770,8 +768,12 @@ calc_hajek <- function(weights, target, hajek) {
 #' \item `treatment.indicator`: The column that is the treatment indicator in slot `data`
 #' \item `outcome`: The columns that is the outcome in  slot `data`
 #' \item `addl.args`: Any additional arguments passed in the dots (`...`) 
-#' of [estimate_effect][estimate_effect()].
+#' of [estimate_effect()][causalOT::estimate_effect].
 #' }
+#' 
+#' @docType class
+#' 
+#' @rdname causalEffect
 #'
 #' @export
 setClass("causalEffect", slots = c(estimate = "numeric", 
@@ -787,9 +789,9 @@ setClass("causalEffect", slots = c(estimate = "numeric",
 
 #' Estimate treatment effects
 #'
-#' @param data A `data.frame`, a `list`, or a [DataSim][DataSim] object
+#' @param data A `data.frame`, a `list`, or a [DataSim][causalOT::DataSim] object
 #' @param formula the outcome model formula
-#' @param weights An object of class [causalWeights][causalWeights]
+#' @param weights An object of class [causalWeights][causalOT::causalWeights-class]
 #' @param hajek Should the weights be normalized to sum to 1 (TRUE/FALSE)
 #' @param doubly.robust Should an augmented estimator be used? (TRUE/FALSE)
 #' @param matched Should a matched or barycentric project 
@@ -800,10 +802,10 @@ setClass("causalEffect", slots = c(estimate = "numeric",
 #' @param split.model Should the outcome model be calculated separately in each
 #' treatment group? (TRUE/FALSE)
 #' @param sample_weight The sample weights. Either NULL or an object of class
-#' [sampleWeights][sampleWeights]
+#' [sampleWeights][causalOT::sampleWeights-class]
 #' @param ... Pass additional arguments to the outcome modeling functions like `lm`. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
 #'
-#' @return an object of class [causalEffect][causalEffect]
+#' @return an object of class [causalEffect][causalOT::causalEffect-class]
 #' @export
 #'
 #' @examples
@@ -956,7 +958,7 @@ estimate_effect <- function(data, formula = NULL, weights,
 
 #' Confidence Intervals for Causal Effects
 #'
-#' @param object An object of class [causalEffect][causalEffect]
+#' @param object An object of class [causalEffect][causalOT::causalEffect-class]
 #' @param parm Unused. Included to match forms of other confint functions
 #' @param level Confidence level. Should be between 0 and 1. Default is 0.95.
 #' @param method How to calculate the confidence interval. Choices are "bootstrap" for

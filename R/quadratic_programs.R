@@ -1142,12 +1142,6 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
   
   
   L0 <- c(w = rep(0,n))
-  # var_bounds <- ROI::V_bound(li =1:n, ui = 1:n, lb = rep(0,n), ub = rep(1,n))
-  # var_bounds <- NULL
-  # op <- ROI::OP(objective = ROI::Q_objective(Q = Q0, L = L0, names = as.character(1:n)),
-  #               bounds = var_bounds,
-  #               maximum = FALSE)
-  
   
   A2 <- x_constraint
   
@@ -1155,27 +1149,6 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
   
   lc <- c(rep(1, nrow(A1)), K_lwr)
   uc <- c(rep(1, nrow(A1)), K_upr)
-  # vals <- c(rep(1, nrow(A1)), K_lwr, K_upr)
-  # dir <- c(rep("E", nrow(A1)),rep("G",length(K_lwr)), rep("L",length(K_upr)))
-  # dir <- c(ROI::eq(1), ROI::geq(d), ROI::leq(d))
-  # LC <- ROI::L_constraint(A, dir, vals)
-  
-  # A <- A1
-  # vals <- 1
-  # dir <- ROI::eq(1)
-  # LC <- ROI::L_constraint(A, dir, vals)
-  
-  # Q1 <- matrix(0,0)
-  # L1 <- rep(1,n) # beta portion, gamma portion, t portion is 0. multiplies all vars each time!!!
-  # 
-  # Q2 <- lapply(1:d, function(i) 2*crossprod(x_constraint[i,,drop=FALSE]))
-  # L2 <- lapply(1:d, function(i) 2*crossprod(x_constraint[i,,drop=FALSE]))
-  # A <- rbind(A1,A2)
-  # vals <- c(1,K + x1m)
-  # dir <- c(ROI::eq(1), ROI::leq(d))
-  # LC <- ROI::L_constraint(A, dir, vals)
-  
-  # ROI::constraints(op) <- LC
   
   program <- list(obj = list(Q = Q0, L = L0),
                   LC = list(A = A, lc = lc, uc = uc))

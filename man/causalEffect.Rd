@@ -28,7 +28,7 @@ treatment group? (TRUE/FALSE)
 \item \code{treatment.indicator}: The column that is the treatment indicator in slot \code{data}
 \item \code{outcome}: The columns that is the outcome in  slot \code{data}
 \item \code{addl.args}: Any additional arguments passed in the dots (\code{...})
-of \link[=estimate_effect]{estimate_effect}.
+of \link[=estimate_effect]{estimate_effect()}.
 }
 }
 \section{Slots}{
@@ -42,7 +42,7 @@ of \link[=estimate_effect]{estimate_effect}.
 
 \item{\code{formula}}{The formula for the outcome model.}
 
-\item{\code{weights}}{The weights as an object of class \link{causalWeights}}
+\item{\code{weights}}{The weights as an object of class \link[=causalWeights-class]{causalWeights}}
 
 \item{\code{estimand}}{A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE".}
 
@@ -51,6 +51,6 @@ don't have to be re-fit.}
 
 \item{\code{options}}{A list with the arguments from the \link[=estimate_effect]{estimate_effect} function. See details.}
 
-\item{\code{call}}{The call from the \link[=estimate_effect]{estimate_effect} function.}
+\item{\code{call}}{The call from the \link[=estimate_effect]{estimate_effect()} function.}
 }}
 

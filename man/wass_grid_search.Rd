@@ -49,7 +49,7 @@ wass_grid_search(
 
 \item{method}{One of "Wasserstein","Constrained Wasserstein", "SCM".}
 
-\item{sample_weight}{NULL or object of class \link{sampleWeights}}
+\item{sample_weight}{NULL or object of class \link[=sampleWeights-class]{sampleWeights}}
 
 \item{wass.method}{OT algorithm for evaluating balance}
 
@@ -80,7 +80,7 @@ barycentric projection and OT.}
 \item{...}{extra arguments passed to \link{prep_data} or \link{extract_x}}
 }
 \value{
-object of class \link{causalWeights}
+object of class \link[=causalWeights-class]{causalWeights}
 }
 \description{
 Wasserstein grid search

@@ -20,7 +20,7 @@
 ^inst/stan/deprecated$
 ^R/deprecated$
 ^src/deprecated$
-
+^vignettes/cache$
 ^\.github$
 ^doc$
 ^Meta$

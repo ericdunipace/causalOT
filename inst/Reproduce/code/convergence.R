@@ -9,9 +9,6 @@ library(xtable)
 library(cowplot)
 library(tidyr)
 
-#expose plot theme
-theme_cot <- causalOT:::theme_cot
-
 #### load data ####
 conv.file <- file.path("data","convergence.rds")
 if (!file.exists(conv.file)) {

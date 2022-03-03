@@ -9,7 +9,6 @@ library(ggsci)
 #### Load data ####
 data("pph", package = "causalOT")
 reticulate::use_python("/usr/local/bin/python3", required = TRUE)
-theme_cot <- causalOT:::theme_cot
 
 #### setup treatment indicators ####
 bal.cov <- colnames(pph)[-c(1:2)]

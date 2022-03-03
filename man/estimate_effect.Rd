@@ -19,11 +19,11 @@ estimate_effect(
 )
 }
 \arguments{
-\item{data}{A \code{data.frame}, a \code{list}, or a \link{DataSim} object}
+\item{data}{A \code{data.frame}, a \code{list}, or a \link[=DataSim]{DataSim} object}
 
 \item{formula}{the outcome model formula}
 
-\item{weights}{An object of class \link{causalWeights}}
+\item{weights}{An object of class \link[=causalWeights-class]{causalWeights}}
 
 \item{hajek}{Should the weights be normalized to sum to 1 (TRUE/FALSE)}
 
@@ -41,12 +41,12 @@ be left blank. One of "ATT", "ATC", or "ATE".}
 treatment group? (TRUE/FALSE)}
 
 \item{sample_weight}{The sample weights. Either NULL or an object of class
-\link{sampleWeights}}
+\link[=sampleWeights-class]{sampleWeights}}
 
 \item{...}{Pass additional arguments to the outcome modeling functions like \code{lm}. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.}
 }
 \value{
-an object of class \link{causalEffect}
+an object of class \link[=causalEffect-class]{causalEffect}
 }
 \description{
 Estimate treatment effects

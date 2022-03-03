@@ -1,5 +1,5 @@
-#' @describeIn PSIS numeric weights
-#' @method PSIS default
+setOldClass("causalWeights")
+
 PSIS.default <- function(x, r_eff = NULL, ...) {
   
   pos <- x>0
@@ -14,8 +14,6 @@ PSIS.default <- function(x, r_eff = NULL, ...) {
   return(res)
 }
 
-#' @describeIn PSIS object of class causalWeights
-#' @method PSIS causalWeights
 PSIS.causalWeights <- function(x, r_eff = NULL, ...) {
 
   if(!is.null(r_eff)) {
@@ -46,8 +44,6 @@ PSIS.causalWeights <- function(x, r_eff = NULL, ...) {
   return(res)
 }
 
-#' @describeIn PSIS list of weights
-#' @method PSIS list
 PSIS.list <- function(x, r_eff = NULL, ...) {
   
   if(!is.null(r_eff)) {
@@ -73,11 +69,11 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #' Pareto-Smoothed Importance Sampling
 #'
 #' @param x For `PSIS()`, a vector of weights, 
-#' an object of class [causalWeights](causalOT::causalWeights), 
+#' an object of class [causalWeights][causalOT::causalWeights-class], 
 #' or a list with slots  "w0" and "w1". For `PSIS_diag`, 
 #' the results of a run of `PSIS()`.
 #' @param r_eff A vector of relative effective sample size with one estimate per observation. If providing
-#' an object of class [causalWeights][causalWeights], should be a list of vectors with one vector for each
+#' an object of class [causalWeights][causalOT::causalWeights-class], should be a list of vectors with one vector for each
 #' sample. See [psis()][loo::psis] from the `loo` pacakge for more details.
 #' @param ... Arguments passed to the [psis()][loo::psis] function.
 #' 
@@ -94,9 +90,8 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #' @export
 #' 
 #' @docType methods
-#' @rdname PSIS
 #' 
-#' @seealso [ESS()]
+#' @seealso [ESS()][causalOT::ESS]
 #'
 #' @examples
 #' \dontrun{
@@ -107,14 +102,21 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #' PSIS_diag(res)
 #' }
 setGeneric("PSIS", function(x, r_eff = NULL, ...) UseMethod("PSIS"))
+
+#' @describeIn PSIS numeric weights
+#' @method PSIS default
 setMethod("PSIS",  signature(x = "numeric"), PSIS.default)
+
+#' @describeIn PSIS object of class causalWeights
+#' @method PSIS causalWeights
 setMethod("PSIS",  signature(x = "causalWeights"), PSIS.causalWeights)
+
+#' @describeIn PSIS list of weights
+#' @method PSIS list
 setMethod("PSIS",  signature(x = "list"), PSIS.list)
 setClass("causalPSIS")
 # PSIS_diag <- function(x, ...) UseMethod("PSIS_diag")
 
-#' @describeIn PSIS numeric weights
-#' @method PSIS_diag numeric
 PSIS_diag.numeric <- function(x, r_eff = NULL) {
 
   y   <- PSIS(x, r_eff = r_eff)
@@ -122,8 +124,6 @@ PSIS_diag.numeric <- function(x, r_eff = NULL) {
   return(res)
 }
 
-#' @describeIn PSIS object of class causalWeights diagnostics
-#' @method PSIS_diag causalWeights
 PSIS_diag.causalWeights <- function(x, r_eff = NULL) {
   
   y   <- PSIS.causalWeights(x, r_eff = r_eff)
@@ -133,8 +133,6 @@ PSIS_diag.causalWeights <- function(x, r_eff = NULL) {
   return(res)
 }
 
-#' @describeIn PSIS the output of a previous call to PSIS
-#' @method PSIS_diag casualPSIS
 PSIS_diag.causalPSIS <- function(x, ...) {
 
 
@@ -144,8 +142,6 @@ PSIS_diag.causalPSIS <- function(x, ...) {
   return(res)
 }
 
-#' @describeIn PSIS a list of objects
-#' @method PSIS_diag list
 PSIS_diag.list <- function(x, r_eff = NULL) {
   
   if (!is.null(r_eff)) {
@@ -168,9 +164,19 @@ PSIS_diag.list <- function(x, r_eff = NULL) {
 #' @export
 setGeneric("PSIS_diag", function(x, ...) UseMethod("PSIS_diag"))
 
-
+#' @describeIn PSIS numeric weights
+#' @method PSIS_diag numeric
 setMethod("PSIS_diag", signature(x = "numeric"), PSIS_diag.numeric)
+
+#' @describeIn PSIS object of class causalWeights diagnostics
+#' @method PSIS_diag causalWeights
 setMethod("PSIS_diag", signature(x = "causalWeights"), PSIS_diag.causalWeights)
+
+#' @describeIn PSIS diagnostics from the output of a previous call to PSIS
+#' @method PSIS_diag causalPSIS
 setMethod("PSIS_diag", signature(x = "causalPSIS"), PSIS_diag.causalPSIS)
+
+#' @describeIn PSIS a list of objects
+#' @method PSIS_diag list
 setMethod("PSIS_diag", signature(x = "list"), PSIS_diag.list)
 

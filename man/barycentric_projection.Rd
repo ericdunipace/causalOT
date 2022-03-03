@@ -9,7 +9,7 @@ barycentric_projection(data, weight, ...)
 \arguments{
 \item{data}{Data used to perform projections. Should be a matrix, data.frame, or DataSim class.}
 
-\item{weight}{an object of class \link{causalWeights} output from the \code{\link[=calc_weight]{calc_weight()}} function}
+\item{weight}{an object of class \link[=causalWeights-class]{causalWeights} output from the \code{\link[=calc_weight]{calc_weight()}} function}
 
 \item{...}{optional arguments such as "cost", the cost matrix, or the "estimand", "metric", or "p" if not provided by weights. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.}
 }

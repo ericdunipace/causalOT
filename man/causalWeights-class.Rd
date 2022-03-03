@@ -14,7 +14,7 @@ causalWeights class
 
 \item{\code{w1}}{The weights for the treated group.}
 
-\item{\code{gamma}}{The trasportation matrix. If estimand == "ATE", will be a list with the transportation plan for each treatment group to balance towards the overall treatment.}
+\item{\code{gamma}}{The trasportation matrix. If estimand is "ATE", will be a list with the transportation plan for each treatment group to balance towards the overall treatment.}
 
 \item{\code{estimand}}{A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE".}
 
