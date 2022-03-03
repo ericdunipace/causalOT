@@ -2,13 +2,16 @@
 #'
 #' @slot w0 A slot with the weights for the control group. 
 #' @slot w1 The weights for the treated group. 
-#' @slot gamma The trasportation matrix. If estimand == "ATE", will be a list with the transportation plan for each treatment group to balance towards the overall treatment. 
+#' @slot gamma The trasportation matrix. If estimand is "ATE", will be a list with the transportation plan for each treatment group to balance towards the overall treatment. 
 #' @slot estimand A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE". 
 #' @slot method A character denoting the method used to estimate the weights. 
 #' @slot args The other arguments used to construct the weights. 
-#'
+#' 
+#' @docType class
+#' 
 #' @export
-setClass("causalWeights", slots = c(w0 = "numeric", w1 = "numeric", gamma = "matrix",estimand = "character",
+setClass("causalWeights", slots = c(w0 = "numeric", w1 = "numeric", 
+                                    gamma = "matrix",estimand = "character",
                                     method = "character", args = "list"))
 
 #' sampleWeights class
@@ -16,6 +19,9 @@ setClass("causalWeights", slots = c(w0 = "numeric", w1 = "numeric", gamma = "mat
 #' @slot a The sample weights for the fist group
 #' @slot b The sample weights for the second group
 #' @slot total The sample weights for the overall sample
+#'
+#' @docType class
+#' 
 #'
 #' @export
 setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numeric"))
@@ -31,7 +37,7 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #' @param grid.search Should hyperparameters be selected by a grid search? Only available for "SBW" and "Wasserstein" methods.
 #' @param ... Many additional arguments are possible depending on the chosen method. See details for more information. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
 #'
-#' @return An object of class [causalWeights][causalWeights]
+#' @return An object of class [causalWeights][causalOT::causalWeights-class]
 #' @export
 #' 
 #' @details 
@@ -50,9 +56,25 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #' treatment labels or a character giving the column name.
 #' 
 #' #Constraints
-#' The constraint argument is used by the 
+#' The constraint argument is used by the balancing methods like "SBW" dnd "Wasserstein" with balancing functions.
 #'
 #' @examples
+#' set.seed(23483)
+#' n <- 2^7
+#' p <- 6
+#' overlap <- "low"
+#' design <- "A"
+#' metric <- c("Lp")
+#' power <- 1
+#' estimate <- "ATE"
+#' #### get simulation functions ####
+#' data <- causalOT::Hainmueller$new(n = n, p = p, 
+#'       design = design, overlap = overlap)
+#'       data$gen_data()
+#'       weights <- calc_weight(data = data, 
+#'       p = p,
+#'       estimand = estimate,
+#'       method = "NNM")
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = supported.methods(),
                         formula = NULL,
@@ -62,7 +84,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
   estimand <- match.arg(estimand)
   grid.search <- isTRUE(grid.search)
   args <- list(data = data, constraint = constraint, estimand = estimand, method = method, 
-               formula = formula, ...)
+               formula = formula, transport.matrix = transport.matrix, ...)
   args <- args[!duplicated(names(args))]
   argn <- lapply(names(args), as.name)
   names(argn) <- names(args)
@@ -153,7 +175,7 @@ calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC",
 #' @param sample_weight The sample weights
 #' @param ... 
 #'
-#' @return
+#' @return a list object returned to main [calc_weight] function
 #'
 #' @keywords internal
 calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
@@ -300,7 +322,7 @@ calc_weight_NNM <- function(data, estimand = c("ATE","ATT", "ATC", "cATE"),
 #' @param estimand 
 #' @param ... 
 #'
-#' @return 
+#' @return a list returned to the main [calc_weight()][causalOT::calc_weight] function.
 #'
 #' @keywords internal
 calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
@@ -357,7 +379,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
 # calculate balancing weights
 calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", "cATE", "feasible"), 
                             method = c("SBW",ot.methods()),
-                            solver = c("lbfgs","mosek","gurobi","cplex"),
+                            solver = supported.solvers(),
                             sample_weight = NULL,
                             add.divergence = FALSE,
                             ...) {

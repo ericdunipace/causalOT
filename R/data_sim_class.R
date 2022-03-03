@@ -13,7 +13,7 @@
 #' 
 #' @export
 #' 
-#' @example 
+#' @examples 
 #' MyClass <- R6::R6Class("MyClass", 
 #' inherit = DataSim,
 #' public = list(),
@@ -72,6 +72,9 @@ DataSim <- R6::R6Class("DataSim",
                       gen_data = function(){NULL},
                       #' @description
                       #' Gets the optimal weights to get the correct expectation
+                      #' @param estimand One of "ATT","ATC","ATE"
+                      #' @param augment Should we use an augmented estimator? TRUE or FALSE.
+                      #' @param solver One of "mosek", "gurobi", or "quadprog"
                       opt_weight = function(estimand = "ATE", augment = FALSE, solver = "mosek") {
                           if(estimand == "cATE") estimand <- "ATE"
                           estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
@@ -136,7 +139,8 @@ DataSim <- R6::R6Class("DataSim",
                             weights <- switch(solver,
                                               "mosek" =  mosek_solver(problem),
                                               "gurobi" = gurobi_solver(problem),
-                                              "cplex"  = cplex_solver(problem)
+                                              "cplex"  = cplex_solver(problem),
+                                              "quadprog" = quadprog_solver(problem)
                             )
                             weights <- renormalize(weights$sol)
                           } else {
@@ -176,12 +180,14 @@ DataSim <- R6::R6Class("DataSim",
                             weights <- list(w0 = switch(solver,
                                                         "mosek" =  mosek_solver(problem0),
                                                         "gurobi" = gurobi_solver(problem0),
-                                                        "cplex"  = cplex_solver(problem0)
+                                                        "cplex"  = cplex_solver(problem0),
+                                                        "quadprog" = quadprog_solver(problem0)
                             ),
                             w1 = switch(solver,
                                         "mosek" =  mosek_solver(problem1),
                                         "gurobi" = gurobi_solver(problem1),
-                                        "cplex"  = cplex_solver(problem1)
+                                        "cplex"  = cplex_solver(problem1),
+                                        "quadprog" = quadprog_solver(problem1)
                             ) )
                             weights <- lapply(weights, function(w) renormalize(w$sol))
                           }
@@ -189,8 +195,11 @@ DataSim <- R6::R6Class("DataSim",
                           
                         },
                       #' @description
-                      #' Gets the distance of the weights from the optimal
-                      #' weights
+                      #' Gets the distance of the weights from the optimal weights
+                      #' @param weight The estimated weights 
+                      #' @param estimand One of "ATT","ATC","ATE"
+                      #' @param augment Should we use an augmented estimator? TRUE or FALSE.
+                      #' @param solver One of "mosek", "gurobi", or "quadprog"
                       opt_weight_dist = function(weight, estimand = "ATE", augment = FALSE, solver = "mosek") {
                         if(estimand == "cATE" | estimand == "feasible") estimand <- "ATE"
                         estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))
@@ -334,19 +343,19 @@ Hainmueller <- R6::R6Class("Hainmueller",
                               #' Design "A"
                               #' is the setting where the outcome is generated 
                               #' from a linear model, 
-                              #' \math{Y(0) = Y(1) = X_1 + X_2 + X_3 - X_4 + X_5 + X_6 + \eta} 
+                              #' \eqn{Y(0) = Y(1) = X_1 + X_2 + X_3 - X_4 + X_5 + X_6 + \eta} 
                               #' and design "B" is where the outcome is 
                               #' generated from the non-linear model 
-                              #' \math{Y(0) = Y(1) = (X_1 + X_2 +X_5 )^2 + \eta}.
+                              #' \eqn{Y(0) = Y(1) = (X_1 + X_2 +X_5 )^2 + \eta}.
                               #' 
                               #' ## Overlap
                               #' The treatment indicator is generated from
-                              #' \math{Z = 1(X_1 + 2 X_2 - 2 X_3 - X_4 - 0.5 X_5 + X_6 + \nu > 0)}, where \math{\nu} 
+                              #' \eqn{Z = 1(X_1 + 2 X_2 - 2 X_3 - X_4 - 0.5 X_5 + X_6 + \nu > 0)}, where \eqn{\nu} 
                               #' depends on the overlap selected. If overlap is "high",
-                              #' then \math{\nu \sim N(0, 100).} If overlap is 
-                              #' "low", then \math{\nu \sim N(0, 30).} Finally,
-                              #' if overlap is "medium", then \math{\nu} is drawn
-                              #' from a \math{\chi^2} with 5 degrees of freedom
+                              #' then \eqn{\nu \sim N(0, 100).} If overlap is 
+                              #' "low", then \eqn{\nu \sim N(0, 30).} Finally,
+                              #' if overlap is "medium", then \eqn{\nu} is drawn
+                              #' from a \eqn{\chi^2} with 5 degrees of freedom
                               #' that is scaled and centered to have mean 0.5 and 
                               #' variance 67.6.
                               #'
@@ -383,9 +392,13 @@ Hainmueller <- R6::R6Class("Hainmueller",
                                            param_x = param$param_x)
                                
                              },
+                             #' @description
+                             #' Returns the chosen design parameters
                              get_design = function() {
                                return(c(design = private$design, overlap = private$overlap))
                              },
+                             #' @description
+                             #' Returns the true propensity score
                              get_pscore = function() {
                                return(private$pscore)
                              }
@@ -1087,11 +1100,11 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                #' 
                                #' @examples 
                                #' nsw <- LaLonde$new(design = "NSW")
-                               #' nsw$data_gen()
+                               #' nsw$gen_data()
                                #' nsw$get_n()
                                #' 
                                #' obs.study <-  LaLonde$new(design = "Full")
-                               #' obs.study$data_gen()
+                               #' obs.study$gen_data()
                                #' obs.study$get_n()
                                initialize = function(n = NULL, p = NULL, param = list(), design = "NSW", ...) {
                                  
@@ -1102,6 +1115,8 @@ Kallus2019 <- R6::R6Class("Kallus2019",
                                  }
                                  
                                },
+                               #' @description
+                               #' Returns the chosen design parameters
                                get_design = function() {
                                  return(c(design = private$design))
                                }

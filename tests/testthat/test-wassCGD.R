@@ -1,5 +1,7 @@
 testthat::test_that("wassCGD runs", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
+  causalOT:::skip_if_no_geomloss()
   set.seed(123123)
   data <- Hainmueller$new(n = 512, p = 6, design = "B", overlap = "high")
   data$gen_data()

@@ -10,10 +10,10 @@ testthat::test_that("mean_bal works", {
   data <- cbind(rbind(x0,x1), z = c(rep(0,2*n), rep(1, n)))
   colnames(data) <- c(paste0("x", 1:p), "z")
   
-  v1 <- colVar(x0)
-  v2 <- colVar(x1)
+  v1 <- matrixStats::colVars(x0)
+  v2 <- matrixStats::colVars(x1)
   
-  poolsd <- sqrt(0.5 *v1 + 0.5 * v2)
+  poolsd <- sqrt(2*n/(3*n) *v1 + n/(3*n) * v2)
   
   mb <- mean_bal(data, weights, balance.covariates = paste0("x", 1:p), 
            treatment.indicator = "z")

@@ -1,7 +1,7 @@
 #' Barycentric Projections
 #'
 #' @param data Data used to perform projections. Should be a matrix, data.frame, or DataSim class.
-#' @param weight an object of class [causalWeights][causalWeights] output from the [calc_weight()][calc_weight()] function
+#' @param weight an object of class [causalWeights][causalOT::causalWeights-class] output from the [calc_weight()][calc_weight()] function
 #' @param ... optional arguments such as "cost", the cost matrix, or the "estimand", "metric", or "p" if not provided by weights. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
 #'
 #' @return a list containing the barycentric projections with slots "control", "treated", and "observed.treatment"
@@ -269,9 +269,9 @@ barycenter_estimation <- function(gamma,x0,x1,y0,y1,
     arguments <- arguments[names(arguments) %in% formals.stan]
     if(is.null(arguments$object)) {
       if(metric == "Lp") {
-        arguments$object <- stanmodels$barycenter_projection
+        arguments$object <- stanbuilder("barycenter_projection")
       } else if (metric == "mahalanobis") {
-        arguments$object <- stanmodels$barycenter_projection
+        arguments$object <- stanbuilder("barycenter_projection")
       }
     }
     

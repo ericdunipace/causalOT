@@ -456,34 +456,6 @@ simplex_proj <- function(y) { #simplex projection of Condat 2015
 }
 
 
-theme_cot <- function(base_size = 11, base_family = "", 
-                       base_line_size = base_size/22, 
-                       base_rect_size = base_size/22,
-                       legend.position = 'bottom',
-                       legend.box = "horizontal",
-                       legend.justification = "center",
-                       legend.margin = ggplot2::margin(0,0,0,0),
-                       legend.box.margin = ggplot2::margin(-10,-10,0,-10)) { 
-  ggplot2::`%+replace%`(ggplot2::theme_bw(base_size = base_size, base_family = "", 
-                                          base_line_size = base_line_size, 
-                                          base_rect_size = base_rect_size),
-    ggplot2::theme(
-      plot.title = ggplot2::element_text(hjust = 1),
-      panel.grid.minor = ggplot2::element_blank(),
-      panel.grid.major = ggplot2::element_blank(),
-      strip.background = ggplot2::element_blank(),
-      strip.text.x = ggplot2::element_text(face = "bold"),
-      strip.text.y = ggplot2::element_text(face = "bold"),
-      legend.position = legend.position,
-      legend.box = legend.box,
-      legend.justification = legend.justification,
-      legend.margin = legend.margin,
-      legend.box.margin = legend.box.margin
-      # change stuff here
-    ))
-  
-}
-
 #' Covert the 2-dimensional index to 1-dimensional index
 #'
 #' @param i Index of row
@@ -493,7 +465,7 @@ theme_cot <- function(base_size = 11, base_family = "",
 #'
 #' @return a 1d index for easy matrix entry
 #' 
-#' #' @keywords internal
+#' @keywords internal
 dist_2d_to_1d <- function (i, j, n, m) {
   valid <- (i >= 1) & (j >= 1) & (i <= n) & (j <= m)
   k <- (j - 1) * n + i

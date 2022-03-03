@@ -175,40 +175,40 @@ quadprog.default <- function(x, z, y = NULL, constraint,  estimand = c("ATT", "A
                   sample_weight = sw,
                   soc = soc))
     }
-  } else if (meth == "EBW") {
-      if (is.null(dots[["p"]])) dots[["p"]] <- 2
-      if (is.null(dots[["metric"]])) dots[["metric"]] <- "mahalanobis"
-      
-      if (est == "cATE") {
-        list(qp_ebw(x = x, z = 1 - z,
-                    p = dots[["p"]],
-                    dist = dots[["metric"]], cost = dots[["cost"]],
-                    sample_weight = sw0),
-             qp_ebw(x=x, z = z, p = dots[["p"]],
-                    dist = dots[["metric"]], cost = dots[["cost"]],
-                    sample_weight = sw1))
-      } else if (est == "ATE") {
-        
-        list(qp_ebw(x = rbind(x[z == 0, ,drop = FALSE],x), 
-                    z = c(rep(0, sum(1 - z)), rep(1, nrow(x))),
-                    p = dots[["p"]],
-                    dist = dots[["metric"]], cost = dots[["cost"]],
-                    sample_weight = sw0),
-             qp_ebw(x = rbind(x[z == 1, ,drop = FALSE],x), 
-                    z = c(rep(0, sum(z)), rep(1, nrow(x))),
-                    p = dots[["p"]],
-                    dist = dots[["metric"]], cost = dots[["cost"]],
-                    sample_weight = sw1))
-      } else if (est == "ATC") {
-        list(qp_ebw(x=x, z= 1 - z, 
-                    p = dots[["p"]],
-                    dist = dots[["metric"]], cost = dots[["cost"]],
-                    sample_weight = sw))
-      } else {
-        list(qp_ebw(x = x, z = z, p = dots[["p"]],
-                    dist = dots[["metric"]], cost = dots[["cost"]],
-                    sample_weight = sw))
-      }
+  # } else if (meth == "EBW") {
+  #     if (is.null(dots[["p"]])) dots[["p"]] <- 2
+  #     if (is.null(dots[["metric"]])) dots[["metric"]] <- "mahalanobis"
+  #     
+  #     if (est == "cATE") {
+  #       list(qp_ebw(x = x, z = 1 - z,
+  #                   p = dots[["p"]],
+  #                   dist = dots[["metric"]], cost = dots[["cost"]],
+  #                   sample_weight = sw0),
+  #            qp_ebw(x=x, z = z, p = dots[["p"]],
+  #                   dist = dots[["metric"]], cost = dots[["cost"]],
+  #                   sample_weight = sw1))
+  #     } else if (est == "ATE") {
+  #       
+  #       list(qp_ebw(x = rbind(x[z == 0, ,drop = FALSE],x), 
+  #                   z = c(rep(0, sum(1 - z)), rep(1, nrow(x))),
+  #                   p = dots[["p"]],
+  #                   dist = dots[["metric"]], cost = dots[["cost"]],
+  #                   sample_weight = sw0),
+  #            qp_ebw(x = rbind(x[z == 1, ,drop = FALSE],x), 
+  #                   z = c(rep(0, sum(z)), rep(1, nrow(x))),
+  #                   p = dots[["p"]],
+  #                   dist = dots[["metric"]], cost = dots[["cost"]],
+  #                   sample_weight = sw1))
+  #     } else if (est == "ATC") {
+  #       list(qp_ebw(x=x, z= 1 - z, 
+  #                   p = dots[["p"]],
+  #                   dist = dots[["metric"]], cost = dots[["cost"]],
+  #                   sample_weight = sw))
+  #     } else {
+  #       list(qp_ebw(x = x, z = z, p = dots[["p"]],
+  #                   dist = dots[["metric"]], cost = dots[["cost"]],
+  #                   sample_weight = sw))
+  #     }
   } else if (meth == "Wasserstein") {
     
     # if (is.null(dots[["p"]])) dots[["p"]] <- 2
@@ -1142,12 +1142,6 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
   
   
   L0 <- c(w = rep(0,n))
-  # var_bounds <- ROI::V_bound(li =1:n, ui = 1:n, lb = rep(0,n), ub = rep(1,n))
-  # var_bounds <- NULL
-  # op <- ROI::OP(objective = ROI::Q_objective(Q = Q0, L = L0, names = as.character(1:n)),
-  #               bounds = var_bounds,
-  #               maximum = FALSE)
-  
   
   A2 <- x_constraint
   
@@ -1155,27 +1149,6 @@ qp_sbw <- function(x, z, K, estimand = c("ATT", "ATC",
   
   lc <- c(rep(1, nrow(A1)), K_lwr)
   uc <- c(rep(1, nrow(A1)), K_upr)
-  # vals <- c(rep(1, nrow(A1)), K_lwr, K_upr)
-  # dir <- c(rep("E", nrow(A1)),rep("G",length(K_lwr)), rep("L",length(K_upr)))
-  # dir <- c(ROI::eq(1), ROI::geq(d), ROI::leq(d))
-  # LC <- ROI::L_constraint(A, dir, vals)
-  
-  # A <- A1
-  # vals <- 1
-  # dir <- ROI::eq(1)
-  # LC <- ROI::L_constraint(A, dir, vals)
-  
-  # Q1 <- matrix(0,0)
-  # L1 <- rep(1,n) # beta portion, gamma portion, t portion is 0. multiplies all vars each time!!!
-  # 
-  # Q2 <- lapply(1:d, function(i) 2*crossprod(x_constraint[i,,drop=FALSE]))
-  # L2 <- lapply(1:d, function(i) 2*crossprod(x_constraint[i,,drop=FALSE]))
-  # A <- rbind(A1,A2)
-  # vals <- c(1,K + x1m)
-  # dir <- c(ROI::eq(1), ROI::leq(d))
-  # LC <- ROI::L_constraint(A, dir, vals)
-  
-  # ROI::constraints(op) <- LC
   
   program <- list(obj = list(Q = Q0, L = L0),
                   LC = list(A = A, lc = lc, uc = uc))
@@ -1726,6 +1699,58 @@ bc_to_dir_const <- function(qp) {
   qp$LC$dir <- dir
   qp$LC$vals <- vals
   return(qp)
+}
+
+bc_to_gt_const <- function(qp) { #for quadprog only
+  lc <- qp$LC$lc
+  uc <- qp$LC$uc
+  A  <- qp$LC$A
+  
+  
+  equal_l <- which(lc == uc)
+  # equal_u <- which(uc == lc)
+  lt    <- which(lc != uc & !is.infinite(uc))
+  gt    <- which(lc != uc & !is.infinite(lc))
+  
+  vals <- c(lc[equal_l], -uc[equal_l], -uc[lt], lc[gt])
+  
+  A   <- rbind(A[equal_l,, drop = FALSE],
+               -A[equal_l,, drop = FALSE],
+               -A[lt,, drop = FALSE],
+               A[gt,, drop = FALSE])
+  
+  qp$LC$A <- A
+  qp$LC$vals <- vals
+  return(qp)
+}
+
+bc_to_gt_const_quadprog <- function(qp) { #for quadprog only
+  lc <- qp$LC$lc
+  uc <- qp$LC$uc
+  A  <- qp$LC$A
+  
+  
+  equal_l <- which(lc == uc)
+  # equal_u <- which(uc == lc)
+  lt    <- which(lc != uc & !is.infinite(uc))
+  gt    <- which(lc != uc & !is.infinite(lc))
+  
+  vals <- c(lc[equal_l], -uc[lt], lc[gt])
+  
+  A   <- rbind(A[equal_l,, drop = FALSE],
+               -A[lt,, drop = FALSE],
+               A[gt,, drop = FALSE])
+  
+  qp$LC$A <- A
+  qp$LC$vals <- vals
+  qp$LC$dir_eq_num <- length(equal_l)
+  return(qp)
+}
+
+dir_to_bc <- function(qp) {
+  qp$dir
+  
+  
 }
 
 qp_wass <- function(x, z, K = list(penalty = NULL,
@@ -2359,68 +2384,68 @@ qp_scm <- function(x, z, K = list(penalty = NULL,
   return(op)
 }
 
-qp_ebw <- function(x, z,
-                        p = 2,
-                        dist = dist.metrics(), cost = list(joint = NULL,
-                                                           a = NULL,
-                                                           b = NULL),
-                        sample_weight = NULL) {
-  
-  # estimand <- match.arg(estimand)
-  stopifnot(is.numeric(p))
-  stopifnot(length(p) == 1)
-  margmass = get_sample_weight(sample_weight, z = z)
-  
-  x1 <- x[z == 1,,drop = FALSE]
-  x0 <- x[z == 0,,drop = FALSE]
-  
-  n <- nrow(x)
-  d <- ncol(x)
-  
-  n1 <- nrow(x1)
-  n0 <- nrow(x0)
-  
-  weight.dim <- n0 * n1
-  
-  dist <- match.arg(dist)
-  
-  if(is.null(cost) ) {
-      cost <- cost_fun(x, z, 
-                       ground_p = p, metric = dist,
-                       rkhs.args = rkhs.args, estimand = "ATT")
-      cost_a <- cost_fun(rbind(x0,x0), c(rep(0,n0), rep(1,n0)), 
-                         ground_p = p, metric = dist,
-                         rkhs.args = rkhs.args, estimand = "ATT")
-      cost_b <- cost_fun(rbind(x1,x1), c(rep(0,n1), rep(1,n1)), 
-                         ground_p = p, metric = dist,
-                         rkhs.args = rkhs.args, estimand = "ATT")
-  }
-  
-  
-  stopifnot(dim(cost) %in% c(n0,n1))
-  
-  joint_cost_vec <- rowMeans(cost)
-  
-  #objective function
-  obj <- list(L = c(cost = 2 * joint_cost_vec^p/n0),
-              Q = Matrix::sparseMatrix(i = rep(1:n0, n0),
-                                       j = rep(1:n0, each = n0),
-                                       x = -cost_a^p/n0^2,
-                                       dims = c(n0,n0)))
-  
-  # linear constraints
-  LC <- list()
-  LC$A <- Matrix::sparseMatrix(i = rep(1, n0), j = 1:n0,
-                               x = 1, dims = c(1,n0))
-  
-  # set constraint bounds
-  LC$uc <- c(1)
-  LC$lc <- c(1)
-  
-  op <- list(obj = obj, LC = LC)
-  
-  return(op)
-}
+# qp_ebw <- function(x, z,
+#                         p = 2,
+#                         dist = dist.metrics(), cost = list(joint = NULL,
+#                                                            a = NULL,
+#                                                            b = NULL),
+#                         sample_weight = NULL) {
+#   
+#   # estimand <- match.arg(estimand)
+#   stopifnot(is.numeric(p))
+#   stopifnot(length(p) == 1)
+#   margmass = get_sample_weight(sample_weight, z = z)
+#   
+#   x1 <- x[z == 1,,drop = FALSE]
+#   x0 <- x[z == 0,,drop = FALSE]
+#   
+#   n <- nrow(x)
+#   d <- ncol(x)
+#   
+#   n1 <- nrow(x1)
+#   n0 <- nrow(x0)
+#   
+#   weight.dim <- n0 * n1
+#   
+#   dist <- match.arg(dist)
+#   
+#   if(is.null(cost) ) {
+#       cost <- cost_fun(x, z, 
+#                        ground_p = p, metric = dist,
+#                        rkhs.args = rkhs.args, estimand = "ATT")
+#       cost_a <- cost_fun(rbind(x0,x0), c(rep(0,n0), rep(1,n0)), 
+#                          ground_p = p, metric = dist,
+#                          rkhs.args = rkhs.args, estimand = "ATT")
+#       cost_b <- cost_fun(rbind(x1,x1), c(rep(0,n1), rep(1,n1)), 
+#                          ground_p = p, metric = dist,
+#                          rkhs.args = rkhs.args, estimand = "ATT")
+#   }
+#   
+#   
+#   stopifnot(dim(cost) %in% c(n0,n1))
+#   
+#   joint_cost_vec <- rowMeans(cost)
+#   
+#   #objective function
+#   obj <- list(L = c(cost = 2 * joint_cost_vec^p/n0),
+#               Q = Matrix::sparseMatrix(i = rep(1:n0, n0),
+#                                        j = rep(1:n0, each = n0),
+#                                        x = -cost_a^p/n0^2,
+#                                        dims = c(n0,n0)))
+#   
+#   # linear constraints
+#   LC <- list()
+#   LC$A <- Matrix::sparseMatrix(i = rep(1, n0), j = 1:n0,
+#                                x = 1, dims = c(1,n0))
+#   
+#   # set constraint bounds
+#   LC$uc <- c(1)
+#   LC$lc <- c(1)
+#   
+#   op <- list(obj = obj, LC = LC)
+#   
+#   return(op)
+# }
 
 qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
                     theta = c(1,1),

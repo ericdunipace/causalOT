@@ -1,35 +1,38 @@
 #' Supported weighting methods
 #'
-#' @return A character vector with values "Logistic","SBW", "SCM", 
-#' "CBPS", "RKHS", "RKHS.dose", "NNM", "Wasserstein",
-#' "Constrained Wasserstein", and "None".
+#' @return A character vector with values "Logistic", "Probit", "SBW", "SCM", 
+#' "CBPS",  "NNM", 
+#' "Wasserstein" or equivalently "COT",
+#'  and "None".
 #' @export
 #'
 #' @examples
 #' supported.methods()
 supported.methods <- function() {
-  return(c("Wasserstein",
+  return(c("Wasserstein", "COT",
            "Logistic", "Probit",
            "SBW", "SCM", 
            # "EBW",
            "CBPS",
-           "RKHS", "RKHS.dose", "NNM", 
-           
-           # "Constrained Wasserstein",
+           # "RKHS", "RKHS.dose", 
+           "NNM", 
            "None"))
 }
 
 #' Supported optimal transport methods
+#' 
+#' Lists the supported OT methods. Note "COT" and "Wasserstein" are equivalent.
 #'
-#' @return A character vector with values "NNM","Wasserstein", and "SCM".
+#' @return A character vector with values "NNM","Wasserstein", "COT", and "SCM".
 #' @export
 #'
 #' @examples
 #' ot.methods()
 ot.methods <- function() {
   return(c("NNM"
-           ,"Wasserstein"
-           ,"Constrained Wasserstein"
+           ,"Wasserstein",
+           "COT"
+           # ,"Constrained Wasserstein"
            ,"SCM"
            # ,"EBW"
            ))
@@ -46,7 +49,7 @@ ot.methods <- function() {
 #' variance-covariance matrix. Be  warned that neither "sdLp" or "mahalanobis"
 #' may make sense for binary covariates and care should be taken. 
 #' 
-#' The "Lp" method uses the simple \math{L_p} norm, while "RKHS" 
+#' The "Lp" method uses the simple \eqn{L_p} norm, while "RKHS" 
 #' calculates the kernel for a reproducible kernel Hilbert space (RKHS).
 #' 
 #' @export
@@ -55,4 +58,21 @@ ot.methods <- function() {
 #' dist.metrics()
 dist.metrics <- function() {
   c("sdLp", "mahalanobis",  "Lp", "RKHS" )
+}
+
+
+#' Supported solvers
+#'
+#' @return a character vector with values "lbfgs","mosek","gurobi", and "osqp"
+#' 
+#' @details The solvers "mosek" and "gurobi" are commercial solvers that require software licenses. "quadprog" uses the `osqp` R package and "lbfgs" will either use `pytorch` in Python or the `lbfgs3c` package in R, which are both free.
+#' 
+#' @export
+#'
+#' @examples
+#' dist.metrics()
+supported.solvers <- function() {
+  c("lbfgs","mosek",
+    # "gurobi",
+    "osqp")
 }

@@ -1,0 +1,4 @@
+*.html
+*.R
+usage_cache/
+cache

@@ -7,7 +7,7 @@ testthat::test_that("function works as would expect", {
   design <- "A"
   overlap <- "high"
   
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -22,7 +22,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "A"
   overlap <- "low"
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -35,7 +35,7 @@ testthat::test_that("function works as would expect", {
 
   design <- "B"
   overlap <- "high"
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -51,7 +51,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "B"
   overlap <- "low"
-  data <- causalOT::KangSchafer$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::KangSchafer$new(n = n, p = 100, numActive = p1,
                                     design = design,
                                     overlap = overlap)
   data$gen_data()
@@ -67,6 +67,8 @@ testthat::test_that("function works as would expect", {
 
 testthat::test_that("optimal weighting works, no augmentation", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(6464546)
   n <- 2^7
   p <- 6
@@ -74,28 +76,28 @@ testthat::test_that("optimal weighting works, no augmentation", {
   design <- "NSW"
   distance <- c("Lp")
   power <- c(2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment = FALSE
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new()
+  data <- causalOT:::KangSchafer$new()
   data$gen_data()
   
   # debugonce( data$opt_weight)
   opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-  opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
+  # opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
   # opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
-  names(opt_weights_mosek) <-
-    names(opt_weights_gurobi) <- estimates
+  names(opt_weights_mosek) <- estimates
+    # names(opt_weights_gurobi) <- estimates
     # names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
                                               doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
-                              mean(data$get_tau()), tol = 1e-3)
+  # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
+  #                                             doubly.robust = FALSE, estimand = "ATE")$estimate,
+  #                             mean(data$get_tau()), tol = 1e-3)
   # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
   #                                             doubly.robust = FALSE, estimand = "ATE")$estimate,
   #                             mean(data$get_tau()), tol = 1e-3)
@@ -103,7 +105,8 @@ testthat::test_that("optimal weighting works, no augmentation", {
 
 testthat::test_that("optimal weighting works, augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(6464546)
   n <- 2^7
   p <- 6
@@ -112,28 +115,28 @@ testthat::test_that("optimal weighting works, augmentation", {
   design <- "A"
   distance <- c("Lp")
   power <- c(2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment = TRUE
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new(design = design)
+  data <- causalOT:::KangSchafer$new(design = design)
   data$gen_data()
   
   # debugonce( data$opt_weight)
   opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-  opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
+  # opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
   # opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
-  names(opt_weights_mosek) <-
-    names(opt_weights_gurobi) <- estimates
+  names(opt_weights_mosek) <- estimates
+    # names(opt_weights_gurobi) <- estimates
     # names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
                                               doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-1)
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = augment, estimand = "ATE")$estimate,
-                              mean(data$get_tau()), tol = 1e-1)
+  # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
+  #                                             doubly.robust = augment, estimand = "ATE")$estimate,
+  #                             mean(data$get_tau()), tol = 1e-1)
   # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
   #                                             doubly.robust = augment, estimand = "ATE")$estimate,
   #                             mean(data$get_tau()), tol = 1e-3)
@@ -141,17 +144,18 @@ testthat::test_that("optimal weighting works, augmentation", {
 
 testthat::test_that("optimal weighting comparison works, no augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(9847)
   design <- "B"
   distance <- c("Lp")
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- FALSE
   power <- 2
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new(design = design)
+  data <- causalOT:::KangSchafer$new(design = design)
   data$gen_data()
   ns <- data$get_n()
   n0 <- ns["n0"]
@@ -161,7 +165,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
                                                        estimand = e, 
                                                        p = power,
                                                        method = "NNM",
-                                                       solver = "gurobi"))
+                                                       solver = "mosek"))
   
   
   
@@ -177,16 +181,17 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
 
 testthat::test_that("optimal weighting comparison works. augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(9847)
   design <- "B"
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- TRUE
   power <- 2
   
   #### get simulation functions ####
-  data <- causalOT::KangSchafer$new(design = design)
+  data <- causalOT:::KangSchafer$new(design = design)
   data$gen_data()
   ns <- data$get_n()
   n0 <- ns["n0"]
@@ -196,7 +201,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
                                                        estimand = e, 
                                                        p = power,
                                                        method = "NNM",
-                                                       solver = "gurobi")))
+                                                       solver = "mosek")))
   
   
   

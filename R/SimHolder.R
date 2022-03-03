@@ -515,8 +515,8 @@
                                           weight_based_methods = "character",
                                           #   cost.fun = function(X, Y, ground_p, direction, metric) {
                                           #     return(switch(metric,
-                                          #             "Lp" = causalOT::cost_calc_lp(X, Y, ground_p, direction),
-                                          # "mahalanobis" = causalOT::cost_mahalanobis(X, Y, ground_p, direction)))
+                                          #             "Lp" = cost_calc_lp(X, Y, ground_p, direction),
+                                          # "mahalanobis" = cost_mahalanobis(X, Y, ground_p, direction)))
                                           #     },
                                           cost.setup = function() {
                                             n_g <- length(private$ground_powers)
@@ -549,7 +549,7 @@
                                               for (j in as.character(private$wass_powers)) {
                                                 # function(X, Y, ground_p, direction, metric)
                                                 for(k in as.character(private$estimand)) {
-                                                  private$costs[[i]][[j]][[k]] <- causalOT::cost_fun(x = x, z = z,
+                                                  private$costs[[i]][[j]][[k]] <- cost_fun(x = x, z = z,
                                                                                     power = as.numeric(j), 
                                                                                     metric = i,
                                                                                     estimand = k)
@@ -1249,20 +1249,20 @@
                                             n <- sum(private$simulator$get_n())
                                             b <- rep(1/n, n)
                                             if (estimand == "ATE" || estimand == "cATE") {
-                                              wass.output <- data.frame(w0 = causalOT::sinkhorn_geom(x = private$simulator$get_x0(), 
+                                              wass.output <- data.frame(w0 = sinkhorn_geom(x = private$simulator$get_x0(), 
                                                                                      y = private$simulator$get_x(),
                                                                                      a = private$weights[[estimand]]$w0,
                                                                                      b = b, scaling = 0.8,
                                                                                      power = 2,
                                                                                      blur = 100, metric = "Lp")$loss,
-                                                                  w1 = causalOT::sinkhorn_geom(x = private$simulator$get_x1(), 
+                                                                  w1 = sinkhorn_geom(x = private$simulator$get_x1(), 
                                                                                           y = private$simulator$get_x(),
                                                                                           a = private$weights[[estimand]]$w1,
                                                                                           b = b, scaling = 0.8,
                                                                                           power = 2,
                                                                                           blur = 10, metric = "Lp")$loss)
                                             } else if (estimand == "ATC") {
-                                              wass.output <- data.frame(w0 = causalOT::sinkhorn_geom(x = private$simulator$get_x0(), 
+                                              wass.output <- data.frame(w0 = sinkhorn_geom(x = private$simulator$get_x0(), 
                                                                                      y = private$simulator$get_x1(),
                                                                                      a = private$weights[[estimand]]$w0,
                                                                                      b = private$weights[[estimand]]$w1,
@@ -1271,7 +1271,7 @@
                                                                   w1 = NA)
                                             } else if (estimand == "ATT") {
                                               wass.output <- data.frame(w0 = NA, 
-                                                                  w1 = causalOT::sinkhorn_geom(x = private$simulator$get_x0(), 
+                                                                  w1 = sinkhorn_geom(x = private$simulator$get_x0(), 
                                                                                           y = private$simulator$get_x1(),
                                                                                           a = private$weights[[estimand]]$w0,
                                                                                           b = private$weights[[estimand]]$w1,

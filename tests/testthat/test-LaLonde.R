@@ -28,6 +28,8 @@ testthat::test_that("function works as would expect", {
 
 testthat::test_that("optimal weighting works, no augmentation", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(6464546)
   n <- 2^7
   p <- 6
@@ -35,7 +37,7 @@ testthat::test_that("optimal weighting works, no augmentation", {
   design <- "NSW"
   distance <- c("Lp")
   power <- c(2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment = FALSE
   
@@ -45,68 +47,31 @@ testthat::test_that("optimal weighting works, no augmentation", {
   
   # debugonce( data$opt_weight)
   opt_weights_mosek  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-  opt_weights_gurobi <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
+  # opt_weights_gurobi <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
   # opt_weights_cplex  <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
-  names(opt_weights_mosek) <-
-    names(opt_weights_gurobi) <- estimates
+  names(opt_weights_mosek) <- estimates
+    # names(opt_weights_gurobi) <- estimates
     # names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
                                               doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
-                              mean(data$get_tau()), tol = 1e-3)
+  # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
+  #                                             doubly.robust = FALSE, estimand = "ATE")$estimate,
+  #                             mean(data$get_tau()), tol = 1e-3)
   # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
   #                                             doubly.robust = FALSE, estimand = "ATE")$estimate,
   #                             mean(data$get_tau()), tol = 1e-3)
 })
 
-# testthat::test_that("optimal weighting works, augmentation", {
-#   testthat::skip_on_cran()
-#   
-#   set.seed(6464546)
-#   n <- 2^7
-#   p <- 6
-#   nsims <- 1
-#   overlap <- "low"
-#   design <- "NSW"
-#   distance <- c("Lp")
-#   power <- c(2)
-#   solver <- "gurobi"
-#   estimates <- c("ATT", "ATC", "cATE", "ATE")
-#   augment = TRUE
-#   
-#   #### get simulation functions ####
-#   data <- causalOT::LaLonde$new(design = design)
-#   data$gen_data()
-#   
-#   # debugonce( data$opt_weight)
-#   opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-#   opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
-#   # opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
-#   names(opt_weights_mosek) <-
-#     names(opt_weights_gurobi) <- estimates
-#     # names(opt_weights_cplex) <- estimates
-#   
-#   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
-#                                               doubly.robust = augment, estimand = "ATE")$estimate,
-#                               mean(data$get_tau()), tol = 1e-3)
-#   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-#                                               doubly.robust = augment, estimand = "ATE")$estimate,
-#                               mean(data$get_tau()), tol = 1e-3)
-#   # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
-#   #                                             doubly.robust = augment, estimand = "ATE")$estimate,
-#   #                             mean(data$get_tau()), tol = 1e-3)
-# })
-
 testthat::test_that("optimal weighting comparison works, no augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(9847)
   design <- "NSW"
   distance <- c("Lp")
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- FALSE
   power <- 2
@@ -122,7 +87,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
                                                        estimand = e, 
                                                        p = power,
                                                        method = "NNM",
-                                                       solver = "gurobi")))
+                                                       solver = "mosek")))
   
   
   
@@ -138,10 +103,11 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
 
 testthat::test_that("optimal weighting comparison works. augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(9847)
   design <- "NSW"
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- TRUE
   power <- 2
@@ -157,7 +123,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
                                                        estimand = e, 
                                                        p = power,
                                                        method = "NNM",
-                                                       solver = "gurobi")))
+                                                       solver = "mosek")))
   
   
   

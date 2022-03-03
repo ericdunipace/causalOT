@@ -1,5 +1,7 @@
 testthat::test_that("PSIS diagnostics work", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
+  # testthat::skip_if_not_installed("gurobi")
   library(causalOT)
   set.seed(23483)
   n <- 2^7
@@ -9,7 +11,7 @@ testthat::test_that("PSIS diagnostics work", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC","ATE")
   
   #### get simulation functions ####
@@ -49,8 +51,8 @@ testthat::test_that("PSIS diagnostics work", {
   test4 <- calc_weight(data, constraint = 0.1, estimand =  "ATE", method = "Logistic", solver = "mosek")
   test4b <- calc_weight(data, constraint = 0.1, estimand =  "cATE", method = "Logistic", solver = "mosek")
   
-  test5 <- calc_weight(data, constraint = 0.1, estimand = "ATE", method = "RKHS", solver = "gurobi")
-  test5b <- calc_weight(data, constraint = 0.1, estimand = "cATE", method = "RKHS", solver = "gurobi")
+  # test5 <- calc_weight(data, constraint = 0.1, estimand = "ATE", method = "RKHS", solver = "gurobi")
+  # test5b <- calc_weight(data, constraint = 0.1, estimand = "cATE", method = "RKHS", solver = "gurobi")
   
   # test6 <- calc_weight(data = data,
   #                      p =1,
@@ -81,8 +83,9 @@ testthat::test_that("PSIS diagnostics work", {
   
   weights <- list(CW = test1,
                   # W = test2, 
-                  SBW=test3, IPW = test4, RKHS = test5,
-                  cRKHS = test5b, 
+                  SBW=test3, IPW = test4, 
+                  # RKHS = test5,
+                  # cRKHS = test5b, 
                   # cCW = test6, 
                   cW = test7
                   # , 
@@ -101,6 +104,8 @@ testthat::test_that("PSIS diagnostics work", {
 
 testthat::test_that("PSIS diagnostics work, feasible", {
   testthat::skip_on_cran()
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
+  # testthat::skip_if_not_installed("gurobi")
   library(causalOT)
   set.seed(23483)
   n <- 2^7
@@ -110,7 +115,7 @@ testthat::test_that("PSIS diagnostics work, feasible", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   # estimates <- c("ATT", "ATC","ATE", "feasible")
   
   #### get simulation functions ####

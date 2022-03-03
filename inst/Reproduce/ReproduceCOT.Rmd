@@ -1,0 +1,214 @@
+---
+title: "Reproducing the results in *Optimal transport weights for causal inference*"
+author: "Eric Dunipace"
+date: "2/23/2022"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
+theme_cot <- function(base_size = 11, base_family = "", 
+                       base_line_size = base_size/22, 
+                       base_rect_size = base_size/22,
+                       legend.position = 'bottom',
+                       legend.box = "horizontal",
+                       legend.justification = "center",
+                       legend.margin = ggplot2::margin(0,0,0,0),
+                       legend.box.margin = ggplot2::margin(-10,-10,0,-10)) { 
+  ggplot2::`%+replace%`(ggplot2::theme_bw(base_size = base_size, base_family = "", 
+                                          base_line_size = base_line_size, 
+                                          base_rect_size = base_rect_size),
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 1),
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major = ggplot2::element_blank(),
+      strip.background = ggplot2::element_blank(),
+      strip.text.x = ggplot2::element_text(face = "bold"),
+      strip.text.y = ggplot2::element_text(face = "bold"),
+      legend.position = legend.position,
+      legend.box = legend.box,
+      legend.justification = legend.justification,
+      legend.margin = legend.margin,
+      legend.box.margin = legend.box.margin
+      # change stuff here
+    ))
+  
+}
+```
+
+# Basics
+
+This R Markdown document will reproduce the tables and figures in the paper *Optimal transport weights for causal inference*. If this file is compiled in this directory, the tables and figures will be generated from the source files found in the `code` folder. 
+
+## To generate tables and figures
+By default, this document will re-compile the tables and figures from the simulation studies using the already run simulation data from the original paper. This document will also input the tables and figures from the case study. The case study can be re-run by setting the corresponding chunk to `eval = TRUE`. 
+
+## To re-run simulations
+This will be a lengthy process if not on a cluster. The original files used to run the simulations on the cluster are found in the subfolder `code\original_sim` for both the convergence analysis and Hainmueller simulations. How to run these on a cluster is included below.
+
+## Required R pacakges
+To re-run these simulations and/or recompile tables and figures, there are several libraries needed.
+
+For just compiling tables and figures, here's all of the libraries that should be loaded:
+```{r echo = TRUE, eval = FALSE}
+library(causalOT)
+library(dplyr)
+library(ggplot2)
+library(ggsci)
+library(xtable)
+library(cowplot)
+library(tidyr)
+```
+
+For re-running simulations, the following packages are needed
+```{r echo = TRUE, eval = FALSE}
+library(causalOT)
+library(doRNG)
+library(Rmosek)
+```
+as well as the Python libraries `numpy`, `scipy`, `pykeops`, and `geomloss`.
+
+# Simulations studies
+## Study of bias/RMSE using Hainmueller (2012)
+To generate the figures and tables for the simulations, we can use the following code
+```{r echo = TRUE, message = FALSE}
+source("code/Hainmueller.R")
+```
+ This will take the simulations for the Hainmueller setting and calculate the summary statistics. Then it generates the Latex table in Table 1. Some of the references in the table will not work since this is not in the larger paper with the .bib file.
+ 
+ Note this will download the simulation data if it's not already found in the data folder of this workflow.
+ 
+ 
+### Re-running on a cluster
+To re-run this data, I recommend using a cluster. There are several other files in `code/original_sim` to discuss.
+
+1. `hain_setting_array.R` generates a setting array that the cluster run will refer to in order to setup the simulation settings.
+2. `generate_seeds.R` generates a list of seeds to be used by the analysis (and also for the convergence simulations)
+3. `combine_sim_res.R` will combine the raw simulation results into one folder.
+ 
+The files in `code/original_sim/Hainmueller` will re-run the raw analysis. The command
+``` {bash eval = FALSE}
+sbatch --array=1-1500 hain.sh
+```
+should re-run the results as desired.
+
+### Output
+At the end we get the following table, which should match the paper.
+```{=latex}
+\input{tables/hainmueller.tex}
+\newpage
+```
+
+
+## Convergence and confidence intervals
+Similarly, the convergence and confidence interval simulations can be compiled with the following code chunk
+```{r echo = TRUE, message = FALSE, warning = FALSE}
+source("code/convergence.R")
+```
+ Note this will download the simulation data if it's not already found in the data folder of this workflow.
+
+
+### Re-running on a cluster
+To re-run this data, I again **recommend** using a cluster. There are several other files in `code/original_sim` as mentioned previously:
+
+1. `generate_seeds.R` generates a list of seeds to be used by the analysis (and also for the convergence simulations)
+3. `combine_sim_res.R` will combine the raw simulation results into one folder.
+ 
+Then the files in `code/original_sim/Convergence` will re-run the analysis. On a Slurm based cluster running 
+``` {bash eval = FALSE}
+sbatch --array=1-1000 conv.sh
+```
+should be sufficient.
+
+### Outputs for convergence
+Then we can look at the plots demonstrating convergence in terms of Sinkhorn divergence and $L_2$ norm.
+
+```{=latex}
+\begin{figure}[htb]
+	\includegraphics[width=\textwidth]{figures/gray_compare_meth_conv_wass}
+	\caption{Convergence of the weights to the distributions specified by the empirical distributions (top) and the distributions specified by the true propensity score/Radon-Nikodym derivatives (bottom). Weights are a Causal Optimal Transport (COT), Nearest Neighbor Matching (NNM), a Probit model (GLM), and Stable Balancing Weights (SBW). Lines denote means across 1000 simulations. Both axes are on the log scale.}
+	\label{fig:wass_conv_B}
+\end{figure}
+\begin{figure}[htb]
+	\includegraphics[width=\textwidth]{figures/gray_compare_meth_conv_l2}
+	\caption{Convergence of the estimated weights to the values of the true inverse propensity score in terms of the $L_2$ norm. Weights are a Causal Optimal Transport (COT), Nearest Neighbor Matching (NNM), a Probit model (GLM), and Stable Balancing Weights (SBW). Lines denote means across 1000 simulations. Both axes are on the log scale.}
+	\label{fig:l2_conv_B}
+\end{figure}
+\newpage
+```
+
+### Outputs for confidence intervals
+This analysis also gets the following figures for confidence interval coverage.
+
+```{=latex}
+\begin{figure}[!tb]
+	\centering
+		\includegraphics[width=\linewidth]{figures/gray_ot_meth_ci_coverage_both}
+		\caption{Coverage of the true treatment effect}
+		\end{figure}
+	\begin{figure}[!tb]
+		\includegraphics[width=\linewidth]{figures/gray_ot_meth_ci_coverage_both_expectation}
+		\caption{Coverage of the estimated average treatment effect}
+\end{figure}
+\newpage
+```
+# Case study
+## The data
+The data come from a study by Blum et al. looking at the effect of misoprostol vs. oxytocin at stopping post-partum hemorrhage. The data is described in the documents for the `causalOT` package which can be accessed by running
+`?causalOT::pph`. A more detailed description is found in the paper *Optimal transport weights for causal inference*.
+
+### Running the analysis
+The analysis can be run by running the following chunk with `eval = TRUE`
+```{r echo = TRUE, message = FALSE, eval = FALSE, warning = FALSE}
+source("code/miso_egypt.R")
+```
+
+## Figures/Tables
+We now turn to the tables and figures generated by this analysis. The first is the mean balance of the covariates before and after weighting.
+```{=latex}
+\begin{figure}[htb]
+			\centering
+			\includegraphics[width =\textwidth]{figures/miso_mb}
+			\caption{Change in the standardized difference in means between the two groups before and after weighting. An examination in the change in balance before and after utilizing the optimal transport methods with the listed constraints for the misoprostol receiving participants in Egypt versus the oxytocin receiving participants at the other sites. ``COT'' corresponds to no constraints and ``COT, means'' corresponds to  constraints on mean balance.}
+			\label{fig:miso_mb}
+		\end{figure}
+		\newpage
+```
+The next figure looks at the changes in 2-Sinkhorn divergence before and after weighting.
+```{=latex}
+\begin{figure}[htb]
+			\centering
+			\includegraphics[width =.9\textwidth]{figures/miso_wp}
+			%		\vspace{.45em}
+			\caption{Change in the 2-Sinkhorn divergence between the two groups before and after weighting. An examination in the change in balance before and after utilizing the optimal transport methods with the listed constraints for the misoprostol receiving participants in Egypt versus the oxytocin receiving participants at the other sites. ``COT'' corresponds to no constraints and ``COT, means'' corresponds to constraints on the mean balance.}
+			\label{fig:miso_wp}
+		\end{figure}
+		\newpage
+```
+We can see that balance is improved though not perfect.
+
+However, some of the effect estimates look real good!
+```{=latex}
+\begin{figure}[htb]
+			\centering
+			\includegraphics[width =\textwidth]{figures/miso_att}
+			\caption{Results for treatment effect estimation between the treated misoprostol group in Egypt versus the control oxytocin group at four other sites. We see that methods without mean constraints are able to recover the effect estimate. Note that ``COT'' corresponds to no constraints and ``COT, means'' corresponds to constraints on mean balance.}
+			\label{fig:miso}
+		\end{figure}
+		\newpage
+```
+We can see how mean balancing leads to very poor estimates.
+
+This figure is also available in table form.
+```{=latex}
+\input{tables/miso.tex}
+\newpage
+```
+This allows us to see better the overlap in confidence intervals.
+
+## Conclusions
+This document reproduces the results for the paper *Optimal transport weights for causal inference* by Eric Dunipace. Any questions or concerns can be addressed by filing an issue at [https://github.com/ericdunipace/causalOT/issues](https://github.com/ericdunipace/causalOT/issues).
+

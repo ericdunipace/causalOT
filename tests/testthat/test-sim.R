@@ -16,6 +16,9 @@ warn.fun <- function() {
 
 testthat::test_that("sim.function works", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -33,7 +36,7 @@ testthat::test_that("sim.function works", {
   ground_power <- 2
   trunc <- std_mean_diff <- c(0.001, 0.01, 1)
   agumentation <- match <- "both"
-  solver <- "gurobi"
+  solver <- "mosek"
   grid.search <- TRUE
   wdc <- c(10:11)
   methods <- c("Logistic", "SBW", "NNM")
@@ -126,6 +129,9 @@ testthat::test_that("sim.function works", {
 
 testthat::test_that("sim.function works, ATE only", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -143,7 +149,7 @@ testthat::test_that("sim.function works, ATE only", {
   ground_power <- 2
   trunc <- std_mean_diff <- c(0.001, 0.01, 1)
   agumentation <- match <- "both"
-  solver <- "gurobi"
+  solver <- "mosek"
   grid.search <- TRUE
   wdc <- c(10:11)
   methods <- c("Logistic", "SBW", "NNM")
@@ -238,6 +244,9 @@ testthat::test_that("sim.function works, ATE only", {
 
 testthat::test_that("sim.function works, propsensity formula", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -255,7 +264,7 @@ testthat::test_that("sim.function works, propsensity formula", {
   ground_power <- 2
   trunc <- std_mean_diff <- c(0.001, 0.01, 1)
   agumentation <- match <- "both"
-  solver <- "gurobi"
+  solver <- "mosek"
   grid.search <- TRUE
   wdc <- c(10:11)
   method <- c("Logistic","SBW", "NNM")
@@ -303,6 +312,9 @@ testthat::test_that("sim.function works, propsensity formula", {
 
 testthat::test_that("sim.function works, sonabend2020", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(224893390) #from random.org
   
@@ -320,7 +332,7 @@ testthat::test_that("sim.function works, sonabend2020", {
   ground_power <- 2
   trunc <- std_mean_diff <- c(0.001, 0.01, 1)
   agumentation <- match <- "both"
-  solver <- "gurobi"
+  solver <- "mosek"
   grid.search <- TRUE
   wdc <- 10:11
   methods <- c("Logistic","SBW","NNM")
@@ -391,6 +403,9 @@ testthat::test_that("sim.function works, sonabend2020", {
 
 testthat::test_that("sim.function works with RKHS", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive")
   set.seed(224893390) #from random.org
   
@@ -408,7 +423,7 @@ testthat::test_that("sim.function works with RKHS", {
   ground_power <- 2
   trunc <- std_mean_diff <- c(0.001, 0.01, 1)
   agumentation <- match <- "both"
-  solver <- "gurobi"
+  solver <- "mosek"
   grid.search <- TRUE
   wdc <- 40:41
   
@@ -472,6 +487,9 @@ testthat::test_that("sim.function works with RKHS", {
 testthat::test_that("bug in gp code",
                     {
                       testthat::skip("Interactive only")
+                      # testthat::skip_if_not_installed("gurobi")
+                      testthat::skip_if_not_installed("Rmosek")
+                      causalOT:::skip_if_no_geomloss()
                       design <- "B"
                       overlap <- "low"
                       data <- "Hainmueller"
@@ -485,7 +503,7 @@ testthat::test_that("bug in gp code",
                       ground_power <- 1 #1:2
                       std_mean_diff <- seq(0, p^(-1/2), length.out = 50)
                       trunc <- c(0, 0.01, 0.05, 0.1, 0.2)
-                      solver <- "gurobi"
+                      solver <- "mosek"
                       augmentation <- match <- "both"
                       grid.search <- TRUE
                       RKHS <- list(opt = TRUE, opt.method = "stan")
@@ -523,7 +541,9 @@ testthat::test_that("bug in gp code",
 
 testthat::test_that("test div wass", {
   set.seed(224893390) #from random.org
-  
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed("Rmosek")
+  causalOT:::skip_if_no_geomloss()
   #### Load Packages ####
   library(causalOT)
   

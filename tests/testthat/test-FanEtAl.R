@@ -6,7 +6,7 @@ testthat::test_that("function works as would expect", {
   p <- 100
   design <- "A"
 
-  data <- causalOT::FanEtAl$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::FanEtAl$new(n = n, p = 100, numActive = p1,
                                     design = design)
   data$gen_data()
   testthat::expect_equal(class(data$get_x()), c("matrix","array"))
@@ -20,7 +20,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "A"
   p1 <- 50
-  data <- causalOT::FanEtAl$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::FanEtAl$new(n = n, p = 100, numActive = p1,
                                     design = design)
   data$gen_data()
   testthat::expect_equal(class(data$get_x()), c("matrix","array"))
@@ -32,7 +32,7 @@ testthat::test_that("function works as would expect", {
   
   design <- "B"
   p1 <- 4
-  data <- causalOT::FanEtAl$new(n = n, p = 100, numActive = p1,
+  data <- causalOT:::FanEtAl$new(n = n, p = 100, numActive = p1,
                                     design = design)
   data$gen_data()
   testthat::expect_equal(class(data$get_x()), c("matrix","array"))
@@ -45,32 +45,35 @@ testthat::test_that("function works as would expect", {
 
 testthat::test_that("optimal weighting works, no augmentation", {
   testthat::skip_on_cran()
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(6464546)
   nsims <- 1
   distance <- c("Lp")
   power <- c(2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment = FALSE
   
   #### get simulation functions ####
-  testthat::expect_warning(data <- causalOT::FanEtAl$new())
+  testthat::expect_warning(data <- causalOT:::FanEtAl$new())
   data$gen_data()
   
   # debugonce( data$opt_weight)
   opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-  opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
+  # opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
   # opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
-  names(opt_weights_mosek) <-
-    names(opt_weights_gurobi) <- estimates
+  names(opt_weights_mosek) <- estimates
+    # names(opt_weights_gurobi) <- estimates
     # names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
                                               doubly.robust = FALSE, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = FALSE, estimand = "ATE")$estimate,
-                              mean(data$get_tau()), tol = 1e-3)
+  # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
+  #                                             doubly.robust = FALSE, estimand = "ATE")$estimate,
+  #                             mean(data$get_tau()), tol = 1e-3)
   # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
   #                                             doubly.robust = FALSE, estimand = "ATE")$estimate,
   #                             mean(data$get_tau()), tol = 1e-3)
@@ -78,7 +81,9 @@ testthat::test_that("optimal weighting works, no augmentation", {
 
 testthat::test_that("optimal weighting works, augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(6464546)
   n <- 2^7
   p <- 6
@@ -87,29 +92,29 @@ testthat::test_that("optimal weighting works, augmentation", {
   design <- "A"
   distance <- c("Lp")
   power <- c(2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment = TRUE
   
   #### get simulation functions ####
-  data <- causalOT::FanEtAl$new(design = design, p = 100, n = 500,
+  data <- causalOT:::FanEtAl$new(design = design, p = 100, n = 500,
                                 numActive = 4)
   data$gen_data()
   
   # debugonce( data$opt_weight)
   opt_weights_mosek <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "mosek"))
-  opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
+  # opt_weights_gurobi<- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "gurobi"))
   # opt_weights_cplex <- lapply(estimates, function(e) data$opt_weight(estimand = e, augment = augment, solver = "cplex"))
-  names(opt_weights_mosek) <-
-    names(opt_weights_gurobi) <- estimates
+  names(opt_weights_mosek) <- estimates
+    # names(opt_weights_gurobi) <- estimates
     # names(opt_weights_cplex) <- estimates
   
   testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_mosek[[4]], 
                                               doubly.robust = augment, estimand = "ATE")$estimate,
                               mean(data$get_tau()), tol = 1e-3)
-  testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
-                                              doubly.robust = augment, estimand = "ATE")$estimate,
-                              mean(data$get_tau()), tol = 1e-1)
+  # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_gurobi[[4]], 
+  #                                             doubly.robust = augment, estimand = "ATE")$estimate,
+  #                             mean(data$get_tau()), tol = 1e-1)
   # testthat::expect_equivalent(estimate_effect(data, weights = opt_weights_cplex[[4]], 
   #                                             doubly.robust = augment, estimand = "ATE")$estimate,
   #                             mean(data$get_tau()), tol = 1e-3)
@@ -117,17 +122,19 @@ testthat::test_that("optimal weighting works, augmentation", {
 
 testthat::test_that("optimal weighting comparison works, no augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(9847)
   design <- "B"
   distance <- c("Lp")
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- FALSE
   power = 2
   
   #### get simulation functions ####
-  data <- causalOT::FanEtAl$new(design = design, n = 500, p = 100,
+  data <- causalOT:::FanEtAl$new(design = design, n = 500, p = 100,
                                 numActive = 4)
   data$gen_data()
   ns <- data$get_n()
@@ -138,7 +145,7 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
                                                        estimand = e, 
                                                        p = power,
                                                        method = "NNM",
-                                                       solver = "gurobi")))
+                                                       solver = "mosek")))
   
   
   
@@ -154,16 +161,18 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
 
 testthat::test_that("optimal weighting comparison works. augmentation", {
   testthat::skip_on_cran()
-  
+  # testthat::skip_if_not_installed("gurobi")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(9847)
   design <- "B"
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   augment <- TRUE
   power <- 2
   
   #### get simulation functions ####
-  data <- causalOT::FanEtAl$new(design = design, n = 500, p = 100,
+  data <- causalOT:::FanEtAl$new(design = design, n = 500, p = 100,
                                 numActive = 4)
   data$gen_data()
   ns <- data$get_n()
@@ -174,7 +183,7 @@ testthat::test_that("optimal weighting comparison works. augmentation", {
                                                        estimand = e, 
                                                        p = power,
                                                        method = "NNM",
-                                                       solver = "gurobi")))
+                                                       solver = "mosek")))
   
   
   

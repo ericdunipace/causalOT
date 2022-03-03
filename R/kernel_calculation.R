@@ -31,7 +31,7 @@ kernel_calculation <- function(X, z, p = 1.0,
   } else {
     return(kernel_calc_(X_ = X, z = z, p = p, 
                       theta_ = theta, gamma_ = gamma,
-                      sigma_2 = sigma_2,
+                      sigma_2_ = sigma_2,
                       kernel_ = kern,
                       calc_covariance = calc_covariance,
                       estimand = estimand))

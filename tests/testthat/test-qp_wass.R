@@ -7,7 +7,7 @@ testthat::test_that("qp_wass gives error if power has length > 1 ", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4:5
@@ -36,7 +36,7 @@ testthat::test_that("qp_wass has correct dimensions, no marginals", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4
@@ -71,7 +71,7 @@ testthat::test_that("qp_wass has correct dimensions, marginals", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4
@@ -107,7 +107,7 @@ testthat::test_that("qp_wass works with sample weights", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC", "cATE", "ATE")
   constraint = 1
   power <- 4

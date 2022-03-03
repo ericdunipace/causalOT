@@ -1,5 +1,6 @@
 testthat::test_that("grid search function works, dataSim", {
   set.seed(9870)
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   library(causalOT)
   
   n <- 2^7
@@ -10,7 +11,7 @@ testthat::test_that("grid search function works, dataSim", {
   distance <- c("Lp")
   power <- c(1,2)
   ground_power <- 2
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC","feasible","ATE","cATE")
   
   #### get simulation functions ####
@@ -39,6 +40,7 @@ testthat::test_that("grid search function works, dataSim", {
 testthat::test_that("grid search deletes extra args", {
   set.seed(9870)
   library(causalOT)
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   
   n <- 2^7
   p <- 6
@@ -48,7 +50,7 @@ testthat::test_that("grid search deletes extra args", {
   distance <- c("Lp")
   power <- c(1,2)
   ground_power <- 2
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC","feasible","ATE","cATE")
   
   #### get simulation functions ####

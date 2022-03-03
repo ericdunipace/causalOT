@@ -14,7 +14,7 @@ testthat::test_that("mapping works, ATT", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATT"
   
   #### get simulation functions ####
@@ -70,7 +70,7 @@ testthat::test_that("mapping works, ATC", {
   power <- c(2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATC"
   
   #### get simulation functions ####
@@ -133,7 +133,7 @@ testthat::test_that("mapping works, ATE", {
   power <- c(2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATE"
   
   #### get simulation functions ####
@@ -207,7 +207,7 @@ testthat::test_that("estimate effect works lm, ATT", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATT"
   
   #### get simulation functions ####
@@ -259,7 +259,7 @@ testthat::test_that("estimate effect works lm, ATC", {
   power <- c(4)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATC"
   
   #### get simulation functions ####
@@ -312,7 +312,7 @@ testthat::test_that("estimate effect works lm, ATE", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATE"
   
   #### get simulation functions ####
@@ -367,7 +367,7 @@ testthat::test_that("estimate effect works lm model only, ATT", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATT"
   
   #### get simulation functions ####
@@ -417,7 +417,7 @@ testthat::test_that("estimate effect works otimp, ATT", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATT"
   
   #### get simulation functions ####
@@ -472,7 +472,7 @@ testthat::test_that("estimate effect works ot imp, ATC", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATC"
   
   #### get simulation functions ####
@@ -508,7 +508,7 @@ testthat::test_that("estimate effect works otimp, ATE", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATE"
   
   #### get simulation functions ####
@@ -544,7 +544,7 @@ testthat::test_that("estimate effect works otimp sm = false, ATT", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATT"
   
   #### get simulation functions ####
@@ -600,7 +600,7 @@ testthat::test_that("estimate effect works ot imp, ATC", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATC"
   
   #### get simulation functions ####
@@ -637,7 +637,7 @@ testthat::test_that("estimate effect works otimp sm = false, ATE", {
   power <- c(1,2)
   ground_power <- 2
   std_mean_diff <- c(0.001, 0.01, 0.1)
-  solver <- "gurobi"
+  solver <- "osqp"
   estimand <- "ATE"
   
   #### get simulation functions ####
