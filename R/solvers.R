@@ -48,60 +48,60 @@
 # }
 
 # solver interface for the gurobi optimizer
-gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
-  neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
-  get.dual <- isTRUE(get.dual)
-  
-  #convert from mosek format to gurobi
-  qp <- convert_cones(qp)
-  qp <- bc_to_dir_const(qp)
-  
-  
-  num_param <- length(c(as.numeric(qp$obj$L)))
-  model <- list()
-  model$Q <- qp$obj$Q
-  model$modelsense <- 'min'
-  model$obj <- c(as.numeric(qp$obj$L))
-  model$A <- qp$LC$A
-  model$sense <- rep(NA, length(qp$LC$dir))
-  model$sense[qp$LC$dir=="E"] <- '='
-  model$sense[qp$LC$dir=="L"] <- '<='
-  model$sense[qp$LC$dir=="G"] <- '>='
-  model$rhs <- qp$LC$vals
-  model$vtype <- rep("C", num_param)
-  # model$lb <- switch(neg.wt,
-  #                    rep(0, num_param),
-  #                    rep(-Inf, num_param))
-  # model$ub <- rep(Inf, num_param)
-  model$lb <- qp$bounds$lb
-  model$ub <- qp$bounds$ub
-  params <- list(OutputFlag = 0)
-  
-  
-  res <- gurobi::gurobi(model, params)
-  if (res$status != "OPTIMAL") {
-    # browser()
-    warning("Algorithm did not converge!!!")
-  }
-  sol <- (res$x)[1:num_param]
-  sol <- switch(neg.wt,
-                sol * as.numeric(sol > 0),
-                sol)
-  if (all(sol == 0)) stop("All weights are 0!")
-  # obj_total <- out$obj
-  # 
-  # status <- out$status
-  # 
-  if (get.dual) {
-    dual_vars <- res$pi
-    names(dual_vars) <- names(qp$LC$vals)
-  } else {
-    dual_vars <- NULL
-  }
-  
-  return(list(sol = sol, dual = dual_vars, value = res$objval))
-  
-}
+# gurobi_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
+#   neg.wt <- as.numeric(isTRUE(neg.weights)) + 1
+#   get.dual <- isTRUE(get.dual)
+#   
+#   #convert from mosek format to gurobi
+#   qp <- convert_cones(qp)
+#   qp <- bc_to_dir_const(qp)
+#   
+#   
+#   num_param <- length(c(as.numeric(qp$obj$L)))
+#   model <- list()
+#   model$Q <- qp$obj$Q
+#   model$modelsense <- 'min'
+#   model$obj <- c(as.numeric(qp$obj$L))
+#   model$A <- qp$LC$A
+#   model$sense <- rep(NA, length(qp$LC$dir))
+#   model$sense[qp$LC$dir=="E"] <- '='
+#   model$sense[qp$LC$dir=="L"] <- '<='
+#   model$sense[qp$LC$dir=="G"] <- '>='
+#   model$rhs <- qp$LC$vals
+#   model$vtype <- rep("C", num_param)
+#   # model$lb <- switch(neg.wt,
+#   #                    rep(0, num_param),
+#   #                    rep(-Inf, num_param))
+#   # model$ub <- rep(Inf, num_param)
+#   model$lb <- qp$bounds$lb
+#   model$ub <- qp$bounds$ub
+#   params <- list(OutputFlag = 0)
+#   
+#   
+#   res <- gurobi::gurobi(model, params)
+#   if (res$status != "OPTIMAL") {
+#     # browser()
+#     warning("Algorithm did not converge!!!")
+#   }
+#   sol <- (res$x)[1:num_param]
+#   sol <- switch(neg.wt,
+#                 sol * as.numeric(sol > 0),
+#                 sol)
+#   if (all(sol == 0)) stop("All weights are 0!")
+#   # obj_total <- out$obj
+#   # 
+#   # status <- out$status
+#   # 
+#   if (get.dual) {
+#     dual_vars <- res$pi
+#     names(dual_vars) <- names(qp$LC$vals)
+#   } else {
+#     dual_vars <- NULL
+#   }
+#   
+#   return(list(sol = sol, dual = dual_vars, value = res$objval))
+#   
+# }
 
 # solver interface for the mosek optimizer
 mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
@@ -428,7 +428,7 @@ QPsolver <- function(qp, solver = supported.solvers(), ...) {
   # sol <- do.call(solve.fun, list(qp, ...))
   res <- switch(solver,
                 # "cplex" = cplex_solver(qp, ...),
-                "gurobi" = gurobi_solver(qp, ...),
+                # "gurobi" = gurobi_solver(qp, ...),
                 "mosek" = mosek_solver(qp, ...),
                 "osqp" = osqp_solver(qp, ...)
                 # "quadprog" = quadprog_solver(qp, ...)

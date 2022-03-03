@@ -1,7 +1,7 @@
 testthat::test_that("PSIS diagnostics work", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("Rmosek")
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   library(causalOT)
   set.seed(23483)
   n <- 2^7
@@ -11,7 +11,7 @@ testthat::test_that("PSIS diagnostics work", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   estimates <- c("ATT", "ATC","ATE")
   
   #### get simulation functions ####
@@ -105,7 +105,7 @@ testthat::test_that("PSIS diagnostics work", {
 testthat::test_that("PSIS diagnostics work, feasible", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("Rmosek")
-  testthat::skip_if_not_installed("gurobi")
+  # testthat::skip_if_not_installed("gurobi")
   library(causalOT)
   set.seed(23483)
   n <- 2^7
@@ -115,7 +115,7 @@ testthat::test_that("PSIS diagnostics work, feasible", {
   design <- "A"
   distance <- c("Lp")
   power <- c(1,2)
-  solver <- "gurobi"
+  solver <- "mosek"
   # estimates <- c("ATT", "ATC","ATE", "feasible")
   
   #### get simulation functions ####
