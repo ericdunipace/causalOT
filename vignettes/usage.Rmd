@@ -12,12 +12,10 @@ vignette: >
 
 
 ## Introduction
-`causalOT` was developed to reproduce the methods in [*Optimal transport methods for causal inference*](http://arxiv.org/abs/2109.01991). This document will describe some simple usages of the functions in the package and should be enough to get users started.
+`causalOT` was developed to reproduce the methods in [*Optimal transport methods for causal inference*](http://arxiv.org/abs/2109.01991). The functions in the package are built to construct weights to make distributions more same and estimate causal effects. We recommend using the Causal Optimal Transport methods since they are semi- to non-parametric. This document will describe some simple usages of the functions in the package and should be enough to get users started.
 
-## Useage
-The functions in the package are built to construct weights to make distributions more same and estimate causal effects. We recommend using the Causal Optimal Transport methods since they are semi- to non-parametric.
 
-### Estimating weights
+## Estimating weights
 The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
 
 ```r
