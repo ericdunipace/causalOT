@@ -33,7 +33,7 @@ Suggests:
     testthat (>= 2.1.0),
     knitr,
     rmarkdown
-Enhances:
+Enhances: 
     gurobi
 Biarch: true
 Depends: 
