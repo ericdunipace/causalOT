@@ -289,6 +289,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
   
   estimand <- "ATE"
   # debugonce(wass_grid_search)
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   testthat::expect_warning(
     wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                              estimand = estimand, n.boot = 10, method = method,

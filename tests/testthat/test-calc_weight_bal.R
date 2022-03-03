@@ -318,7 +318,7 @@ testthat::test_that("works for Wass, sample weight", {
   #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(sample_weights$w1, 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::skip_if_not_installed(pkg = "Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 3, 
                                                            estimand = e, 
@@ -345,7 +345,7 @@ testthat::test_that("works for Wass, sample weight", {
 testthat::test_that("works for Wass, variance", {
   testthat::skip_on_cran()
   testthat::skip_on_ci()
-  testthat::skip_if_not_installed(pkg = "Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -365,7 +365,7 @@ testthat::test_that("works for Wass, variance", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  testthat::skip_if_not_installed(pkg = "Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 100, 
                                                            estimand = e, 
@@ -407,7 +407,7 @@ testthat::test_that("works for Wass, variance", {
   # #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(rep(1/n1,n1), 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::skip_if_not_installed(pkg = "Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 10, 
                                                            estimand = e, 
@@ -434,7 +434,7 @@ testthat::test_that("works for Wass, variance", {
 testthat::test_that("works for Wass, entropy", {
   testthat::skip_on_cran()
   testthat::skip_on_ci()
-  testthat::skip_if_not_installed(pkg = "Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -453,7 +453,7 @@ testthat::test_that("works for Wass, entropy", {
   ns <- data$get_n()
   n0 <- ns["n0"]
   n1 <- ns["n1"]
-  testthat::skip_if_not_installed(pkg = "Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 100, 
                                                            estimand = e, 
@@ -474,7 +474,7 @@ testthat::test_that("works for Wass, entropy", {
   #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   testthat::expect_match(all.equal(rep(1/n1,n1), 
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 30, 
                                                            estimand = e, 
@@ -627,7 +627,7 @@ testthat::test_that("works for SCM", {
   # #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(rep(1/n1,n1), 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
-  testthat::skip_if_not_installed(pkg = "Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 3, 
                                                            estimand = e, 
@@ -669,7 +669,7 @@ testthat::test_that("works for SCM, penalties", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   testthat::expect_silent(weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = list(penalty = 10), 
                                                            estimand = e, 
@@ -766,7 +766,7 @@ testthat::test_that("works for wass, joint mapping", {
   # testthat::expect_match(all.equal(rep(1/n1,n1), 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   weights <- lapply(estimates[1:3], function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = list(joint = 0.5,
                                                                              penalty = 10), 
