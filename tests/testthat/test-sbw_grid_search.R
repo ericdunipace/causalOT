@@ -1,6 +1,6 @@
 testthat::test_that("grid search function works, dataSim", {
   set.seed(9870)
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   library(causalOT)
   
   n <- 2^7
@@ -40,7 +40,7 @@ testthat::test_that("grid search function works, dataSim", {
 testthat::test_that("grid search deletes extra args", {
   set.seed(9870)
   library(causalOT)
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   
   n <- 2^7
   p <- 6

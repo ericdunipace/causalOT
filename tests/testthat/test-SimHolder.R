@@ -28,7 +28,7 @@ methods <- c('Logistic',
 
 testthat::test_that("SimHolder generates object", {
   set.seed(9867)
-  
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   #### Load Packages ####
   library(causalOT)
 
@@ -92,7 +92,7 @@ testthat::test_that("SimHolder generates object", {
 
 testthat::test_that("SimHolder generates object, Kallus2018", {
   set.seed(9867)
-  
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   #### Load Packages ####
   library(causalOT)
   
@@ -131,7 +131,7 @@ testthat::test_that("SimHolder generates object, Kallus2018", {
 
 testthat::test_that("SimHolder generates object, Sonabend2020", {
   set.seed(9867)
-  
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   #### Load Packages ####
   library(causalOT)
   
@@ -171,7 +171,7 @@ testthat::test_that("SimHolder generates object, Sonabend2020", {
 testthat::test_that("SimHolder runs", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(9867)
@@ -254,7 +254,7 @@ testthat::test_that("SimHolder runs", {
 testthat::test_that("SimHolder runs, only ATE", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(234028)
@@ -365,7 +365,7 @@ testthat::test_that("SimHolder runs, only ATE", {
 testthat::test_that("SimHolder runs ot imputer", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(9867)
@@ -443,7 +443,7 @@ testthat::test_that("SimHolder runs ot imputer", {
 testthat::test_that("SimHolder runs with formula options", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(9867)
@@ -529,7 +529,7 @@ testthat::test_that("SimHolder runs with formula options", {
 testthat::test_that("SimHolder runs,verbose", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(9867)
@@ -610,7 +610,7 @@ testthat::test_that("SimHolder runs,verbose", {
 testthat::test_that("SimHolder runs while targeting RKHS", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(9867)
@@ -684,7 +684,7 @@ testthat::test_that("SimHolder runs while targeting RKHS", {
 testthat::test_that("SimHolder with grid works", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(082374)
@@ -895,7 +895,7 @@ testthat::test_that("SimHolder with grid works", {
 testthat::test_that("SimHolder with grid works, opt.hyperparam", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(082374)
@@ -983,7 +983,7 @@ testthat::test_that("SimHolder with grid works, opt.hyperparam", {
 testthat::test_that("SimHolder runs confidence intervals", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(234028)
@@ -1128,7 +1128,7 @@ testthat::test_that("SimHolder runs confidence intervals", {
 testthat::test_that("SimHolder wass entropy turns to lbfgs", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   # testthat::skip("Interactive only")
   set.seed(9867)

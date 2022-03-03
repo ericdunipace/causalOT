@@ -3,7 +3,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
   testthat::skip_on_cran(); 
   set.seed(9867)
   # testthat::skip_if_not_installed("gurobi")
-  # testthat::skip_if_not_installed("Rmosek")
+  #  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   # causalOT:::skip_if_no_geomloss()
   #### Load Packages ####
   library(causalOT)
@@ -150,7 +150,7 @@ testthat::test_that("grid search actually works,  wass mahal", {
 testthat::test_that("grid search actually works, marg wass sdlp", {
   testthat::skip_on_cran(); 
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
@@ -304,7 +304,7 @@ testthat::test_that("grid search actually works, marg wass mahal", {
 testthat::test_that("grid search actually works, marg wass sdlp bal", {
   testthat::skip_on_cran(); 
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
@@ -387,7 +387,7 @@ testthat::test_that("grid search actually works, marg wass sdlp bal", {
 testthat::test_that("grid search actually works, marg wass mahal bal", {
   testthat::skip_on_cran(); 
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
@@ -469,7 +469,7 @@ testthat::test_that("grid search actually works, marg wass mahal bal", {
 testthat::test_that("grid search joint.map, wass", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   causalOT:::skip_if_no_geomloss()
   set.seed(9867)
   
@@ -529,7 +529,7 @@ testthat::test_that("grid search joint.map, wass", {
 testthat::test_that("grid search scm", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(9867)
   
   #### Load Packages ####
@@ -586,7 +586,7 @@ testthat::test_that("grid search scm", {
 testthat::test_that("grid search joint.map crossvalidation, wass", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   set.seed(9867)
   
   #### Load Packages ####

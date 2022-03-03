@@ -3,6 +3,7 @@ arg.names <- c("w0",  "w1", "gamma","args","estimand", "method")
 
 testthat::test_that("works for Wass", {
   testthat::skip_on_cran()
+ 
   set.seed(23483)
   n <- 2^7
   p <- 6
@@ -65,7 +66,8 @@ testthat::test_that("works for Wass", {
                                    weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                            constraint = 2, 
                                                            estimand = e, 
@@ -90,6 +92,7 @@ testthat::test_that("works for Wass", {
 
 testthat::test_that("works for Wass, grid/formula", {
   testthat::skip_on_cran()
+  
   set.seed(23483)
   n <- 2^6
   p <- 6
@@ -130,7 +133,8 @@ testthat::test_that("works for Wass, grid/formula", {
   }
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   for (e in estimates) {
     # print(e)
     testthat::expect_silent(
@@ -211,6 +215,7 @@ testthat::test_that("works for Wass, lbfgs", {
   # #                                  weights[[3]]$w1, check.attributes = FALSE), "Mean relative difference")
   # testthat::expect_match(all.equal(rep(1/n1,n1), 
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
+  
   
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 2, 
@@ -379,6 +384,8 @@ testthat::test_that("works for Wass divergence, grid/formula", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   # no grid search
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = list(penalty = 10000), 
@@ -470,7 +477,8 @@ testthat::test_that("works for SBW", {
   #                                                          solver = "gurobi"))
   # sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                            constraint = 3, 
                                                            estimate = e, 
@@ -530,7 +538,8 @@ testthat::test_that("works for SBW grid", {
   # sapply(weights[1:3], function(w) testthat::expect_lte(w$args$standardized.mean.difference , 10))
   # sapply(weights[4], function(w) testthat::expect_equal(w$args$standardized.mean.difference , c(10,10)))
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = constraint,
                                                        grid.search = TRUE,
@@ -631,7 +640,8 @@ testthat::test_that("works for Wass, sw", {
   #                                  weights[[4]]$w1, check.attributes = FALSE), "Mean relative difference")
   
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) calc_weight(data = data, 
                                                        constraint = 2, p = 4,
                                                        estimand = e, 
@@ -701,7 +711,8 @@ testthat::test_that("works for Wass, grid/formula, sw", {
   }
   for (w in weight.check) testthat::expect_equal(names(w), arg.names)
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
   for (e in estimates) {
@@ -752,7 +763,7 @@ testthat::test_that("works for NNM, sample weight", {
                                                            constraint = 2.5, p = 4,
                                                            estimand = e, 
                                                            method = "NNM",
-                                                           solver = "gurobi",
+                                                           solver = "osqp",
                                                            sample_weight = sample_weights))
   for (w in weights) testthat::expect_equal(names(w), arg.names)
   testthat::expect_match(all.equal(sample_weights$w0, 
@@ -813,7 +824,8 @@ testthat::test_that("works for SCM grid", {
   n0 <- ns["n0"]
   n1 <- ns["n1"]
   
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   weight.check <- vector("list", length(estimates))
   names(weight.check) <- estimates
   # testthat::expect_warning(

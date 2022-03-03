@@ -1,6 +1,6 @@
 testthat::test_that("PSIS diagnostics work", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   # testthat::skip_if_not_installed("gurobi")
   library(causalOT)
   set.seed(23483)
@@ -104,7 +104,7 @@ testthat::test_that("PSIS diagnostics work", {
 
 testthat::test_that("PSIS diagnostics work, feasible", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("Rmosek")
+   testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   # testthat::skip_if_not_installed("gurobi")
   library(causalOT)
   set.seed(23483)

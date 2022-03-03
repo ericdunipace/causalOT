@@ -2,6 +2,7 @@ arg.names <- c("w0",  "w1",   "gamma","args", "estimand", "method")
 
 testthat::test_that("works for Wass", {
   testthat::skip_on_cran()
+  testthat::skip_on_ci()
   # testthat::skip_if_not_installed(pkg="gurobi")
   testthat::skip_if_not_installed(pkg="Rmosek")
   set.seed(23483)
@@ -209,6 +210,7 @@ testthat::test_that("works for SBW", {
   #                                                          solver = "gurobi"))
   # sapply(weights, function(w) testthat::expect_equal(names(w), arg.names))
   testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   weights <- lapply(estimates, function(e) causalOT:::calc_weight_bal(data = data, 
                                                            constraint = 3, 
                                                            estimate = e, 

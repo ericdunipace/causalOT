@@ -46,7 +46,8 @@ testthat::test_that("function works as would expect", {
 testthat::test_that("optimal weighting works, no augmentation", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(6464546)
   nsims <- 1
   distance <- c("Lp")
@@ -81,7 +82,8 @@ testthat::test_that("optimal weighting works, no augmentation", {
 testthat::test_that("optimal weighting works, augmentation", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(6464546)
   n <- 2^7
   p <- 6
@@ -121,7 +123,8 @@ testthat::test_that("optimal weighting works, augmentation", {
 testthat::test_that("optimal weighting comparison works, no augmentation", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(9847)
   design <- "B"
   distance <- c("Lp")
@@ -159,7 +162,8 @@ testthat::test_that("optimal weighting comparison works, no augmentation", {
 testthat::test_that("optimal weighting comparison works. augmentation", {
   testthat::skip_on_cran()
   # testthat::skip_if_not_installed("gurobi")
-  testthat::skip_if_not_installed("Rmosek")
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(9847)
   design <- "B"
   solver <- "mosek"

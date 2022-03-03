@@ -2,6 +2,8 @@ testthat::skip("RKHS method deprecated")
 
 testthat::test_that("check RKHS kernel works", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(23483)
   n <- 2^9
   p <- 6
@@ -37,6 +39,8 @@ testthat::test_that("check RKHS kernel works", {
 
 testthat::test_that("check RKHS kernel works with hyper param opt", {
   testthat::skip_on_cran()
+  testthat::skip_if_not_installed(pkg="Rmosek")
+  testthat::skip_on_ci()
   set.seed(23483)
   n <- 2^9
   p <- 6

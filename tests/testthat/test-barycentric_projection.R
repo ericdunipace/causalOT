@@ -87,7 +87,7 @@ testthat::test_that("barycenter projection pow2, mahalanobis", {
                                                        constraint = 1.7, 
                                                        estimand = e, 
                                                        method = "NNM",
-                                                       solver = "gurobi",
+                                                       solver = "osqp",
                                                        p = power,
                                                        cost = cost[[e]],
                                                        transport.matrix = TRUE)))
@@ -106,7 +106,7 @@ testthat::test_that("barycenter projection pow2, mahalanobis", {
 })
 
 testthat::test_that("barycenter projection pow1, mahalanobis", {
-  testthat::skip_if_not_installed(pkg = "gurobi")
+  testthat::skip_if_not_installed(pkg = "osqp")
   set.seed(23483)
   n <- 2^7
   p <- 6
