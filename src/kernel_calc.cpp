@@ -243,7 +243,7 @@ Rcpp::List kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
           theta(i,j) = theta_1;
           gamma(i,j) = gamma_1;
         }
-        if( z(i)( == 0 & z(j) == 0 ) ) {
+        if( ( z(i) == 0 & z(j) == 0 ) ) {
           theta(i,j) = theta_0;
           gamma(i,j) = gamma_0;
         }
