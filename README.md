@@ -1,5 +1,5 @@
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/ericdunipace/causalOT/workflows/R-CMD-check/badge.svg)](https://github.com/ericdunipace/causalOT/actions)
+[![R-CMD-check](https://github.com/ericdunipace/causalOT/actions/workflows/check-standard.yaml/badge.svg)](https://github.com/ericdunipace/causalOT/actions/workflows/check-standard.yaml)
 <!-- badges: end -->
 
 # causalOT: Optimal transport methods for causal inference
