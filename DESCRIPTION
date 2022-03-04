@@ -4,7 +4,7 @@ Title: Optimal transport weights for causal inference
 Version: 0.1
 Date: 2019-12-19
 Author: Eric Dunipace
-Maintainer: Eric Dunipace <edunipace@g.harvard.edu>
+Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
 Description: Uses optimal transport distances to find probabilistic matching estimators for causal inference.
 License: GPL (>=3.0)
 Imports: 
