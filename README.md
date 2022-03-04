@@ -4,7 +4,7 @@
 
 # causalOT: Optimal transport methods for causal inference
 
-This R package implements the methods described in [*Optimal transport methods for causal inference*](http://arxiv.org/abs/2109.01991).
+This R package implements the methods described in [*Optimal transport methods for causal inference*](https://arxiv.org/abs/2109.01991).
 
 ## Installation
 This package can be installed in a few ways.
@@ -28,7 +28,7 @@ If using Causal Optimal Transport based on the Sinkhorn divergence, you will nee
 The functions in the package are built to construct weights to make distributions more same and estimate causal effects. The primary method we recommend is by using optimal transport weights which balance distributions by design. For more information about using this package, see the vignette "Using causalOT".
 
 ## Reproducing the paper
-In the folder `inst/Reproduce` you can find code and an RMarkdown file to reproduce the figures present in the [paper](http://arxiv.org/abs/2109.01991).
+In the folder `inst/Reproduce` you can find code and an RMarkdown file to reproduce the figures present in the [paper](https://arxiv.org/abs/2109.01991).
 
 ## License
 This package is licensed under GPL 3.0.

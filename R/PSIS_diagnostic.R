@@ -84,7 +84,7 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #'
 #' @return For `PSIS()`, returns a list. See [psis()][loo::psis] from `loo` for a description of the outputs. Will give the log of the 
 #' smoothed weights in slot `log_weights`, and in the slot `diagnostics`, it will give 
-#' the `pareto_k` parameter (see the [pareto-k-diagnostic](loo::pareto-k-diagnostic) page) and
+#' the `pareto_k` parameter (see the [pareto-k-diagnostic][loo::pareto-k-diagnostic] page) and
 #' the `n_eff` estimates. `PSIS_diag()` returns the diagnostic slot from an object of class "psis". 
 #' 
 #' @export
