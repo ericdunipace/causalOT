@@ -24,7 +24,7 @@ library(causalOT)
 
 ## Estimating weights
 The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
-``` {r wts, cache = TRUE, cache.path = "cache"}
+``` {r wts, cache = TRUE}
 library(causalOT)
 set.seed(1111)
 
@@ -57,7 +57,7 @@ print(ci_tau$CI)
 ```
 
 ## Diagnostics
-Diagnostics are also an important part of deciding whether the weights perform well. There are several areas that we will explor:
+Diagnostics are also an important part of deciding whether the weights perform well. There are several areas that we will explore:
 
 1. Effective sample size
 2. Mean balance
@@ -69,11 +69,11 @@ Typically, estimated samples sizes with weights are calculated as $\sum_i 1/w_i^
 ESS(weights)
 ```
 
-Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, [Vehtari et al.](https://arxiv.org/abs/1507.02646) use Pareto-smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
+Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, [Vehtari et al.](https://arxiv.org/abs/1507.02646) use Pareto smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
 ``` {r}
 raw_psis <- PSIS(weights)
 ```
-This will also return the pareto smoothed weights and log weights.
+This will also return the Pareto smoothed weights and log weights.
 
 If we want to easily examine the PSIS diagnostics, we can pull those out too
 ``` {r}

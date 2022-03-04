@@ -7,16 +7,9 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```
 
-```{r setup, include = FALSE}
-library(causalOT)
-```
+
+
 
 ## Introduction
 `causalOT` was developed to reproduce the methods in [*Optimal transport methods for causal inference*](https://arxiv.org/abs/2109.01991). The functions in the package are built to construct weights to make distributions more same and estimate causal effects. We recommend using the Causal Optimal Transport methods since they are semi- to non-parametric. This document will describe some simple usages of the functions in the package and should be enough to get users started.
@@ -62,7 +55,7 @@ print(ci_tau$CI)
 ```
 
 ## Diagnostics
-Diagnostics are also an important part of deciding whether the weights perform well. There are several areas that we will explor:
+Diagnostics are also an important part of deciding whether the weights perform well. There are several areas that we will explore:
 
 1. Effective sample size
 2. Mean balance
@@ -77,12 +70,12 @@ ESS(weights)
 #> 36.44976 31.14867
 ```
 
-Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, [Vehtari et al.](https://arxiv.org/abs/1507.02646) use Pareto-smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
+Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, [Vehtari et al.](https://arxiv.org/abs/1507.02646) use Pareto smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
 
 ```r
 raw_psis <- PSIS(weights)
 ```
-This will also return the pareto smoothed weights and log weights.
+This will also return the Pareto smoothed weights and log weights.
 
 If we want to easily examine the PSIS diagnostics, we can pull those out too
 

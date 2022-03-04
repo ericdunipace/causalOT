@@ -2,4 +2,3 @@
 *.R
 usage_cache/
 *cache*
-*.orig

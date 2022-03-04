@@ -25,3 +25,4 @@
 ^Meta$
 ^\.github$
 ^vignettes/.*cache.*
+^cran_notes.md$

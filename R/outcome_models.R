@@ -1207,7 +1207,7 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   estimand <- object$estimand
   
   if(is.null(model.fun)) {
-    if("model" %in% ...names()) {
+    if("model" %in% base::...names()) {
       
       model.fun <- calc_model(list(...)$model)
     } else {
