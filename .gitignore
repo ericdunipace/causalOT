@@ -31,5 +31,7 @@ R/deprecated
 inst/doc
 /doc/
 /Meta/
+inst/doc
+inst/Meta
 **/.DS_Store
 vignettes/cache

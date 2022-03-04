@@ -7,12 +7,19 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
 
-
-
+```{r setup, include = FALSE}
+library(causalOT)
+```
 
 ## Introduction
-`causalOT` was developed to reproduce the methods in [*Optimal transport methods for causal inference*](http://arxiv.org/abs/2109.01991). The functions in the package are built to construct weights to make distributions more same and estimate causal effects. We recommend using the Causal Optimal Transport methods since they are semi- to non-parametric. This document will describe some simple usages of the functions in the package and should be enough to get users started.
+`causalOT` was developed to reproduce the methods in [*Optimal transport methods for causal inference*](https://arxiv.org/abs/2109.01991). The functions in the package are built to construct weights to make distributions more same and estimate causal effects. We recommend using the Causal Optimal Transport methods since they are semi- to non-parametric. This document will describe some simple usages of the functions in the package and should be enough to get users started.
 
 
 ## Estimating weights
@@ -70,7 +77,7 @@ ESS(weights)
 #> 36.44976 31.14867
 ```
 
-Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, (Vehtari et al.)[https://arxiv.org/abs/1507.02646] use Pareto-smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
+Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, [Vehtari et al.](https://arxiv.org/abs/1507.02646) use Pareto-smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
 
 ```r
 raw_psis <- PSIS(weights)
@@ -100,17 +107,18 @@ We can see all of the $k$ values are below the recommended 0.5, indicating finit
 
 #### 2. Mean balance
 Many authors consider the standardized absolute mean balance as a marker for important balance: see [Stuart (2010)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2943670/). That is
-$$ \frac{|\overline{X}_c - \overline{X}_t| }{\sigma_{\text{pool}}}. $$
+$$ \frac{|\overline{X}_c - \overline{X}_t| }{\sigma_{\text{pool}}},$$ where
+$\overline{X}_c$ is the mean in the controls, $\overline{X}_t$ is the mean in the treated, and $\sigma_{\text{pool}}$ is the pooled standard deviation.
 We offer such checks in `causalOT` as well.
 
-First, we consider pre-weighting mean balance:
+First, we consider pre-weighting mean balance
 
 ```r
 mean_bal(data = hainmueller)
 #>        X1        X2        X3        X4        X5        X6 
 #> 1.3156637 1.1497004 1.0696805 0.6061098 0.1089106 0.1555189
 ```
-and after weighting mean balance:
+and after weighting mean balance
 
 ```r
 mean_bal(data = hainmueller, weights = weights)
@@ -164,7 +172,7 @@ list(w0 = sinkhorn(x = hainmueller$get_x0(), y = hainmueller$get_x(),
 After Causal Optimal Transport, the distributions are *much* more similar.
 
 ## Other methods
-The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancin weights (SBW), and the synthetic control method (SCM).
+The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancing weights (SBW), and the synthetic control method (SCM).
 
 ```r
 calc_weight(data = hainmueller, method = "Logistic",
@@ -186,4 +194,3 @@ calc_weight(data = hainmueller, method = "SCM", penalty = "none",
                        estimand = "ATE", solver = "osqp",
                        verbose = FALSE)
 ```
-

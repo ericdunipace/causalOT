@@ -27,7 +27,7 @@ Effective Sample Size
 }
 \details{
 Calculates the effective sample size as described by Kish (1965).
-However, this calculation has some problems and the \url{PSIS}
+However, this calculation has some problems and the \code{\link[=PSIS]{PSIS()}}
 function should be used instead.
 }
 \section{Methods (by class)}{

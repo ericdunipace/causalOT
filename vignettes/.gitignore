@@ -1,4 +1,5 @@
 *.html
 *.R
 usage_cache/
-cache
+*cache*
+*.orig

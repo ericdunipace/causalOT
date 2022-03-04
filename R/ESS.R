@@ -17,7 +17,7 @@ ESS.causalWeights <- function(x) {
 #' [causalWeights][causalOT::causalWeights-class]
 #' 
 #' @details Calculates the effective sample size as described by Kish (1965). 
-#' However, this calculation has some problems and the [PSIS](PSIS)
+#' However, this calculation has some problems and the [PSIS()]
 #' function should be used instead.
 #'
 #' @return Either a number denoting the effective sample size or if `x` is of class

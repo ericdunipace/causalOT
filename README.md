@@ -30,6 +30,9 @@ The functions in the package are built to construct weights to make distribution
 ## Reproducing the paper
 In the folder `inst/Reproduce` you can find code and an RMarkdown file to reproduce the figures present in the [paper](https://arxiv.org/abs/2109.01991).
 
+## Package author
+[Eric Dunipace](https://ericdunipace.github.io)
+
 ## License
 This package is licensed under GPL 3.0.
 

@@ -239,11 +239,11 @@ Rcpp::List kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
     
     for(int i = 0; i < N; i ++) {
       for(int j = 0; j < N; j ++) {
-        if( (z(i) ==1 & z(j) == 1) ) {
+        if( (z(i) ==1) & (z(j) == 1) ) {
           theta(i,j) = theta_1;
           gamma(i,j) = gamma_1;
         }
-        if( ( z(i) == 0 & z(j) == 0 ) ) {
+        if( ( z(i) == 0 ) & ( z(j) == 0 ) ) {
           theta(i,j) = theta_0;
           gamma(i,j) = gamma_0;
         }
@@ -426,11 +426,11 @@ Rcpp::NumericMatrix kernel_update_(const Rcpp::NumericMatrix & sim_,  //similari
   
   for(int i = 0; i < N; i ++) {
     for(int j = 0; j < N; j ++) {
-      if( (z_(i) ==1 & z_(j) == 1) ) {
+      if( (z_(i) == 1 ) & ( z_(j) == 1 ) ) {
         theta(i,j) = theta_1;
         gamma(i,j) = gamma_1;
       }
-      if( (z_(i) == 0 & z_(j) == 0) ) {
+      if( (z_(i) == 0 ) & ( z_(j) == 0) ) {
         theta(i,j) = theta_0;
         gamma(i,j) = gamma_0;
       }
@@ -534,7 +534,7 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
   
   matrix kernel_matrix_X(N,N);
   
-  if((kernel_== "polynomial" | kernel_=="linear")) {
+  if( (kernel_== "polynomial") | (kernel_=="linear") ) {
     kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
   } else if (kernel_ == "RBF") {
     for(int n = 0; n < N; n ++) kernel_matrix_X.col(n) = (A.rowwise() - A.row(n)).matrix().rowwise().squaredNorm();
@@ -594,29 +594,6 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
     
   }
   
-  
-  
-  
   return Rcpp::wrap(output);
-}
-
-
-
-// double marginal_lik_gp_grad_(const Rcpp::NumericVector & y_,
-//                         const Rcpp::NumericMatrix & K_
-// ) {
-//   
-//   const matMap K(Rcpp::as<matMap>(K_));
-//   const vecMap y(Rcpp::as<vecMap>(y_));
-//   double N = double(y_.size());
-//   llt L = K.llt();
-//   vector alpha = L.solve(y);
-//   matrix grad_mat =  alpha * alpha.transpose() - L.matrixLLT().inverse();
-//   
-//   
-//   double log_prob = y.transpose() * L.solve(y);
-//   log_prob += -0.5 * std::log(L.matrixL().determinant()) * 2.0 - 0.5 * N * std::log(2.0 * M_PI);
-//   
-//   return(log_prob);
-// }
   
+}

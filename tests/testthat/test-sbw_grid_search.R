@@ -1,5 +1,6 @@
 testthat::test_that("grid search function works, dataSim", {
   set.seed(9870)
+  testthat::skip_on_cran()
    testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
   library(causalOT)
   

@@ -78,7 +78,7 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #' @param ... Arguments passed to the [psis()][loo::psis] function.
 #' 
 #' @details Acts as a wrapper to the [psis()][loo::psis] function from the `loo` package. It
-#' is built to handle the data types found in this package. This method is preferred to the [ESS()](ESS)
+#' is built to handle the data types found in this package. This method is preferred to the [ESS()]
 #' function in `causalOT` since the latter is prone to error (infinite variances) but will not give good any indication that the estimates
 #' are problematic.
 #'

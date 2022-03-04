@@ -10,6 +10,7 @@
 #' @importFrom methods as slotNames
 #' @importFrom stats .checkMFClasses .getXlevels as.formula binomial coef contrasts cov delete.response drop.terms formula glm lm median model.frame model.matrix model.response na.pass optim pgamma qchisq qnorm quantile rmultinom runif sd setNames terms var weighted.mean
 #' @importFrom utils capture.output data methods setTxtProgressBar txtProgressBar
+#' @importFrom R6 R6Class
 #' @rdname causalOT-package
 "_PACKAGE"
 
@@ -45,7 +46,7 @@
 #' }
 #' The data was originally analyzed in 
 #' \itemize{
-#' \item Blum, J. et al. Treatment of post-partum haemorrhage with sublingual misoprostol versus oxytocin in women receiving prophylactic oxytocin : a double-blind , randomised , non-inferiority trial. The Lancet 375, 217–223 (2010).
+#' \item Blum, J. et al. Treatment of post-partum haemorrhage with sublingual misoprostol versus oxytocin in women receiving prophylactic oxytocin: a double-blind, randomised, non-inferiority trial. The Lancet 375, 217--223 (2010).
 #' }
 #'
 #' @docType data

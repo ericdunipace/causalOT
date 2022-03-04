@@ -43,7 +43,7 @@ Data from the following Harvard Dataverse:
 }
 The data was originally analyzed in
 \itemize{
-\item Blum, J. et al. Treatment of post-partum haemorrhage with sublingual misoprostol versus oxytocin in women receiving prophylactic oxytocin : a double-blind , randomised , non-inferiority trial. The Lancet 375, 217–223 (2010).
+\item Blum, J. et al. Treatment of post-partum haemorrhage with sublingual misoprostol versus oxytocin in women receiving prophylactic oxytocin: a double-blind, randomised, non-inferiority trial. The Lancet 375, 217--223 (2010).
 }
 }
 \keyword{datasets}

@@ -19,8 +19,9 @@
 ^inst/stan/test$
 ^inst/stan/deprecated$
 ^R/deprecated$
-^src/deprecated$
+^src/deprecated/$
 ^vignettes/cache$
-^\.github$
-^doc$
+^vignettes/.*\.orig$
 ^Meta$
+^\.github$
+^vignettes/.*cache.*

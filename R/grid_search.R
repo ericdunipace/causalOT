@@ -262,7 +262,7 @@ wass_grid_search <- function(data, grid = NULL,
   p      <- dots[["p"]]
   metric <- dots[["metric"]]
   penalty <- dots[["penalty"]]
-  if (is.null(solver)) solver <- "gurobi"
+  if (is.null(solver)) solver <- "osqp"
   if (is.null(p)) p <- 2
   if (is.null(metric)) metric <- "mahalanobis"
   if (is.null(penalty)) penalty <- "L2"
@@ -1908,7 +1908,7 @@ wass_grid_eval <- function(data, grid = NULL,
   metric <- dots[["metric"]]
   penalty <- dots[["penalty"]]
   eval.method <- match.arg(eval.method, c("cross.validation", "bootstrap"))
-  if (is.null(solver)) solver <- "gurobi"
+  if (is.null(solver)) solver <- "osqp"
   if (is.null(p)) p <- 2
   if (is.null(metric)) metric <- "mahalanobis"
   if (is.null(penalty)) penalty <- "L2"

@@ -1,4 +1,5 @@
 testthat::test_that("cost rkhs works", {
+  testthat::skip_on_cran()
   set.seed(008868)
   
   n <- 2^6

@@ -46,7 +46,7 @@ sample. See \link[loo:psis]{psis()} from the \code{loo} pacakge for more details
 \value{
 For \code{PSIS()}, returns a list. See \link[loo:psis]{psis()} from \code{loo} for a description of the outputs. Will give the log of the
 smoothed weights in slot \code{log_weights}, and in the slot \code{diagnostics}, it will give
-the \code{pareto_k} parameter (see the \href{loo::pareto-k-diagnostic}{pareto-k-diagnostic} page) and
+the \code{pareto_k} parameter (see the \link[loo:pareto-k-diagnostic]{pareto-k-diagnostic} page) and
 the \code{n_eff} estimates. \code{PSIS_diag()} returns the diagnostic slot from an object of class "psis".
 }
 \description{
@@ -54,7 +54,7 @@ Pareto-Smoothed Importance Sampling
 }
 \details{
 Acts as a wrapper to the \link[loo:psis]{psis()} function from the \code{loo} package. It
-is built to handle the data types found in this package. This method is preferred to the \href{ESS}{ESS()}
+is built to handle the data types found in this package. This method is preferred to the \code{\link[=ESS]{ESS()}}
 function in \code{causalOT} since the latter is prone to error (infinite variances) but will not give good any indication that the estimates
 are problematic.
 }

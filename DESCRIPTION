@@ -1,8 +1,8 @@
 Package: causalOT
 Type: Package
-Title: Optimal transport weights for causal inference
+Title: Optimal Transport Weights for Causal Inference
 Version: 0.1
-Date: 2019-12-19
+Date: 2022-03-03
 Author: Eric Dunipace
 Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
 Description: Uses optimal transport distances to find probabilistic matching estimators for causal inference.
@@ -36,8 +36,8 @@ Suggests:
 Biarch: true
 Depends: 
     R (>= 3.5.0)
-Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
+Encoding: UTF-8
 RoxygenNote: 7.1.1
 LazyData: true
 VignetteBuilder: knitr
