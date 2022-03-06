@@ -349,21 +349,21 @@ double otDualL2_obj_(const SEXP & vars_,
   int M = b.rows();
   
   // pull out relevant portions of vars
-  const double *f[N];
-  const double *g[M];
+  const double * f = &vars[0];
+  const double * g = &vars[N];
   
-  for (int i = 0; i < N; i ++) f[i] = &vars[i];
-  for (int j = 0; j < M; j ++) g[j] = &vars[j+N];
+  // for (int i = 0; i < N; i ++) f[i] = &vars[i];
+  // for (int j = 0; j < M; j ++) g[j] = &vars[j+N];
   
   double obj = 0.0;
   
-  for(int i = 0; i < N; i ++) obj += (*f[i]) * a(i);
-  for(int j = 0; j < M; j ++) obj += (*g[j]) * b(j);
+  for(int i = 0; i < N; i ++) obj += *(f+i) * a(i);
+  for(int j = 0; j < M; j ++) obj += *(g+j) * b(j);
   
   for (int j = 0; j < M; j ++) {
-    double cur_g = (*g[j]);
+    double cur_g = *(g +j);
     for (int i = 0; i < N; i ++) {
-      double eta = (*f[i]) + cur_g - cost(i,j);
+      double eta = *(f + i) + cur_g - cost(i,j);
       if (eta > 0.0) obj -= eta * eta * 0.5 / lambda;
     }
   }
@@ -384,6 +384,8 @@ double otDualL2_obj_(const SEXP & vars_,
   //     }
   //   }
   // 
+  delete[] f;
+  delete[] g;
   return(-obj); // negative b/c lbfgs minimizes by default and we need to maximize
 }
 
@@ -404,11 +406,13 @@ Rcpp::NumericVector otDualL2_grad_(const SEXP & vars_,
   int M = b.rows();
   
   // pull out relevant portions of vars
-  const double *f[N];
-  const double *g[M];
+  // const double *f[N];
+  // const double *g[M];
+  const double * f = &vars[0];
+  const double * g = &vars[N];
   
-  for (int i = 0; i < N; i ++) f[i] = &vars[i];
-  for (int j = 0; j < M; j ++) g[j] = &vars[j+N];
+  // for (int i = 0; i < N; i ++) *f[i] = &vars[i];
+  // for (int j = 0; j < M; j ++) *g[j] = &vars[j+N];
   
   // save first part of gradient
   vector grad(N+M);
@@ -418,9 +422,9 @@ Rcpp::NumericVector otDualL2_grad_(const SEXP & vars_,
   
   // add main objective derivative to gradient
   for(int j = 0; j < M; j ++) {
-    double cur_g = (*g[j]);
+    double cur_g = *(g+j);
     for(int i = 0; i < N; i ++) {
-      double eta = (*f[i]) + cur_g - cost(i,j);
+      double eta = *(f + i) + cur_g - cost(i,j);
       if (eta > 0.0) {
         double delta = eta / lambda;
         grad(i) -= delta;
@@ -428,7 +432,8 @@ Rcpp::NumericVector otDualL2_grad_(const SEXP & vars_,
       }
     }
   }
-  
+  delete f;
+  delete g;
   
   // // pull out relevant portions of vars
   // vector f(N);
