@@ -1217,7 +1217,7 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   }
   
   if(is.null(form)) {
-    if("formula" %in% ...names()) {
+    if("formula" %in% base::...names()) {
       form <- calc_form(formula = list(...)$formula, 
                         doubly.robust = object$options$doubly.robust, 
                         target = object$estimand,
