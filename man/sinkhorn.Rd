@@ -66,6 +66,8 @@ corresponding to data \code{y}.
 This function serves as an R wrapper to the Python function SamplesLoss in the GeomLoss package \url{http://www.kernel-operations.io/geomloss/api/pytorch-api.html?highlight=samplesloss#geomloss.SamplesLoss}
 }
 \examples{
+\dontrun{
+# requires Python and GeomLoss package
 x <- stats::rnorm(100, 100, 10)
 a <- rep(1/100, 100)
 
@@ -73,7 +75,7 @@ y <- stats::rnorm(50, 50, 10)
 b <- rep(1/50, 50)
 
 sink <- sinkhorn(x = x, y = y, a = a, b = b, power = 2,
-              metric = "Lp")
+              metric = "Lp", debias = TRUE)
 
 # sinkhorn distance, de-biased
 print(sink$loss)
@@ -81,4 +83,5 @@ print(sink$loss)
 # potentials for first 5 obs in each group
 print(sink$f[1:5])
 print(sink$g[1:5])
+}
 }
