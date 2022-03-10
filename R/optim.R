@@ -613,8 +613,7 @@ cg <- function(optimizer, verbose = TRUE) {
                               },
                               initialize = function(X1, X2, 
                                                     cost,
-                                                    prog_solver = c("mosek", "gurobi", 
-                                                                    "cplex","quadprog"),
+                                                    prog_solver = supported.solvers(),
                                                     lambda = 100,
                                                     add.margins = FALSE,
                                                     metric = dist.metrics(),
@@ -709,9 +708,10 @@ cg <- function(optimizer, verbose = TRUE) {
                                 if(!is.null(balance.function.formula) && !is.na(balance.function.formula)) {
                                   private$prog_solver <- match.arg(prog_solver)
                                   private$solver <- switch(private$prog_solver,
-                                                           "cplex" = cplex_solver,
-                                                           "gurobi" = gurobi_solver,
-                                                           "mosek" = mosek_solver)
+                                                           # "cplex" = cplex_solver,
+                                                           # "gurobi" = gurobi_solver,
+                                                           "mosek" = mosek_solver,
+                                                           "osqp" = osqp_solver)
                                   if(private$search != "pgd" && private$search != "armijo") private$search <- "armijo"
                                   
                                   # get balance functions
@@ -1374,8 +1374,7 @@ fullWassCGD <- R6::R6Class("wassCGD",
                                                               qp_constraint = list(joint = 1,
                                                                                    margins = 1,
                                                                                    penalty = 1),
-                                                              qp_solver = c("mosek", "gurobi", 
-                                                                            "cplex"),
+                                                              qp_solver = supported.solvers(),
                                                               qp_penalty = "L2",
                                                               lambda = list(joint = 1,
                                                                             penalty = 1
@@ -1440,9 +1439,10 @@ fullWassCGD <- R6::R6Class("wassCGD",
                                           # names(private$qp$obj$L) <- c(rep("cost",length(private$cost)), rep("pen", length(private$qp$obj$L) - length(cost)))
                                           private$cost_idx <- grep("cost", names(private$qp$obj$L))
                                           solver <- switch(qp_solver,
-                                                           "cplex" = cplex_solver,
-                                                           "gurobi" = gurobi_solver,
-                                                           "mosek" = mosek_solver)
+                                                           # "cplex" = cplex_solver,
+                                                           # "gurobi" = gurobi_solver,
+                                                           "mosek" = mosek_solver,
+                                                           "osqp" = osqp_solver)
                                           private$solver <- function(qp){
                                             sol <- solver(qp)
                                             return(matrix(sol$sol, private$n1, private$n2))
@@ -1511,8 +1511,7 @@ wassCGD <- R6::R6Class("wassCGD",
                           qp_constraint = list(joint = 1,
                                                margins = 1,
                                                penalty = 1),
-                          qp_solver = c("mosek", "gurobi", 
-                                        "cplex"),
+                          qp_solver = supported.solvers(),
                           qp_penalty = "L2",
                           lambda = list(joint = 1,
                                         penalty = 1
@@ -1584,9 +1583,10 @@ wassCGD <- R6::R6Class("wassCGD",
       # names(private$qp$obj$L) <- c(rep("cost",length(private$cost)), rep("pen", length(private$qp$obj$L) - length(cost)))
       private$cost_idx <- grep("cost", names(private$qp$obj$L))
       solver <- switch(qp_solver,
-                       "cplex" = cplex_solver,
-                       "gurobi" = gurobi_solver,
-                       "mosek" = mosek_solver)
+                       # "cplex" = cplex_solver,
+                       # "gurobi" = gurobi_solver,
+                       "mosek" = mosek_solver,
+                       "osqp" = osqp_solver)
       private$solver <- function(qp){
         sol <- solver(qp)
         return(matrix(sol$sol, private$n1, private$n2))
@@ -1662,8 +1662,7 @@ jointMapAndWeights <- R6::R6Class("jointMapAndWeights",
                                                       lambda_g = 1,
                                                       metric = dist.metrics(),
                                                       power = 2,
-                                                      qp_solver = c("mosek", "gurobi", 
-                                                                    "cplex"),
+                                                      qp_solver = supported.solvers(),
                                                       niter = 1000,
                                                       tol = 1e-7,
                                                       sample_weight = NULL,
@@ -1737,9 +1736,10 @@ jointMapAndWeights <- R6::R6Class("jointMapAndWeights",
                                   # names(private$qp$obj$L) <- c(rep("cost",length(private$cost)), rep("pen", length(private$qp$obj$L) - length(cost)))
                                   
                                   solver <- switch(qp_solver,
-                                                "cplex" = cplex_solver,
-                                                "gurobi" = gurobi_solver,
-                                                "mosek" = mosek_solver)
+                                                # "cplex" = cplex_solver,
+                                                # "gurobi" = gurobi_solver,
+                                                "mosek" = mosek_solver,
+                                                "osqp" = osqp_solver)
                                   private$solver <- function(qp){
                                     sol <- solver(qp)
                                     return(matrix(sol$sol, private$n1, private$n2))

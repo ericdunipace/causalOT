@@ -70,12 +70,18 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #' # Additional arguments in `...`
 #' In addition to the already mentioned arguments, there are several additional
 #' optional arguments for the method "COT".
-#' * `penalty`. What type of penalty should be used? Must be one of "entropy" or "L2".
+#' * `p`. The power of the Wasserstein distance to use.
+#' * `metric`. The metric to use for the ground cost function. See [dist.metrics()] for supported distance metrics.
+#' * `penalty`. What type of penalty should be used on the weights? Must be one of "entropy" or "L2".
 #' * `add.divergence`. TRUE or FALSE. If TRUE, `penalty` defaults to entropy.
-#'  Will calculate the Sinkhorn divergence version of Causal Optimal Transport.
-#'   If choosing Sinkhorn divergences, `solver` must be "lbfgs" and Python
+#'   and will calculate the Sinkhorn divergence version of Causal Optimal Transport.
+#'   If choosing Sinkhorn divergences, the Python
 #'    package `geomloss` must be installed.
 #' * `balance.constraints`. The tolerance for the balancing basis function methods.
+#' * `cost`. If the cost matrix is already calculated, you can supply this to potentially save time.
+#' 
+#' Additionally, methods like "SBW" and "COT" need the specification of a solver function if using balancing functions, i.e. if the `formula` argument is specified.
+#' * `solver`. Should be one of "mosek" or "osqp".
 #'    
 #'  @seealso [estimate_effect()][causalOT::estimate_effect]
 #'    
@@ -86,8 +92,6 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #' p <- 6
 #' overlap <- "low"
 #' design <- "A"
-#' metric <- c("Lp")
-#' power <- 1
 #' estimate <- "ATE"
 #' #### get simulation functions ####
 #' data <- causalOT::Hainmueller$new(n = n, p = p, 
@@ -445,7 +449,7 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   }
   
   if(method != "Wasserstein" && solver == "lbfgs") {
-    solver <- "mosek"
+    solver <- "osqp"
   }
   
   if(method == "Wasserstein" && isTRUE(list(...)$penalty == "entropy") && solve.method != "div" && solver != "mosek" && solver != "lbfgs") {
@@ -453,8 +457,8 @@ calc_weight_bal <- function(data, constraint,  estimand = c("ATE","ATT", "ATC", 
   }
   
   if (solver == "lbfgs" && method != "Wasserstein") {
-    solver <- "mosek"
-    solve.method <- "mosek"
+    solver <- "osqp"
+    solve.method <- "osqp"
   }
   
   solve.method <- switch(solve.method,

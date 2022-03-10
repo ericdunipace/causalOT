@@ -74,12 +74,20 @@ For methods "Logistic" and "Probit", a propensity score model either as a formul
 In addition to the already mentioned arguments, there are several additional
 optional arguments for the method "COT".
 \itemize{
-\item \code{penalty}. What type of penalty should be used? Must be one of "entropy" or "L2".
+\item \code{p}. The power of the Wasserstein distance to use.
+\item \code{metric}. The metric to use for the ground cost function. See \code{\link[=dist.metrics]{dist.metrics()}} for supported distance metrics.
+\item \code{penalty}. What type of penalty should be used on the weights? Must be one of "entropy" or "L2".
 \item \code{add.divergence}. TRUE or FALSE. If TRUE, \code{penalty} defaults to entropy.
-Will calculate the Sinkhorn divergence version of Causal Optimal Transport.
-If choosing Sinkhorn divergences, \code{solver} must be "lbfgs" and Python
+and will calculate the Sinkhorn divergence version of Causal Optimal Transport.
+If choosing Sinkhorn divergences, the Python
 package \code{geomloss} must be installed.
 \item \code{balance.constraints}. The tolerance for the balancing basis function methods.
+\item \code{cost}. If the cost matrix is already calculated, you can supply this to potentially save time.
+}
+
+Additionally, methods like "SBW" and "COT" need the specification of a solver function if using balancing functions, i.e. if the \code{formula} argument is specified.
+\itemize{
+\item \code{solver}. Should be one of "mosek" or "osqp".
 }
 
 @seealso \link[=estimate_effect]{estimate_effect()}
@@ -91,8 +99,6 @@ n <- 2^7
 p <- 6
 overlap <- "low"
 design <- "A"
-metric <- c("Lp")
-power <- 1
 estimate <- "ATE"
 #### get simulation functions ####
 data <- causalOT::Hainmueller$new(n = n, p = p, 
