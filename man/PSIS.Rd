@@ -11,6 +11,7 @@
 \alias{PSIS_diag,causalWeights-method}
 \alias{PSIS_diag,causalPSIS-method}
 \alias{PSIS_diag,list-method}
+\alias{PSIS_diag,psis-method}
 \title{Pareto-Smoothed Importance Sampling}
 \usage{
 PSIS(x, r_eff = NULL, ...)
@@ -30,6 +31,8 @@ PSIS_diag(x, ...)
 \S4method{PSIS_diag}{causalPSIS}(x, ...)
 
 \S4method{PSIS_diag}{list}(x, r_eff = NULL)
+
+\S4method{PSIS_diag}{psis}(x, r_eff = NULL)
 }
 \arguments{
 \item{x}{For \code{PSIS()}, a vector of weights,
@@ -39,7 +42,8 @@ the results of a run of \code{PSIS()}.}
 
 \item{r_eff}{A vector of relative effective sample size with one estimate per observation. If providing
 an object of class \link[=causalWeights-class]{causalWeights}, should be a list of vectors with one vector for each
-sample. See \link[loo:psis]{psis()} from the \code{loo} pacakge for more details.}
+sample. See \link[loo:psis]{psis()} from the \code{loo} package for more details. Updates to the \code{loo} package now make it so this
+parameter should be ignored.}
 
 \item{...}{Arguments passed to the \link[loo:psis]{psis()} function.}
 }
@@ -73,13 +77,15 @@ are problematic.
 \item \code{causalPSIS}: diagnostics from the output of a previous call to PSIS
 
 \item \code{list}: a list of objects
+
+\item \code{psis}: output of PSIS function
 }}
 
 \examples{
 x <- runif(100)
 w <- x/sum(x)
 
-res <- PSIS(x = w, r_eff = x)
+res <- PSIS(x = w, r_eff = 1)
 PSIS_diag(res)
 }
 \seealso{

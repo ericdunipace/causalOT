@@ -74,7 +74,8 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #' the results of a run of `PSIS()`.
 #' @param r_eff A vector of relative effective sample size with one estimate per observation. If providing
 #' an object of class [causalWeights][causalOT::causalWeights-class], should be a list of vectors with one vector for each
-#' sample. See [psis()][loo::psis] from the `loo` pacakge for more details.
+#' sample. See [psis()][loo::psis] from the `loo` package for more details. Updates to the `loo` package now make it so this
+#' parameter should be ignored.
 #' @param ... Arguments passed to the [psis()][loo::psis] function.
 #' 
 #' @details Acts as a wrapper to the [psis()][loo::psis] function from the `loo` package. It
@@ -97,7 +98,7 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #' x <- runif(100)
 #' w <- x/sum(x)
 #' 
-#' res <- PSIS(x = w, r_eff = x)
+#' res <- PSIS(x = w, r_eff = 1)
 #' PSIS_diag(res)
 setGeneric("PSIS", function(x, r_eff = NULL, ...) UseMethod("PSIS"))
 
@@ -120,6 +121,11 @@ PSIS_diag.numeric <- function(x, r_eff = NULL) {
   y   <- PSIS(x, r_eff = r_eff)
   res <- y$diagnostics
   return(res)
+}
+
+PSIS_diag.psis <- function(x, r_eff = NULL) {
+  
+  return(res$diagnostics)
 }
 
 PSIS_diag.causalWeights <- function(x, r_eff = NULL) {
@@ -177,4 +183,8 @@ setMethod("PSIS_diag", signature(x = "causalPSIS"), PSIS_diag.causalPSIS)
 #' @describeIn PSIS a list of objects
 #' @method PSIS_diag list
 setMethod("PSIS_diag", signature(x = "list"), PSIS_diag.list)
+
+#' @describeIn PSIS output of PSIS function
+#' @method PSIS_diag psis
+setMethod("PSIS_diag", signature(x = "psis"), PSIS_diag.psis)
 
