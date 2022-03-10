@@ -16,5 +16,5 @@ Supported solvers
 The solvers "mosek" and "gurobi" are commercial solvers that require software licenses. "quadprog" uses the \code{osqp} R package and "lbfgs" will either use \code{pytorch} in Python or the \code{lbfgs3c} package in R, which are both free.
 }
 \examples{
-dist.metrics()
+supported.solvers()
 }

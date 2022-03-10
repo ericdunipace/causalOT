@@ -36,13 +36,13 @@
 #' with the first having the rows corresponding to the control individual and the
 #' second having rows correspond to the treated individuals. For both matrices,
 #' the columns will correspond to the full sample. The dimensions of the output will
-#'  depend on the estimand. For reference, let \deqn{n_1 = \sum_i z_i}, 
-#'  \deqn{n_0 = \sum_i (1-z_i)}, and $n = n_1 + n_0$.
+#'  depend on the estimand. For reference, let \eqn{n_1 = \sum_i z_i}, 
+#'  \eqn{n_0 = \sum_i (1-z_i)}, and \eqn{n = n_1 + n_0}.
 #' 
 #'
 #' @return Output depends on the estimand.
-#' * For ATT and ATC: a matrix of dimension \deqn{n_0 \times n_1}.
-#' * For ATE: a list of two matrices of dimension \deqn{n_0 \times n} and \deqn{n_1 \times n}.
+#' * For ATT and ATC: a matrix of dimension \deqn{n_0 \times n_1}{n_0 * n_1}.
+#' * For ATE: a list of two matrices of dimension \eqn{n_0 \times n}{n_0 * n} and \eqn{n_1 \times n}.
 #' See details for more information.
 #' 
 #' @export
@@ -65,8 +65,6 @@
 #' print(dim(cost_ATT))
 #' 
 #' # ATE
-#' # gives two matrices between control and full sample and treated and full sample
-#' # in a list
 #' estimand <- "ATE"
 #' cost_ATT <- cost_fun(x, z, power = power, metric = metric, estimand = estimand)
 #' length(cost_ATT)

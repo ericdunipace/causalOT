@@ -18,7 +18,7 @@ calc_weight(
 \arguments{
 \item{data}{Either a matrix, a data.frame, or a DataSim class. Arguments "balance.covariates" and "treatment.indicator" must be provided in the \code{...} arguments if data is of class data.frame or matrix.}
 
-\item{constraint}{The constraints for the weights. See details.}
+\item{constraint}{The constraints or penalties for the weights. See details.}
 
 \item{estimand}{The estimand of interest. One of "ATT","ATC", or "ATE".}
 
@@ -28,7 +28,7 @@ calc_weight(
 
 \item{transport.matrix}{Should the method calculate the transportation matrix if not done as a part of the method (TRUE/FALSE)? Default is FALSE.}
 
-\item{grid.search}{Should hyperparameters be selected by a grid search? Only available for "SBW" and "Wasserstein" methods.}
+\item{grid.search}{Should hyperparameters be selected by a grid search? Only available for "SBW" and "COT"/"Wasserstein" methods.}
 
 \item{...}{Many additional arguments are possible depending on the chosen method. See details for more information. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.}
 }
@@ -38,8 +38,7 @@ An object of class \link[=causalWeights-class]{causalWeights}
 \description{
 Estimate causal weights
 }
-\details{
-#Data
+\section{\code{data}}{
 The following classes are recognized by the \code{data} variable.
 \subsection{DataSim class}{
 
@@ -54,11 +53,38 @@ These \emph{must} include a vector argument \code{balance.covariates} and an int
 \code{balance.covariates} argument should be either an integer vector giving the column numbers of the covariates to balance or a character vector
 giving the names of the columns to balance. Similarly, the \code{treatment.indicator} argument should be a integer giving the column number of the
 treatment labels or a character giving the column name.
+}
+}
 
-#Constraints
-The constraint argument is used by the balancing methods like "SBW" dnd "Wasserstein" with balancing functions.
+\section{Constraints}{
+The constraint argument is used by the balancing methods like "SBW". This will specify a tolerance for basis function balance.
+
+If method "COT"/"Wasserstein" is used, will specify the penalty parameter to put on the weights. For "ATT" and "ATC" estimands, must be of the form \verb{list(penalty = ###)}, while for estimand "ATE", must be a list of length 2 specifying penalty first for the controls and then for treated: \verb{list(list(penalty = ###), list(penalty = ###))}.
+
+This argument is not needed if \code{grid.search} is TRUE.
 }
+
+\section{Formula}{
+For methods "SBW" or "COT", should be a formula object or character without a response but with the covariate functions desired. e.g., "~." includes all covariates without transformation.
+
+For methods "Logistic" and "Probit", a propensity score model either as a formula object or character: "z ~.".
 }
+
+\section{Additional arguments in \code{...}}{
+In addition to the already mentioned arguments, there are several additional
+optional arguments for the method "COT".
+\itemize{
+\item \code{penalty}. What type of penalty should be used? Must be one of "entropy" or "L2".
+\item \code{add.divergence}. TRUE or FALSE. If TRUE, \code{penalty} defaults to entropy.
+Will calculate the Sinkhorn divergence version of Causal Optimal Transport.
+If choosing Sinkhorn divergences, \code{solver} must be "lbfgs" and Python
+package \code{geomloss} must be installed.
+\item \code{balance.constraints}. The tolerance for the balancing basis function methods.
+}
+
+@seealso \link[=estimate_effect]{estimate_effect()}
+}
+
 \examples{
 set.seed(23483)
 n <- 2^7
@@ -72,8 +98,35 @@ estimate <- "ATE"
 data <- causalOT::Hainmueller$new(n = n, p = p, 
       design = design, overlap = overlap)
       data$gen_data()
-      weights <- calc_weight(data = data, 
+weights <- calc_weight(data = data, 
       p = p,
       estimand = estimate,
       method = "NNM")
+\dontrun{
+# Needs Python package GeomLoss
+COTweights <- calc_weight(data = data, 
+      p = 2,
+      constraint = list(list(penalty = 1000),
+                        list(penalty = 10000))
+      estimand = estimate,
+      method = "COT",
+      penalty = "entropy",
+      add.divergence = TRUE,
+      verbose = TRUE
+      )
+# with basis function balancing. Currently requires Rmosek
+ COTweights <- calc_weight(data = data, 
+      p = 2,
+      constraint = list(list(penalty = 1000),
+                        list(penalty = 10000))
+      estimand = estimate,
+      method = "COT",
+      penalty = "entropy",
+      add.divergence = TRUE,
+      formula = "~.",
+      balance.constraints = 0.2,
+      solver = "mosek",
+      verbose = TRUE
+      )
+}
 }

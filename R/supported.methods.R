@@ -70,7 +70,7 @@ dist.metrics <- function() {
 #' @export
 #'
 #' @examples
-#' dist.metrics()
+#' supported.solvers()
 supported.solvers <- function() {
   c("lbfgs","mosek",
     # "gurobi",

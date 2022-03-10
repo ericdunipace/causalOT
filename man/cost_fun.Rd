@@ -30,8 +30,8 @@ an error is not thrown.}
 \value{
 Output depends on the estimand.
 \itemize{
-\item For ATT and ATC: a matrix of dimension \deqn{n_0 \times n_1}.
-\item For ATE: a list of two matrices of dimension \deqn{n_0 \times n} and \deqn{n_1 \times n}.
+\item For ATT and ATC: a matrix of dimension \deqn{n_0 \times n_1}{n_0 * n_1}.
+\item For ATE: a list of two matrices of dimension \eqn{n_0 \times n}{n_0 * n} and \eqn{n_1 \times n}.
 See details for more information.
 }
 }
@@ -45,8 +45,8 @@ and the columns are the treated. If "ATE" will calculate to cost matrices
 with the first having the rows corresponding to the control individual and the
 second having rows correspond to the treated individuals. For both matrices,
 the columns will correspond to the full sample. The dimensions of the output will
-depend on the estimand. For reference, let \deqn{n_1 = \sum_i z_i},
-\deqn{n_0 = \sum_i (1-z_i)}, and $n = n_1 + n_0$.
+depend on the estimand. For reference, let \eqn{n_1 = \sum_i z_i},
+\eqn{n_0 = \sum_i (1-z_i)}, and \eqn{n = n_1 + n_0}.
 }
 \examples{
 n0 <- 100
@@ -66,8 +66,6 @@ cost_ATT <- cost_fun(x, z, power = power, metric = metric, estimand = estimand)
 print(dim(cost_ATT))
 
 # ATE
-# gives two matrices between control and full sample and treated and full sample
-# in a list
 estimand <- "ATE"
 cost_ATT <- cost_fun(x, z, power = power, metric = metric, estimand = estimand)
 length(cost_ATT)

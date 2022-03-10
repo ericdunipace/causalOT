@@ -74,7 +74,7 @@ DataSim <- R6::R6Class("DataSim",
                       #' Gets the optimal weights to get the correct expectation
                       #' @param estimand One of "ATT","ATC","ATE"
                       #' @param augment Should we use an augmented estimator? TRUE or FALSE.
-                      #' @param solver One of "mosek", "gurobi", or "quadprog"
+                      #' @param solver One of "mosek" or "gurobi"
                       opt_weight = function(estimand = "ATE", augment = FALSE, solver = "mosek") {
                           if(estimand == "cATE") estimand <- "ATE"
                           estimand <- match.arg(estimand, choices = c("ATT","ATC","ATE"))

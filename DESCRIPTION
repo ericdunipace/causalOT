@@ -10,7 +10,13 @@ Authors@R:
         email = "edunipace@mail.harvard.edu",
         comment = c(ORCID = "0000-0001-8909-213X"))
 Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
-Description: Uses optimal transport distances to find probabilistic matching estimators for causal inference.
+Description: Uses optimal transport distances to find probabilistic 
+    matching estimators for causal inference.
+    These methods are described in Dunipace, Eric (2021) <arXiv:2109.01991>.
+    The package will build the weights, estimate treatment effects, and
+    calculate confidence intervals via the methods described in the paper.
+    The package also supports several other methods as described in the help 
+    files.
 License: GPL (>=3.0)
 Imports: 
     approxOT,

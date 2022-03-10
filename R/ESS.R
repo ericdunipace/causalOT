@@ -29,6 +29,7 @@ ESS.causalWeights <- function(x) {
 #' @export
 #' 
 #' @docType methods
+#' @rdname ESS
 #'
 #' @examples
 #' x <- rep(1/100,100)

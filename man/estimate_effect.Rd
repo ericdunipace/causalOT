@@ -52,7 +52,6 @@ an object of class \link[=causalEffect-class]{causalEffect}
 Estimate treatment effects
 }
 \examples{
-\dontrun{
 # set-up data
 data <- Hainmueller$new()
 data$gen_data()
@@ -63,5 +62,4 @@ tx_eff <- estimate_effect(data = data, weights = weight)
 
 # get estimate
 print(tx_eff$estimate)
-}
 }

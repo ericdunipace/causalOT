@@ -1,9 +1,10 @@
 #' An R package to perform causal inference using optimal transport distances.
 #'
-#' R code to perform causal inference weighting using a variety of methods and optimizers. The code can estimate weights, estimate treatment effects, and also give variance estimates.
+#' R code to perform causal inference weighting using a variety of methods and optimizers. The code can estimate weights, estimate treatment effects, and also give variance estimates. These methods are described in Dunipace, Eric (2021) <arXiv:2109.01991>.
+#'
 #' @author Eric Dunipace
-#' @docType package
 #' @name causalOT
+#' @docType package
 #' @useDynLib causalOT, .registration = TRUE
 #' @importFrom Rcpp sourceCpp 
 #' @importFrom Rcpp evalCpp
@@ -12,7 +13,7 @@
 #' @importFrom utils capture.output data methods setTxtProgressBar txtProgressBar
 #' @importFrom R6 R6Class
 #' @rdname causalOT-package
-"_PACKAGE"
+NULL
 
 #' An external control trial of treatments for post-partum hemorrhage
 #' 

@@ -94,13 +94,11 @@ PSIS.list <- function(x, r_eff = NULL, ...) {
 #' @seealso [ESS()][causalOT::ESS]
 #'
 #' @examples
-#' \dontrun{
 #' x <- runif(100)
 #' w <- x/sum(x)
 #' 
 #' res <- PSIS(x = w, r_eff = x)
 #' PSIS_diag(res)
-#' }
 setGeneric("PSIS", function(x, r_eff = NULL, ...) UseMethod("PSIS"))
 
 #' @describeIn PSIS numeric weights

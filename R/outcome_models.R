@@ -809,7 +809,6 @@ setClass("causalEffect", slots = c(estimate = "numeric",
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' # set-up data
 #' data <- Hainmueller$new()
 #' data$gen_data()
@@ -820,7 +819,6 @@ setClass("causalEffect", slots = c(estimate = "numeric",
 #' 
 #' # get estimate
 #' print(tx_eff$estimate)
-#' }
 estimate_effect <- function(data, formula = NULL, weights, 
                                   hajek = TRUE, 
                                   doubly.robust = TRUE,
@@ -959,7 +957,7 @@ estimate_effect <- function(data, formula = NULL, weights,
 #' Confidence Intervals for Causal Effects
 #'
 #' @param object An object of class [causalEffect][causalOT::causalEffect-class]
-#' @param parm Unused. Included to match forms of other confint functions
+#' @param parm Unused. Included to match forms of other `confint` functions
 #' @param level Confidence level. Should be between 0 and 1. Default is 0.95.
 #' @param method How to calculate the confidence interval. Choices are "bootstrap" for
 #' a bootstrap confidence interval, "asymptotic" for "asymptotic" confidence intervals, and
@@ -980,7 +978,6 @@ estimate_effect <- function(data, formula = NULL, weights,
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' # set-up data
 #' set.seed(1234)
 #' data <- Hainmueller$new()
@@ -990,20 +987,9 @@ estimate_effect <- function(data, formula = NULL, weights,
 #' weight <- calc_weight(data, method = "Logistic")
 #' tx_eff <- estimate_effect(data = data, weights = weight)
 #' 
-#' # run ci with bootstrap
-#' confint(tx_eff, model = "lm",   
+#' # get asymptotic C.I.
+#' confint(tx_eff, model = "lm", method = "asymptotic",
 #'     formula = list(treated = "y ~ .", control = "y ~ ."))
-#' # output:
-#' # $CI
-#' #      2.5%     97.5% 
-#' # -1.032536  0.472624 
-#' #
-#' # $SD
-#' # [1] 0.3794913
-#' 
-#' # Warning message:
-#' # glm.fit: fitted probabilities numerically 0 or 1 occurred
-#' }
 confint.causalEffect <- function(object, parm, level = 0.95, 
                                  method = c("asymptotic", "bootstrap",  "jackknife"), 
                                  ...) {

@@ -146,7 +146,7 @@ Gets the optimal weights to get the correct expectation
 
 \item{\code{augment}}{Should we use an augmented estimator? TRUE or FALSE.}
 
-\item{\code{solver}}{One of "mosek", "gurobi", or "quadprog"}
+\item{\code{solver}}{One of "mosek" or "gurobi"}
 }
 \if{html}{\out{</div>}}
 }

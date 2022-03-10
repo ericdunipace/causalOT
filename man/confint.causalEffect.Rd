@@ -15,7 +15,7 @@
 \arguments{
 \item{object}{An object of class \link[=causalEffect-class]{causalEffect}}
 
-\item{parm}{Unused. Included to match forms of other confint functions}
+\item{parm}{Unused. Included to match forms of other \code{confint} functions}
 
 \item{level}{Confidence level. Should be between 0 and 1. Default is 0.95.}
 
@@ -41,7 +41,6 @@ for reference.
 Confidence Intervals for Causal Effects
 }
 \examples{
-\dontrun{
 # set-up data
 set.seed(1234)
 data <- Hainmueller$new()
@@ -51,18 +50,7 @@ data$gen_data()
 weight <- calc_weight(data, method = "Logistic")
 tx_eff <- estimate_effect(data = data, weights = weight)
 
-# run ci with bootstrap
-confint(tx_eff, model = "lm",   
+# get asymptotic C.I.
+confint(tx_eff, model = "lm", method = "asymptotic",
     formula = list(treated = "y ~ .", control = "y ~ ."))
-# output:
-# $CI
-#      2.5\%     97.5\% 
-# -1.032536  0.472624 
-#
-# $SD
-# [1] 0.3794913
-
-# Warning message:
-# glm.fit: fitted probabilities numerically 0 or 1 occurred
-}
 }
