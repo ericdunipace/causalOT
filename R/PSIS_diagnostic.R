@@ -1,4 +1,5 @@
 setOldClass("causalWeights")
+setOldClass("psis")
 
 PSIS.default <- function(x, r_eff = NULL, ...) {
   
@@ -125,7 +126,7 @@ PSIS_diag.numeric <- function(x, r_eff = NULL) {
 
 PSIS_diag.psis <- function(x, r_eff = NULL) {
   
-  return(res$diagnostics)
+  return(x$diagnostics)
 }
 
 PSIS_diag.causalWeights <- function(x, r_eff = NULL) {

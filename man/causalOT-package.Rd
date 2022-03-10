@@ -5,7 +5,7 @@
 \alias{causalOT}
 \title{An R package to perform causal inference using optimal transport distances.}
 \description{
-R code to perform causal inference weighting using a variety of methods and optimizers. The code can estimate weights, estimate treatment effects, and also give variance estimates. These methods are described in Dunipace, Eric (2021) \url{arXiv:2109.01991}.
+R code to perform causal inference weighting using a variety of methods and optimizers. The code can estimate weights, estimate treatment effects, and also give variance estimates. These methods are described in Dunipace, Eric (2021) \url{https://arxiv.org/abs/2109.01991}.
 }
 \author{
 Eric Dunipace

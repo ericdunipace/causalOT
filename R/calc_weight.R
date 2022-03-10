@@ -102,30 +102,33 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #'       p = p,
 #'       estimand = estimate,
 #'       method = "NNM")
+#' \dontrun{
 #' # Needs Python package GeomLoss
 #' COTweights <- calc_weight(data = data, 
 #'       p = 2,
 #'       constraint = list(list(penalty = 1000),
-#'                         list(penalty = 10000))
+#'                         list(penalty = 10000)),
 #'       estimand = estimate,
 #'       method = "COT",
 #'       penalty = "entropy",
 #'       add.divergence = TRUE,
 #'       verbose = TRUE
 #'       )
-#' # with basis function balancing. Currently requires Rmosek
-#'  COTweights <- calc_weight(data = data, 
+#' # with basis function balancing.
+#'  COTweightsBF <- calc_weight(data = data, 
 #'       p = 2,
 #'       constraint = list(list(penalty = 1000),
+#'                         list(penalty = 10000)),
 #'       estimand = estimate,
 #'       method = "COT",
 #'       penalty = "entropy",
 #'       add.divergence = TRUE,
 #'       formula = "~.",
 #'       balance.constraints = 0.2,
-#'       solver = "mosek",
+#'       solver = "osqp",
 #'       verbose = TRUE
 #'       )
+#' }
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = supported.methods(),
                         formula = NULL,
