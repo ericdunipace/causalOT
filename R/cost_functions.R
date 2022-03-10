@@ -24,7 +24,6 @@
 #' \itemize{
 #' \item `kernel`, one of "RBF", "polynomial", "linear"
 #' \item `rkhs.args` The arguments used to construct the kernel
-#' \item 
 #' }
 #' `...` can also be used to handle extra arguments passed by mistake so that
 #' an error is not thrown.

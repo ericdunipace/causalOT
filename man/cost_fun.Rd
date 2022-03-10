@@ -22,7 +22,6 @@ cost_fun(x, z, power = 2, metric = dist.metrics(), estimand = "ATE", ...)
 \itemize{
 \item \code{kernel}, one of "RBF", "polynomial", "linear"
 \item \code{rkhs.args} The arguments used to construct the kernel
-\item
 }
 \code{...} can also be used to handle extra arguments passed by mistake so that
 an error is not thrown.}

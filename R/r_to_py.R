@@ -66,7 +66,6 @@ skip_if_no_geomloss <- function() {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' x <- stats::rnorm(100, 100, 10)
 #' a <- rep(1/100, 100)
 #' 
@@ -82,7 +81,6 @@ skip_if_no_geomloss <- function() {
 #' # potentials for first 5 obs in each group
 #' print(sink$f[1:5])
 #' print(sink$g[1:5])
-#' }
 sinkhorn <- function(x, y, a, b, power = 2, 
                           blur = 0.05, reach = NULL, diameter = NULL,
                           scaling = 0.5, truncate = 5,

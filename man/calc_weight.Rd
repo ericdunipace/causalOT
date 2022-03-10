@@ -38,7 +38,10 @@ An object of class \link[=causalWeights-class]{causalWeights}
 \description{
 Estimate causal weights
 }
-\section{\code{data}}{
+\details{
+We detail some of the particulars of the function arguments below.
+\subsection{\code{data}}{
+
 The following classes are recognized by the \code{data} variable.
 \subsection{DataSim class}{
 
@@ -54,9 +57,11 @@ These \emph{must} include a vector argument \code{balance.covariates} and an int
 giving the names of the columns to balance. Similarly, the \code{treatment.indicator} argument should be a integer giving the column number of the
 treatment labels or a character giving the column name.
 }
+
 }
 
-\section{Constraints}{
+\subsection{Constraints}{
+
 The constraint argument is used by the balancing methods like "SBW". This will specify a tolerance for basis function balance.
 
 If method "COT"/"Wasserstein" is used, will specify the penalty parameter to put on the weights. For "ATT" and "ATC" estimands, must be of the form \verb{list(penalty = ###)}, while for estimand "ATE", must be a list of length 2 specifying penalty first for the controls and then for treated: \verb{list(list(penalty = ###), list(penalty = ###))}.
@@ -64,13 +69,15 @@ If method "COT"/"Wasserstein" is used, will specify the penalty parameter to put
 This argument is not needed if \code{grid.search} is TRUE.
 }
 
-\section{Formula}{
+\subsection{Formula}{
+
 For methods "SBW" or "COT", should be a formula object or character without a response but with the covariate functions desired. e.g., "~." includes all covariates without transformation.
 
 For methods "Logistic" and "Probit", a propensity score model either as a formula object or character: "z ~.".
 }
 
-\section{Additional arguments in \code{...}}{
+\subsection{Additional arguments in \code{...}}{
+
 In addition to the already mentioned arguments, there are several additional
 optional arguments for the method "COT".
 \itemize{
@@ -89,10 +96,8 @@ Additionally, methods like "SBW" and "COT" need the specification of a solver fu
 \itemize{
 \item \code{solver}. Should be one of "mosek" or "osqp".
 }
-
-@seealso \link[=estimate_effect]{estimate_effect()}
 }
-
+}
 \examples{
 set.seed(23483)
 n <- 2^7
@@ -108,7 +113,6 @@ weights <- calc_weight(data = data,
       p = p,
       estimand = estimate,
       method = "NNM")
-\dontrun{
 # Needs Python package GeomLoss
 COTweights <- calc_weight(data = data, 
       p = 2,
@@ -124,7 +128,6 @@ COTweights <- calc_weight(data = data,
  COTweights <- calc_weight(data = data, 
       p = 2,
       constraint = list(list(penalty = 1000),
-                        list(penalty = 10000))
       estimand = estimate,
       method = "COT",
       penalty = "entropy",
@@ -135,4 +138,6 @@ COTweights <- calc_weight(data = data,
       verbose = TRUE
       )
 }
+\seealso{
+\link[=estimate_effect]{estimate_effect()}
 }

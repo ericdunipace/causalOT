@@ -36,38 +36,37 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #' @param transport.matrix Should the method calculate the transportation matrix if not done as a part of the method (TRUE/FALSE)? Default is FALSE.
 #' @param grid.search Should hyperparameters be selected by a grid search? Only available for "SBW" and "COT"/"Wasserstein" methods.
 #' @param ... Many additional arguments are possible depending on the chosen method. See details for more information. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.
-#'
-#' @return An object of class [causalWeights][causalOT::causalWeights-class]
-#' @export
 #' 
 #' @details 
-#' # `data`
+#' We detail some of the particulars of the function arguments below.
+#' 
+#' ## `data`
 #' The following classes are recognized by the `data` variable.
 #'  
-#' ## DataSim class
+#' ### DataSim class
 #' The DataSim class is provided by this package for simulations. You can pass a DataSim object (once data has been simulated) to this function
 #' and it will be recognized and handled appropriately.
 #' 
-#' ## data.frame or matrix
+#' ### data.frame or matrix
 #' If the `data` argument is of class `data.frame` or `matrix`, then additional arguments are necessary to pass in the dots (`...`).
 #' These *must* include a vector argument `balance.covariates` and an integer or character in the `treatment.indicator` argument. The 
 #' `balance.covariates` argument should be either an integer vector giving the column numbers of the covariates to balance or a character vector
 #' giving the names of the columns to balance. Similarly, the `treatment.indicator` argument should be a integer giving the column number of the 
 #' treatment labels or a character giving the column name.
 #' 
-#' # Constraints
+#' ## Constraints
 #' The constraint argument is used by the balancing methods like "SBW". This will specify a tolerance for basis function balance.
 #' 
 #' If method "COT"/"Wasserstein" is used, will specify the penalty parameter to put on the weights. For "ATT" and "ATC" estimands, must be of the form `list(penalty = ###)`, while for estimand "ATE", must be a list of length 2 specifying penalty first for the controls and then for treated: `list(list(penalty = ###), list(penalty = ###))`.
 #' 
 #' This argument is not needed if `grid.search` is TRUE.
 #' 
-#' # Formula
+#' ## Formula
 #' For methods "SBW" or "COT", should be a formula object or character without a response but with the covariate functions desired. e.g., "~." includes all covariates without transformation.
 #' 
 #' For methods "Logistic" and "Probit", a propensity score model either as a formula object or character: "z ~.".
 #' 
-#' # Additional arguments in `...`
+#' ## Additional arguments in `...`
 #' In addition to the already mentioned arguments, there are several additional
 #' optional arguments for the method "COT".
 #' * `p`. The power of the Wasserstein distance to use.
@@ -83,8 +82,10 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #' Additionally, methods like "SBW" and "COT" need the specification of a solver function if using balancing functions, i.e. if the `formula` argument is specified.
 #' * `solver`. Should be one of "mosek" or "osqp".
 #'    
-#'  @seealso [estimate_effect()][causalOT::estimate_effect]
-#'    
+#' @seealso [estimate_effect()][causalOT::estimate_effect]
+#'  
+#' @return An object of class [causalWeights][causalOT::causalWeights-class]
+#' @export
 #'
 #' @examples
 #' set.seed(23483)
@@ -101,7 +102,6 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #'       p = p,
 #'       estimand = estimate,
 #'       method = "NNM")
-#' \dontrun{
 #' # Needs Python package GeomLoss
 #' COTweights <- calc_weight(data = data, 
 #'       p = 2,
@@ -117,7 +117,6 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #'  COTweights <- calc_weight(data = data, 
 #'       p = 2,
 #'       constraint = list(list(penalty = 1000),
-#'                         list(penalty = 10000))
 #'       estimand = estimate,
 #'       method = "COT",
 #'       penalty = "entropy",
@@ -127,7 +126,6 @@ setClass("sampleWeights", slots = c(a = "numeric", b = "numeric", total = "numer
 #'       solver = "mosek",
 #'       verbose = TRUE
 #'       )
-#' }
 calc_weight <- function(data, constraint=NULL,  estimand = c("ATE","ATT", "ATC","cATE", "feasible"), 
                         method = supported.methods(),
                         formula = NULL,
