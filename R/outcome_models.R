@@ -1191,11 +1191,13 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   model.fun <- object$model
   form <- object$formula
   estimand <- object$estimand
+  dots <- list(...)
+  # b_names <- base::...names
   
   if(is.null(model.fun)) {
-    if("model" %in% base::...names()) {
+    if("model" %in% names(dots)) {
       
-      model.fun <- calc_model(list(...)$model)
+      model.fun <- calc_model(dots$model)
     } else {
       stop("Must specify an argument 'model' as input to this function or in the effect estimation function")
     }
@@ -1203,8 +1205,8 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   }
   
   if(is.null(form)) {
-    if("formula" %in% base::...names()) {
-      form <- calc_form(formula = list(...)$formula, 
+    if("formula" %in% names(dots)) {
+      form <- calc_form(formula = dots$formula, 
                         doubly.robust = object$options$doubly.robust, 
                         target = object$estimand,
                         split.model = object$options$split.model

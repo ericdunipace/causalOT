@@ -36,3 +36,4 @@ inst/Meta
 **/.DS_Store
 vignettes/cache
 cran_notes.md
+cran-comments.md
