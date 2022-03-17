@@ -239,16 +239,16 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
       
       n0  <- length(w0)
       n1  <- length(w1)
-      w_1 <- causalOT::sinkhorn_geom(x = x1, y = x1, a = h1, b = w1, power = 2,
+      w_1 <- causalOT::sinkhorn(x = x1, y = x1, a = h1, b = w1, power = 2,
                                      metric = "Lp", debias = TRUE, blur = 10,
                                      backend = "auto")$loss
-      w_0 <- causalOT::sinkhorn_geom(x = x0, y = x0, a = h0, b = w0, power = 2,
+      w_0 <- causalOT::sinkhorn(x = x0, y = x0, a = h0, b = w0, power = 2,
                                      metric = "Lp", debias = TRUE, blur = 10,
                                      backend = "auto")$loss
-      w_xy_1 <- causalOT::sinkhorn_geom(x = x1, y = x, a = w1, b = b, power = 2,
+      w_xy_1 <- causalOT::sinkhorn(x = x1, y = x, a = w1, b = b, power = 2,
                                      metric = "Lp", debias = TRUE, blur = 10,
                                      backend = "auto")$loss
-      w_xy_0 <- causalOT::sinkhorn_geom(x = x0, y = x, a = w0, b = b, power = 2,
+      w_xy_0 <- causalOT::sinkhorn(x = x0, y = x, a = w0, b = b, power = 2,
                                      metric = "Lp", debias = TRUE, blur = 10,
                                      backend = "auto")$loss
       

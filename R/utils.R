@@ -474,3 +474,17 @@ dist_2d_to_1d <- function (i, j, n, m) {
 }
 
 
+seed.gen <- function(design, overlap, niter, seed) {
+  
+  nd <- length(design)
+  no <- length(overlap)
+  ni <- as.integer(niter)
+  
+  num.seeds <- nd*no*ni
+  
+  set.seed(seed)
+  
+  seeds.out <- sample.int(.Machine$integer.max, num.seeds, replace = FALSE)
+  
+  return(seeds.out)
+}

@@ -239,11 +239,11 @@ Rcpp::List kernel_calc_(const Rcpp::NumericMatrix & X_,  //confounders
     
     for(int i = 0; i < N; i ++) {
       for(int j = 0; j < N; j ++) {
-        if( (z(i) ==1) & (z(j) == 1) ) {
+        if( (z(i) ==1) && (z(j) == 1) ) {
           theta(i,j) = theta_1;
           gamma(i,j) = gamma_1;
         }
-        if( ( z(i) == 0 ) & ( z(j) == 0 ) ) {
+        if( ( z(i) == 0 ) && ( z(j) == 0 ) ) {
           theta(i,j) = theta_0;
           gamma(i,j) = gamma_0;
         }
@@ -426,11 +426,11 @@ Rcpp::NumericMatrix kernel_update_(const Rcpp::NumericMatrix & sim_,  //similari
   
   for(int i = 0; i < N; i ++) {
     for(int j = 0; j < N; j ++) {
-      if( (z_(i) == 1 ) & ( z_(j) == 1 ) ) {
+      if( (z_(i) == 1 ) && ( z_(j) == 1 ) ) {
         theta(i,j) = theta_1;
         gamma(i,j) = gamma_1;
       }
-      if( (z_(i) == 0 ) & ( z_(j) == 0) ) {
+      if( (z_(i) == 0 ) && ( z_(j) == 0) ) {
         theta(i,j) = theta_0;
         gamma(i,j) = gamma_0;
       }
@@ -534,7 +534,7 @@ Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix & X_,  //confounders
   
   matrix kernel_matrix_X(N,N);
   
-  if( (kernel_== "polynomial") | (kernel_=="linear") ) {
+  if( (kernel_== "polynomial") || (kernel_=="linear") ) {
     kernel_matrix_X = matrix(N, N).setZero().selfadjointView<Eigen::Lower>().rankUpdate(A);
   } else if (kernel_ == "RBF") {
     for(int n = 0; n < N; n ++) kernel_matrix_X.col(n) = (A.rowwise() - A.row(n)).matrix().rowwise().squaredNorm();
