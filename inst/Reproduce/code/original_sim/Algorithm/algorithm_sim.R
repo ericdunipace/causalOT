@@ -15,7 +15,7 @@ set.seed(seed_array[ARRAYID])
 
 
 #### Setup Data ####
-ns <- 2^(5:7) #2^(5:11)
+ns <- 2^5 #2^(5:11)
 max_n <- max(ns)
 lambda <- 100
 methods <- c(
@@ -43,7 +43,7 @@ sbw.bal <- NA_real_
 
 reticulate::use_condaenv("COT")
 
-scratch.dir <- file.path("scratch2", ARRAYID)
+scratch.dir <- file.path("scratch_alg", ARRAYID)
 dir.create(scratch.dir, recursive = TRUE)
 
 pykeops <- reticulate::import("pykeops", convert = TRUE)
@@ -271,4 +271,4 @@ saveRDS(out, file = file.path(outdir, paste0("pen_conv_",ARRAYID,"_",DATE,".rds"
 
 print(warnings())
 
-q("no")
+#q("no")

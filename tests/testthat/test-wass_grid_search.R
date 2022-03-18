@@ -614,7 +614,7 @@ testthat::test_that("grid search joint.map crossvalidation, wass", {
   #don't specify grid
   # debugonce(wass_grid_search)
   testthat::expect_silent(
-    wsel2 <- wass_grid_search(data, grid = NULL,
+    wsel2 <- causalOT:::wass_grid_search(data, grid = NULL,
                               estimand = estimand, n.boot = 10, 
                               K = 10, R = 1, method = "Wasserstein",
                               metric = metric, p = power, solver = "mosek",
