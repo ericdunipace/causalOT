@@ -1280,7 +1280,7 @@ pen.fun.grid <- function(x, z,
     top    <- 1e4 * n
   } else if (penalty == "entropy") {
     bottom <- 1e-2
-    top    <- 1e4
+    top    <- 1e5
   }
   
   if ( estimand == "ATE") {
