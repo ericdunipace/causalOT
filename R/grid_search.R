@@ -1552,12 +1552,15 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
   if(wass.method == "sinkhorn") {
     nzero_a <- which(weight$w0 != 0)
     nzero_b <- which(weight$w1 != 0)
-    lambda <- list(...)$lambda
+    dots <- list(...)
+    lambda <- dots$lambda
+    debias <- dots$unbiased
     if(is.na(lambda) || is.null(lambda)) lambda <- 1e2
+    if(is.na(debias) || is.null(debias)) debias <- TRUE
     
     if(!is.null(x0) && !is.null(x1)) {
       return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
-                               power = p, blur = lambda, debias = TRUE, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
+                               power = p, blur = lambda, debias = debias, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
     }
   }
   # if (estimand == "ATE") {

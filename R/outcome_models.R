@@ -1158,17 +1158,17 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   
   # mean(w^2/n^2 *z *(y - yhat)) + mean((w * z * yhat - tau)^2)
   
-  semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, tau, n) {
-    E_var_y1_given_x <- mean(w * z * (y - yhat_1)^2)
-    E_var_y0_given_x <- mean(w * (1-z) * (y - yhat_0)^2)
-    var_tau  <- mean( ((yhat_1 - yhat_0) - tau)^2 )
-    return((E_var_y1_given_x + E_var_y0_given_x + var_tau)/n)
-  }
+  # semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, tau, n) {
+  #   E_var_y1_given_x <- mean(w * z * (y - yhat_1)^2)
+  #   E_var_y0_given_x <- mean(w * (1-z) * (y - yhat_0)^2)
+  #   var_tau  <- mean( ((yhat_1 - yhat_0) - tau)^2 )
+  #   return((E_var_y1_given_x + E_var_y0_given_x + var_tau)/n)
+  # }
   
   semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, tau, n) {
-    E_var_y1_given_x <- mean(w * z * (y - yhat_1)^2)
-    E_var_y0_given_x <- mean(w * (1-z) * (y - yhat_0)^2)
-    var_tau  <- mean( ((yhat_1 - yhat_0) - tau)^2 )
+    # E_var_y1_given_x <- mean(w * z * (y - yhat_1)^2)
+    # E_var_y0_given_x <- mean(w * (1-z) * (y - yhat_0)^2)
+    # var_tau  <- mean( ((yhat_1 - yhat_0) - tau)^2 )
     return(mean((w * z * (y - yhat_1) - w * (1 - z) * (y - yhat_0) + (yhat_1 - yhat_0) - tau)^2) / n )
   }
   
@@ -1303,12 +1303,12 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   if (estimand == "ATE" ) {
     E_Y0_X <- E_Y0_X[orders]
     E_Y1_X <- E_Y1_X[orders]
-    VAR_Y1 <- semipar_var(y, z = z,
-                          yhat = E_Y1_X, w = w, e_y = E_Y1,
-                          n = denom)
-    VAR_Y0 <- semipar_var(y, z = 1 - z, 
-                          yhat = E_Y0_X, w = w, e_y = E_Y0,
-                          n = denom)
+    # VAR_Y1 <- semipar_var(y, z = z,
+    #                       yhat = E_Y1_X, w = w, e_y = E_Y1,
+    #                       n = denom)
+    # VAR_Y0 <- semipar_var(y, z = 1 - z, 
+    #                       yhat = E_Y0_X, w = w, e_y = E_Y0,
+    #                       n = denom)
     VAR    <- semipar_var_ate(y, z = z, yhat_1 = E_Y1_X,
                               yhat_0 = E_Y0_X, w, tau = tau,
                               n = denom)
