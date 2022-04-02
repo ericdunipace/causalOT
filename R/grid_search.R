@@ -233,8 +233,8 @@ wass_grid_search <- function(data, grid = NULL,
                              sample_weight = NULL,
                              wass.method = "sinkhorn", wass.iter = 1e3,
                              epsilon = 1,
-                             lambda = 1e1,
-                             unbiased = TRUE,
+                             lambda = 1e2,
+                             unbiased = FALSE,
                              add.joint = TRUE,
                              add.margins = FALSE,
                              add.divergence = FALSE,
@@ -1280,7 +1280,7 @@ pen.fun.grid <- function(x, z,
     top    <- 1e4 * n
   } else if (penalty == "entropy") {
     bottom <- 1e-2
-    top    <- 1e5
+    top    <- 1e4
   }
   
   if ( estimand == "ATE") {
