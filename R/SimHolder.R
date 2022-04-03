@@ -1330,7 +1330,7 @@
                                               gamma <- private$RKHS$gamma
                                               sigma_2 <- private$RKHS$sigma_2
                                               lambda <- delta
-                                              if(grid.search) lambda <- 1e3
+                                              if(grid.search) lambda <- 1e2
                                               power <- p[[1]]
                                               # kernel <- private$RKHS$kernel
                                             }
