@@ -1557,9 +1557,9 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
   #   debias <- dots$unbiased
   #   if(is.na(lambda) || is.null(lambda)) lambda <- 1e2
   #   if(is.na(debias) || is.null(debias)) debias <- TRUE
-  #   
+  # 
   #   if(!is.null(x0) && !is.null(x1)) {
-  #     return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
+  #     return(max(sinkhorn_geom(x = x0[nzero_a,,drop = FALSE], y = x1[nzero_b,,drop = FALSE], a = weight$w0[nzero_a], b = weight$w1[nzero_b],
   #                              power = p, blur = lambda, debias = debias, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
   #   }
   # }

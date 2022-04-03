@@ -937,8 +937,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                  if (private$p == 2) {
                                    cost <- private$geomloss$utils$squared_distances
                                  } else if (private$p == 1) {
-                                   reticulate::source_python(file = lp_python_path)
-                                   cost <- l1_loss
+                                   pycot <- reticulate::import_from_path("pycot", path = pycot_path, convert = TRUE)
+                                   cost <- pycot$python_lp$l1_loss
                                  } else {
                                    # reticulate::source_python(file = lp_python_path)
                                    # cost <- lp_loss

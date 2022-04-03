@@ -419,6 +419,10 @@
                              } else {
                                private$method <- pot.methods
                              }
+                             if(any(private$method == "COT")) {
+                               private$method[private$method == "COT"] <- "Wasserstein"
+                               private$method <- unique(private$method)
+                             }
                              private$weight_based_methods <- private$method[private$method != "gp"]
                              private$nmethod <- length(private$method)
                              private$model.augmentation <- match.arg(model.augmentation, c("both", "yes", "no"))
@@ -1181,6 +1185,8 @@
                                                                   None = list(delta = NA_real_, other = NA_character_),
                                                                   Logistic = list(delta = private$truncations,
                                                                                   formula = private$ps.formula$logistic),
+                                                                  Probit = list(delta = private$truncations,
+                                                                                formula = private$ps.formula$logistic),
                                                                   CBPS = list(delta = NA_real_,
                                                                               formula = private$ps.formula$cbps),
                                                                   NNM = nnm_list,
@@ -1192,6 +1198,7 @@
                                                                   RKHS.dose = RKHS.dose_list,
                                                                   'Constrained Wasserstein' = Cwass_list,    
                                                                   Wasserstein = wass_list,
+                                                                  COT = wass_list,
                                                                   gp = list(NA)), simplify = FALSE)
                                             if("Logistic" %in% private$method) private$method.lookup$estimand[private$method.lookup$method == "Logistic"][[1]] <- private$estimand[private$estimand != "feasible"]
                                             private$max.conditions <- private$max.cond.calc()
@@ -1361,7 +1368,7 @@
                                                             add.joint = TRUE, #private$wass.opt$add.joint,
                                                             add.margins = isTRUE(add.margins),
                                                             add.divergence = isTRUE(add.divergence),
-                                                            unbiased = TRUE,
+                                                            unbiased = FALSE,
                                                             penalty = penalty,
                                                             joint.mapping = isTRUE(joint.mapping),
                                                             grid.length = grid.length,
