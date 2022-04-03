@@ -591,6 +591,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                   private$optimizer$zero_grad()
                                   private$optimizer$step(private$closure)
                                   
+                                  private$pydat$var_to_lat()
                                   private$pydat$at <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
                                   private$a <- c(private$pydat$at$cpu()$numpy())
                                   
@@ -603,7 +604,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                     private$a <- private$solver(private$op)$sol
                                     l_a <- log(private$a)
                                     l_a[is.infinite(l_a)] <- (-.Machine$double.xmax)
-                                    private$pydat$l_at$data <- private$torch$DoubleTensor(l_a)$contiguous()$to(private$device)
+                                    private$pydat$l_at_var$data <- private$torch$DoubleTensor(l_a[1:(private$n1 - 1)] - l_a[private$n1])$contiguous()$to(private$device)
+                                    private$pydat$var_to_lat()
                                     private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)$to(private$device)
                                     
                                   }
@@ -939,7 +941,14 @@ cg <- function(optimizer, verbose = TRUE) {
                                private$pydat$xt <- dtype(private$np$array(private$X1))$contiguous()
                                private$pydat$yt <- dtype(private$np$array(private$X2))$contiguous()
                                private$pydat$at <- dtype(private$a)$contiguous()
-                               private$pydat$l_at <- private$torch$autograd$Variable(dtype(log(private$a))$contiguous(), requires_grad = TRUE)
+                               n_a <- length(private$a)
+                               l_a <- log(private$a)
+                               l_a <- l_a[1:(n_a - 1)] - l_a[n_a]
+                               private$pydat$l_at_var <- private$torch$autograd$Variable(dtype(l_a)$contiguous(), requires_grad = TRUE)
+                               private$pydat$l_at <- private$torch$cat(
+                                 list(private$pydat$l_at_var,
+                                 dtype(list(0.0)))
+                                )$contiguous()
                                private$pydat$bt <- dtype(private$b)$contiguous()
                                
                                # private$pydat$l_at <- private$pydat$l_at$to(device)
@@ -958,15 +967,22 @@ cg <- function(optimizer, verbose = TRUE) {
                                                                                potentials = TRUE,
                                                                                verbose = private$sinkhorn_args$verbose,
                                                                                backend = private$sinkhorn_args$backend)
-                               if(private$search == "LBFGS" || private$search == "pgd") {
-                                 private$optimizer <- private$torch$optim$LBFGS(params = list(private$pydat$l_at),
+                               if (private$search == "LBFGS" || private$search == "pgd") {
+                                 private$optimizer <- private$torch$optim$LBFGS(params = list(private$pydat$l_at_var),
                                                                                 lr = private$stepsize
                                                                                 , line_search_fn = "strong_wolfe"
                                  )
+                                 private$pydat$var_to_lat <- function() {
+                                   private$pydat$l_at <- private$torch$cat(
+                                     list(private$pydat$l_at_var,
+                                          dtype(list(0.0)))
+                                   )$contiguous()
+                                 }
                                  private$scheduler <- private$torch$optim$lr_scheduler$ReduceLROnPlateau(optimizer = private$optimizer, mode = "min", patience = 0L)
                                  
                                  private$closure <- function() { #needed for LBFGS search
                                    private$optimizer$zero_grad()
+                                   private$pydat$var_to_lat()
                                    private$pydat$at <- private$torch$softmax(private$pydat$l_at, 0L)
                                    pot <- private$otModel$forward(private$pydat$at$detach(),
                                                                   private$pydat$xt,
@@ -1042,7 +1058,9 @@ cg <- function(optimizer, verbose = TRUE) {
                                     private$pydat <- list()
                                     private$pydat$at <- private$torch$DoubleTensor(private$a)$contiguous()
                                     private$pydat$bt <- private$torch$DoubleTensor(private$b)$contiguous()
-                                    private$pydat$l_at <- private$torch$autograd$Variable(private$torch$DoubleTensor(log(private$a))$contiguous(), requires_grad = TRUE)
+                                    n_a <- length(private$a)
+                                    l_a <- log(private$a)
+                                    private$pydat$l_at <- private$torch$cat(private$torch$autograd$Variable(private$torch$DoubleTensor(l_a[1:(n_a-1)])$contiguous(), requires_grad = TRUE), private$torch$DoubleTensor(0.0))$contiguous()
                                     
                                     private$optimizer <- private$torch$optim$LBFGS(params = list(private$pydat$l_at),
                                                                                    lr = private$stepsize
