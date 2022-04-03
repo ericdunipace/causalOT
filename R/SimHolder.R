@@ -165,7 +165,7 @@
                              if(is.null(Wass)) {
                                Wass <- list(method = "sinkhorn",
                                            niter = 1e3,
-                                           epsilon = 1, # 0.05,
+                                           epsilon = 0.05,
                                            powers = 2,
                                            # ground_powers = 2,
                                            metrics = "mahalanobis",
@@ -220,7 +220,7 @@
                              if (!is.null(Wass$epsilon)) {
                                private$wass.opt$epsilon <- as.double(Wass$epsilon)
                              } else {
-                               private$wass.opt$epsilon <- 1 # 0.05
+                               private$wass.opt$epsilon <-  0.05
                              }
                              if (!is.null(Wass$constrained.wasserstein.target)) {
                                private$cwass.targ <- match.arg(Wass$constrained.wasserstein.target, c("RKHS", "SBW"))

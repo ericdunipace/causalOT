@@ -1550,20 +1550,20 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
   } else {
     p <- p.temp
   }
-  # if(wass.method == "sinkhorn") {
-  #   nzero_a <- which(weight$w0 != 0)
-  #   nzero_b <- which(weight$w1 != 0)
-  #   dots <- list(...)
-  #   lambda <- dots$lambda
-  #   debias <- dots$unbiased
-  #   if(is.na(lambda) || is.null(lambda)) lambda <- 1e2
-  #   if(is.na(debias) || is.null(debias)) debias <- TRUE
-  # 
-  #   if(!is.null(x0) && !is.null(x1)) {
-  #     return(max(sinkhorn_geom(x = x0[nzero_a,,drop = FALSE], y = x1[nzero_b,,drop = FALSE], a = weight$w0[nzero_a], b = weight$w1[nzero_b],
-  #                              power = p, blur = lambda, debias = debias, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
-  #   }
-  # }
+  if(wass.method == "sinkhorn_geom") {
+    nzero_a <- which(weight$w0 != 0)
+    nzero_b <- which(weight$w1 != 0)
+    dots <- list(...)
+    lambda <- dots$lambda
+    debias <- dots$unbiased
+    if(is.na(lambda) || is.null(lambda)) lambda <- 1e2
+    if(is.na(debias) || is.null(debias)) debias <- TRUE
+
+    if(!is.null(x0) && !is.null(x1)) {
+      return(max(sinkhorn_geom(x = x0[nzero_a,,drop = FALSE], y = x1[nzero_b,,drop = FALSE], a = weight$w0[nzero_a], b = weight$w1[nzero_b],
+                               power = p, blur = lambda, debias = debias, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
+    }
+  }
   # if (estimand == "ATE") {
   #   w0 <- w1 <- weight
   #   w0$gamma <- w1$gamma <- NULL
@@ -1591,9 +1591,9 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
       cc <- cost#[rowCount > 0, colCount > 0]
     }
      
-      return(wass_dist_helper(a = weight, b = NULL,
-                              cost = cc, X = x0, Y = x1,
-                              p = p, method = wass.method, niter = wass.iter, ...))
+    return(wass_dist_helper(a = weight, b = NULL,
+                            cost = cc, X = x0, Y = x1,
+                            p = p, method = wass.method, niter = wass.iter, ...))
     
   # }
 }
