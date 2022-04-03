@@ -1330,7 +1330,7 @@
                                             if ( isTRUE(joint.mapping) && isTRUE(add.margins) && isTRUE(penalty != "none"))  {
                                               grid.length <- 4
                                             } else {
-                                              grid.length <- 7
+                                              grid.length <- 8
                                             }
                                             if (estimand != "cATE") {
                                               private$weights[[estimand]] <- 

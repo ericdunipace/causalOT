@@ -12,7 +12,7 @@ cg <- function(optimizer, verbose = TRUE) {
       break
     }
     # cat("iter:", i, ", objective: ", optimizer$f(),"\n")
-    optimizer$solve_S()
+    optimizer$solve_S(i)
     optimizer$step()
     # if (verbose && i %% 10 == 0) setTxtProgressBar(pb, i/10)
     if (verbose) setTxtProgressBar(pb, i)
@@ -115,7 +115,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                                                   private$param,
                                                                   private$lambda) )
                                },
-                               solve_S = function() {
+                               solve_S = function(i) {
                                  private$qp$obj$L[private$cost_idx] <- c(self$df())
                                  private$S <- private$solver(private$qp)
                                },
@@ -366,7 +366,14 @@ cg <- function(optimizer, verbose = TRUE) {
                                 #   isTRUE(sum(abs(private$a_old - private$a)) < private$tol) ||
                                 #   nan.check
                                 
-                                relsame <- isTRUE(f_val_diff / abs(private$f_val_old) < private$tol)  || nan.check
+                                if(all(!is.na(private$f_val_vec_old))) {
+                                  private$f_val_vec <- c(private$f_val,private$f_val_vec[1:19])
+                                  private$f_val_vec_old <- c(private$f_val_vec[20], private$f_val_vec_old[1:19])
+                                }
+                                
+                                relsame <- isTRUE(abs(f_val_diff) / abs(private$f_val_old) < private$tol)  || 
+                                  isTRUE(abs(mean(private$f_val_vec) - mean(private$f_val_vec_old))/abs(mean(private$f_val_vec)) < private$tol) ||
+                                  nan.check
                                 private$converged.count <- if(relsame) {
                                   private$converged.count + as.integer(relsame)
                                 } else {
@@ -476,7 +483,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                 private$g_pot <- sol$g
                                 
                               },
-                              solve_S = function() {
+                              solve_S = function(i) {
                                 if (private$search == "armijo" ) {
                                   private$op <- private$op_update(f =  self$get_param()$f,
                                                                   g = private$g_pot,
@@ -488,10 +495,11 @@ cg <- function(optimizer, verbose = TRUE) {
                                   
                                   # grad <- self$df()
                                   # private$S <- renormalize(as.numeric(grad == min(grad)))
-                                } else if (private$search == "LBFGS") {
+                                } else if (i > 1 && (private$search == "LBFGS" || private$search == "rmsprop") && 
+                                           class(private$scheduler)[1] == "torch.optim.lr_scheduler.ReduceLROnPlateau") {
                                   private$scheduler$step(private$f_val)
-                                }
-                                
+                                } else if (i > 1 && class(private$scheduler)[1] == "torch.optim.lr_scheduler.ExponentialLR")
+                                  private$scheduler$step()
                               },
                               step = function() {
                                 
@@ -592,8 +600,8 @@ cg <- function(optimizer, verbose = TRUE) {
                                   private$optimizer$step(private$closure)
                                   
                                   private$pydat$var_to_lat()
-                                  private$pydat$at <- private$torch$softmax(private$pydat$l_at$detach(), 0L)
-                                  private$a <- c(private$pydat$at$cpu()$numpy())
+                                  private$pydat$at <- private$torch$softmax(private$pydat$l_at, 0L)
+                                  private$a <- c(private$pydat$at$cpu()$detach()$numpy())
                                   
                                   if(private$search == "pgd") {
                                     private$op <- private$op_update(f =  self$get_param()$f,
@@ -609,6 +617,22 @@ cg <- function(optimizer, verbose = TRUE) {
                                     private$pydat$at$data <- private$torch$softmax(private$pydat$l_at$detach(), 0L)$to(private$device)
                                     
                                   }
+                                } else if (private$search == "rmsprop") {
+                                  # potentials are previously calculated, therefore can just call them directly directly
+                                  private$optimizer$zero_grad()
+                                  loss <- private$torch$add(private$torch$dot(
+                                        private$f_pot, private$pydat$at
+                                      ), 
+                                                            private$torch$dot(private$g_pot, 
+                                                              private$pydat$bt))
+                                  
+                                  loss$backward()
+                                  private$optimizer$step()
+                                  
+                                  # update vars for ot loss fun calculation
+                                  private$pydat$var_to_lat()
+                                  private$pydat$at <- private$torch$softmax(private$pydat$l_at, 0L)
+                                  private$a <- c(private$pydat$at$cpu()$detach()$numpy())
                                 }
                                 
                                 
@@ -623,6 +647,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                                     niter = 1000,
                                                     tol = 1e-7,
                                                     search = c("LBFGS",
+                                                               "rmsprop",
                                                                "pgd",
                                                                "armijo",
                                                                "mirror",
@@ -776,6 +801,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                   private$device <- private$torch$device(if(use_cuda){"cuda"} else {"cpu"})
                                 }
                                 private$converged.count <- 0L
+                                private$f_val_vec <- private$f_val_vec_old <- rep(NA_real_, 20)
                                 private$specific_initialize()
                               }
                             ),
@@ -807,6 +833,8 @@ cg <- function(optimizer, verbose = TRUE) {
                            "f_pot" = "numeric",
                            "f_val" = "numeric",
                            "f_val_old" = "numeric",
+                           "f_val_vec" = "numeric",
+                           "f_val_vec_old" = "numeric",
                            "G" = "numeric",
                            "G_old" = "numeric",
                            "g_pot" = "numeric",
@@ -938,17 +966,19 @@ cg <- function(optimizer, verbose = TRUE) {
                                
                                
                                private$pydat <- list()
+                               private$pydat$dtype <- dtype
                                private$pydat$xt <- dtype(private$np$array(private$X1))$contiguous()
                                private$pydat$yt <- dtype(private$np$array(private$X2))$contiguous()
-                               private$pydat$at <- dtype(private$a)$contiguous()
+                               
                                n_a <- length(private$a)
                                l_a <- log(private$a)
                                l_a <- l_a[1:(n_a - 1)] - l_a[n_a]
                                private$pydat$l_at_var <- private$torch$autograd$Variable(dtype(l_a)$contiguous(), requires_grad = TRUE)
                                private$pydat$l_at <- private$torch$cat(
                                  list(private$pydat$l_at_var,
-                                 dtype(list(0.0)))
+                                      private$pydat$dtype(list(0.0)))
                                 )$contiguous()
+                               private$pydat$at <- private$torch$softmax(private$pydat$l_at, dim = 0L)
                                private$pydat$bt <- dtype(private$b)$contiguous()
                                
                                # private$pydat$l_at <- private$pydat$l_at$to(device)
@@ -967,18 +997,19 @@ cg <- function(optimizer, verbose = TRUE) {
                                                                                potentials = TRUE,
                                                                                verbose = private$sinkhorn_args$verbose,
                                                                                backend = private$sinkhorn_args$backend)
+                               private$pydat$var_to_lat <- function() {
+                                 private$pydat$l_at <- private$torch$cat(
+                                   list(private$pydat$l_at_var,
+                                        dtype(list(0.0)))
+                                 )$contiguous()
+                               }
                                if (private$search == "LBFGS" || private$search == "pgd") {
                                  private$optimizer <- private$torch$optim$LBFGS(params = list(private$pydat$l_at_var),
                                                                                 lr = private$stepsize
                                                                                 , line_search_fn = "strong_wolfe"
                                  )
-                                 private$pydat$var_to_lat <- function() {
-                                   private$pydat$l_at <- private$torch$cat(
-                                     list(private$pydat$l_at_var,
-                                          dtype(list(0.0)))
-                                   )$contiguous()
-                                 }
-                                 private$scheduler <- private$torch$optim$lr_scheduler$ReduceLROnPlateau(optimizer = private$optimizer, mode = "min", patience = 0L)
+                                 
+                                 private$scheduler <- private$torch$optim$lr_scheduler$ReduceLROnPlateau(optimizer = private$optimizer, mode = "min", patience = 1L)
                                  
                                  private$closure <- function() { #needed for LBFGS search
                                    private$optimizer$zero_grad()
@@ -993,6 +1024,14 @@ cg <- function(optimizer, verbose = TRUE) {
                                    loss$backward()
                                    return(loss)
                                  }
+                               } else if (private$search == "rmsprop") {
+                                 private$optimizer <- private$torch$optim$RMSprop(params = list(private$pydat$l_at_var),
+                                                                                lr = private$stepsize,
+                                                                                alpha = 0.99, momentum = 0.1,
+                                                                                centered = TRUE
+                                 )
+                                 private$scheduler <- private$torch$optim$lr_scheduler$ReduceLROnPlateau(optimizer = private$optimizer, mode = "min", patience = 5L)
+                                 # private$scheduler <- private$torch$optim$lr_scheduler$ExponentialLR(optimizer = private$optimizer, gamma = 0.9)
                                }
                              }
                            )

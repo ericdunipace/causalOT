@@ -234,7 +234,7 @@ wass_grid_search <- function(data, grid = NULL,
                              wass.method = "sinkhorn", wass.iter = 1e3,
                              epsilon = 1,
                              lambda = 1e2,
-                             unbiased = TRUE,
+                             unbiased = FALSE,
                              add.joint = TRUE,
                              add.margins = FALSE,
                              add.divergence = FALSE,
@@ -1280,7 +1280,7 @@ pen.fun.grid <- function(x, z,
     top    <- 1e4 * n
   } else if (penalty == "entropy") {
     bottom <- 1e-2
-    top    <- 1e4
+    top    <- 1e5
   }
   
   if ( estimand == "ATE") {
@@ -1549,20 +1549,20 @@ wass_grid <- function(rowCount, colCount, weight, cost, x0, x1, wass.method, was
   } else {
     p <- p.temp
   }
-  if(wass.method == "sinkhorn") {
-    nzero_a <- which(weight$w0 != 0)
-    nzero_b <- which(weight$w1 != 0)
-    dots <- list(...)
-    lambda <- dots$lambda
-    debias <- dots$unbiased
-    if(is.na(lambda) || is.null(lambda)) lambda <- 1e2
-    if(is.na(debias) || is.null(debias)) debias <- TRUE
-    
-    if(!is.null(x0) && !is.null(x1)) {
-      return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
-                               power = p, blur = lambda, debias = debias, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
-    }
-  }
+  # if(wass.method == "sinkhorn") {
+  #   nzero_a <- which(weight$w0 != 0)
+  #   nzero_b <- which(weight$w1 != 0)
+  #   dots <- list(...)
+  #   lambda <- dots$lambda
+  #   debias <- dots$unbiased
+  #   if(is.na(lambda) || is.null(lambda)) lambda <- 1e2
+  #   if(is.na(debias) || is.null(debias)) debias <- TRUE
+  #   
+  #   if(!is.null(x0) && !is.null(x1)) {
+  #     return(max(sinkhorn_geom(x = x0[nzero_a,], y = x1[nzero_b,], a = weight$w0[nzero_a], b = weight$w1[nzero_b], 
+  #                              power = p, blur = lambda, debias = debias, cost = NULL, scaling = 0.1, metric = "Lp")$loss,0)^(1/p))
+  #   }
+  # }
   # if (estimand == "ATE") {
   #   w0 <- w1 <- weight
   #   w0$gamma <- w1$gamma <- NULL
