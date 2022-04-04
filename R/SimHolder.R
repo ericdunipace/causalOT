@@ -163,7 +163,7 @@
                                private$standardized.difference.means <- NULL
                              }
                              if(is.null(Wass)) {
-                               Wass <- list(method = "sinkhorn",
+                               Wass <- list(method = "sinkhorn_geom",
                                            niter = 1e3,
                                            epsilon = 10, #0.05,
                                            powers = 2,
@@ -202,9 +202,9 @@
                              }
                              
                              if(!is.null(Wass$method)) {
-                               private$wass.opt$method <- match.arg(Wass$method, choices = approxOT::transport_options())
+                               private$wass.opt$method <- match.arg(Wass$method, choices = c(approxOT::transport_options(),"sinkhorn_geom"))
                              } else {
-                               private$wass.opt$method <- "sinkhorn"
+                               private$wass.opt$method <- "sinkhorn_geom"
                              }
                              
                              
