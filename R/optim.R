@@ -1009,7 +1009,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                                                                 , line_search_fn = "strong_wolfe"
                                  )
                                  
-                                 private$scheduler <- private$torch$optim$lr_scheduler$ReduceLROnPlateau(optimizer = private$optimizer, mode = "min", patience = 1L)
+                                 private$scheduler <- private$torch$optim$lr_scheduler$ReduceLROnPlateau(optimizer = private$optimizer, mode = "min", patience = 0L)
                                  
                                  private$closure <- function() { #needed for LBFGS search
                                    private$optimizer$zero_grad()

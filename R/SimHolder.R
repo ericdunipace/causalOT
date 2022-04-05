@@ -1368,7 +1368,7 @@
                                                             add.joint = TRUE, #private$wass.opt$add.joint,
                                                             add.margins = isTRUE(add.margins),
                                                             add.divergence = isTRUE(add.divergence),
-                                                            unbiased = FALSE,
+                                                            unbiased = TRUE,
                                                             penalty = penalty,
                                                             joint.mapping = isTRUE(joint.mapping),
                                                             grid.length = grid.length,
