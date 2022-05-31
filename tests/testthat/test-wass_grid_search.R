@@ -240,6 +240,7 @@ testthat::test_that("grid search actually works, marg wass sdlp", {
 
 testthat::test_that("grid search actually works, marg wass mahal", {
   testthat::skip_on_cran(); 
+  testthat::skip_on_ci()
   set.seed(9867)
   
   #### Load Packages ####
