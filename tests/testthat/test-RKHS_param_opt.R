@@ -193,7 +193,7 @@ testthat::test_that("parameter optimization for RKHS", {
                                                   metric = c("mahalanobis"), is.dose = FALSE, 
                                                   kernel = "linear",
                                                   opt.method = c("optim"), control = list(maxit = 10)))
-  
+  testthat::skip_on_ci()
   # debugonce("RKHS_param_opt")
   testthat::expect_silent(opt3 <- RKHS_param_opt(x, y, z, p = 2:3,
                                                  metric = c("mahalanobis"), is.dose = FALSE, 
