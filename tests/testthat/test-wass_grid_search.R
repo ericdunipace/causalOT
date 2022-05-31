@@ -1,6 +1,7 @@
 
 testthat::test_that("grid search actually works,  wass sdlp", {
   testthat::skip_on_cran(); 
+  testthat::skip_on_ci()
   set.seed(9867)
   # testthat::skip_if_not_installed("gurobi")
   #  testthat::skip_if_not_installed("Rmosek"); testthat::skip_on_ci()
@@ -73,7 +74,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
   
   )
   
-  
+  causalOT:::skip_if_no_geomloss()
   testthat::expect_warning(
     wsel <- causalOT:::wass_grid_search(data, grid = NULL,
                                         estimand = estimand, n.boot = 10, method = method,
@@ -88,6 +89,7 @@ testthat::test_that("grid search actually works,  wass sdlp", {
 
 testthat::test_that("grid search actually works,  wass mahal", {
   testthat::skip_on_cran(); 
+  testthat::skip_on_ci()
   set.seed(9867)
   
   #### Load Packages ####

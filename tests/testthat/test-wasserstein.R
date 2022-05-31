@@ -32,12 +32,13 @@ testthat::test_that("runs for current causal weights", {
   
   b <- rep(1/n0,n0)
   
-  testthat::expect_silent(dists <- sapply(weights, function(w) causalOT:::wasserstein_p(a = w, p = power, cost = cost, estimand = w$estimand)))
+  testthat::expect_silent(dists <- sapply(weights, function(w) causalOT:::wasserstein_p(a = w, p = power, cost = cost, estimand = w$estimand, method = "exact")))
   for(i in seq_along(dists)) {
     testthat::expect_equivalent(dists[i], approxOT::wasserstein(a = weights[[i]]$w0,
                                                             b = weights[[i]]$w1,
                                                             p = power,
-                                                            cost = cost),
+                                                            cost = cost,
+                                                            method = "exact"),
                                 tolerance = 1e-3)
   }
   

@@ -51,7 +51,7 @@ wass_grid_search(
 
 \item{sample_weight}{NULL or object of class \link[=sampleWeights-class]{sampleWeights}}
 
-\item{wass.method}{OT algorithm for evaluating balance}
+\item{wass.method}{OT algorithm for evaluating balance. Default "sinkhorn_geom" but otherwise should be a method supported by the approxOT package.}
 
 \item{wass.iter}{Number of iterations to run algorithm}
 
