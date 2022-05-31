@@ -204,7 +204,7 @@ RKHS_grid_search <- function(data, grid = NULL,
 #' @param eval.method One of "bootstrap" or "cross.validation"
 #' @param method One of "Wasserstein","Constrained Wasserstein", "SCM".
 #' @param sample_weight NULL or object of class [sampleWeights][causalOT::sampleWeights-class]
-#' @param wass.method OT algorithm for evaluating balance
+#' @param wass.method OT algorithm for evaluating balance. Default "sinkhorn_geom" but otherwise should be a method supported by the approxOT package.
 #' @param wass.iter Number of iterations to run algorithm
 #' @param epsilon Used to calculated the penalty factor for the `wass.method`.
 #'  `lambda = epsilon*median(cost)`.
