@@ -1220,7 +1220,7 @@ calc_gamma <- function(weights, ...) {
         p <- dots[["p"]]
       }
       if(is.null(dots[["epsilon"]])) {
-        epsilon <- 1/log(sqrt(sum(cost^2))*(n1 + n0)^(1/2))
+        epsilon <- 1/log(n1 + n0) #asymptotically slower but faster in finite samples
       } else {
         epsilon <- dots[["epsilon"]]
       }
