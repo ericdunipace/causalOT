@@ -18,7 +18,7 @@ Using the `remotes` package in `R`, one can install the package with
 
     remotes::install_github("ericdunipace/causalOT")
 
-### 2. downlaod and install
+### 2. download and install
 
 After downloading the git package using `git clone` or by downloading the .zip file from the button above (Code -\> Download Zip) and unzipping, you can install the package with
 
