@@ -7,7 +7,7 @@
 wass_grid_search(
   data,
   grid = NULL,
-  grid.length = 7,
+  grid.length = 8,
   estimand = c("ATT", "ATC", "cATE", "ATE"),
   K = 10,
   R = 10,
@@ -15,7 +15,7 @@ wass_grid_search(
   eval.method = c("bootstrap", "cross.validation"),
   method = c("Wasserstein", "Constrained Wasserstein", "SCM"),
   sample_weight = NULL,
-  wass.method = "sinkhorn",
+  wass.method = "sinkhorn_geom",
   wass.iter = 1000,
   epsilon = 1,
   lambda = 100,

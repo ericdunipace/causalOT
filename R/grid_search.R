@@ -224,14 +224,14 @@ RKHS_grid_search <- function(data, grid = NULL,
 #'
 #' @keywords internal
 wass_grid_search <- function(data, grid = NULL, 
-                             grid.length = 7,
+                             grid.length = 8,
                              estimand = c("ATT", "ATC","cATE","ATE"),
                              K = 10, R = 10,
                              n.boot = 100,
                              eval.method = c("bootstrap", "cross.validation"),
                              method = c("Wasserstein","Constrained Wasserstein", "SCM"),
                              sample_weight = NULL,
-                             wass.method = "sinkhorn", wass.iter = 1e3,
+                             wass.method = "sinkhorn_geom", wass.iter = 1e3,
                              epsilon = 1,
                              lambda = 1e2,
                              unbiased = TRUE,
@@ -728,7 +728,7 @@ weight_list_ATT_to_ATC <- function(weights) {
     weights.new[[i]]$estimand <- "ATT"
     weights.new[[i]]$w0 <- weights[[i]]$w1
     weights.new[[i]]$w1 <- weights[[i]]$w0
-    weights.new[[i]]$gamma <- t(weights.new[[i]]$gamma)
+    weights.new[[i]]$gamma <- if(!is.null(weights.new[[i]]$gamma)) t(weights.new[[i]]$gamma)
   }
   
   return(weights.new)
@@ -763,8 +763,9 @@ separate_weights_ATE <- function(weights) {
     weights0[[i]]$estimand <- "ATT"
     weights1[[i]]$estimand <- "ATT"
     
-    weights0[[i]]$w1 <- colSums(weights0[[i]]$gamma)
-    weights1[[i]]$w1 <- colSums(weights1[[i]]$gamma)
+    n <- length(weights[[i]]$w1) + length(weights[[i]]$w0)
+    weights0[[i]]$w1 <- rep(1/n,n) #colSums(weights0[[i]]$gamma)
+    weights1[[i]]$w1 <-  rep(1/n,n) #colSums(weights1[[i]]$gamma)
   }
   
   return(list(w0 = weights0, w1 = weights1))

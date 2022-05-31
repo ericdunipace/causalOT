@@ -634,4 +634,29 @@ testthat::test_that("test div wass", {
                            verbose = TRUE)
   })
   warn.fun()
+  testthat::expect_warning({
+    output2 <- sim.function(dataGen = original, 
+                            nsims = nsims, 
+                            estimands = estimands,
+                            ground_p = ground_power,
+                            methods = methods,
+                            p = power, 
+                            grid.search = grid.search,
+                            augmentation = agumentation,
+                            RKHS = list(opt = FALSE),
+                            match = match,
+                            standardized.mean.difference = std_mean_diff,
+                            distance = distance, 
+                            calculate.feasible = FALSE,
+                            solver = solver,
+                            wass.method  = "sinkhorn_geom",
+                            penalty = c("entropy"),
+                            wass.niter = 5,
+                            propensity.formula = list(Wasserstein = "~.+0"),
+                            wasserstein.distance.constraints = wdc,
+                            add.divergence = c(TRUE),
+                            confidence.interval = "asymptotic",
+                            verbose = TRUE)
+  })
+  warn.fun()
 })

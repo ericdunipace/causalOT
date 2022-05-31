@@ -119,13 +119,24 @@ mB$placenta_time <- difftime(mB$datetime_placenta, mB$datetime_delivery,
                              units = "mins")
 mB$tx  <- ifelse(mB$tx == "800mcg miso SL", 1, 0 )
 
+#### All sites
+mBf <- model.frame(analysis.form.B, 
+                   data = mB)
+pph  <- cbind(cum_blood_20m = model.response(mBf), 
+             model.matrix(terms(mBf), mBf)[,-1])
+pph_sitecode <- mB %>% 
+  mutate(sitecode = droplevels(sitecode)) %>% 
+  filter(rownames(mB) %in% rownames(pph)) %>% 
+  .$sitecode
+pph <- cbind(pph[, matrixStats::colSds(mb) != 0], sitecode = as.numeric(pph_sitecode))
 
+usethis::use_data(pph, overwrite = TRUE, internal = FALSE)
 
 #### Egypt vs others in B ####
 mBf <- model.frame(analysis.form.B, data = mB)
 mb  <- cbind(cum_blood_20m = model.response(mBf), 
              model.matrix(terms(mBf), mBf)[,-1])
-mb_sitecode <- mB$sitecode[rownames(mB) %in% rownames(mb)]
+
 
 mBf %>% 
    mutate(sitecode = mb_sitecode) %>% 
@@ -155,6 +166,9 @@ mb_other_0 <- mb[mb_sitecode != "Cairo, Egypt" &
 mb_att <- cbind(rbind(cbind(tx = 1, mb_egypt_1), cbind(tx = 0, mb_other_0)))
 
 mb_att <- mb_att[, matrixStats::colSds(mb_att) != 0]
+
 saveRDS(object = mb_att, file = "../datasets/misoprostol/miso_egypt.rds")
-pph <- mb_att
-usethis::use_data(pph, overwrite = TRUE, internal = FALSE)
+pph_egypt <- mb_att
+usethis::use_data(pph_egypt, overwrite = TRUE, internal = FALSE)
+
+

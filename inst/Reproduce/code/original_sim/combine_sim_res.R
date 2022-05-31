@@ -51,7 +51,7 @@ for (s in sim_data) {
       for (ss in sampsize) {
         param <- list.files(file.path(root,s, d, o, ss), recursive = FALSE)
         for (p in param) {
-          output[[s]][[d]][[o]][[ss]][[p]] <- if(!grepl("convergence",s) ) {
+          output[[s]][[d]][[o]][[ss]][[p]] <- if(!grepl("convergence|algorithm",s) ) {
             loadEdit(list.files(file.path(root,s, d, o, ss,p),
                                 full.names = TRUE),
                      s, d, o, ss, p)

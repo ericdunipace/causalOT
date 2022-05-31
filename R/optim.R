@@ -308,14 +308,15 @@ cg <- function(optimizer, verbose = TRUE) {
                                 
                                 med.cost <- median(private$cost)
                                 cost_p  <- (private$cost)^(1/private$p)
-                                min.lambda <- max(private$cost)/abs(.Machine$double.min.exp) + 0.01
+                                # min.lambda <- max(private$cost)/abs(.Machine$double.min.exp) + 0.01
+                                lambda <- 1/log(sqrt(sum(private$X1^2) + sum(private$X2^2)) * (private$n1 + private$n2)^(1/private$d))
                                 tplan <- approxOT::transport_plan_given_C(mass_x = private$a,
                                                                           mass_y = private$b,
                                                                           p = private$p,
                                                                           cost = cost_p,
                                                                           method = "sinkhorn",
-                                                                          epsilon = min.lambda / med.cost,
-                                                                          niter = 1e2)
+                                                                          epsilon = lambda / med.cost,
+                                                                          niter = 1e4)
                                 mass <- tplan$mass
                                 mass[mass < 0] <- 0
                                 private$gamma <- matrix(0, private$n1, private$n2)
@@ -429,7 +430,7 @@ cg <- function(optimizer, verbose = TRUE) {
                                 param <- self$get_param()
                                 out <- list(w0 = private$a,
                                             w1 = private$b,
-                                            gamma = self$get_weight(),
+                                            gamma = NULL, #self$get_weight(),
                                             args = list(
                                               dual = list(f = param$f,
                                                           g = param$g),

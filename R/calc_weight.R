@@ -402,7 +402,7 @@ calc_weight_glm <- function(data, constraint,  estimand = c("ATE","ATT", "ATC"),
                 "Logistic" = binomial(link = "logit"),
                 "Probit" = binomial(link = "probit"))
   dots$formula <- form_all_squares(dots$formula, colnames(df))
-  mod <- glm(dots$formula, data.frame(z = z, df), family = fam)
+  mod <- glm(dots$formula, family = fam, data = data.frame(z = z, df) )
   pred <- predict(mod, type = "response")
   
   if (isTRUE(constraint > 0) & isTRUE(constraint < 1)) {
@@ -1057,7 +1057,7 @@ convert_sol <- function(res, estimand, method, n0, n1, sample_weight) {
         output <- res[[1]]$sol
         output$w0 <- res[[1]]$sol$w1
         output$w1 <- res[[1]]$sol$w0
-        output$gamma <- t(res[[1]]$sol$gamma)
+        if(!is.null(res[[1]]$sol$gamma)){output$gamma <- t(res[[1]]$sol$gamma)}
         output$estimand <- "ATC"
         
         return(output)
@@ -1214,13 +1214,23 @@ calc_gamma <- function(weights, ...) {
       } else {
         niter <- dots$niter
       }
+      if( is.null(dots[["p"]])){
+        p <- 2
+      } else {
+        p <- dots[["p"]]
+      }
+      if(is.null(dots[["epsilon"]])) {
+        epsilon <- 1/log(sqrt(sum(cost^2))*(n1 + n0)^(1/2))
+      } else {
+        epsilon <- dots[["epsilon"]]
+      }
       tplan <- approxOT::transport_plan_given_C(mass_x = a,
                                     mass_y = b,
-                                    p = dots[["p"]],
+                                    p = p,
                                     cost = cost,
-                                    method = "exact", niter = niter)
-      
-      temp_gamma[cbind(tplan[[1]], tplan[[2]])] <- tplan[[3]]
+                                    method = "sinkhorn", niter = niter,
+                                    epsilon = epsilon)
+      temp_gamma[dist_2d_to_1d(tplan[[1]], tplan[[2]], n_a, n_b)] <- tplan[[3]]*(tplan[[3]] > 0) #small negative numbers due to rounding error
       
     }
     gamma[nzero_row, nzero_col] <- temp_gamma

@@ -17,14 +17,14 @@ NULL
 
 #' An external control trial of treatments for post-partum hemorrhage
 #' 
-#' A dataset evaluating treatments for post-partum hemorrhage. The data contain a treatment group receiving misoprostol vs potential
-#' controls from other locations that received only oxytocin. This data takes the misoprostol group from Egypt and compares them to the oxytocin groups from Burkina Faso, Thailand, and two sites in Vietnam. The data is 
+#' A dataset evaluating treatments for post-partum hemorrhage. The data contain  treatment groups receiving misoprostol vs potential
+#' controls from other locations that received only oxytocin. The data is 
 #' stored as a numeric matrix.
 #'
 #' The variables are as follows:
 #' \itemize{
+#'   \item cum_blood_20m. The outcome variable denoting cumulative blood loss in mL 20 minutes after the diagnosis of post-partum hemorrhage (650 -- 2000).
 #'   \item tx. The treatment indicator of whether an individual received misoprostol (1) or oxytocin (0).
-#'   \item cum_blood_20m. The outcome variable denoting cumulative blood loss after 20 minutes in mL (650 -- 2000).
 #'   \item age. the mother's age in years (15 -- 43).
 #'   \item no_educ. whether a woman had no education (1) or some education (0).
 #'   \item num_livebirth. the number of previous live births.
@@ -39,6 +39,7 @@ NULL
 #'   \item uterine_massageyes. whether a uterine massage was given (1 = yes, 0 = no).
 #'   \item placenta. whether placenta was delivered before treatment given (1 = yes, 0 = no).
 #'   \item bloodlossattx. amount of blood lost when treatment given (500 mL -- 1800 mL)
+#'   \item sitecode. Which site is the individual from? (1 = Cairo, Egypt,  2 = Turkey,        3 = Hocmon, Vietnam,  4 = Cuchi, Vietnam, and 5 Burkina Faso).
 #' }
 #' 
 #' @seealso Data from the following Harvard Dataverse: 
@@ -54,5 +55,5 @@ NULL
 #' @keywords datasets
 #' @name pph
 #' @usage data(pph)
-#' @format A matrix with 395 rows and 16 variables
+#' @format A matrix with 802 rows and 17 variables
 NULL

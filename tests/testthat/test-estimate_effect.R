@@ -40,13 +40,13 @@ testthat::test_that("mapping works, ATT", {
   f_1   <- predict(fit_1, data)
   f_0   <- predict(fit_0, data)
   
-  sw <- get_sample_weight(NULL, z)
-  
+  sw <- causalOT:::get_sample_weight(NULL, z)
+  weights$args$power <- 2
   # debugonce(causalOT:::mapping)
-  # testthat::expect_warning(
+  testthat::expect_warning(
     ys <- causalOT:::mapping(data = data, z = z, weights = weights, estimand = estimand, 
                      f1 = f_1, f0 = f_0, sw = sw)
-    # )
+    )
   
   non_map <- causalOT:::.outcome_calc_deprecated(data, z, weights, formula, model.fun, match = TRUE,
                                                  estimand = estimand)
@@ -186,7 +186,7 @@ testthat::test_that("mapping works, ATE", {
   #f1 y0 1.197229  y1 2.42858
   #resid y0 -0.3216016 y1 0.01760001
   testthat::expect_equal(mean(ys$y1-ys$y0), yscate)
-  testthat::expect_equal(yscate, mean(f_1) - mean(f_0) + sum((data$y - f_1)[z==1]*weights$w1)- sum((data$y - f_0)[z==0]*weights$w0))
+  # testthat::expect_equal(yscate, mean(f_1) - mean(f_0) + sum((data$y - f_1)[z==1]*weights$w1)- sum((data$y - f_0)[z==0]*weights$w0))
   
   
 })

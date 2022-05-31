@@ -48,7 +48,7 @@ testthat::test_that("SimHolder generates object", {
   original <- Hainmueller$new(n = n, p = p, 
                               design = design, overlap = overlap)
   # SimHolder$debug("initialize")
-  sh <- SimHolder$new(nsim = nsims,
+  sh <- causalOT:::SimHolder$new(nsim = nsims,
             dataSim = original,
             grid.search = TRUE,
             truncations = std_mean_diff,
@@ -70,7 +70,7 @@ testthat::test_that("SimHolder generates object", {
                   Wasserstein = list(NA, "~. + 0"),
                   "Constrained Wasserstein" = list(NA, "~. + 0"))
   # SimHolder$debug("method.setup")
-  sh <- SimHolder$new(nsim = nsims,
+  sh <- causalOT:::SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
                       truncations = std_mean_diff,
@@ -203,7 +203,7 @@ testthat::test_that("SimHolder runs", {
   # SimHolder$debug("cost.setup")
   # SimHolder$debug("get_cost")
   # SimHolder$debug("max.cond.calc")
-  sh <- SimHolder$new(nsim = nsims,
+  sh <- causalOT:::SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = FALSE,
                       truncations = std_mean_diff,
@@ -849,7 +849,7 @@ testthat::test_that("SimHolder with grid works", {
   # SimHolder$debug("estimate")
   # SimHolder$debug("method.setup")
   # SimHolder$debug("initialize")
-  sh5 <- SimHolder$new(nsim = nsims,
+  sh5 <- causalOT:::SimHolder$new(nsim = nsims,
                       dataSim = original,
                       grid.search = TRUE,
                       methods = c("NNM", "Wasserstein"),
@@ -1159,10 +1159,11 @@ testthat::test_that("SimHolder wass entropy turns to lbfgs", {
   # SimHolder$debug("cost.setup")
   # SimHolder$debug("get_cost")
   # SimHolder$debug("max.cond.calc")
-  sh <- SimHolder$new(nsim = nsims,
+  sh <- causalOT:::SimHolder$new(nsim = nsims,
                       methods = c("SBW","Wasserstein"),
                       dataSim = original,
                       grid.search = TRUE,
+                      estimands = c("ATE"),
                       truncations = std_mean_diff,
                       RKHS = list(opt = FALSE),
                       standardized.difference.means = std_mean_diff,

@@ -4,226 +4,209 @@
 library(causalOT)
 library(dplyr)
 library(ggplot2)
-library(ggsci)
-library(xtable)
-library(cowplot)
-library(tidyr)
+library(scales)
 
 #### load data ####
-conv.file <- file.path("data","algorithm.rds")
+alg.file <- file.path("data","algorithm.rds")
 # if (!file.exists(conv.file)) {
 #   download.file(url = "https://dataverse.harvard.edu/api/access/datafile/6040578",
 #                 destfile = conv.file)
 # }
 
-conv <- readRDS(file = conv.file)
+alg <- readRDS(file = alg.file)
 
 
 #### set true ATE ####
 true <- 0
 
-#### graph by design, overlap ####
-conv$which.wass <- NA_integer_
-conv$which.wass[conv$n0 <= 2^9] <- c(rep(0,3), 1:6)
-conv$which.wass[conv$n0 > 2^9 & conv$n0 <= 2^10] <- c(rep(0,3), 1,3:4,6)
-conv$which.wass[conv$n0 > 2^10] <- c(rep(0,3), 1)
+#### functions ####
+n_labeller <- function (labels, multi_line = TRUE) 
+{
+  labels <- lapply(labels, function(x) paste0("n = ", x))
+  if (multi_line) {
+    labels
+  }
+  else {
+    ggplot2:::collapse_labels_lines(labels)
+  }
+}
 
-# get plots
-full.conv.plot <- conv %>% 
-  mutate(method.new = sapply(which.wass, function(ww) switch(ww + 1L,
-                                                             NA,
-                                                             "COT, divergence",
-                                                             "COT, L2",
-                                                             "COT, entropy",
-                                                             "COT, divergence",
-                                                             "COT, L2",
-                                                             "COT, entropy")   )) %>% 
-  mutate(method.new = ifelse(which.wass == 0, method, method.new)) %>%
-  mutate(method.new = factor(method.new)) %>% 
-  mutate(method.new = forcats::fct_recode(method.new, "GLM" = "Probit")) %>% 
-  mutate(method.new = factor(method.new, labels = sort(levels(method.new)),
-                             levels = sort(levels(method.new)))) %>% 
-  mutate(constraint = ifelse(which.wass < 4, "none", "means")) %>% 
-  tidyr::pivot_longer(cols = c( "w_b_c", "w_b_t", 
-                                "w_c"  , "w_t",
-                                "l2_c" , "l2_t",
-                                "and_c", "and_t")) %>% 
-  mutate(constraint = factor(constraint, levels = c("none","means"))) %>% 
-  mutate(name = forcats::fct_recode(name))
+scientific_10 <- function(x) {
+  text <- gsub("1e", "10^", scales::scientific_format()(x))
+  text <- gsub("\\+","",text)
+  return(parse(text=text))
+}
 
 
-#plot for sinkhorn div
-fconvpw <- full.conv.plot %>%
-  filter(!(as.character(method.new) %in%  c("COT, entropy", "COT, L2"))) %>% 
-  filter(!(name %in% c("l2_c", "l2_t","and_c", "and_t") )) %>% 
-  mutate(name = forcats::fct_recode(name, "S[lambda](w[0], b) " = "w_b_c",
-                                    "S[lambda](w[1], b) " = "w_b_t",
-                                    "S[lambda](w[0], w^'*')" = "w_c",
-                                    "S[lambda](w[1], w^'*')" = "w_t")) %>% 
-  filter(constraint == "none") %>% 
-  mutate(method = method.new) %>% 
-  group_by(n, method, name) %>% 
-  summarize(E = mean(value),
-            lwr = quantile(value, 0.025),
-            upr = quantile(value, 0.975)) %>% 
-  ggplot(aes(y = E, x = n, color = method,
-             fill = method)) +
-  geom_hline(yintercept = 0) +
-  scale_color_manual(values = ggsci::pal_jama()(7)[c(1,4:7)]) +  
-  scale_fill_manual(values = ggsci::pal_jama()(7)[c(1,4:7)]) +  
-  xlab("N") + ylab("2-Sinkhorn Divergence") +
-  facet_wrap(~name, nrow = 2, labeller = label_parsed) + 
-  theme_cot() + 
-  theme(
-    strip.background = element_blank() #,
+theme_cot <- function(base_size = 11, base_family = "", 
+                      base_line_size = base_size/22, 
+                      base_rect_size = base_size/22,
+                      legend.position = 'bottom',
+                      legend.box = "horizontal",
+                      legend.justification = "center",
+                      legend.margin = ggplot2::margin(0,0,0,0),
+                      legend.box.margin = ggplot2::margin(-10,-10,0,-10)) { 
+  ggplot2::`%+replace%`(ggplot2::theme_bw(base_size = base_size, base_family = "", 
+                                          base_line_size = base_line_size, 
+                                          base_rect_size = base_rect_size),
+                        ggplot2::theme(
+                          plot.title = ggplot2::element_text(hjust = 1),
+                          panel.grid.minor = ggplot2::element_blank(),
+                          panel.grid.major = ggplot2::element_blank(),
+                          strip.background = ggplot2::element_blank(),
+                          strip.text.x = ggplot2::element_text(face = "bold"),
+                          strip.text.y = ggplot2::element_text(face = "bold"),
+                          legend.position = legend.position,
+                          legend.box = legend.box,
+                          legend.justification = legend.justification,
+                          legend.margin = legend.margin,
+                          legend.box.margin = legend.box.margin
+                          # change stuff here
+                        ))
+  
+}
+
+#### graph of selection vs anderson darling statistic ####
+
+algorithm <- alg %>% 
+  mutate(id = factor(id)) %>% 
+  mutate(lambda = lambda_0) %>% 
+  group_by(id, lambda, n, bf ) %>% 
+  summarize(ot0 = mean(ot0),
+            ot1 = mean(ot1),
+            msel0 = mean(sel0),
+            msel1 = mean(sel1),
+            sel0 = median(sel0),
+            sel1 = median(sel1),
+            E_Y0 = mean(E_Y0),
+            E_Y1 = mean(E_Y1),
+            E_Y0.aug = mean(E_Y0.aug),
+            E_Y1.aug = mean(E_Y1.aug),
+            u_and_c = quantile(and_c, 0.975),
+            l_and_c = quantile(and_c, 0.025),
+            u_and_t = quantile(and_t, 0.975),
+            l_and_t = quantile(and_t, 0.025),
+            and_c = mean(and_c),
+            and_t = mean(and_t),
+            w_0 = mean(w_0),
+            w_1 = mean(w_1)
+  ) 
+
+selected.mean <- algorithm %>% ungroup() %>% 
+  group_by(bf, n) %>%
+  # filter(n == 256, bf == FALSE) %>%
+  summarize(
+    app_c = exp(approx(x = id, y = log(and_c), xout = msel0,
+                       method = "linear")$y[1]),
+    app_t = exp(approx(x = id, y = log(and_t), xout = msel1,
+                       method = "linear")$y[1]),
+    msel0 = msel0[1], 
+    msel1 = msel1[1]
+  )
+
+sink <- algorithm %>%  filter(bf == FALSE)
+
+max_andt <- max(sink$and_t)
+max_andc <- max(sink$and_c)
+min_andt <- min(sink$and_t)
+min_andc <- min(sink$and_c)
+lwr_t <- round(log(min_andt)/log(10)-1)
+upr_t <- round(log(max_andt)/log(10)+1)
+lwr_c <- round(log(min_andc)/log(10)-1)
+upr_c <- round(log(max_andc)/log(10)+1)
+
+
+treated <- alg %>% filter(bf == FALSE, id == sel1) %>% 
+  ggplot() +
+  geom_histogram(
+    mapping = aes(x = sel1),
+    stat = "count",
+    fill = "#f0f0f0",
+    color = "#949494") + 
+  geom_line(data = sink  
+            , mapping = aes(x = id, y = (log(and_t)-log(10^lwr_t))*50, group = factor(n), 
+                            color = factor(n)),
+            color = "#1f9aff",#"#1f9aff" blue,"#ff8b1f" orange 
+            size = 1) +
+  geom_ribbon(data = sink 
+              , mapping = aes(x = id, y = (log(and_t)-log(10^lwr_t))*50,
+                              ymin = (log(l_and_t)-log(10^lwr_t))*50, ymax = (log(u_and_t)-log(10^lwr_t))*50, 
+                              fill = factor(n),
+                              group = factor(n)),
+              alpha = 0.3, color = NA, fill = "#0062ff"#"#1f9aff""#ff8b1f"
   ) + 
-  scale_x_continuous(trans = "log2",
-                     breaks = 2^(seq(6, 12, 2))) +
-  scale_y_continuous(trans = "log",labels = scales::scientific,
-                     breaks = 10^(-5:-1))
+  scale_y_continuous(name= "Anderson-Darling Statistic",
+                     sec.axis = sec_axis(trans = ~. , name = "Probability selected",
+                                         breaks = seq(0, 1000, 250),
+                                         labels = seq(0, 1, .25)
+                     ),
+                     limits = c(0, 1000),
+                     
+                     breaks = (log(10^seq(lwr_t, upr_t+3, 1)) - log(10^lwr_t))*50,
+                     labels = scientific_10(10^seq(lwr_t, upr_t+3, 1)),
+                     expand = c(0.0,0.0)
+  )  +
+  scale_x_discrete(name = expression("Penalty parameter,"~lambda),
+                   labels = scientific_10(unique(sort(sink$lambda)))) +
+  facet_wrap(facets=~n,
+             labeller = n_labeller) +
+  theme_cot()
 
-#plot for L_2 convergence
-fconvpl <- full.conv.plot %>%
-  filter(!(as.character(method.new) %in%  c("COT, entropy", "COT, L2"))) %>% 
-  filter((name %in% c("l2_c", "l2_t") )) %>% 
-  mutate(weight = forcats::fct_recode(name, "L2" = "l2_c",
-                                      "L2" = "l2_t",
-                                      "Anderson" = "and_c",
-                                      "Anderson" = "and_t"
-  )) %>% 
-  mutate(name = forcats::fct_recode(name, "control" = "l2_c",
-                                    "treated" = "l2_t",
-                                    "control" = "and_c",
-                                    "treated" = "and_t"
-  )) %>% 
-  filter(constraint == "none") %>% 
-  mutate(method = method.new) %>% 
-  group_by(n, method, name, weight) %>% 
-  summarize(E = mean(value),
-            lwr = quantile(value, 0.025),
-            upr = quantile(value, 0.975)) %>% 
-  ggplot(aes(y = E, x = n, color = method,
-             fill = method)) +
-  geom_hline(yintercept = 0) +
-  scale_color_manual(values = ggsci::pal_jama()(7)[c(1,4:7)]) + 
-  scale_fill_manual(values = ggsci::pal_jama()(7)[c(1,4:7)]) + 
-  xlab("N") + ylab(expression("|"~ w^"*" - w ~"|"^2)) +
-  facet_wrap(weight~name, nrow = 2
+control <- alg %>% filter(bf == FALSE, id == sel0) %>% 
+  ggplot() +
+  geom_histogram(
+    mapping = aes(x = sel0),
+    stat = "count",
+    fill = "#f0f0f0",
+    color = "#949494") + 
+  geom_line(data = sink  
+            , mapping = aes(x = id, y = (log(and_c)-log(10^lwr_c))*50, group = factor(n), 
+                            color = factor(n)),
+            color = "#1f9aff",#"#1f9aff" blue,"#ff8b1f" orange 
+            size = 1) +
+  geom_ribbon(data = sink 
+              , mapping = aes(x = id, y = (log(and_c)-log(10^lwr_c))*50,
+                              ymin = (log(l_and_c)-log(10^lwr_c))*50, ymax = (log(u_and_c)-log(10^lwr_c))*50, 
+                              fill = factor(n),
+                              group = factor(n)),
+              alpha = 0.3, color = NA, fill = "#0062ff"#"#1f9aff""#ff8b1f"
   ) + 
-  facet_wrap(~name, nrow = 1
-  ) + 
-  theme_cot() + 
-  theme(
-    strip.background = element_blank() #,
-  ) + 
-  scale_x_continuous(trans = "log2",
-                     breaks = 2^(seq(6, 12, 2))) +
-  scale_y_continuous(trans = "log",labels = scales::scientific,
-                     breaks = 10^(-6:-1))
+  scale_y_continuous(name= "Anderson-Darling Statistic",
+                     sec.axis = sec_axis(trans = ~. , name = "Probability selected",
+                                         breaks = seq(0, 1000, 250),
+                                         labels = seq(0, 1, .25)
+                     ),
+                     limits = c(0, 1000),
+                     breaks = (log(10^seq(lwr_c, upr_c+5, 1)) - log(10^lwr_c))*50,
+                     labels = scientific_10(10^seq(lwr_c, upr_c+5, 1))
+                     , expand = c(0,0)
+                     
+  )  +
+  scale_x_discrete(name = expression("Penalty parameter,"~lambda),
+                   labels = scientific_10(unique(sort(sink$lambda)))) +
+  facet_wrap(facets=~n,
+             labeller = n_labeller) +
+  theme_cot()
 
+txs <- cbind(alg %>%
+        filter(bf == FALSE) %>%
+        filter(id == sel1) %>%
+        select(n, E_Y1),
+        alg %>%
+        filter(bf == FALSE) %>%
+        filter(id == sel0) %>%
+        select(E_Y0)
+) %>%  group_by(n) %>% summarize(tau = mean(E_Y1 - E_Y0),
+                                 sd_tau = sd(E_Y1 - E_Y0),
+                                 rmse = sqrt(mean( (E_Y1 - E_Y0)^2)))
 
-#grayscale safe images
-gray.labels <- c("COT", "GLM","NNM","SBW")
-pdf("figures/gray_compare_meth_conv_l2.pdf",
+#### Save ####
+pdf("figures/algorithm_check_treated.pdf",
     width = 7, height = 4)
-print(fconvpl + geom_line(aes(linetype = method), size = 0.7) +
-        scale_linetype_manual(values = 1:4,labels = gray.labels) +
-        scale_color_manual(values = rje::cubeHelix(6)[1:4], labels = gray.labels) +
-        scale_fill_manual(values = rje::cubeHelix(6)[1:4], labels = gray.labels))
+print(treated)
 dev.off()
 
-
-pdf("figures/gray_compare_meth_conv_wass.pdf",
+pdf("figures/algorithm_check_control.pdf",
     width = 7, height = 4)
-print(fconvpw + geom_line(aes(linetype = method), size = 0.7) +
-        scale_linetype_manual(values = 1:4,labels = gray.labels) +
-        scale_color_manual(values = rje::cubeHelix(6)[1:4], labels = gray.labels) +
-        scale_fill_manual(values = rje::cubeHelix(6)[1:4], labels = gray.labels))
-dev.off()
-
-#### confidence interval ####
-gfull.ci.plot <- conv %>% 
-  mutate(method.new = sapply(which.wass, function(ww) switch(ww + 1L,
-                                                             NA,
-                                                             "COT, divergence",
-                                                             "COT, L2",
-                                                             "COT, entropy",
-                                                             "COT, divergence",
-                                                             "COT, L2",
-                                                             "COT, entropy")   )) %>% 
-  mutate(method.new = ifelse(which.wass == 0, method, method.new)) %>%
-  mutate(method.new = factor(method.new)) %>% 
-  mutate(method.new = forcats::fct_recode(method.new, "GLM" = "Probit")) %>% 
-  mutate(constraint = ifelse(which.wass < 4, "none", "means")) %>% 
-  mutate(constraint = factor(constraint, levels = c("none","means"))) %>% 
-  group_by(n, method.new, constraint) %>% 
-  summarize(cover.E = mean(ci.lwr <= mean(estimate) & ci.upr >= mean(estimate)),
-            cover = mean(ci.lwr <= 0 & ci.upr >= 0),
-            aug_cover.E = mean(ci.lwr.aug <= mean(estimate.aug) & ci.upr >= mean(estimate.aug)),
-            aug_cover = mean(ci.lwr.aug <= 0 & ci.upr.aug >= 0),
-            method = unique(method)) %>% 
-  ungroup()
-
-
-# get plot data
-gci.plot.long <- gfull.ci.plot %>% 
-  filter(method == "Wasserstein") %>% 
-  filter(method.new == "COT, divergence") %>% 
-  tidyr::pivot_longer(cols = c( "cover", "aug_cover")) %>%
-  mutate(name = forcats::fct_recode( name, "Coverage of Hajek estimator" = "cover",
-                                     "Coverage of augmented estimator" = "aug_cover"))
-
-gcip_full <- gci.plot.long %>% 
-  mutate(method = method.new) %>% 
-  ggplot(aes(y = value, x = n,
-             linetype = constraint)) +
-  geom_hline(yintercept = 0.95) +
-  geom_line(size = 1, color = "#374E55FF") +
-  xlab("N") + ylab("Asymptotic C.I. coverage") +
-  theme_cot() +
-  theme(
-    strip.background = element_blank() #,
-  ) + 
-  scale_x_continuous(trans = "log2",
-                     breaks = 2^(seq(6, 12, 2))) +
-  scale_y_continuous(breaks = seq(0.75, 1, 0.05),
-                     minor_breaks = waiver(),
-                     limits = c(0.75,1),
-                     expand = c(0,0)) +
-  facet_grid(cols = vars(name))
-
-gcip_full_E <- gfull.ci.plot %>% 
-  filter(method == "Wasserstein") %>% 
-  filter(method.new == "COT, divergence") %>% 
-  tidyr::pivot_longer(cols = c( "cover.E", "aug_cover.E")) %>%
-  mutate(name = forcats::fct_recode( name, "Coverage of Hajek estimator" = "cover.E",
-                                     "Coverage of augmented estimator" = "aug_cover.E")) %>% 
-  mutate(method = method.new) %>% 
-  ggplot(aes(y = value, x = n,
-             linetype = constraint)) +
-  geom_hline(yintercept = 0.95) +
-  geom_line(size = 1, color = "#374E55FF") +
-  xlab("N") + ylab("Asymptotic C.I. coverage") +
-  theme_cot() +
-  theme(
-    strip.background = element_blank() #,
-  ) + 
-  scale_x_continuous(trans = "log2",
-                     breaks = 2^(seq(6, 12, 2))) +
-  scale_y_continuous(breaks = seq(0.75, 1, 0.05),
-                     minor_breaks = waiver(),
-                     limits = c(0.75,1),
-                     expand = c(0,0)) +
-  facet_grid(cols = vars(name))
-
-
-
-pdf("figures/gray_ot_meth_ci_coverage_both.pdf",
-    width = 7, height = 2.5)
-print(gcip_full)
-dev.off()
-
-pdf("figures/gray_ot_meth_ci_coverage_both_expectation.pdf",
-    width = 7, height = 2.5)
-print(gcip_full_E)
+print(control)
 dev.off()

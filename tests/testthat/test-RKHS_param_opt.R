@@ -135,10 +135,12 @@ testthat::test_that("parameter optimization for RKHS", {
                         kernel = "polynomial",
                         opt.method = c("stan"), iter = 10))
   
-  testthat::expect_message(opt3 <- causalOT:::RKHS_param_opt(x, y, z, p = 2:3,
+  # testthat::expect_message(
+    opt3 <- causalOT:::RKHS_param_opt(x, y, z, p = 2:3,
                                                  metric = c("mahalanobis"), is.dose = FALSE, 
                                                  kernel = "RBF",
-                                                 opt.method = c("stan"), iter = 10))
+                                                 opt.method = c("stan"), iter = 10)
+    # )
   
 })
 

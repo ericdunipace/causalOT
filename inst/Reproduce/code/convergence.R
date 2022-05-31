@@ -9,6 +9,35 @@ library(xtable)
 library(cowplot)
 library(tidyr)
 
+#### theme function ####
+theme_cot <- function(base_size = 11, base_family = "", 
+                      base_line_size = base_size/22, 
+                      base_rect_size = base_size/22,
+                      legend.position = 'bottom',
+                      legend.box = "horizontal",
+                      legend.justification = "center",
+                      legend.margin = ggplot2::margin(0,0,0,0),
+                      legend.box.margin = ggplot2::margin(-10,-10,0,-10)) { 
+  ggplot2::`%+replace%`(ggplot2::theme_bw(base_size = base_size, base_family = "", 
+                                          base_line_size = base_line_size, 
+                                          base_rect_size = base_rect_size),
+                        ggplot2::theme(
+                          plot.title = ggplot2::element_text(hjust = 1),
+                          panel.grid.minor = ggplot2::element_blank(),
+                          panel.grid.major = ggplot2::element_blank(),
+                          strip.background = ggplot2::element_blank(),
+                          strip.text.x = ggplot2::element_text(face = "bold"),
+                          strip.text.y = ggplot2::element_text(face = "bold"),
+                          legend.position = legend.position,
+                          legend.box = legend.box,
+                          legend.justification = legend.justification,
+                          legend.margin = legend.margin,
+                          legend.box.margin = legend.box.margin
+                          # change stuff here
+                        ))
+  
+}
+
 #### load data ####
 conv.file <- file.path("data","convergence.rds")
 if (!file.exists(conv.file)) {
@@ -56,8 +85,8 @@ full.conv.plot <- conv %>%
 fconvpw <- full.conv.plot %>%
   filter(!(as.character(method.new) %in%  c("COT, entropy", "COT, L2"))) %>% 
   filter(!(name %in% c("l2_c", "l2_t","and_c", "and_t") )) %>% 
-  mutate(name = forcats::fct_recode(name, "S[lambda](w[0], b) " = "w_b_c",
-                                    "S[lambda](w[1], b) " = "w_b_t",
+  mutate(name = forcats::fct_recode(name, "S[lambda](w[0], a) " = "w_b_c",
+                                    "S[lambda](w[1], a) " = "w_b_t",
                                     "S[lambda](w[0], w^'*')" = "w_c",
                                     "S[lambda](w[1], w^'*')" = "w_t")) %>% 
   filter(constraint == "none") %>% 
@@ -140,6 +169,77 @@ print(fconvpw + geom_line(aes(linetype = method), size = 0.7) +
         scale_color_manual(values = rje::cubeHelix(6)[1:4], labels = gray.labels) +
         scale_fill_manual(values = rje::cubeHelix(6)[1:4], labels = gray.labels))
 dev.off()
+
+# rates reported in table
+l2_rates <- full.conv.plot %>%
+  filter(!(as.character(method.new) %in%  c("COT, entropy", "COT, L2"))) %>% 
+  filter((name %in% c("l2_c", "l2_t") )) %>% 
+  mutate(weight = forcats::fct_recode(name, "L2" = "l2_c",
+                                      "L2" = "l2_t",
+                                      "Anderson" = "and_c",
+                                      "Anderson" = "and_t"
+  )) %>% 
+  mutate(name = forcats::fct_recode(name, "control" = "l2_c",
+                                    "treated" = "l2_t",
+                                    "control" = "and_c",
+                                    "treated" = "and_t"
+  )) %>% 
+  filter(constraint == "none") %>% 
+  mutate(method = method.new) %>% 
+  group_by(method, name, weight) %>% 
+  summarize(rate = coef(lm(log(value) ~ log(n)))[2])
+
+sink_rates <- full.conv.plot %>%
+  filter(!(as.character(method.new) %in%  c("COT, entropy", "COT, L2"))) %>% 
+  filter(!(name %in% c("l2_c", "l2_t","and_c", "and_t") )) %>% 
+  mutate(tx_group = forcats::fct_recode(name, "control" = "w_b_c",
+                                        "treated" = "w_b_t",
+                                        "control" = "w_c",
+                                        "treated" = "w_t")) %>% 
+  mutate(name = forcats::fct_recode(name, "$S_\\lambda(\\boldw_0, \\bolda) $" = "w_b_c",
+                                    "$S_\\lambda(\\boldw_1, \\bolda)$ " = "w_b_t",
+                                    "$S_\\lambda(\\boldw_0, \\boldw^\\star)$" = "w_c",
+                                    "$S_\\lambda(\\boldw_1, \\boldw^\\star)$" = "w_t")) %>% 
+  filter(constraint == "none") %>% 
+  mutate(method = method.new) %>% 
+  group_by(method, name, tx_group) %>% 
+  summarize(rate = coef(lm(log(value) ~ log(n)))[2])
+
+rates_tab_control <- sink_rates %>% 
+  filter(tx_group == "control") %>% 
+  pivot_wider(id_cols = method, names_from = name, values_from = rate)
+rates_tab_treated <- sink_rates %>% 
+  filter(tx_group == "treated") %>% 
+  pivot_wider(id_cols = method, names_from = name, values_from = rate)
+
+rates_tab_control <- rates_tab_control %>% cbind(
+  l2_rates %>% 
+    filter(name == "control") %>% 
+    mutate("$\\|\\boldw_0 - \\boldw^\\star\\|^2$" = rate) %>% 
+    ungroup() %>% 
+    select("$\\|\\boldw_0 - \\boldw^\\star\\|^2$")
+)
+rates_tab_treated <- rates_tab_treated %>% cbind(
+  l2_rates %>% 
+    filter(name == "treated") %>% 
+    mutate("$\\|\\boldw_1 - \\boldw^\\star\\|^2$" = rate) %>% 
+    ungroup() %>% 
+    select("$\\|\\boldw_1 - \\boldw^\\star\\|^2$")
+)
+rates_tab <- cbind(rates_tab_control,
+                   rates_tab_treated[,-1], .name_repair = "minimal")
+rates_tab$method <- c("COT","GLM","NNM","SBW")
+rates_tab <- rates_tab[c(2,4,3,1),]
+add.to.row <- list(pos = list(-1),
+                   command = c("  & \\multicolumn{3}{c}{control} & \\multicolumn{3}{|c}{treated}\\\\"))
+rates_xtab <- xtable(rates_tab, 
+                     caption = "Empirical rates of convergence of the listed methods under various metrics for treated and control groups. The numbers correspond to the power of $n$ at which the given metric decreases to zero---\\textit{e.g.} $n^\\text{rate}$. $S_\\lambda(\\boldw_1, \\bolda)$ is the 2-Sinkhorn divergence between the weights and the full sample, $S_\\lambda(\\boldw_z, \\boldw^\\star)$ is the 2-Sinkhorn divergence between the weights and the self-normalized importance sampling weights, and $\\|\\boldw_1 - \\boldw^\\star\\|^2$ is the $L_2$ norm between the weights and the self-normalized importance sampling weights. GLM is a probit regression (the true model), SBW is Stable Balancing Weights, NNM is nearest neighbor matching, and COT is Causal Optimal Transport.",
+                     label = "tab:rates",
+                     align = c("ll|ccc|ccc"))
+print(rates_xtab, add.to.row = add.to.row, 
+      sanitize.colnames.function = function(x){x},
+      include.rownames = FALSE,
+      file = "tables/conv_rates.tex")
 
 #### confidence interval ####
 gfull.ci.plot <- conv %>% 

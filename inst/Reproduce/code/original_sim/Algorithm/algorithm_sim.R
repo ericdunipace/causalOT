@@ -13,14 +13,104 @@ seed.file <- file.path("seeds/algorithm_seeds.Rdmped")
 source(seed.file)
 set.seed(seed_array[ARRAYID])
 
+#### function ####
+bp_bs <- function(weights, x,z, cost, estimand = "ATE", n.boot = 100, lambda = .5) {
+  
+  eval_fun <- function(x1, x2, w, a, b, cost, lambda = 0.5) {
+    n1 <- nrow(x1)
+    n2 <- nrow(x2)
+    
+    a_bs <- causalOT:::renormalize(w * c( rmultinom(1, n1, a) ) )
+    b_bs <- causalOT:::renormalize(b * c( rmultinom(1, n2, b) ) )
+    
+    epsilon <- lambda/median(cost)
+    
+    tplan <- approxOT::transport_plan_given_C(mass_x = a_bs, mass_y = b_bs, p = 2, cost = cost, method = "sinkhorn",
+                                     debias = FALSE, epsilon = epsilon)
+    
+    # create normalized version of gamma for matrix sums
+    gamma_norm <- matrix(0, n1, n2)
+    gamma_norm[causalOT:::dist_2d_to_1d(tplan$from, tplan$to,n1, n2)] <- tplan$mass * 1/b_bs[tplan$to]
+    
+    loss <- sum((crossprod(x1, gamma_norm) - t(x2))^2 %*% (b*(b_bs>0)))
+    return(loss)
+  }
+  
+  x1 <- x[z == 1, ]
+  x0 <- x[z == 0,]
+  n1 <- nrow(x1)
+  n0 <- nrow(x0)
+  n  <- nrow(x)
+  # lambda1 <- weights$args$constraint[[2]]$penalty
+  # lambda0 <- weights$args$constraint[[1]]$penalty
+  lambda1 <- lambda0 <- lambda
+  w1 <- weights$w1
+  w0 <- weights$w0
+  
+  sw <- causalOT:::get_sample_weight(NULL, z)
+  
+  # x1_bs <- lapply(1:nboot, function() {sw$a * rmultinom(1, n1, sw$a) })
+  # x0_bs <- lapply(1:nboot, function() {sw$b * rmultinom(1, n0, sw$b) })
+  # x0_bs <- lapply(1:nboot, function() {sw$tot * rmultinom(1, n, sw$tot) })
+  # 
+  x1_evals <- mean(replicate(n.boot, eval_fun(x1,x,w1, sw$b, sw$total, cost[[2]], lambda = lambda1 )))
+  x0_evals <- mean(replicate(n.boot, eval_fun(x0,x,w0, sw$a, sw$total, cost[[1]], lambda = lambda0 )))
+  return(list(x0 = x0_evals, x1 = x1_evals))
+}
+
+sink_bs <- function(weights, x,z, cost, estimand = "ATE", n.boot = 100) {
+  
+  eval_fun <- function(x1, x2, w, a, b, cost) {
+    n1 <- nrow(x1)
+    n2 <- nrow(x2)
+    
+    a_bs <- causalOT:::renormalize(w * c( rmultinom(1, n1, a) ) )
+    b_bs <- causalOT:::renormalize(b * c( rmultinom(1, n2, b) ) )
+    
+    # tplan <- approxOT::transport_plan_given_C(mass_x = a_bs, mass_y = b_bs, p = 2, cost = cost, method = "sinkhorn",
+    #                                           unbiased = FALSE)
+    # gamma <- matrix(0, n1, n2)
+    # gamma[causalOT:::dist_2d_to_1d(tplan$from, tplan$to,n1, n2)] <- tplan$mass
+    # 
+    # blur <- 0.05*median(cost)
+    blur <- 100
+    loss <- sinkhorn(x = x1, y = x2, a = a_bs, b = b_bs, power = 2,blur = blur, debias = TRUE)
+    
+    # gamma_check <- exp((matrix(loss$f, n1,n2) + matrix(loss$g,n1,n2, byrow = TRUE) - cost^2)/blur) *tcrossprod(a_bs,b_bs)
+    # 
+    # print(sum(gamma * cost^2))
+    # print(sum(gamma_check * cost^2))
+    # print(loss$loss)
+    
+    return(loss$loss)
+  }
+  
+  x1 <- x[z == 1, ]
+  x0 <- x[z == 0,]
+  n1 <- nrow(x1)
+  n0 <- nrow(x0)
+  n  <- nrow(x)
+  
+  sw <- causalOT:::get_sample_weight(NULL, z)
+  
+  # x1_bs <- lapply(1:nboot, function() {sw$a * rmultinom(1, n1, sw$a) })
+  # x0_bs <- lapply(1:nboot, function() {sw$b * rmultinom(1, n0, sw$b) })
+  # x0_bs <- lapply(1:nboot, function() {sw$tot * rmultinom(1, n, sw$tot) })
+  # 
+  x1_evals <- mean(replicate(n.boot, eval_fun(x1,x,weights$w1, sw$b, sw$total, cost[[2]])))
+  x0_evals <- mean(replicate(n.boot, eval_fun(x0,x,weights$w0, sw$a, sw$total, cost[[1]])))
+  return(list(x0 = x0_evals, x1 = x1_evals))
+}
 
 #### Setup Data ####
-ns <- 2^5 #2^(5:11)
+ns <- 2^10 #2^(5:11)
 max_n <- max(ns)
-lambda <- 100
+lambda <- 1e2
+n.boot <- 100
 methods <- c(
-               "Wass.1",
-               "Wass.2"
+               "Wass.1"
+               # ,
+               # "Wass.2"
              )
 
 dataGen <- causalOT::Hainmueller$new(n = max_n*3, p = 6, overlap = "high")
@@ -70,8 +160,9 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
   
   y <- y_full[c(t_sub,c_sub)]
   cost <- cost_fun(x = x, z = z, p = 2, metric = "sdLp", estimand = "ATE")          
-  max_cost <- lapply(10^(-4:2), function(mm) lapply(cost, function(cc) list(penalty = mm * max(cc)^2)))
-  rm(cost)
+  # max_cost <- lapply(10^(-4:2), function(mm) lapply(cost, function(cc) list(penalty = mm * max(cc)^2)))
+  max_cost <- lapply(10^(-2:5), function(mm) lapply(cost, function(cc) list(penalty = mm )))
+  # rm(cost)
   df <- data.frame(x, z = z, y = y)
   
   ps1   <- ps1_full[1:n]
@@ -117,8 +208,9 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
                                solver = solver, penalty = penalty, 
                                constraint = constraints,
                                grid.length = grid.length,
-                               estimand = "ATE", metric = "sdLp", p = p, verbose = FALSE,
-                               n.boot = 100, niter = 1e6, control = list(maxit = 1e6),
+                               estimand = "ATE", 
+                               metric = "Lp", p = p, verbose = FALSE,
+                              niter = 1e6, control = list(maxit = 1e6),
                                backend = "auto")
         
         meth <- "Wasserstein"
@@ -143,12 +235,15 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
                     method = meth, 
                     add.divergence = add.divergence, 
                     grid.search = grid.search,
+                    cost = cost,
                    formula = f, 
                    balance.constraints = balance.constraints,
                    solver = solver, penalty = penalty, 
+                   # cost = cost,
+                   search = "LBFGS",
                    constraint = lambda,
                     estimand = "ATE", metric = "Lp", p = p, verbose = FALSE,
-                    n.boot = 100, niter = 1e6, control = list(maxit = 1e6),
+                    niter = 1e6, control = list(maxit = 1e6),
                     backend = "auto")
       )
       
@@ -186,13 +281,13 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
                    x = x,
                    z = z,
                    grid = max_cost,  
-                   n.boot = 100,
+                   n.boot = n.boot,
                    K = 10, 
                    R = 10,
                    eval.method = "bootstrap",
-                   wass.method = "sinkhorn",
+                   wass.method = "sinkhorn_geom",
                    wass.iter = 1e3,
-                   lambda = 1e2,
+                   lambda = lambda,
                    sample_weight = causalOT:::get_sample_weight(NULL, z),
                    estimand = "ATE", 
                    method = meth, 
@@ -200,7 +295,7 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
                    metric = "Lp",
                    unbiased = TRUE,
                    p = 2, 
-                   cost = NULL, 
+                   cost = cost, 
                    add.joint = TRUE,
                    add.margins = FALSE, 
                    add.divergence = add.divergence,
@@ -212,16 +307,29 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
                    treatment.indicator = "z",
                    outcome = "y")
       balcheck <- causalOT:::eval_weights(weights, args)
+      sel0 <- balcheck$sel$control[[1]]
+      sel1 <- balcheck$sel$treated[[1]]
+      # start <- proc.time()
+      bpcheck <- lapply(weights, function(w) bp_bs(w, x, z, cost, estimand = "ATE", n.boot = 100))
+      # end <- proc.time()
+      # print(end - start)
       
+      sel1 <- which.min(sapply(bpcheck, function(b) b[[2]]))[1]
+      sel0 <- which.min(sapply(bpcheck, function(b) b[[1]]))[1]
+      
+      # start <- proc.time()
+      # sinkcheck <- lapply(weights, function(w) sink_bs(w, x, z, cost, estimand = "ATE", n.boot = 100))
+      # end <- proc.time()
+      # print(end - start)
       
       w_1 <- sapply(weights, function(w)
         causalOT::sinkhorn(x = x1, y = x1, a = h1, b = w$w1, power = 2,
-                                     metric = "Lp", debias = TRUE, blur = 100,
+                                     metric = "Lp", debias = TRUE, blur = 1e-1,
                                      backend = "auto")$loss)
       
       w_0 <- sapply(weights, function(w)
         causalOT::sinkhorn(x = x0, y = x0, a = h0, b = w$w0, power = 2,
-                                     metric = "Lp", debias = TRUE, blur = 100,
+                                     metric = "Lp", debias = TRUE, blur = 1e-1,
                                      backend = "auto")$loss)
       
       
@@ -237,8 +345,8 @@ out <- foreach::foreach(n = ns, .combine = rbind) %do% {
                                             function(x) x[[2]]$penalty),
                            ot0 = balcheck$ot$control,
                            ot1 = balcheck$ot$treated,
-                           sel0 = balcheck$sel$control[[1]],
-                           sel1 = balcheck$sel$treated[[1]],
+                           sel0 = sel0,
+                           sel1 = sel1,
                            E_Y1 = E_Y1,
                            E_Y0 = E_Y0,
                            E_Y1.aug = E_Y1.aug,

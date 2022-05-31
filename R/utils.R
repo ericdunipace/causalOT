@@ -488,3 +488,11 @@ seed.gen <- function(design, overlap, niter, seed) {
   
   return(seeds.out)
 }
+
+
+`%+%` <- direct_sum <- function(f, g) {
+  n <- length(f)
+  m <- length(g)
+  
+  return(matrix(f, n,m) + matrix(g, n, m, byrow = TRUE))
+}
