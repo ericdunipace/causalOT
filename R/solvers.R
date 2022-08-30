@@ -112,18 +112,6 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
   
   model <- list()
   model$sense <- 'min'
-  # Quad <- if(!inherits(qp$obj$Q, 'dgTMatrix')) {
-  #   as(qp$obj$Q, "dgtTMatrix")
-  # } else {
-  #   qp$obj$Q
-  # }
-  # ind <- which(Quad@i > Quad@j)
-  # Quad_lower <- Matrix::sparseMatrix(i = Quad@i[ind], 
-  #                                j = Quad@j[ind],
-  #                                x = Quad@x[ind] ,
-  #                                dims = dim(Quad),
-  #                                giveCsparse = F, index1 = FALSE)
-  # model$qobj <- list(i = Quad_lower@i+1, j = Quad_lower@j+1, v = Quad_lower@x)
   if(!is.null(qp$obj$Q) ){
     if(Matrix::isDiagonal(qp$obj$Q)) {
       if("diag" %in% slotNames(qp$obj$Q)) {
@@ -174,14 +162,14 @@ mosek_solver <- function(qp, neg.weights = FALSE, get.dual = FALSE, ...) {
           qp$obj$Q <- Matrix::Matrix(pos_sdef(qp$obj$Q, symmetric = TRUE),
                                      sparse = TRUE)
           if (!inherits(qp$obj$Q,"dgTMatrix")) {
-            qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
+            qp$obj$Q <- as(as(qp$obj$Q, "TsparseMatrix"), "generalMatrix")
           }
           trimat <- Matrix::tril(qp$obj$Q)
           model$qobj <- list(i = trimat@i + 1, j = trimat@j + 1, v = trimat@x * 2)
         }
       } else {
         if (!inherits(qp$obj$Q,"dgTMatrix")) {
-          qp$obj$Q <- as(qp$obj$Q, "dgTMatrix")
+          qp$obj$Q <- as(as(qp$obj$Q, "TsparseMatrix"), "generalMatrix")
         }
         trimat <- Matrix::tril(qp$obj$Q)
         model$qobj <- list(i = trimat@i + 1, j = trimat@j + 1, v = trimat@x * 2)

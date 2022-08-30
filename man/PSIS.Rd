@@ -64,23 +64,23 @@ are problematic.
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{numeric}: numeric weights
+\item \code{PSIS(numeric)}: numeric weights
 
-\item \code{causalWeights}: object of class causalWeights
+\item \code{PSIS(causalWeights)}: object of class causalWeights
 
-\item \code{list}: list of weights
+\item \code{PSIS(list)}: list of weights
 
-\item \code{numeric}: numeric weights
+\item \code{PSIS_diag(numeric)}: numeric weights
 
-\item \code{causalWeights}: object of class causalWeights diagnostics
+\item \code{PSIS_diag(causalWeights)}: object of class causalWeights diagnostics
 
-\item \code{causalPSIS}: diagnostics from the output of a previous call to PSIS
+\item \code{PSIS_diag(causalPSIS)}: diagnostics from the output of a previous call to PSIS
 
-\item \code{list}: a list of objects
+\item \code{PSIS_diag(list)}: a list of objects
 
-\item \code{psis}: output of PSIS function
+\item \code{PSIS_diag(psis)}: output of PSIS function
+
 }}
-
 \examples{
 x <- runif(100)
 w <- x/sum(x)

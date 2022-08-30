@@ -2501,7 +2501,7 @@ qp_rkhs <- function(x, z, p = 1, estimand = c("ATC", "ATT", "ATE"),
     
   }
   
-  Q0 <- as(Q0, "dsTMatrix")
+  Q0 <- as(as(Q0, "symmetricMatrix"), "TsparseMatrix")
   
   
   quick_op <- list(obj = list(Q = Q0, L = L0),

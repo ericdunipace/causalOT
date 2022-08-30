@@ -30,35 +30,35 @@ print(data$get_x()[1:2,])
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-gen_data}{\code{Hainmueller$gen_data()}}
-\item \href{#method-gen_x}{\code{Hainmueller$gen_x()}}
-\item \href{#method-gen_y}{\code{Hainmueller$gen_y()}}
-\item \href{#method-gen_z}{\code{Hainmueller$gen_z()}}
-\item \href{#method-new}{\code{Hainmueller$new()}}
-\item \href{#method-get_design}{\code{Hainmueller$get_design()}}
-\item \href{#method-get_pscore}{\code{Hainmueller$get_pscore()}}
-\item \href{#method-clone}{\code{Hainmueller$clone()}}
+\item \href{#method-Hainmueller-gen_data}{\code{Hainmueller$gen_data()}}
+\item \href{#method-Hainmueller-gen_x}{\code{Hainmueller$gen_x()}}
+\item \href{#method-Hainmueller-gen_y}{\code{Hainmueller$gen_y()}}
+\item \href{#method-Hainmueller-gen_z}{\code{Hainmueller$gen_z()}}
+\item \href{#method-Hainmueller-new}{\code{Hainmueller$new()}}
+\item \href{#method-Hainmueller-get_design}{\code{Hainmueller$get_design()}}
+\item \href{#method-Hainmueller-get_pscore}{\code{Hainmueller$get_pscore()}}
+\item \href{#method-Hainmueller-clone}{\code{Hainmueller$clone()}}
 }
 }
-\if{html}{
-\out{<details ><summary>Inherited methods</summary>}
-\itemize{
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_n">}\href{../../causalOT/html/DataSim.html#method-get_n}{\code{causalOT::DataSim$get_n()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_p">}\href{../../causalOT/html/DataSim.html#method-get_p}{\code{causalOT::DataSim$get_p()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_tau">}\href{../../causalOT/html/DataSim.html#method-get_tau}{\code{causalOT::DataSim$get_tau()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x">}\href{../../causalOT/html/DataSim.html#method-get_x}{\code{causalOT::DataSim$get_x()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x0">}\href{../../causalOT/html/DataSim.html#method-get_x0}{\code{causalOT::DataSim$get_x0()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x1">}\href{../../causalOT/html/DataSim.html#method-get_x1}{\code{causalOT::DataSim$get_x1()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_y">}\href{../../causalOT/html/DataSim.html#method-get_y}{\code{causalOT::DataSim$get_y()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_z">}\href{../../causalOT/html/DataSim.html#method-get_z}{\code{causalOT::DataSim$get_z()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight">}\href{../../causalOT/html/DataSim.html#method-opt_weight}{\code{causalOT::DataSim$opt_weight()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight_dist">}\href{../../causalOT/html/DataSim.html#method-opt_weight_dist}{\code{causalOT::DataSim$opt_weight_dist()}}\out{</span>}
-}
-\out{</details>}
-}
+\if{html}{\out{
+<details><summary>Inherited methods</summary>
+<ul>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_n"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_n'><code>causalOT::DataSim$get_n()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_p"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_p'><code>causalOT::DataSim$get_p()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_tau"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_tau'><code>causalOT::DataSim$get_tau()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x'><code>causalOT::DataSim$get_x()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x0"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x0'><code>causalOT::DataSim$get_x0()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x1"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x1'><code>causalOT::DataSim$get_x1()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_y"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_y'><code>causalOT::DataSim$get_y()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_z"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_z'><code>causalOT::DataSim$get_z()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight"><a href='../../causalOT/html/DataSim.html#method-DataSim-opt_weight'><code>causalOT::DataSim$opt_weight()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight_dist"><a href='../../causalOT/html/DataSim.html#method-DataSim-opt_weight_dist'><code>causalOT::DataSim$opt_weight_dist()</code></a></span></li>
+</ul>
+</details>
+}}
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_data"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_data}{}}}
+\if{html}{\out{<a id="method-Hainmueller-gen_data"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-gen_data}{}}}
 \subsection{Method \code{gen_data()}}{
 Generates the data
 \subsection{Usage}{
@@ -67,8 +67,8 @@ Generates the data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_x"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_x}{}}}
+\if{html}{\out{<a id="method-Hainmueller-gen_x"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-gen_x}{}}}
 \subsection{Method \code{gen_x()}}{
 Generates the covaraiate data
 \subsection{Usage}{
@@ -77,8 +77,8 @@ Generates the covaraiate data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_y"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_y}{}}}
+\if{html}{\out{<a id="method-Hainmueller-gen_y"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-gen_y}{}}}
 \subsection{Method \code{gen_y()}}{
 Generates the outcome data
 \subsection{Usage}{
@@ -87,8 +87,8 @@ Generates the outcome data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_z"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_z}{}}}
+\if{html}{\out{<a id="method-Hainmueller-gen_z"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-gen_z}{}}}
 \subsection{Method \code{gen_z()}}{
 Generates the treatment indicator
 \subsection{Usage}{
@@ -97,8 +97,8 @@ Generates the treatment indicator
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-new"></a>}}
-\if{latex}{\out{\hypertarget{method-new}{}}}
+\if{html}{\out{<a id="method-Hainmueller-new"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-new}{}}}
 \subsection{Method \code{new()}}{
 Generates the the Hainmueller \code{R6} class
 \subsection{Usage}{
@@ -173,8 +173,8 @@ print(data$get_x()[1:2,])
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_design"></a>}}
-\if{latex}{\out{\hypertarget{method-get_design}{}}}
+\if{html}{\out{<a id="method-Hainmueller-get_design"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-get_design}{}}}
 \subsection{Method \code{get_design()}}{
 Returns the chosen design parameters
 \subsection{Usage}{
@@ -183,8 +183,8 @@ Returns the chosen design parameters
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_pscore"></a>}}
-\if{latex}{\out{\hypertarget{method-get_pscore}{}}}
+\if{html}{\out{<a id="method-Hainmueller-get_pscore"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-get_pscore}{}}}
 \subsection{Method \code{get_pscore()}}{
 Returns the true propensity score
 \subsection{Usage}{
@@ -193,8 +193,8 @@ Returns the true propensity score
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-clone}{}}}
+\if{html}{\out{<a id="method-Hainmueller-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-Hainmueller-clone}{}}}
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{

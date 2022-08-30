@@ -32,11 +32,11 @@ function should be used instead.
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{numeric}: default ESS method for numeric vectors
+\item \code{ESS(numeric)}: default ESS method for numeric vectors
 
-\item \code{causalWeights}: ESS method for objects of class \link[=causalWeights-class]{causalWeights}
+\item \code{ESS(causalWeights)}: ESS method for objects of class \link[=causalWeights-class]{causalWeights}
+
 }}
-
 \examples{
 x <- rep(1/100,100)
 ESS(x)

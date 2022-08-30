@@ -26,23 +26,23 @@ private = list())
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-get_x}{\code{DataSim$get_x()}}
-\item \href{#method-get_y}{\code{DataSim$get_y()}}
-\item \href{#method-get_z}{\code{DataSim$get_z()}}
-\item \href{#method-get_n}{\code{DataSim$get_n()}}
-\item \href{#method-get_x1}{\code{DataSim$get_x1()}}
-\item \href{#method-get_x0}{\code{DataSim$get_x0()}}
-\item \href{#method-get_p}{\code{DataSim$get_p()}}
-\item \href{#method-get_tau}{\code{DataSim$get_tau()}}
-\item \href{#method-gen_data}{\code{DataSim$gen_data()}}
-\item \href{#method-opt_weight}{\code{DataSim$opt_weight()}}
-\item \href{#method-opt_weight_dist}{\code{DataSim$opt_weight_dist()}}
-\item \href{#method-clone}{\code{DataSim$clone()}}
+\item \href{#method-DataSim-get_x}{\code{DataSim$get_x()}}
+\item \href{#method-DataSim-get_y}{\code{DataSim$get_y()}}
+\item \href{#method-DataSim-get_z}{\code{DataSim$get_z()}}
+\item \href{#method-DataSim-get_n}{\code{DataSim$get_n()}}
+\item \href{#method-DataSim-get_x1}{\code{DataSim$get_x1()}}
+\item \href{#method-DataSim-get_x0}{\code{DataSim$get_x0()}}
+\item \href{#method-DataSim-get_p}{\code{DataSim$get_p()}}
+\item \href{#method-DataSim-get_tau}{\code{DataSim$get_tau()}}
+\item \href{#method-DataSim-gen_data}{\code{DataSim$gen_data()}}
+\item \href{#method-DataSim-opt_weight}{\code{DataSim$opt_weight()}}
+\item \href{#method-DataSim-opt_weight_dist}{\code{DataSim$opt_weight_dist()}}
+\item \href{#method-DataSim-clone}{\code{DataSim$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_x"></a>}}
-\if{latex}{\out{\hypertarget{method-get_x}{}}}
+\if{html}{\out{<a id="method-DataSim-get_x"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_x}{}}}
 \subsection{Method \code{get_x()}}{
 Gets the covariate data
 \subsection{Usage}{
@@ -51,8 +51,8 @@ Gets the covariate data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_y"></a>}}
-\if{latex}{\out{\hypertarget{method-get_y}{}}}
+\if{html}{\out{<a id="method-DataSim-get_y"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_y}{}}}
 \subsection{Method \code{get_y()}}{
 Gets the outcome vector
 \subsection{Usage}{
@@ -61,8 +61,8 @@ Gets the outcome vector
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_z"></a>}}
-\if{latex}{\out{\hypertarget{method-get_z}{}}}
+\if{html}{\out{<a id="method-DataSim-get_z"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_z}{}}}
 \subsection{Method \code{get_z()}}{
 Gets the treatment indicator
 \subsection{Usage}{
@@ -71,8 +71,8 @@ Gets the treatment indicator
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_n"></a>}}
-\if{latex}{\out{\hypertarget{method-get_n}{}}}
+\if{html}{\out{<a id="method-DataSim-get_n"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_n}{}}}
 \subsection{Method \code{get_n()}}{
 Gets the number of observations
 \subsection{Usage}{
@@ -81,8 +81,8 @@ Gets the number of observations
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_x1"></a>}}
-\if{latex}{\out{\hypertarget{method-get_x1}{}}}
+\if{html}{\out{<a id="method-DataSim-get_x1"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_x1}{}}}
 \subsection{Method \code{get_x1()}}{
 Gets the covariate data for the treated individuals
 \subsection{Usage}{
@@ -91,8 +91,8 @@ Gets the covariate data for the treated individuals
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_x0"></a>}}
-\if{latex}{\out{\hypertarget{method-get_x0}{}}}
+\if{html}{\out{<a id="method-DataSim-get_x0"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_x0}{}}}
 \subsection{Method \code{get_x0()}}{
 Gets the covaraiate data for the control individuals
 \subsection{Usage}{
@@ -101,8 +101,8 @@ Gets the covaraiate data for the control individuals
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_p"></a>}}
-\if{latex}{\out{\hypertarget{method-get_p}{}}}
+\if{html}{\out{<a id="method-DataSim-get_p"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_p}{}}}
 \subsection{Method \code{get_p()}}{
 Gets the dimensionality covariate data
 \subsection{Usage}{
@@ -111,8 +111,8 @@ Gets the dimensionality covariate data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_tau"></a>}}
-\if{latex}{\out{\hypertarget{method-get_tau}{}}}
+\if{html}{\out{<a id="method-DataSim-get_tau"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-get_tau}{}}}
 \subsection{Method \code{get_tau()}}{
 Gets the individual treatment effects
 \subsection{Usage}{
@@ -121,8 +121,8 @@ Gets the individual treatment effects
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_data"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_data}{}}}
+\if{html}{\out{<a id="method-DataSim-gen_data"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-gen_data}{}}}
 \subsection{Method \code{gen_data()}}{
 Generates the  data. Default is an empty function
 \subsection{Usage}{
@@ -131,8 +131,8 @@ Generates the  data. Default is an empty function
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-opt_weight"></a>}}
-\if{latex}{\out{\hypertarget{method-opt_weight}{}}}
+\if{html}{\out{<a id="method-DataSim-opt_weight"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-opt_weight}{}}}
 \subsection{Method \code{opt_weight()}}{
 Gets the optimal weights to get the correct expectation
 \subsection{Usage}{
@@ -152,8 +152,8 @@ Gets the optimal weights to get the correct expectation
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-opt_weight_dist"></a>}}
-\if{latex}{\out{\hypertarget{method-opt_weight_dist}{}}}
+\if{html}{\out{<a id="method-DataSim-opt_weight_dist"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-opt_weight_dist}{}}}
 \subsection{Method \code{opt_weight_dist()}}{
 Gets the distance of the weights from the optimal weights
 \subsection{Usage}{
@@ -180,8 +180,8 @@ Gets the distance of the weights from the optimal weights
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-clone}{}}}
+\if{html}{\out{<a id="method-DataSim-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-DataSim-clone}{}}}
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{

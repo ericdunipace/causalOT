@@ -32,7 +32,7 @@ A stable version of this package is available on [CRAN](https://CRAN.R-project.o
 
 If using Causal Optimal Transport based on the Sinkhorn divergence, you will need to install Python 3.x and the `geomloss` package, which depends on `numpy`, `scipy`, `torch`, and `pykeops`.
 
-## Useage
+## Usage
 
 The functions in the package are built to construct weights to make distributions more same and estimate causal effects. The primary method we recommend is by using optimal transport weights which balance distributions by design. For more information about using this package, see the vignette "Using causalOT".
 

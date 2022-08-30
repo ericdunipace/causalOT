@@ -38,7 +38,7 @@ sinkhorn(
 
 \item{reach}{specifies the typical scale associated to the constraint strength}
 
-\item{diameter}{A rough indication of the maximum distance between points, which is used to tune the espilon-scaling descent and provide a default heuristic for clustering multiscale schemes. If None, a conservative estimate will be computed on-the-fly.}
+\item{diameter}{A rough indication of the maximum distance between points, which is used to tune the epsilon-scaling descent and provide a default heuristic for clustering multiscale schemes. If None, a conservative estimate will be computed on-the-fly.}
 
 \item{scaling}{specifies the ratio between successive values of sigma in the epsilon-scaling descent. This parameter allows you to specify the trade-off between speed (scaling < .4) and accuracy (scaling > .9).}
 

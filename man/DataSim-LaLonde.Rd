@@ -35,34 +35,34 @@ obs.study$get_n()
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-gen_data}{\code{LaLonde$gen_data()}}
-\item \href{#method-get_tau}{\code{LaLonde$get_tau()}}
-\item \href{#method-gen_x}{\code{LaLonde$gen_x()}}
-\item \href{#method-gen_y}{\code{LaLonde$gen_y()}}
-\item \href{#method-gen_z}{\code{LaLonde$gen_z()}}
-\item \href{#method-new}{\code{LaLonde$new()}}
-\item \href{#method-get_design}{\code{LaLonde$get_design()}}
-\item \href{#method-clone}{\code{LaLonde$clone()}}
+\item \href{#method-LaLonde-gen_data}{\code{LaLonde$gen_data()}}
+\item \href{#method-LaLonde-get_tau}{\code{LaLonde$get_tau()}}
+\item \href{#method-LaLonde-gen_x}{\code{LaLonde$gen_x()}}
+\item \href{#method-LaLonde-gen_y}{\code{LaLonde$gen_y()}}
+\item \href{#method-LaLonde-gen_z}{\code{LaLonde$gen_z()}}
+\item \href{#method-LaLonde-new}{\code{LaLonde$new()}}
+\item \href{#method-LaLonde-get_design}{\code{LaLonde$get_design()}}
+\item \href{#method-LaLonde-clone}{\code{LaLonde$clone()}}
 }
 }
-\if{html}{
-\out{<details ><summary>Inherited methods</summary>}
-\itemize{
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_n">}\href{../../causalOT/html/DataSim.html#method-get_n}{\code{causalOT::DataSim$get_n()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_p">}\href{../../causalOT/html/DataSim.html#method-get_p}{\code{causalOT::DataSim$get_p()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x">}\href{../../causalOT/html/DataSim.html#method-get_x}{\code{causalOT::DataSim$get_x()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x0">}\href{../../causalOT/html/DataSim.html#method-get_x0}{\code{causalOT::DataSim$get_x0()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x1">}\href{../../causalOT/html/DataSim.html#method-get_x1}{\code{causalOT::DataSim$get_x1()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_y">}\href{../../causalOT/html/DataSim.html#method-get_y}{\code{causalOT::DataSim$get_y()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_z">}\href{../../causalOT/html/DataSim.html#method-get_z}{\code{causalOT::DataSim$get_z()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight">}\href{../../causalOT/html/DataSim.html#method-opt_weight}{\code{causalOT::DataSim$opt_weight()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight_dist">}\href{../../causalOT/html/DataSim.html#method-opt_weight_dist}{\code{causalOT::DataSim$opt_weight_dist()}}\out{</span>}
-}
-\out{</details>}
-}
+\if{html}{\out{
+<details><summary>Inherited methods</summary>
+<ul>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_n"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_n'><code>causalOT::DataSim$get_n()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_p"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_p'><code>causalOT::DataSim$get_p()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x'><code>causalOT::DataSim$get_x()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x0"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x0'><code>causalOT::DataSim$get_x0()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x1"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x1'><code>causalOT::DataSim$get_x1()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_y"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_y'><code>causalOT::DataSim$get_y()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_z"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_z'><code>causalOT::DataSim$get_z()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight"><a href='../../causalOT/html/DataSim.html#method-DataSim-opt_weight'><code>causalOT::DataSim$opt_weight()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="opt_weight_dist"><a href='../../causalOT/html/DataSim.html#method-DataSim-opt_weight_dist'><code>causalOT::DataSim$opt_weight_dist()</code></a></span></li>
+</ul>
+</details>
+}}
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_data"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_data}{}}}
+\if{html}{\out{<a id="method-LaLonde-gen_data"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-gen_data}{}}}
 \subsection{Method \code{gen_data()}}{
 Sets up the data
 \subsection{Usage}{
@@ -71,8 +71,8 @@ Sets up the data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_tau"></a>}}
-\if{latex}{\out{\hypertarget{method-get_tau}{}}}
+\if{html}{\out{<a id="method-LaLonde-get_tau"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-get_tau}{}}}
 \subsection{Method \code{get_tau()}}{
 Returns the experimental treatment effect, $1794
 \subsection{Usage}{
@@ -81,8 +81,8 @@ Returns the experimental treatment effect, $1794
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_x"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_x}{}}}
+\if{html}{\out{<a id="method-LaLonde-gen_x"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-gen_x}{}}}
 \subsection{Method \code{gen_x()}}{
 Sets up the covariate data
 \subsection{Usage}{
@@ -91,8 +91,8 @@ Sets up the covariate data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_y"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_y}{}}}
+\if{html}{\out{<a id="method-LaLonde-gen_y"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-gen_y}{}}}
 \subsection{Method \code{gen_y()}}{
 Sets up the outcome data
 \subsection{Usage}{
@@ -101,8 +101,8 @@ Sets up the outcome data
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-gen_z"></a>}}
-\if{latex}{\out{\hypertarget{method-gen_z}{}}}
+\if{html}{\out{<a id="method-LaLonde-gen_z"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-gen_z}{}}}
 \subsection{Method \code{gen_z()}}{
 Sets up the treatment indicator
 \subsection{Usage}{
@@ -111,8 +111,8 @@ Sets up the treatment indicator
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-new"></a>}}
-\if{latex}{\out{\hypertarget{method-new}{}}}
+\if{html}{\out{<a id="method-LaLonde-new"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-new}{}}}
 \subsection{Method \code{new()}}{
 Initializes the LaLonde object.
 \subsection{Usage}{
@@ -162,8 +162,8 @@ obs.study$get_n()
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_design"></a>}}
-\if{latex}{\out{\hypertarget{method-get_design}{}}}
+\if{html}{\out{<a id="method-LaLonde-get_design"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-get_design}{}}}
 \subsection{Method \code{get_design()}}{
 Returns the chosen design parameters
 \subsection{Usage}{
@@ -172,8 +172,8 @@ Returns the chosen design parameters
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-clone}{}}}
+\if{html}{\out{<a id="method-LaLonde-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-LaLonde-clone}{}}}
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{

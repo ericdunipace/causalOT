@@ -123,7 +123,7 @@ DataSim <- R6::R6Class("DataSim",
                           #             "ATC" = f[private$z == 1])
                           if(estimand != "ATE" ) {
                             Q <- Matrix::Matrix(tcrossprod(f), sparse = TRUE)
-                            if(solver == "mosek") Q <- as(Q, "dgCMatrix")
+                            if(solver == "mosek") Q <- as(as(Q, "generalMatrix"), "CsparseMatrix")
                             L <- -2 * (mu - const) * t(f)
                             A <- Matrix::sparseMatrix(i = rep(1, length(f)),
                                                       j = 1:length(f),
@@ -148,7 +148,7 @@ DataSim <- R6::R6Class("DataSim",
                             f0 <- f[[1]]
                             
                             Q0 <- Matrix::Matrix(tcrossprod(f0), sparse = TRUE)
-                            if(solver == "mosek") Q0 <- as(Q0, "dgCMatrix")
+                            if(solver == "mosek") Q0 <- as(as(Q0, "generalMatrix"), "CsparseMatrix")
                             
                             L0 <- -2 * (mu[1] - const[1]) * t(f0)
                             A0 <- Matrix::sparseMatrix(i = rep(1, length(f0)),
@@ -163,7 +163,7 @@ DataSim <- R6::R6Class("DataSim",
                                                            ub = rep(Inf, length(L0))))
                             
                             Q1 <- Matrix::Matrix(tcrossprod(f1), sparse = TRUE)
-                            if(solver == "mosek") Q1 <- as(Q1, "dgCMatrix")
+                            if(solver == "mosek") Q1 <- as(as(Q1,"generalMatrix"), "CsparseMatrix")
                             
                             L1 <- -2 * (mu[2] - const[2]) * t(f1)
                             A1 <- Matrix::sparseMatrix(i = rep(1, length(f1)),

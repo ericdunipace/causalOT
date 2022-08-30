@@ -48,7 +48,7 @@ skip_if_no_geomloss <- function() {
 #' @param power power of the optimal transport distance.
 #' @param blur The finest level of detail that should be handled by the loss function to prevent overfitting on the samples/ locations.
 #' @param reach specifies the typical scale associated to the constraint strength
-#' @param diameter A rough indication of the maximum distance between points, which is used to tune the espilon-scaling descent and provide a default heuristic for clustering multiscale schemes. If None, a conservative estimate will be computed on-the-fly.
+#' @param diameter A rough indication of the maximum distance between points, which is used to tune the epsilon-scaling descent and provide a default heuristic for clustering multiscale schemes. If None, a conservative estimate will be computed on-the-fly.
 #' @param scaling specifies the ratio between successive values of sigma in the epsilon-scaling descent. This parameter allows you to specify the trade-off between speed (scaling < .4) and accuracy (scaling > .9).
 #' @param truncate If backend is "multiscale", specifies the effective support of a Gaussian/Laplacian kernel as a multiple of its standard deviation
 #' @param metric Set the metric. One of "Lp","sdLp", or "mahalanobis".
@@ -134,7 +134,7 @@ sinkhorn <- function(x, y, a, b, power = 2,
     } else {
       # reticulate::source_python(file = lp_python_path)
       # cost <- lp_loss
-      cost <- paste0("Sum(Pow(X-Y,", power,"))")
+      cost <- paste0("Sum(Pow(Abs(X-Y),", power,"))")
       backend <- "online"
       power <- 1L
     }
@@ -163,7 +163,7 @@ sinkhorn <- function(x, y, a, b, power = 2,
   
   
   # sets up python function
-  Loss <- geomloss$SamplesLoss("sinkhorn", p = power, blur = blur, reach = reach,
+  Loss <- geomloss$SamplesLoss("sinkhorn", p = power, blur = blur^(1/power), reach = reach,
                       diameter = diameter, 
                       scaling = scaling, 
                       cost = cost, kernel = NULL,

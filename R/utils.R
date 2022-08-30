@@ -1,11 +1,11 @@
 pos_sdef <- function(X, symmetric = FALSE) {
   p <- ncol(X)
    if (inherits(X, "dsTMatrix")) {
-     X <- as(as(X, "dsCMatrix"),"dgCMatrix")
+     X <- as(as(X, "CsparseMatrix"),"generalMatrix")
      symmetric <- TRUE
    }
    if (inherits(X, "dgTMatrix")) {
-     X <- as(X, "dgCMatrix")
+     X <- as(X, "CsparseMatrix")
      symmetric <- TRUE
    }
   if (symmetric) {
@@ -32,11 +32,11 @@ pos_sdef <- function(X, symmetric = FALSE) {
 check_pos_sdef <- function(X, symmetric = FALSE) {
   p <- ncol(X)
   if (inherits(X, "dsTMatrix")) {
-    X <- as(as(X, "dsCMatrix"),"dgCMatrix")
+    X <- as(as(X, "CsparseMatrix"),"generalMatrix")
     symmetric <- TRUE
   }
   if (inherits(X, "dgTMatrix")) {
-    X <- as(X, "dgCMatrix")
+    X <- as(X, "CsparseMatrix")
     symmetric <- TRUE
   }
   if (symmetric) {

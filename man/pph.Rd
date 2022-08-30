@@ -29,7 +29,7 @@ The variables are as follows:
 \item hb_test. the woman's hemoglobin in mg/dL (7 -- 15).
 \item induced_laboryes. whether labor was induced (1 = yes, 0 = no).
 \item augmented_laboryes. whether labor was augmented (1 = yes, 0 = no).
-\item early_cordclampyes. whether the umbillical cord was clamped early (1 = yes, 0 = no).
+\item early_cordclampyes. whether the umbilical cord was clamped early (1 = yes, 0 = no).
 \item control_cordtractionyes. whether cord traction was controlled (1 = yes, 0 = no).
 \item uterine_massageyes. whether a uterine massage was given (1 = yes, 0 = no).
 \item placenta. whether placenta was delivered before treatment given (1 = yes, 0 = no).
