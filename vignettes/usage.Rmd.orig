@@ -31,28 +31,25 @@ set.seed(1111)
 hainmueller <- Hainmueller$new(n = 128)
 hainmueller$gen_data()
 
-weights <- calc_weight(data = hainmueller, method = "Wasserstein",
-                       add.divergence = TRUE, grid.search = TRUE,
-                       estimand = "ATE",
-                       verbose = FALSE)
+weights <- calc_weight(x = hainmueller, method = "COT",
+                       estimand = "ATE")
 
 ```
 These weights will balance distributions, making estimates of treatment effects the same. We can then estimate effects with 
 ``` {r est}
-tau_hat <- estimate_effect(data = hainmueller, weights = weights,
-                           hajek = TRUE, doubly.robust = FALSE,
-                           estimand = "ATE")
+tau_hat <- estimate_effect(x = hainmueller, z = NULL, y = NULL, 
+                           weights = weights,
+                           estimate.separately = TRUE,
+                           augmented.model = FALSE,
+                           normalize.weights = TRUE)
 ```
 This creates an object of class `causalEffect` which can be fed into the native `R` function `confint` to calculate asymptotic confidence intervals.
 ``` {r ci}
-ci_tau <- confint(object = tau_hat, level = 0.95, 
-                  method = "asymptotic",
-                  model = "lm",
-                  formula = list(control = "y ~.", treated = "y ~ ."))
+ci_tau <- confint(object = tau_hat, level = 0.95)
 ```
 This then gives the following estimate and C.I.
 ``` {r print}
-print(tau_hat$estimate)
+print(tau_hat@estimate)
 print(ci_tau$CI)
 ```
 
@@ -89,63 +86,81 @@ We offer such checks in `causalOT` as well.
 
 First, we consider pre-weighting mean balance
 ``` {r}
-mean_bal(data = hainmueller)
+mean_balance(x = hainmueller)
 ```
 and after weighting mean balance
 ``` {r}
-mean_bal(data = hainmueller, weights = weights)
+mean_bal(x = hainmueller, weights = weights)
 ```
 Pretty good!
 
 However, mean balance doesn't ensure distributional balance.
 
 #### 3. Distributional balance
-Ultimately, distributional balance is what we care about in causal inference. Fortunately, we can also measure that too. If we have python installed, we can use the GPU enabled [GeomLoss](https://www.kernel-operations.io/geomloss/) package. Otherwise, the [approxOT](https://CRAN.R-project.org/package=approxOT) package can provide similar calculations. We consider the 2-Sinkhorn divergence of [Genevay et al.](http://proceedings.mlr.press/v84/genevay18a/genevay18a.pdf) since it metrizes the convergence in distribution.
+Ultimately, distributional balance is what we care about in causal inference. Fortunately, we can also measure that too. We consider the 2-Sinkhorn divergence of [Genevay et al.](http://proceedings.mlr.press/v84/genevay18a/genevay18a.pdf) since it metrizes the convergence in distribution.
 
 Before weighting, distributional balance looks poor:
 ```{r}
-# geomloss method
-list(w0 = sinkhorn(x = hainmueller$get_x0(), y = hainmueller$get_x(),
-              a = rep(1/64, 64), b = rep(1/128,128),
-              power = 2, blur = 1e3, debias = TRUE)$loss,
-     w1 = sinkhorn(x = hainmueller$get_x1(), y = hainmueller$get_x(),
-              a = rep(1/64, 64), b = rep(1/128,128),
-              power = 2, blur = 1e3, debias = TRUE)$loss
-)
+# controls
+ot_distance(x = hainmueller$get_x0(), y = hainmueller$get_x(),
+              a = NULL, b = rep(1/128,128),
+              p = 2, penalty = 1e3, debias = TRUE)
+#treated
+ot_distance(x = hainmueller$get_x1(), y = hainmueller$get_x(),
+              a = NULL, b = rep(1/128,128),
+              p = 2, penalty = 1e3, debias = TRUE)
+
 ```
 
 But after weighting, it looks much better!
 ```{r}
-# geomloss method
-list(w0 = sinkhorn(x = hainmueller$get_x0(), y = hainmueller$get_x(),
+# controls
+ot_distance(x1 = hainmueller$get_x0(), x2 = hainmueller$get_x(),
               a = weights$w0, b = rep(1/128,128),
-              power = 2, blur = 1e3, debias = TRUE)$loss,
-     w1 = sinkhorn(x = hainmueller$get_x1(), y = hainmueller$get_x(),
+              p = 2, penalty = 1e3, debias = TRUE)
+# treated
+ot_distance(x1 = hainmueller$get_x1(), x2 = hainmueller$get_x(),
               a = weights$w1, b = rep(1/128,128),
-              power = 2, blur = 1e3, debias = TRUE)$loss
-)
+              p = 2, penalty = 1e3, debias = TRUE)
 ```
 After Causal Optimal Transport, the distributions are *much* more similar.
+We can also simply feed the output of calc_weight directly into the `ot_distance` function:
+```{r}
+ot_distance(x1 = weights, p = 2, penalty = 1e3, debias = TRUE)
+```
+and the S4 deployment takes care of the rest.
+
+Finally, we can construct a summary of the optimal transport distances, Pareto k statistics, effective sample size, and mean balance using the summary method:
+
+```{r}
+summarized_cw <- summary(weights, penalty = 1000)
+```
+We can then print the object to the screen:
+```{r}
+summarized_cw
+```
+or we can make some diagnostic plots too!
+```{r}
+plot(summarized_cw)
+```
 
 ## Other methods
-The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancing weights (SBW), and the synthetic control method (SCM).
+The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancing weights (SBW), entropy balancing weights (EntropyBW), and the synthetic control method (SCM).
 ```{r eval = FALSE}
-calc_weight(data = hainmueller, method = "Logistic",
+calc_weight(x = hainmueller, method = "Logistic",
                        estimand = "ATE")
 
-calc_weight(data = hainmueller, method = "Probit",
+calc_weight(x = hainmueller, method = "Probit",
                        estimand = "ATE")
 
-calc_weight(data = hainmueller, method = "CBPS",
-                       estimand = "ATE",
-                       verbose = FALSE)
+calc_weight(x = hainmueller, method = "CBPS",
+                       estimand = "ATE")
 
-calc_weight(data = hainmueller, method = "SBW",
-                        grid.search = TRUE,
-                       estimand = "ATE", solver = "osqp",
-                       verbose = FALSE, formula = "~.")
+calc_weight(x = hainmueller, method = "SBW")
 
-calc_weight(data = hainmueller, method = "SCM", penalty = "none",
-                       estimand = "ATE", solver = "osqp",
-                       verbose = FALSE)
+calc_weight(x = hainmueller, method = "EntropyBW")
+
+calc_weight(x = hainmueller, method = "SCM")
 ```
+
+The function also accepts methods "EnergyBW", for Energy Balancing Weights of Hainmueller and Mak (2020), and "NNM", for nearest neighbor matching with replacement, but these are special cases of COT with the penalty parameter $\lambda$ forced to be $\infty$ and $0$, respectively.

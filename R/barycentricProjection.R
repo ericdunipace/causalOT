@@ -1,0 +1,578 @@
+# this file creates a barycentric projection function to use as an outcome function.
+
+
+#' Barycentric Projection outcome estimation
+#'
+#' @param formula A formula object specifying the outcome and covariates. 
+#' @param data A data.frame of the data to use in the model.
+#' @param weights Either a vector of weights, one for each observations, or an object of class [causalWeights][causalOT::causalWeights-class].
+#' @param separate.samples.on The variable in the data denoting the treatment indicator. How to separate samples for the optimal transport calculation
+#' @param penalty The penalty parameter to use in the optimal transport calculation. By default it is \eqn{1/\log(n)}{1/log(n)}.
+#' @param cost_function A user supplied cost function. If supplied, must take arguments `x1`, `x2`, and `p`.
+#' @param p The power to raise the cost function. Default is 2.0. For user supplied cost functions, the cost will not be raised by this power unless the user so specifies.
+#' @param debias Should debiased barycentric projections be used? See details.
+#' @param cost.online Should an online cost algorithm be used? Default is "auto", which selects an online cost algorithm when the sample size in each group specified by `separate.samples.on`, \eqn{n_0}{n0} and \eqn{n_1}{n1}, is such that \deqn{n_0 \cdot n_1 \geq 5000^2}{n_0 * n_1 >= 5000^2}. Must be one of "auto", "online", or "tensorized".
+#' @param diameter The diameter of the covariate space, if known.
+#' @param ... Not used at this time.
+#'
+#' @return An object of class "bp" which is a list with slots:
+#' \itemize{
+#' \item `potentials` The dual potentials from calculating the optimal transport distance
+#' \item `penalty` The value of the penalty parameter used in calculating the optimal transport distance
+#' \item `cost_function` The cost function used to calculate the distances between units.
+#' \item `cost_alg` A character vector denoting if an \eqn{L_1}{L1} distance, a squared euclidean distance, or other distance metric was used.
+#' \item `p` The power to which the cost matrix was raised if not using a user supplied cost function.
+#' \item `debias` Whether barycentric projections should be debiased.
+#' \item `tensorized` TRUE/FALSE denoting wether to use offline cost matrices.
+#' \item `data` An object of class [dataHolder][causalOT::dataHolder-class] with the data used to calculate the optimal transport distance.
+#' \item `y_a` The outcome vector in the first sample.
+#' \item `y_b` The outcome vector in the second sample.
+#' \item `x_a` The covariate matrix in the first sample.
+#' \item `x_b` The covariate matrix in the second sample.
+#' \item `a` The empirical measure in the first sample.
+#' \item `b` The empirical measure in the second sample.
+#' \item `terms` The terms object from the formula.
+#' }
+#' @export
+#' 
+#' @details 
+#' The barycentric projection uses the dual potentials from the optimal transport distance between the two samples to calculate projections from one sample into another. For example, in the sample of controls, we may wish to know their outcome had they been treated. In general, we then seek to minimize 
+#' \deqn{argmin_eta \sum_{ij} cost(eta_i, y_j) \pi_{ij} }
+#' where \eqn{\pi_{ij}} is the primal solution from the optimal transport problem.
+#' 
+#' These values can also be de-biased using the solutions from running an optimal transport problem of one sample against itself. Details are listed in Pooladian et al. (2022) <https://arxiv.org/abs/2202.08919>.
+#'
+#' @examples
+#' if(torch::torch_is_installed()) {
+#' set.seed(23483)
+#' n <- 2^5
+#' pp <- 6
+#' overlap <- "low"
+#' design <- "A"
+#' estimate <- "ATE"
+#' power <- 2
+#' data <- causalOT::Hainmueller$new(n = n, p = pp,
+#' design = design, overlap = overlap)
+#' 
+#' data$gen_data()
+#' 
+#' weights <- causalOT::calc_weight(x = data,
+#'   z = NULL, y = NULL,
+#'   estimand = estimate,
+#'   method = "NNM")
+#'   
+#'  df <- data.frame(y = data$get_y(), z = data$get_z(), data$get_x())
+#'   
+#'  fit <- causalOT::barycentric_projection(y ~ ., data = df, weight = weights,
+#'     separate.samples.on = "z")
+#'  inherits(fit, "bp")
+#'  }
+barycentric_projection <- function(formula, data, weights, 
+                                   separate.samples.on = "z", 
+                                   penalty = NULL, cost_function = NULL,
+                                   p = 2, 
+                                   debias = FALSE, cost.online = "auto",
+                                   diameter = NULL, ...) {
+  
+  tx_form  <- paste0(separate.samples.on, "~ 0")
+  
+  if (!(separate.samples.on %in% colnames(data))) stop("must give some way of distinguishing samples in argument 'separate.samples.on'.")
+  if (inherits(weights, "causalWeights")) {
+    cw <- weights
+    weights <- NA_real_
+  } else {
+    cw <- NULL
+  }
+  dH       <- df2dataHolder(treatment.formula = tx_form, outcome.formula = formula,
+                data = data, weights = weights)
+  mt       <- attr(dH, "terms")
+  y_a      <- get_y0(dH)
+  y_b      <- get_y1(dH)
+  x_a      <- get_x0(dH)
+  x_b      <- get_x1(dH)
+  w        <- get_w(dH)
+  z        <- get_z(dH)
+  
+  if (inherits(cw, "causalWeights")) {
+    a      <- renormalize(cw@w0)
+    b      <- renormalize(cw@w1)
+    # dH@weights <- renormalize(c(a,b))[ranks(dH@z, ties = "first")] # this isn't great because it copies the whole object
+  } else {
+    a      <- renormalize(w[ z == 0])
+    b      <- renormalize(w[ z == 1])
+  }
+  
+  
+  # solve for the potentials
+  if ( missing(penalty) || is.null(penalty)) penalty <- 1/log(get_n(dH))
+  stopifnot(penalty > 0)
+  
+  ot       <- OT$new(x = x_a, y = x_b, a = a, b = b,
+                 penalty = penalty, cost_function = cost_function, p = p, 
+                 debias = TRUE, tensorized = cost.online,
+                 diameter=diameter)
+  ot$sinkhorn_opt()
+  
+  potentials    <- ot$potentials
+  cost_function <- ot$C_xy$fun
+  cost_alg      <- ot$C_xy$algorithm
+  p             <- ot$C_xy$p
+  penalty       <- ot$penalty
+  debias        <- as.logical(debias)
+  tensorized    <- ot$tensorized
+  
+  if(cost_alg == "L1" && !tensorized) warning("With an L1 cost and `online.cost` set to 'online', you need to provide a cost function that generates the appropriate cost matrix. Otherwise predictions will generate an error.")
+  
+  output <- list(
+    potentials    = list(f_ab = as.numeric(potentials$f_xy),
+                         g_ba = as.numeric(potentials$g_yx),
+                         f_aa = as.numeric(potentials$f_xx),
+                         g_bb = as.numeric(potentials$g_yy)),
+    penalty       = as.numeric(penalty),
+    cost_function = cost_function,
+    cost_alg      = cost_alg,
+    p             = p,
+    debias        = debias,
+    tensorized    = tensorized,
+    data          = dH,
+    y_a           = y_a,
+    y_b           = y_b,
+    x_a           = x_a,
+    x_b           = x_b,
+    a             = a,
+    b             = b,
+    terms         = mt
+  )
+  
+  class(output) <- "bp"
+  
+  return(output)
+}
+
+#' Predict method for barycentric projection models
+#' 
+#' @param object An object of class "bp"
+#'
+#' @param newdata a data.frame containing new observations
+#' @param source.sample a vector giving the sample each observations arise from
+#' @param cost_function a cost metric between observations
+#' @param niter number of iterations to run the barycentric projection for powers > 2.
+#' @param tol Tolerance on the optimization problem for projections with powers > 2.
+#' @param ... Dots passed to the lbfgs method in the torch package.
+#'
+#' @export
+#' 
+#' @examples
+#' if(torch::torch_is_installed()) {
+#' set.seed(23483)
+#' n <- 2^5
+#' pp <- 6
+#' overlap <- "low"
+#' design <- "A"
+#' estimate <- "ATE"
+#' power <- 2
+#' data <- causalOT::Hainmueller$new(n = n, p = pp,
+#' design = design, overlap = overlap)
+#' 
+#' data$gen_data()
+#' 
+#' weights <- causalOT::calc_weight(x = data,
+#'   z = NULL, y = NULL,
+#'   estimand = estimate,
+#'   method = "NNM")
+#'   
+#'  df <- data.frame(y = data$get_y(), z = data$get_z(), data$get_x())
+#'   
+#'  # undebiased
+#'  fit <- causalOT::barycentric_projection(y ~ ., data = df, 
+#'     weight = weights,
+#'     separate.samples.on = "z")
+#'  
+#'  fit_d <- causalOT::barycentric_projection(y ~ ., data = df, 
+#'     weight = weights,
+#'     separate.samples.on = "z", debias = TRUE)
+#'  
+#'  # predictions, without new data
+#'  undebiased_predictions <- predict(fit,   source.sample = df$z)
+#'  debiased_predictions   <- predict(fit_d, source.sample = df$z)
+#'  
+#'  all.equal(undebiased_predictions, df$y) # FALSE
+#'  all.equal(debiased_predictions, df$y) # TRUE
+#'  }
+predict.bp <- function(object, newdata = NULL, source.sample, cost_function = NULL, niter = 1e3, tol = 1e-7, ...) {
+  
+  stopifnot(inherits(object, "bp"))
+  
+  y_a      <- object$y_a
+  y_b      <- object$y_b
+  x_a      <- object$x_a
+  x_b      <- object$x_b
+  a        <- object$a
+  b        <- object$b
+  a_log    <- log_weights(a)
+  b_log    <- log_weights(b)
+  n        <- length(a)
+  m        <- length(b)
+  
+  # options
+  debias   <- object$debias
+  tensorized<- object$tensorized
+  
+  # change newdata to matrix
+  if( missing(newdata) || is.null(newdata) ) {
+    if (debias) {
+      return(get_y(object$data))
+    } else {
+      x_new    <- get_x(object$data)
+      y_new    <- get_y(object$data)
+      z_source <- c("a","b")[get_z(object$data) + 1]
+      z_target <- z_source #rep("both", nrow(x_new))
+    }
+    
+  } else {
+    process.newdat <- setup_new_data_bp(object,
+                                        newdata, 
+                                        source.sample)
+    x_new    <- process.newdat$x
+    y_new    <- process.newdat$y
+    z_source <- process.newdat$z_s
+    z_target <- process.newdat$z_t
+    
+  }
+  
+  n_new    <- nrow(x_new)
+  if(all(is.na(y_new)) || is.null(y_new)) debias <- FALSE
+  
+  # variables for bp calc
+  p        <- object$p
+  cost_fun <- object$cost_function
+  cost_alg <- object$cost_alg
+  lambda   <- object$penalty
+  
+  if (!is.null(cost_function)) {
+    cost_fun <- cost_function
+    if(!is.character(cost_fun)) {
+      tensorized <- TRUE
+    } else {
+      tensorized <- FALSE
+    }
+  }
+  
+  if(cost_alg == "L1" && !tensorized) stop("With an L1 cost you must either run the 'barycentric_projection' function without an online cost or you must provide a non-online version to 'predict' via the 'cost_function' argument.")
+  
+  # get dual potential
+  f_ab     <- object$potentials$f_ab
+  g_ba     <- object$potentials$g_ba
+  f_aa     <- object$potentials$f_aa
+  g_bb     <- object$potentials$g_bb
+  
+  # get bp function
+  bp_fun   <- switch(cost_alg,
+                   "L1" = bp_pow1,
+                   "squared.euclidean" = bp_pow2,
+                   bp_general)
+  
+  a_to_a   <- any((z_target == "a" | debias) & z_source == "a")
+  b_to_a   <- any(z_target == "a" & z_source == "b")
+  a_to_b   <- any(z_target == "b" & z_source == "a")
+  b_to_b   <- any((z_target == "b" | debias) & z_source == "b")
+  
+  y_hat_a  <- rep(NA_real_, n_new)
+  y_hat_b  <- rep(NA_real_, n_new)
+  
+  # target a measure
+  if ( a_to_a ) {
+    y_hat_a <- construct_bp_est(bp_fun,  lambda, 
+                                source = "a", target = "a",
+                                z_source, z_target,
+                                cost_fun, p, 
+                                x_new, x_a, y_hat_a, y_a,
+                                f_aa, a_log,
+                                tensorized,
+                                niter, tol, ...)
+  }
+  if (b_to_a) {
+    y_hat_a <- construct_bp_est(bp_fun, lambda, 
+                     source = "b", target = "a",
+                     z_source, z_target,
+                     cost_fun, p, 
+                     x_new, x_a, y_hat_a, y_a,
+                     f_ab, a_log,
+                     tensorized,
+                     niter, tol, ...)
+  }
+  
+  # target b measure
+  if (a_to_b) {
+    y_hat_b <- construct_bp_est(bp_fun, lambda, 
+                                source = "a", target = "b",
+                                z_source, z_target,
+                                cost_fun, p, 
+                                x_new, x_b, y_hat_b, y_b,
+                                g_ba, b_log,
+                                tensorized, 
+                                niter, tol, ...)
+  }
+  if (b_to_b) {
+    y_hat_b <- construct_bp_est(bp_fun, lambda, 
+                                source = "b", target = "b",
+                                z_source, z_target,
+                                cost_fun, p, 
+                                x_new, x_b, y_hat_b, y_b,
+                                g_bb, b_log,
+                                tensorized, 
+                                niter, tol, ...)
+  }
+  
+  # "debias" estimates using self BP
+  if (debias) { # only works if has some outcome info already...
+    # debiased potential towards self just returns the same outcome
+    y_hat_a <- ifelse(z_source == "a", y_new, y_hat_a + y_new - y_hat_b)
+    y_hat_b <- ifelse(z_source == "b", y_new, y_hat_b + y_new - y_hat_a)
+  }
+  
+  # not make sense if both given...
+  y_hat    <- ifelse(z_target == "a", y_hat_a, y_hat_b)
+  return(y_hat)
+  
+}
+
+setup_new_data_bp <- function(object, newdata, from.sample) {
+  
+  if( missing(from.sample)) stop("Must specify which sample the observations come from with argument 'source.sample'.")
+  if (!is.vector(from.sample)) stop("'from.sample' must be a vector.")
+  
+  mt      <- object$terms
+  tx_form <- mt$treatment
+  out_form<- mt$outcome
+  
+  mf <- model.frame(tx_form, newdata)
+  tx_target <- model.response(mf, type = "any")
+  if(length(unique(tx_target)) > 2L) stop("treatment indicator must have only two levels")
+  if ( is.factor(tx_target) ) {
+    tx_target <- as.integer(tx_target != levels(tx_target)[1L])
+  } else {
+    if (!all(tx_target %in% c(0L, 1L))) {
+      tx_target <- as.integer(tx_target != tx_target[1L])
+    }
+  }
+  
+  z_target   <- c("a", "b")[tx_target + 1]
+  
+  if( !is.null(from.sample) ) {
+    newdata[[attr(mf,"names")[1]]] <- from.sample
+  }
+  
+  dHnew   <- df2dataHolder(treatment.formula = tx_form, 
+                           outcome.formula = out_form,
+                           data = newdata)
+  
+  x_new  <- get_x(dHnew)
+  y_new  <- get_y(dHnew)
+  z_new <- get_z(dHnew)
+  
+  debias <- object$debias
+  if(all(is.na(y_new))) debias <- FALSE
+  
+  if(all(is.na(dHnew@y)))  debias <- FALSE
+  
+  z_source <- c("a", "b")[z_new + 1]
+  
+  return(list(x = x_new, y = y_new,
+              z_s = z_source, z_t = z_target))
+}
+
+construct_bp_est  <- function(bp_fun,lambda, 
+                              source, target,
+                              z_source, z_target,
+                              cost_function, p, 
+                              x_new, x_t, y_hat_t, y_t,
+                              f_st,l_target_measure,
+                              tensorized,
+                              niter, tol, ...) {
+  s_to_t_sel <- z_source == source & (z_target == target | z_target == "both")
+  x_s_to_t   <- x_new[ s_to_t_sel , , drop = FALSE]
+  C_s_to_t   <- cost(x_s_to_t, x_t, p = p, tensorized = tensorized, cost_function = cost_function)
+  y_s_to_t   <- bp_fun(nrow(x_s_to_t), lambda, C_s_to_t, y_t,
+                       f_st, l_target_measure, tensorized, 
+                       niter, tol, ...)
+  y_hat_t[ s_to_t_sel ] <- y_s_to_t
+  return(y_hat_t)
+}
+
+bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, ...) {
+  
+  if(tensorized) {
+    G <- f/eps + a_log
+    y_source <- torch::torch_matmul((G - C_yx$data/eps)$log_softmax(2)$exp(), torch::torch_tensor(y_target, dtype = torch::torch_double()))
+    
+  } else {
+    # rkeops::compile4float64()
+    G <- f/eps + a_log
+    x <- as.matrix(C_yx$data$x)
+    y <- as.matrix(C_yx$data$y)
+    d <- ncol(x)
+    
+    wt_red <- rkeops::keops_kernel(
+      formula = paste0("Max_SumShiftExp_Reduction(G - P *", C_yx$fun,", 0)"),
+      args = c(
+        paste0("X = Vi(",d,")"),
+        paste0("Y = Vj(",d,")"),
+        "G = Vj(1)",
+        "P = Pm(1)")
+    )
+    
+    online_red <- rkeops::keops_kernel(
+      formula = paste0("Sum_Reduction(Outcome * Exp(G - P *", C_yx$fun," - Norm), 0)"),
+      args = c(
+        paste0("X = Vi(",d,")"),
+        paste0("Y = Vj(",d,")"),
+        paste0("Outcome = Vj(",1,")"),
+        "G = Vj(1)",
+        "P = Pm(1)",
+        "Norm = Vi(1)")
+    )
+    
+    wt_norm <- wt_red(list(X = as.matrix(x),
+                           Y = as.matrix(y),
+                           G = as.numeric(G),
+                           P = as.numeric(1/eps)))
+    
+    sum_data <- list(X = as.matrix(x),
+                     Y = as.matrix(y),
+                     Outcome = as.numeric(y_target),
+                     G = as.numeric(G),
+                     P = as.numeric(1/eps),
+                     Norm = log(wt_norm[,2]) + wt_norm[,1]
+                    )
+    
+    y_source <- online_red(sum_data)
+  }
+  
+  return(as.numeric(y_source))
+}
+
+bp_pow1 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, ...) {
+  if(!tensorized) stop("L1 norm must have a tensorized cost function")
+  
+  G <- f/eps + a_log
+  wts <- (G - C_yx$data/eps)$log_softmax(2)$exp()
+  
+  y_source <- apply(wts,1,function(w) matrixStats::weightedMedian(x=y_target, w=c(w)))
+  
+  return(y_source)
+}
+
+bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, ...) {
+  
+  fun <- tensorized_switch_generator(tensorized)
+  
+  y_source <- torch::torch_zeros(c(n), dtype = torch::torch_double(), requires_grad = TRUE)
+  opt     <- torch::optim_lbfgs(y_source, ...)
+  
+  y_s_old <- y_source$detach()$clone()
+  
+  if(!tensorized) {
+    closure <- function() {
+      opt$zero_grad()
+      loss <- fun(y_source, y_target, eps, C_yx, f, a_log)
+      loss$backward()
+      return(loss)
+    }
+    
+    for(i in 1:niter) {
+      opt$step(closure)
+      if(converged(y_source, y_s_old, tol)) break
+      y_s_old <- y_source$detach()$clone()
+    }
+    
+  } else {
+    closure <- function() {
+      opt$zero_grad()
+      C_st <- C_yx$fun(y_source$view(c(n,1)), y_target$view(c(m,1)), C_yx$p)
+      loss <- (C_st * wt_mat)$sum()
+      loss$backward()
+      return(loss)
+    }
+    if(!inherits(y_target, "torch_tensor")) y_target <- torch::torch_tensor(as.numeric(y_target), dtype = torch::torch_double())
+    m <- length(y_target)
+    wt_mat <- fun(eps, C_yx, f, a_log)
+    for(i in 1:niter) {
+      loss <- opt$step(closure)
+      if(converged(y_source, y_s_old, tol)) break
+      y_s_old <- y_source$detach()$clone()
+    }
+  }
+  return(as.numeric(y_source))
+}
+
+# functions if tensorized or not
+tensorized_switch_generator <- function(tensorized) {
+  switch(as.numeric(tensorized) + 1,
+         torch::autograd_function(
+           forward = function(ctx, y_source, y_target, eps, C_yx, f, a_log) {
+             x_form <- C_yx$fun
+             y_form <- sub("X", "S", x_form)
+             y_form <- sub("Y", "T", y_form)
+             
+             G <- f/eps + a_log
+             x <- as.matrix(C_yx$data$x)
+             y <- as.matrix(C_yx$data$y)
+             d <- ncol(x)
+             
+             wt_red <- rkeops::keops_kernel(
+               formula = paste0("Max_SumShiftExp_Reduction(G - P *", x_form,", 0)"),
+               args = c(
+                 paste0("X = Vi(",d,")"),
+                 paste0("Y = Vj(",d,")"),
+                 "G = Vj(1)",
+                 "P = Pm(1)")
+             )
+             
+             online_red <- rkeops::keops_kernel(
+               formula = paste0("Sum_Reduction(", y_form,"*  Exp(G - P *", x_form,"- Norm), 0)"),
+               args = c(
+                 paste0("X = Vi(",d,")"),
+                 paste0("Y = Vj(",d,")"),
+                 paste0("S = Vi(",1,")"),
+                 paste0("T = Vj(",1,")"),
+                 "G = Vj(1)",
+                 "P = Pm(1)",
+                 "Norm = Vi(1)")
+             )
+             
+             wt_norm <- wt_red(list(X = as.matrix(x),
+                                    Y = as.matrix(y),
+                                    G = as.numeric(G),
+                                    P = as.numeric(1/eps)))
+             
+             sum_data <- list(X = as.matrix(x),
+                              Y = as.matrix(y),
+                              S = as.numeric(y_source),
+                              T = as.numeric(y_target),
+                              G = as.numeric(G),
+                              P = as.numeric(1.0/eps),
+                              Norm = log(wt_norm[,2]) + wt_norm[,1]
+                            )
+             
+             reds <- online_red(sum_data)
+             ctx$save_for_backward(data = sum_data, kernel_op = online_red)
+             loss <- sum(reds)
+             return(loss)
+           },
+           backward = function(ctx, grad_output) {
+             s <- ctx$saved_variables
+             s_grad <- rkeops::keops_grad(s$kernel_op, var="S")
+             browser()
+             grad <- list(y_source = s_grad(c(s$data, list(eta = grad_output))))
+             
+             return(grad)
+             
+           }),
+         function(eps, C_yx, f, a_log) {
+           G <- f/eps + a_log
+           return( (G - C_yx$data/eps)$log_softmax(2)$exp() )
+         }
+  )
+} 
+

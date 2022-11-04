@@ -27,3 +27,4 @@
 ^vignettes/.*cache.*
 ^cran_notes.md$
 ^cran-comments.md$
+^CRAN-SUBMISSION$

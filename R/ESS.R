@@ -1,16 +1,5 @@
 setOldClass("causalWeights")
 
-
-ESS.default <- function(x) {
-  return(1/sum(x^2))
-}
-
-ESS.causalWeights <- function(x) {
-  return(c("Control" = ESS(x$w0), "Treated" = ESS(x$w1)))
-}
-
-
-
 #' Effective Sample Size
 #'
 #' @param x Either a vector of weights summing to 1 or an object of class
@@ -34,12 +23,21 @@ ESS.causalWeights <- function(x) {
 #' @examples
 #' x <- rep(1/100,100)
 #' ESS(x)
-setGeneric("ESS", function(x) UseMethod("ESS"))
+setGeneric("ESS", def = function(x) standardGeneric("ESS"))
+
 
 #' @describeIn ESS default ESS method for numeric vectors
 #' @method ESS default
-setMethod("ESS", signature(x = "numeric"), ESS.default)
+setMethod("ESS", signature(x = "numeric"), 
+    function(x) {
+      return(1/sum(x^2))
+    }          
+)
 
 #' @describeIn ESS ESS method for objects of class [causalWeights][causalOT::causalWeights-class]
 #' @method ESS causalWeights
-setMethod("ESS", signature(x = "causalWeights"), ESS.causalWeights)
+setMethod("ESS", signature = signature(x = "causalWeights"),
+function(x) {
+  return(c("Control" = ESS(x@w0), "Treated" = ESS(x@w1)))
+}
+)

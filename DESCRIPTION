@@ -1,8 +1,8 @@
 Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
-Version: 0.1.2
-Date: 2022-08-30
+Version: 1.0
+Date: 2022-09-11
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -19,28 +19,26 @@ Description: Uses optimal transport distances to find probabilistic
     files.
 License: GPL (>=3.0)
 Imports: 
-    approxOT,
-    Matrix,
-    matrixStats,
-    methods,
+    ggplot2,
     lbfgsb3c,
     loo,
+    Matrix (>= 1.5-0),
+    matrixStats,
+    methods,
     osqp,
-    pbapply,
-    reticulate,
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
     RSpectra,
-    sandwich
+    sandwich,
+    torch
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
     RcppEigen (>= 0.3.3.3.0),
+    torch
 Suggests: 
     CBPS,
     data.table (>= 1.12.8),
-    rstan (>= 2.19.3),
-    Rmosek,
     testthat (>= 2.1.0),
     knitr,
     rmarkdown
