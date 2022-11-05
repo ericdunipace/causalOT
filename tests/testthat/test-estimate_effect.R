@@ -222,6 +222,7 @@ testthat::test_that("estimate effect works lm, ATT", {
   y1 <- y[z==1]
   w0 <- weights@w0
   w1 <- weights@w1
+  w <- rep(NA_real_, length(z))
   w[z==0] <- w0
   w[z==1] <- w1
   w       <- w/sum(w)
