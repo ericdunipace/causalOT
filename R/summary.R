@@ -14,14 +14,13 @@ setOldClass("summary_causalWeights")
 #' @param tol the tolerance for convergence for the optimal transport distances
 #' @param ... passed to [PSIS_diag()][PSIS_diag()]
 #'
-#' @return An object of class "summary_causalWeights".
+#' @return The summary method returns an object of class "summary_causalWeights".
 #' @export
 #'
 #' @examples
 #' if(torch::torch_is_installed()) {
 #' n <- 2^6
 #' p <- 6
-#' nsims <- 1
 #' overlap <- "high"
 #' design <- "A"
 #' estimand <- "ATE"
@@ -31,7 +30,8 @@ setOldClass("summary_causalWeights")
 #'                             design = design, overlap = overlap)
 #' original$gen_data()
 #' weights <- calc_weight(x = original, estimand = estimand, method = "Logistic")
-#' summary(weights)
+#' s <- summary(weights)
+#' \dontrun{plot(s)}
 #' }
 summary.causalWeights <- function(object, r_eff = NULL, penalty, p = 2, cost = NULL, 
                                   debias = TRUE, online.cost = "auto", 
@@ -67,11 +67,8 @@ summary.causalWeights <- function(object, r_eff = NULL, penalty, p = 2, cost = N
   return(res)
 }
 
-#'
-#' @param object 
-#' 
-#' @describeIn summary.causalWeights
-#'
+
+#' @describeIn plot.summary_causalWeights 
 #' @export
 #' @method print summary_causalWeights
 print.summary_causalWeights <- function(object,...) {
@@ -133,13 +130,13 @@ print.summary_causalWeights <- function(object,...) {
 
 setMethod("show", "summary_causalWeights", function(object){print(object)})
 
-#' @param object an object of class "summary_causalWeights"
-#' @param ... 
+#' @title Plotting and print methods for summary_causalWeights
+#'
+#' @param object an object of class "summary_causalWeights" returned by the function [summary.causalWeights()][summary.causalWeights()]
+#' @param ... Not used
 #'
 #' @export
 #' @method plot summary_causalWeights
-#' 
-#' @describeIn summary.causalWeights
 plot.summary_causalWeights <- function(object, ...) {
  
   estimand <- object$estimand
@@ -299,25 +296,15 @@ plot.summary_causalWeights <- function(object, ...) {
   }
 }
 
-#' @param object an object of class [causalWeights][causalOT::causalWeights-class]
-#' @param r_eff The r_eff used in the PSIS calculation. See [PSIS_diag()][PSIS_diag()]
-#' @param penalty The penalty parameter to use 
-#' @param p The power of the Lp distance to use. Overridden by argument `cost.`
-#' @param cost A user supplied cost function. Should take arguments `x1`, `x2`, `p`.
-#' @param debias Should debiased optimal transport distances be used.
-#' @param online.cost Should the cost be calculated online? One of "auto","tensorized", "online".
-#' @param diameter the diameter of the covariate space. Default is NULL.
-#' @param niter the number of iterations to run the optimal transport distances
-#' @param tol the tolerance for convergence for the optimal transport distances
-#' @param ... passed to [PSIS_diag()][PSIS_diag()]
+#' @details The plot method first calls summary.causalWeights on the causalWeights object. Then plots the diagnostics from that summary object.
 #' 
-#' @details First calls summary on the causalWeights object. Then plots the diagnostics from that summary object.
+#' @seealso [plot.summary_causalWeights()][plot.summary_causalWeights()]
 #'
-#' @return The plot method returns an invisible object of class summary_causalWeights, also returned by the [summary.causalWeights()][summary.causalWeights()] function.
+#' @return The plot method returns an invisible object of class summary_causalWeights.
 #' @export
 #' @method plot causalWeights
 #'
-#' @describeIn  causalWeights-class
+#' @describeIn  summary.causalWeights
 plot.causalWeights <- function(object,  r_eff = NULL, penalty, p = 2, cost = NULL, 
                                debias = TRUE, online.cost = "auto", diameter = NULL, niter = 1000, 
                                tol = 1e-07, ...) {

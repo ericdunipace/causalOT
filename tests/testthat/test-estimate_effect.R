@@ -222,9 +222,17 @@ testthat::test_that("estimate effect works lm, ATT", {
   y1 <- y[z==1]
   w0 <- weights@w0
   w1 <- weights@w1
+  w[z==0] <- w0
+  w[z==1] <- w1
+  w       <- w/sum(w)
   
-  fit0 <- lm("y ~ .", data = data.frame(x0, y = y0), weights = w0)
-  fit1 <- lm("y ~ .", data = data.frame(x1, y = y1), weights = w1)
+  form <- formula("y ~ .")
+  environment(form) <- list2env(list(w0=w0,
+                                     w1=w1, w = w), 
+                                parent=environment(form))
+  
+  fit0 <- lm(form, data = data.frame(x0, y = y0), weights = w0)
+  fit1 <- lm(form, data = data.frame(x1, y = y1), weights = w1)
   
   pred1 <- predict(fit1, newdata = data.frame(x))
   pred0 <- predict(fit0, newdata = data.frame(x))
@@ -254,8 +262,12 @@ testthat::test_that("estimate effect works lm, ATT", {
   w0 <- weights@w0
   w1 <- weights@w1
   
-  fit0 <- lm("y ~ .", data = data.frame(x0, y = y0), weights = w0)
-  fit1 <- lm("y ~ .", data = data.frame(x1, y = y1), weights = w1)
+  form <- formula("y ~ .")
+  environment(form) <- list2env(list(w0=w0,
+                                      w1=w1), 
+                                 parent=environment(form))
+  fit0 <- lm(form, data = data.frame(x0, y = y0), weights = w0)
+  fit1 <- lm(form, data = data.frame(x1, y = y1), weights = w1)
   
   pred1 <- predict(fit1, newdata = data.frame(x))
   pred0 <- predict(fit0, newdata = data.frame(x))
@@ -288,8 +300,13 @@ testthat::test_that("estimate effect works lm, ATT", {
   w  <- rep(NA_real_, length(z))
   w[z==0] <- w0
   w[z==1] <- w1
+  w       <- w/sum(w)
   
-  fit <- lm("y ~ .", data = data.frame(x, z = z, y = y), weights = w)
+  form <- formula("y ~ .")
+  environment(form) <- list2env(list(w0=w0,
+                                     w1=w1, w = w), 
+                                parent=environment(form))
+  fit <- lm(form, data = data.frame(x, z = z, y = y), weights = w)
   
   pred1 <- predict(fit, newdata = data.frame(x, z = 1L))
   pred0 <- predict(fit, newdata = data.frame(x, z = 0L))
@@ -315,7 +332,11 @@ testthat::test_that("estimate effect works lm, ATT", {
   w0 <- weights@w0
   w1 <- weights@w1
   
-  fit <- lm("y ~ .", data = data.frame(x, z = z, y = y), weights = w)
+  form <- formula("y ~ .")
+  environment(form) <- list2env(list(w0=w0,
+                                     w1=w1, w = w), 
+                                parent=environment(form))
+  fit <- lm(form, data = data.frame(x, z = z, y = y), weights = w)
   
   pred1 <- predict(fit, newdata = data.frame(x, z = 1L))
   pred0 <- predict(fit, newdata = data.frame(x, z = 0L))
@@ -362,9 +383,18 @@ testthat::test_that("estimate effect works lm, ATC", {
   y1 <- y[z==1]
   w0 <- weights@w0
   w1 <- weights@w1
+  w  <- rep(NA_real_, nrow(x))
+  w[z==1] <- w1
+  w[z==0] <- w0
+  w       <- w/sum(w)
   
-  fit0 <- lm("y ~ .", data = data.frame(x0, y = y0), weights = w0)
-  fit1 <- lm("y ~ .", data = data.frame(x1, y = y1), weights = w1)
+  form <- formula("y ~ .")
+  environment(form) <- list2env(list(w0=w0,
+                                     w1=w1, w = w), 
+                                parent=environment(form))
+  
+  fit0 <- lm(form, data = data.frame(x0, y = y0), weights = w0)
+  fit1 <- lm(form, data = data.frame(x1, y = y1), weights = w1)
   
   pred1 <- predict(fit1, newdata = data.frame(x))
   pred0 <- predict(fit0, newdata = data.frame(x))
@@ -394,8 +424,8 @@ testthat::test_that("estimate effect works lm, ATC", {
   w0 <- weights@w0
   w1 <- weights@w1
   
-  fit0 <- lm("y ~ .", data = data.frame(x0, y = y0), weights = w0)
-  fit1 <- lm("y ~ .", data = data.frame(x1, y = y1), weights = w1)
+  fit0 <- lm(form, data = data.frame(x0, y = y0), weights = w0)
+  fit1 <- lm(form, data = data.frame(x1, y = y1), weights = w1)
   
   pred1 <- predict(fit1, newdata = data.frame(x))
   pred0 <- predict(fit0, newdata = data.frame(x))
@@ -429,7 +459,7 @@ testthat::test_that("estimate effect works lm, ATC", {
   w[z==0] <- w0
   w[z==1] <- w1
   
-  fit <- lm("y ~ .", data = data.frame(x, z = z, y = y), weights = w)
+  fit <- lm(form, data = data.frame(x, z = z, y = y), weights = w)
   
   pred1 <- predict(fit, newdata = data.frame(x, z = 1L))
   pred0 <- predict(fit, newdata = data.frame(x, z = 0L))
@@ -455,7 +485,8 @@ testthat::test_that("estimate effect works lm, ATC", {
   w0 <- weights@w0
   w1 <- weights@w1
   
-  fit <- lm("y ~ .", data = data.frame(x, z = z, y = y), weights = w)
+  
+  fit <- lm(form, data = data.frame(x, z = z, y = y), weights = w)
   
   pred1 <- predict(fit, newdata = data.frame(x, z = 1L))
   pred0 <- predict(fit, newdata = data.frame(x, z = 0L))
@@ -507,15 +538,21 @@ testthat::test_that("estimate effect works lm, ATE", {
   w[z==0] <- w0
   w  <- w/sum(w)
   
-  fit0 <- lm("y ~ .", data = data.frame(x0, y = y0), weights = w0)
-  fit1 <- lm("y ~ .", data = data.frame(x1, y = y1), weights = w1)
+  form <- formula("y ~ .")
+  environment(form) <- list2env(list(w0=w0,
+                                     w1=w1, w = w), 
+                                parent=environment(form))
+  
+  fit0 <- lm(form, data = data.frame(x0, y = y0), weights = w0)
+  fit1 <- lm(form, data = data.frame(x1, y = y1), weights = w1)
   
   pred1 <- predict(fit1, newdata = data.frame(x))
   pred0 <- predict(fit0, newdata = data.frame(x))
   
   delta <- pred1 - pred0
   
-  testthat::expect_equal(sum(delta * w), 
+  testthat::expect_equal(weighted.mean(delta, 
+                                       w = weights@data@weights), 
                          ee@estimate)
   testthat::expect_equal(ee@estimate,
                          estimate_effect(weights, 
@@ -542,8 +579,8 @@ testthat::test_that("estimate effect works lm, ATE", {
   w[z==0] <- w0
   w  <- w/sum(w)
   
-  fit0 <- lm("y ~ .", data = data.frame(x0, y = y0), weights = w0)
-  fit1 <- lm("y ~ .", data = data.frame(x1, y = y1), weights = w1)
+  fit0 <- lm(form, data = data.frame(x0, y = y0), weights = w0)
+  fit1 <- lm(form, data = data.frame(x1, y = y1), weights = w1)
   
   pred1 <- predict(fit1, newdata = data.frame(x))
   pred0 <- predict(fit0, newdata = data.frame(x))
@@ -579,7 +616,7 @@ testthat::test_that("estimate effect works lm, ATE", {
   w[z==0] <- w0
   w[z==1] <- w1
   
-  fit <- lm("y ~ .", data = data.frame(x, z = z, y = y), weights = w)
+  fit <- lm(form, data = data.frame(x, z = z, y = y), weights = w)
   
   pred1 <- predict(fit, newdata = data.frame(x, z = 1L))
   pred0 <- predict(fit, newdata = data.frame(x, z = 0L))
@@ -609,7 +646,7 @@ testthat::test_that("estimate effect works lm, ATE", {
   w[z==0] <- w0
   w  <- w/sum(w)
   
-  fit <- lm("y ~ .", data = data.frame(x, z = z, y = y), weights = w)
+  fit <- lm(form, data = data.frame(x, z = z, y = y), weights = w)
   
   pred1 <- predict(fit, newdata = data.frame(x, z = 1L))
   pred0 <- predict(fit, newdata = data.frame(x, z = 0L))

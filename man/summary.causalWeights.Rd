@@ -2,7 +2,7 @@
 % Please edit documentation in R/summary.R
 \name{summary.causalWeights}
 \alias{summary.causalWeights}
-\alias{print.summary_causalWeights}
+\alias{plot.causalWeights}
 \title{Summary diagnostics for causalWeights}
 \usage{
 \method{summary}{causalWeights}(
@@ -19,10 +19,22 @@
   ...
 )
 
-\method{print}{summary_causalWeights}(object, ...)
+\method{plot}{causalWeights}(
+  object,
+  r_eff = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07,
+  ...
+)
 }
 \arguments{
-\item{object}{}
+\item{object}{an object of class \link[=causalWeights-class]{causalWeights}}
 
 \item{r_eff}{The r_eff used in the PSIS calculation. See \code{\link[=PSIS_diag]{PSIS_diag()}}}
 
@@ -45,21 +57,25 @@
 \item{...}{passed to \code{\link[=PSIS_diag]{PSIS_diag()}}}
 }
 \value{
-An object of class "summary_causalWeights".
+The summary method returns an object of class "summary_causalWeights".
+
+The plot method returns an invisible object of class summary_causalWeights.
 }
 \description{
 Summary diagnostics for causalWeights
 }
+\details{
+The plot method first calls summary.causalWeights on the causalWeights object. Then plots the diagnostics from that summary object.
+}
 \section{Functions}{
 \itemize{
-\item \code{print(summary_causalWeights)}: 
+\item \code{plot(causalWeights)}: 
 
 }}
 \examples{
 if(torch::torch_is_installed()) {
 n <- 2^6
 p <- 6
-nsims <- 1
 overlap <- "high"
 design <- "A"
 estimand <- "ATE"
@@ -69,6 +85,10 @@ original <- Hainmueller$new(n = n, p = p,
                             design = design, overlap = overlap)
 original$gen_data()
 weights <- calc_weight(x = original, estimand = estimand, method = "Logistic")
-summary(weights)
+s <- summary(weights)
+\dontrun{plot(s)}
 }
+}
+\seealso{
+\code{\link[=plot.summary_causalWeights]{plot.summary_causalWeights()}}
 }

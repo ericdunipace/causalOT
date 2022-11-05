@@ -563,8 +563,9 @@ tensorized_switch_generator <- function(tensorized) {
            backward = function(ctx, grad_output) {
              s <- ctx$saved_variables
              s_grad <- rkeops::keops_grad(s$kernel_op, var="S")
-             browser()
-             grad <- list(y_source = s_grad(c(s$data, list(eta = grad_output))))
+             # browser()
+             eta <- as.matrix(rep(as.numeric(grad_output), length(s$data$Norm)))
+             grad <- list(y_source = as.numeric(s_grad(c(s$data, list(eta = eta)))))
              
              return(grad)
              
