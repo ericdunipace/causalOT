@@ -196,7 +196,8 @@ SBW <- R6::R6Class("SBW",
 #' This method will balance  functions of the covariates within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
 #' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing.
 #' 
-#' @example opts <- sbwOptions(delta = 0.1)
+#' @examples 
+#' opts <- sbwOptions(delta = 0.1)
 sbwOptions <- function(
                    delta = NULL,
                    grid.length = 20L,
@@ -310,7 +311,8 @@ EntropyBW <- R6::R6Class("EntropyBW",
 #' This method will balance  functions of the covariates within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
 #' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing.
 #' 
-#' @example opts <- entBWOptions(delta = 0.1)
+#' @examples 
+#' opts <- entBWOptions(delta = 0.1)
 entBWOptions <- function(
     delta = NULL,
     grid.length = 20L,

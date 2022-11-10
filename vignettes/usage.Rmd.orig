@@ -85,7 +85,7 @@ One such function we could use is `lm`.
 
 #### Linear models with `lm`
 
-`` {r lm}
+``` {r lm}
 tau_hat_lm <- estimate_effect(causalWeights = weights,
                            y = y,
                            model.function = lm,
@@ -95,7 +95,7 @@ tau_hat_lm <- estimate_effect(causalWeights = weights,
 ```
 In this case, separate models will be fit to treated and controls and the predictions from the model will be used to estimate treatment effects. We can also calculate the augmented (aka doubly robust) estimate with argument `augment.estimate`.
 
-`` {r dr}
+``` {r dr}
 tau_hat_dr <- estimate_effect(causalWeights = weights,
                            y = y,
                            model.function = lm,
@@ -104,7 +104,7 @@ tau_hat_dr <- estimate_effect(causalWeights = weights,
                            normalize.weights = TRUE)
 ```
 We can also fit a weighted OLS by specifying `estimate.separately = FALSE`:
-`` {r wols}
+``` {r wols}
 tau_hat_wols <- estimate_effect(causalWeights = weights,
                            y = y,
                            model.function = lm,
@@ -117,7 +117,38 @@ This fits a single weighted OLS model on the entire data.
 #### Barycentric projections
 An outcome model that is particular to this package is the function `barycentric_projection` that estimates, as the name implies, barycentric projections of the outcome data. To use this function, there are a couple of steps. Unlike the case for linear models with `lm`, we need to think carefully about what sample the data arise from.
 
+To use this function outside of the main causalOT functions, we would do
 
+``` {r bp}
+df <- data.frame(z = z, y = y, x)
+bp <- barycentric_projection(formula = "y ~ x + z", 
+        data = df,
+        weights = weights,
+        separate.samples.on = "z",
+        penalty = 0.01,
+        cost_function = NULL,
+        p = 2,
+        debias = FALSE,
+        cost.online = "auto",
+        diameter = NULL,
+        niter = 1000,
+        tol = 1e-7)
+```
+This will run the optimal transport problem between the samples denoted by "z" and get the dual potentials for the Sinkhorn Divergence problem.
+
+Then, we can run a `predict` function to see what the outcomes would be if the samples had arisen from a different distribution. Let's say that everyone had actually been treated
+
+``` {r bp_pred}
+
+newdf   <- df
+newdf$z <- 1L
+preds   <- predict(object = bp, 
+                   newdata = newdf,
+                   source.sample = df$z)
+head(preds)
+
+```
+The argument `source.sample` should be a vector that denotes the original treatment group of the samples. This allows the function to use the appropriate dual potentials to calculate the expected outcome.
 
 In the context of the estimate_effect function, we need to supply some extra arguments in `...`.
 
@@ -142,7 +173,7 @@ tau_hat_bp <- estimate_effect(causalWeights = weights,
 print(tau_hat_bp@estimate)
 
 ```
-This method currently doesn't have an estimator accounting for the weight uncertainty but can use the asymptotic variance estimator of Hahn (1998):
+This method currently doesn't have a variance estimator accounting for the weight uncertainty but we can use the asymptotic variance estimator of Hahn (1998):
 ``` {r}
 vcov(tau_hat_bp)
 vcov(tau_hat_wols)
@@ -278,4 +309,15 @@ The function also accepts methods "EnergyBW", for Energy Balancing Weights of Ha
 The argument `options` is a little vague. So we also have a function `cotOptions` which is avaible to help. The documentation provides more details. The other optimization methods "SBW", "EntropyBW", and "SCM" provide their own options function. The options for "Logistic" and "Probit" pass arguments to `glm` and "CBPS" will pass arguments to the `CBPS` function in the package of the same name.
 
 ### Data
-I remember when I was first starting `R`, I had a hard time knowing how to turn data.frames into matrices in an easy way. Also, maybe you don't want to go through the effort of doing this transformation yourself.
+I remember when I was first starting `R`, I had a hard time knowing how to turn data.frames into matrices in an easy way. Also, maybe you don't want to go through the effort of doing this transformation yourself. In response, I created the `df2dataHolder()` function to do the work for you. It then returns a `dataHolder` object used internally by `causalOT`. All you need to provide are formula for the treatment and outcome and any sample weights you have.
+
+``` {r dH}
+df <- data.frame(z = z, y = y, x)
+df2dataHolder(treatment.formula = "z ~ x", 
+     outcome.formula = "y ~ x + z",
+     data = df,
+     weights = NA_real_)
+```
+This can be passed to the `calc_weight` function directly to the argument `x`.
+
+

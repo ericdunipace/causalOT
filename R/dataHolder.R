@@ -368,6 +368,7 @@ print.dataHolder <- function(x, ...) {
 
 setMethod("show", signature(object = "dataHolder"),
       function(object) {
+        attributes(object)$terms <- NULL
         str(object)
       })
 

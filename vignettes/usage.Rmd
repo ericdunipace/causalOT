@@ -18,6 +18,7 @@ vignette: >
 ## Estimating weights
 The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
 
+
 ```r
 library(causalOT)
 set.seed(1111)
@@ -37,15 +38,14 @@ weights <- calc_weight(x = x, z = z, method = "COT",
 ```
 These weights will balance distributions, making estimates of treatment effects the same.
 
+## Estimating treatment effects
 We can then estimate effects with 
 
 ```r
 tau_hat <- estimate_effect(causalWeights = weights,
-                           y = y,
-                           estimate.separately = TRUE,
-                           augmented.model = FALSE,
-                           normalize.weights = TRUE)
+                           y = y)
 ```
+The estimator generated here is a simple weighted difference in observed outcomes between treatment groups.
 This creates an object of class `causalEffect` which can be fed into the native `R` function `confint` to calculate asymptotic confidence intervals,
 
 ```r
@@ -68,7 +68,143 @@ print(ci_tau)
 #>               2.5 %    97.5 %
 #> estimate -0.6598827 0.8430882
 ```
+### Model based estimates
+The function `estimate_effect` can also use models to estimate the treatment effects. There are also several additional arguments that will be demonstrated below. These are:
 
+* `model.function`: either a character or function with the model you want to run
+* `estimate.separately`: TRUE or FALSE. Should the model be estimated separately on each treatment group (TRUE) or jointly on the full data (FALSE)
+* `augment.estimate`: Should an augmented estimator be used to calculate the final treatment effect? (TRUE or FALSE)
+* `normalize.weights`: Should the weights be normalized to sum to one in each treatment group before being used. For methods except "Logistic", "Probit", or "CBPS", the weights are by definition normalized to sum to one so this option will not have an effect for most methods in the package.
+
+The model functions we can use need to have a few components
+
+1. Have a `formula` argument
+2. Have a `data` argument that accepts a `data.frame`
+3. Have a `weights` argument
+4. Have a predict method that accepts a `newdata` argument.
+
+One such function we could use is `lm`.
+
+#### Linear models with `lm`
+
+
+```r
+tau_hat_lm <- estimate_effect(causalWeights = weights,
+                           y = y,
+                           model.function = lm,
+                           estimate.separately = TRUE,
+                           augment.estimate = FALSE,
+                           normalize.weights = TRUE)
+```
+In this case, separate models will be fit to treated and controls and the predictions from the model will be used to estimate treatment effects. We can also calculate the augmented (aka doubly robust) estimate with argument `augment.estimate`.
+
+
+```r
+tau_hat_dr <- estimate_effect(causalWeights = weights,
+                           y = y,
+                           model.function = lm,
+                           estimate.separately = TRUE,
+                           augment.estimate = TRUE,
+                           normalize.weights = TRUE)
+```
+We can also fit a weighted OLS by specifying `estimate.separately = FALSE`:
+
+```r
+tau_hat_wols <- estimate_effect(causalWeights = weights,
+                           y = y,
+                           model.function = lm,
+                           estimate.separately = FALSE,
+                           augment.estimate = FALSE,
+                           normalize.weights = TRUE)
+```
+This fits a single weighted OLS model on the entire data.
+
+#### Barycentric projections
+An outcome model that is particular to this package is the function `barycentric_projection` that estimates, as the name implies, barycentric projections of the outcome data. To use this function, there are a couple of steps. Unlike the case for linear models with `lm`, we need to think carefully about what sample the data arise from.
+
+To use this function outside of the main causalOT functions, we would do
+
+
+```r
+df <- data.frame(z = z, y = y, x)
+bp <- barycentric_projection(formula = "y ~ x + z", 
+        data = df,
+        weights = weights,
+        separate.samples.on = "z",
+        penalty = 0.01,
+        cost_function = NULL,
+        p = 2,
+        debias = FALSE,
+        cost.online = "auto",
+        diameter = NULL,
+        niter = 1000,
+        tol = 1e-7)
+```
+This will run the optimal transport problem between the samples denoted by "z" and get the dual potentials for the Sinkhorn Divergence problem.
+
+Then, we can run a `predict` function to see what the outcomes would be if the samples had arisen from a different distribution. Let's say that everyone had actually been treated
+
+
+```r
+
+newdf   <- df
+newdf$z <- 1L
+preds   <- predict(object = bp, 
+                   newdata = newdf,
+                   source.sample = df$z)
+head(preds)
+#> [1] -2.80749441  0.52369862  6.65723020 -1.55036673 -0.07091995  1.55753697
+```
+The argument `source.sample` should be a vector that denotes the original treatment group of the samples. This allows the function to use the appropriate dual potentials to calculate the expected outcome.
+
+In the context of the estimate_effect function, we need to supply some extra arguments in `...`.
+
+
+```r
+tau_hat_bp <- estimate_effect(causalWeights = weights,
+                           y = y,
+                           model.function = barycentric_projection,
+                           estimate.separately = FALSE,
+                           augment.estimate = TRUE,
+                           normalize.weights = TRUE,
+                      # special args for barycentric_projection
+                           separate.samples.on = "z",
+                           penalty = 0.01,
+                           cost_function = NULL,
+                           p = 3,
+                           debias = FALSE,
+                           cost.online = "tensorized",
+                           diameter = NULL,
+                           niter = 1000L,
+                           tol = 1e-7
+                           )
+#> Error in if (opt_args$line_search_fn != "strong_wolfe") warning("line_search_fn = 'strong_wolfe' recommended for the torch LBFGS optimizer. You can pass the `line_search_fn` arg as an additional argument to this function."): argument is of length zero
+print(tau_hat_bp@estimate)
+#> Error in print(tau_hat_bp@estimate): object 'tau_hat_bp' not found
+```
+This method currently doesn't have a variance estimator accounting for the weight uncertainty but we can use the asymptotic variance estimator of Hahn (1998):
+
+```r
+vcov(tau_hat_bp)
+#> Error in vcov(tau_hat_bp): object 'tau_hat_bp' not found
+vcov(tau_hat_wols)
+#>            estimate
+#> estimate 0.01194476
+vcov(tau_hat)
+#>           estimate
+#> estimate 0.1470094
+```
+
+#### Note
+In neither of these cases did we feed data or a formula to the model function. By default, the `estimate_effect` function will regress the outcome in argument `y` on all of the covariates from the `calc_weight` function and adjust for the treatment indicator as appropriate given the selected options. If you want to change the covariates for the outcome model from the weighting estimating function, you can provide new covariates in an argument `x`:
+
+```r
+estimate_effect(causalWeights = weights,
+                           x = x_new,
+                           y = y)
+```
+Note this data must have the same order as the previous data and must also be an object of class `matrix`.
+  
 ## Diagnostics
 Diagnostics are also an important part of deciding whether the weights perform well. There are several areas that we will explore:
 
@@ -145,146 +281,14 @@ Before weighting, distributional balance looks poor:
 ```r
 # controls
 ot_distance(x1 = hainmueller$get_x0(), x2 = hainmueller$get_x(),
-              a = NULL, b = rep(1/128,128),
+              a = NULL, b = rep(1/512,512),
               p = 2, penalty = 1e3, debias = TRUE)
-#> Error in cpp_trace_function(tr_fn, list(...), .compilation_unit, strict, : Error in the R function execution.: Evaluation error: The size of tensor a (128) must match the size of tensor b (512) at non-singleton dimension 1
-#> Exception raised from infer_size_impl at /Users/distiller/project/pytorch/aten/src/ATen/ExpandUtils.cpp:28 (most recent call first):
-#> frame #0: c10::Error::Error(c10::SourceLocation, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >) + 98 (0x112ae10c2 in libc10.dylib)
-#> frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 106 (0x112adf7da in libc10.dylib)
-#> frame #2: at::infer_size_dimvector(c10::ArrayRef<long long>, c10::ArrayRef<long long>) + 416 (0x1150f6b60 in libtorch_cpu.dylib)
-#> frame #3: at::TensorIteratorBase::compute_shape(at::TensorIteratorConfig const&) + 513 (0x11512c1a1 in libtorch_cpu.dylib)
-#> frame #4: at::TensorIteratorBase::build(at::TensorIteratorConfig&) + 611 (0x115127f23 in libtorch_cpu.dylib)
-#> frame #5: at::TensorIteratorBase::build_borrowing_binary_op(at::TensorBase const&, at::TensorBase const&, at::TensorBase const&) + 169 (0x115129189 in libtorch_cpu.dylib)
-#> frame #6: at::meta::structured_sub_Tensor::meta(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 109 (0x11530978d in libtorch_cpu.dylib)
-#> frame #7: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(at::(anonymous namespace)::wrapper_sub_Tensor(at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 103 (0x115e0d157 in libtorch_cpu.dylib)
-#> frame #8: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #9: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::autograd::VariableType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 1140 (0x117040564 in libtorch_cpu.dylib)
-#> frame #10: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #11: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::TraceType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 334 (0x11733c94e in libtorch_cpu.dylib)
-#> frame #12: at::_ops::sub_Tensor::call(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 255 (0x115cd27ff in libtorch_cpu.dylib)
-#> frame #13: at::sub(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 51 (0x112245913 in liblantern.dylib)
-#> frame #14: _lantern_sub_tensor_tensor_scalar + 323 (0x112245233 in liblantern.dylib)
-#> frame #15: cpp_torch_namespace_sub_self_Tensor_other_Tensor(XPtrTorchTensor, XPtrTorchTensor, XPtrTorchScalar) + 64 (0x11185b420 in torchpkg.so)
-#> frame #16: _torch_cpp_torch_namespace_sub_self_Tensor_other_Tensor + 518 (0x111508e36 in torchpkg.so)
-#> frame #17: R_doDotCall + 1458 (0x105ed3a62 in libR.dylib)
-#> frame #18: do_dotcall + 334 (0x105ed53ee in libR.dylib)
-#> frame #19: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #20: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #21: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #22: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #23: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #24: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> frame #25: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #26: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #27: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #28: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #29: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #30: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #31: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #32: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #33: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #34: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #35: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #36: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #37: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #38: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #39: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #40: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #41: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #42: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #43: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #44: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #45: Rf_DispatchGroup + 2439 (0x105f2b507 in libR.dylib)
-#> frame #46: do_arith + 235 (0x105e65dfb in libR.dylib)
-#> frame #47: Rf_eval + 1634 (0x105f06062 in libR.dylib)
-#> frame #48: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #49: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #50: R_DispatchOrEvalSP + 92 (0x105febfac in libR.dylib)
-#> frame #51: do_subset3 + 135 (0x105ff03b7 in libR.dylib)
-#> frame #52: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #53: Rf_eval + 559 (0x105f05c2f in libR.dylib)
-#> frame #54: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #55: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #56: do_return + 92 (0x105f283cc in libR.dylib)
-#> frame #57: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #58: do_begin + 462 (0x105f2830e in libR.dylib)
-#> frame #59: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #60: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #61: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #62: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #63: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> .
+#> [1] 0.5311378
 #treated
 ot_distance(x1 = hainmueller$get_x1(), x2 = hainmueller$get_x(),
-              a = NULL, b = rep(1/128,128),
+              a = NULL, b = rep(1/512,512),
               p = 2, penalty = 1e3, debias = TRUE)
-#> Error in cpp_trace_function(tr_fn, list(...), .compilation_unit, strict, : Error in the R function execution.: Evaluation error: The size of tensor a (128) must match the size of tensor b (512) at non-singleton dimension 1
-#> Exception raised from infer_size_impl at /Users/distiller/project/pytorch/aten/src/ATen/ExpandUtils.cpp:28 (most recent call first):
-#> frame #0: c10::Error::Error(c10::SourceLocation, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >) + 98 (0x112ae10c2 in libc10.dylib)
-#> frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 106 (0x112adf7da in libc10.dylib)
-#> frame #2: at::infer_size_dimvector(c10::ArrayRef<long long>, c10::ArrayRef<long long>) + 416 (0x1150f6b60 in libtorch_cpu.dylib)
-#> frame #3: at::TensorIteratorBase::compute_shape(at::TensorIteratorConfig const&) + 513 (0x11512c1a1 in libtorch_cpu.dylib)
-#> frame #4: at::TensorIteratorBase::build(at::TensorIteratorConfig&) + 611 (0x115127f23 in libtorch_cpu.dylib)
-#> frame #5: at::TensorIteratorBase::build_borrowing_binary_op(at::TensorBase const&, at::TensorBase const&, at::TensorBase const&) + 169 (0x115129189 in libtorch_cpu.dylib)
-#> frame #6: at::meta::structured_sub_Tensor::meta(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 109 (0x11530978d in libtorch_cpu.dylib)
-#> frame #7: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(at::(anonymous namespace)::wrapper_sub_Tensor(at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 103 (0x115e0d157 in libtorch_cpu.dylib)
-#> frame #8: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #9: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::autograd::VariableType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 1140 (0x117040564 in libtorch_cpu.dylib)
-#> frame #10: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #11: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::TraceType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 334 (0x11733c94e in libtorch_cpu.dylib)
-#> frame #12: at::_ops::sub_Tensor::call(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 255 (0x115cd27ff in libtorch_cpu.dylib)
-#> frame #13: at::sub(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 51 (0x112245913 in liblantern.dylib)
-#> frame #14: _lantern_sub_tensor_tensor_scalar + 323 (0x112245233 in liblantern.dylib)
-#> frame #15: cpp_torch_namespace_sub_self_Tensor_other_Tensor(XPtrTorchTensor, XPtrTorchTensor, XPtrTorchScalar) + 64 (0x11185b420 in torchpkg.so)
-#> frame #16: _torch_cpp_torch_namespace_sub_self_Tensor_other_Tensor + 518 (0x111508e36 in torchpkg.so)
-#> frame #17: R_doDotCall + 1458 (0x105ed3a62 in libR.dylib)
-#> frame #18: do_dotcall + 334 (0x105ed53ee in libR.dylib)
-#> frame #19: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #20: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #21: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #22: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #23: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #24: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> frame #25: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #26: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #27: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #28: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #29: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #30: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #31: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #32: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #33: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #34: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #35: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #36: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #37: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #38: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #39: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #40: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #41: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #42: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #43: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #44: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #45: Rf_DispatchGroup + 2439 (0x105f2b507 in libR.dylib)
-#> frame #46: do_arith + 235 (0x105e65dfb in libR.dylib)
-#> frame #47: Rf_eval + 1634 (0x105f06062 in libR.dylib)
-#> frame #48: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #49: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #50: R_DispatchOrEvalSP + 92 (0x105febfac in libR.dylib)
-#> frame #51: do_subset3 + 135 (0x105ff03b7 in libR.dylib)
-#> frame #52: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #53: Rf_eval + 559 (0x105f05c2f in libR.dylib)
-#> frame #54: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #55: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #56: do_return + 92 (0x105f283cc in libR.dylib)
-#> frame #57: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #58: do_begin + 462 (0x105f2830e in libR.dylib)
-#> frame #59: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #60: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #61: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #62: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #63: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> .
+#> [1] 0.4612781
 ```
 
 But after weighting, it looks much better!
@@ -292,146 +296,14 @@ But after weighting, it looks much better!
 ```r
 # controls
 ot_distance(x1 = hainmueller$get_x0(), x2 = hainmueller$get_x(),
-              a = weights@w0, b = rep(1/128,128),
+              a = weights@w0, b = rep(1/512,512),
               p = 2, penalty = 1e3, debias = TRUE)
-#> Error in cpp_trace_function(tr_fn, list(...), .compilation_unit, strict, : Error in the R function execution.: Evaluation error: The size of tensor a (128) must match the size of tensor b (512) at non-singleton dimension 1
-#> Exception raised from infer_size_impl at /Users/distiller/project/pytorch/aten/src/ATen/ExpandUtils.cpp:28 (most recent call first):
-#> frame #0: c10::Error::Error(c10::SourceLocation, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >) + 98 (0x112ae10c2 in libc10.dylib)
-#> frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 106 (0x112adf7da in libc10.dylib)
-#> frame #2: at::infer_size_dimvector(c10::ArrayRef<long long>, c10::ArrayRef<long long>) + 416 (0x1150f6b60 in libtorch_cpu.dylib)
-#> frame #3: at::TensorIteratorBase::compute_shape(at::TensorIteratorConfig const&) + 513 (0x11512c1a1 in libtorch_cpu.dylib)
-#> frame #4: at::TensorIteratorBase::build(at::TensorIteratorConfig&) + 611 (0x115127f23 in libtorch_cpu.dylib)
-#> frame #5: at::TensorIteratorBase::build_borrowing_binary_op(at::TensorBase const&, at::TensorBase const&, at::TensorBase const&) + 169 (0x115129189 in libtorch_cpu.dylib)
-#> frame #6: at::meta::structured_sub_Tensor::meta(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 109 (0x11530978d in libtorch_cpu.dylib)
-#> frame #7: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(at::(anonymous namespace)::wrapper_sub_Tensor(at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 103 (0x115e0d157 in libtorch_cpu.dylib)
-#> frame #8: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #9: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::autograd::VariableType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 1140 (0x117040564 in libtorch_cpu.dylib)
-#> frame #10: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #11: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::TraceType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 334 (0x11733c94e in libtorch_cpu.dylib)
-#> frame #12: at::_ops::sub_Tensor::call(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 255 (0x115cd27ff in libtorch_cpu.dylib)
-#> frame #13: at::sub(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 51 (0x112245913 in liblantern.dylib)
-#> frame #14: _lantern_sub_tensor_tensor_scalar + 323 (0x112245233 in liblantern.dylib)
-#> frame #15: cpp_torch_namespace_sub_self_Tensor_other_Tensor(XPtrTorchTensor, XPtrTorchTensor, XPtrTorchScalar) + 64 (0x11185b420 in torchpkg.so)
-#> frame #16: _torch_cpp_torch_namespace_sub_self_Tensor_other_Tensor + 518 (0x111508e36 in torchpkg.so)
-#> frame #17: R_doDotCall + 1458 (0x105ed3a62 in libR.dylib)
-#> frame #18: do_dotcall + 334 (0x105ed53ee in libR.dylib)
-#> frame #19: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #20: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #21: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #22: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #23: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #24: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> frame #25: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #26: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #27: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #28: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #29: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #30: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #31: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #32: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #33: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #34: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #35: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #36: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #37: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #38: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #39: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #40: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #41: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #42: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #43: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #44: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #45: Rf_DispatchGroup + 2439 (0x105f2b507 in libR.dylib)
-#> frame #46: do_arith + 235 (0x105e65dfb in libR.dylib)
-#> frame #47: Rf_eval + 1634 (0x105f06062 in libR.dylib)
-#> frame #48: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #49: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #50: R_DispatchOrEvalSP + 92 (0x105febfac in libR.dylib)
-#> frame #51: do_subset3 + 135 (0x105ff03b7 in libR.dylib)
-#> frame #52: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #53: Rf_eval + 559 (0x105f05c2f in libR.dylib)
-#> frame #54: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #55: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #56: do_return + 92 (0x105f283cc in libR.dylib)
-#> frame #57: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #58: do_begin + 462 (0x105f2830e in libR.dylib)
-#> frame #59: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #60: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #61: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #62: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #63: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> .
+#> [1] 0.003544579
 # treated
 ot_distance(x1 = hainmueller$get_x1(), x2 = hainmueller$get_x(),
-              a = weights@w1, b = rep(1/128,128),
+              a = weights@w1, b = rep(1/512,512),
               p = 2, penalty = 1e3, debias = TRUE)
-#> Error in cpp_trace_function(tr_fn, list(...), .compilation_unit, strict, : Error in the R function execution.: Evaluation error: The size of tensor a (128) must match the size of tensor b (512) at non-singleton dimension 1
-#> Exception raised from infer_size_impl at /Users/distiller/project/pytorch/aten/src/ATen/ExpandUtils.cpp:28 (most recent call first):
-#> frame #0: c10::Error::Error(c10::SourceLocation, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >) + 98 (0x112ae10c2 in libc10.dylib)
-#> frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 106 (0x112adf7da in libc10.dylib)
-#> frame #2: at::infer_size_dimvector(c10::ArrayRef<long long>, c10::ArrayRef<long long>) + 416 (0x1150f6b60 in libtorch_cpu.dylib)
-#> frame #3: at::TensorIteratorBase::compute_shape(at::TensorIteratorConfig const&) + 513 (0x11512c1a1 in libtorch_cpu.dylib)
-#> frame #4: at::TensorIteratorBase::build(at::TensorIteratorConfig&) + 611 (0x115127f23 in libtorch_cpu.dylib)
-#> frame #5: at::TensorIteratorBase::build_borrowing_binary_op(at::TensorBase const&, at::TensorBase const&, at::TensorBase const&) + 169 (0x115129189 in libtorch_cpu.dylib)
-#> frame #6: at::meta::structured_sub_Tensor::meta(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 109 (0x11530978d in libtorch_cpu.dylib)
-#> frame #7: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(at::(anonymous namespace)::wrapper_sub_Tensor(at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 103 (0x115e0d157 in libtorch_cpu.dylib)
-#> frame #8: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #9: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::autograd::VariableType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 1140 (0x117040564 in libtorch_cpu.dylib)
-#> frame #10: at::_ops::sub_Tensor::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 139 (0x115cd2aeb in libtorch_cpu.dylib)
-#> frame #11: c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&), &(torch::TraceType::(anonymous namespace)::sub_Tensor(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&))>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&> >, at::Tensor (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&)>::call(c10::OperatorKernel*, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 334 (0x11733c94e in libtorch_cpu.dylib)
-#> frame #12: at::_ops::sub_Tensor::call(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 255 (0x115cd27ff in libtorch_cpu.dylib)
-#> frame #13: at::sub(at::Tensor const&, at::Tensor const&, c10::Scalar const&) + 51 (0x112245913 in liblantern.dylib)
-#> frame #14: _lantern_sub_tensor_tensor_scalar + 323 (0x112245233 in liblantern.dylib)
-#> frame #15: cpp_torch_namespace_sub_self_Tensor_other_Tensor(XPtrTorchTensor, XPtrTorchTensor, XPtrTorchScalar) + 64 (0x11185b420 in torchpkg.so)
-#> frame #16: _torch_cpp_torch_namespace_sub_self_Tensor_other_Tensor + 518 (0x111508e36 in torchpkg.so)
-#> frame #17: R_doDotCall + 1458 (0x105ed3a62 in libR.dylib)
-#> frame #18: do_dotcall + 334 (0x105ed53ee in libR.dylib)
-#> frame #19: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #20: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #21: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #22: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #23: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #24: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> frame #25: bcEval + 28565 (0x105f0d1b5 in libR.dylib)
-#> frame #26: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #27: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #28: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #29: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #30: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #31: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #32: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #33: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #34: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #35: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #36: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #37: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #38: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #39: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #40: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #41: bcEval + 26766 (0x105f0caae in libR.dylib)
-#> frame #42: Rf_eval + 385 (0x105f05b81 in libR.dylib)
-#> frame #43: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #44: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #45: Rf_DispatchGroup + 2439 (0x105f2b507 in libR.dylib)
-#> frame #46: do_arith + 235 (0x105e65dfb in libR.dylib)
-#> frame #47: Rf_eval + 1634 (0x105f06062 in libR.dylib)
-#> frame #48: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #49: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #50: R_DispatchOrEvalSP + 92 (0x105febfac in libR.dylib)
-#> frame #51: do_subset3 + 135 (0x105ff03b7 in libR.dylib)
-#> frame #52: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #53: Rf_eval + 559 (0x105f05c2f in libR.dylib)
-#> frame #54: Rf_evalList + 168 (0x105f23fc8 in libR.dylib)
-#> frame #55: Rf_eval + 1210 (0x105f05eba in libR.dylib)
-#> frame #56: do_return + 92 (0x105f283cc in libR.dylib)
-#> frame #57: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #58: do_begin + 462 (0x105f2830e in libR.dylib)
-#> frame #59: Rf_eval + 887 (0x105f05d77 in libR.dylib)
-#> frame #60: R_execClosure + 2169 (0x105f259b9 in libR.dylib)
-#> frame #61: Rf_applyClosure + 471 (0x105f247a7 in libR.dylib)
-#> frame #62: Rf_eval + 1595 (0x105f0603b in libR.dylib)
-#> frame #63: do_docall + 641 (0x105ea1871 in libR.dylib)
-#> .
+#> [1] 0.001587887
 ```
 After Causal Optimal Transport, the distributions are *much* more similar.
 We can also simply feed the output of calc_weight directly into the `ot_distance` function:
@@ -480,7 +352,7 @@ plot(summarized_cw)
 #> Plotting diagnostics for causalWeights for estimand ATE
 ```
 
-![plot of chunk unnamed-chunk-12](figure/unnamed-chunk-12-1.png)![plot of chunk unnamed-chunk-12](figure/unnamed-chunk-12-2.png)![plot of chunk unnamed-chunk-12](figure/unnamed-chunk-12-3.png)![plot of chunk unnamed-chunk-12](figure/unnamed-chunk-12-4.png)
+![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-1.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-2.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-3.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-4.png)
 
 ## Other methods
 The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancing weights (SBW), entropy balancing weights (EntropyBW), and the synthetic control method (SCM).
@@ -506,4 +378,33 @@ The function also accepts methods "EnergyBW", for Energy Balancing Weights of Ha
 
 
 ## Further information
-The argument `options` is a little vague. So we also have a function `cotOptions` which is avaible in the documentation describing the available  options. Some options are passed via the dots onto the default optimizer, `optim_lbfgs`, whose arguments can be seen for the documentation for the `torch` package. 
+
+### Options?
+The argument `options` is a little vague. So we also have a function `cotOptions` which is avaible to help. The documentation provides more details. The other optimization methods "SBW", "EntropyBW", and "SCM" provide their own options function. The options for "Logistic" and "Probit" pass arguments to `glm` and "CBPS" will pass arguments to the `CBPS` function in the package of the same name.
+
+### Data
+I remember when I was first starting `R`, I had a hard time knowing how to turn data.frames into matrices in an easy way. Also, maybe you don't want to go through the effort of doing this transformation yourself. In response, I created the `df2dataHolder()` function to do the work for you. It then returns a `dataHolder` object used internally by `causalOT`. All you need to provide are formula for the treatment and outcome and any sample weights you have.
+
+
+```r
+df <- data.frame(z = z, y = y, x)
+df2dataHolder(treatment.formula = "z ~ x", 
+     outcome.formula = "y ~ x + z",
+     data = df,
+     weights = NA_real_)
+#> Formal class 'dataHolder' [package "causalOT"] with 6 slots
+#>   ..@ x      : num [1:512, 1:6] -0.122 1.87 0.905 1.661 0.164 ...
+#>   .. ..- attr(*, "dimnames")=List of 2
+#>   .. .. ..$ : chr [1:512] "1" "2" "3" "4" ...
+#>   .. .. ..$ : chr [1:6] "xX1" "xX2" "xX3" "xX4" ...
+#>   .. ..- attr(*, "assign")= int [1:6] 1 1 1 1 1 1
+#>   ..@ z      : int [1:512] 1 1 0 1 0 0 1 1 1 0 ...
+#>   ..@ y      : Named num [1:512] -2.8075 0.5237 6.194 -1.5504 0.0248 ...
+#>   .. ..- attr(*, "names")= chr [1:512] "1" "2" "3" "4" ...
+#>   ..@ n0     : int 247
+#>   ..@ n1     : int 265
+#>   ..@ weights: num [1:512] 0.00195 0.00195 0.00195 0.00195 0.00195 ...
+```
+This can be passed to the `calc_weight` function directly to the argument `x`.
+
+

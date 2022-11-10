@@ -69,7 +69,7 @@ A list of class \code{cotOptions} with the following slots
 \item \code{torch.scheduler} The scheduler for the \code{torch} optimizer
 \item \code{solver.options} The arguments to be passeed to the \code{torch.optimizer}
 \item \code{scheduler.options} The arguments to be passeed to the \code{torch.scheduler}
-\iterm \code{niter} The number of iterations to run the solver
+\item \code{niter} The number of iterations to run the solver
 \item \code{nboot} The number of bootstrap samples
 \item \code{tol} The tolerance for convergence.
 }
