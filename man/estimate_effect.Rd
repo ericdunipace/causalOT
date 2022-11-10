@@ -10,7 +10,7 @@ estimate_effect(
   y = NULL,
   model.function,
   estimate.separately = TRUE,
-  augmented.model = FALSE,
+  augment.estimate = FALSE,
   normalize.weights = TRUE,
   ...
 )
@@ -26,7 +26,7 @@ estimate_effect(
 
 \item{estimate.separately}{Should the outcome model be estimated separately in each treatment group? TRUE or FALSE.}
 
-\item{augmented.model}{Should an augmented, doubly robust estimator be used?}
+\item{augment.estimate}{Should an augmented, doubly robust estimator be used?}
 
 \item{normalize.weights}{Should the weights in the \code{causalWeights} argument be normalized to sum to one prior to effect estimation?}
 

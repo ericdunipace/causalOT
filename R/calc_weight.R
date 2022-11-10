@@ -12,8 +12,29 @@
 #' @details
 #' We detail some of the particulars of the function arguments below.
 #' 
-#' ## COT
-#' This is the.main method of the package. This method relies on the 
+#' ## Causal Optimal Transport (COT)
+#' This is the.main method of the package. This method relies on various solvers depending on the particular options chosen. Please see [cotOptions()][cotOptions]`for more details.
+#' 
+#' ## Energy Balancing Weights (EnergyBW)
+#' This is equivalent to COT with an infinite penalty parameter, `options(lambda = Inf)`. Uses the same solver and options as COT, [cotOptions()][cotOptions].
+#' 
+#' ## Nearest Neighbor Matching with replacement (NNM)
+#' This is equivalent to COT with a penalty parameter = 0, `options(lambda = 0)`. Uses the same solver and options as COT, [cotOptions()][cotOptions].
+#' 
+#' ## Synthetic Control Method (SCM)
+#' The SCM method is equivalent to an OT problem put from a different angle. See [scmOptions()][scmOptions()].
+#' 
+#' ## Entropy Balancing Weights (EntropyBW)
+#' This method balances chosen functions of the covariates specified in the data argument, `x`.See [entBWOptions()][entBWOptions()] for more details. Hainmueller (2012).
+#' 
+#' ## Stable Balancing Weights (SBW)
+#' Entropy Balancing Weights with a different penalty parameter, proposed by Zuizarreta (2012). See [sbwOptions()][sbwOptions()] for more details
+#' 
+#' ## Covariate Balancing Propensity Score (CBPS)
+#' The CBPS method of Imai and Ratkovic. Options based to the function [CBPS()][CBPS::CBPS()].
+#' 
+#' ## Logistic Regression or Probit Regression
+#' The main methods historically for implementing inverse probability weights. Options are passed directly to the `glm` function from `R`.
 #'
 #' @seealso [estimate_effect()][estimate_effect()]
 #'
@@ -139,6 +160,7 @@ setMethod("cot_solve", signature(object = "gridSearch"),
             # run solver on each penalty set
             for(k in 1:n_penalty) {
               penalty <- object@penalty_list[k]
+              # print(penalty)
               w[[k]] <- object@solver$solve(penalty, w[k-1])
             }
             

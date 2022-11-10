@@ -111,7 +111,7 @@ print.summary_causalWeights <- function(object,...) {
     treated.output <- data.frame(pre  = c(object$ot$pre[2], NA_real_, 
                                           attr(object$n_eff,"n_original")[2], 
                                           mean(object$mean.balance$pre$treated)),
-                                  post = c(object$post[2], object$pareto_k[2], 
+                                  post = c(object$ot$post[2], object$pareto_k[2], 
                                            object$n_eff[2], 
                                            mean(object$mean.balance$post$treated)),
                                   row.names = row.labels)
@@ -121,6 +121,7 @@ print.summary_causalWeights <- function(object,...) {
   if(!is.null(control.output)) {
     cat( paste0("Control group\n") )
     print(control.output)
+    cat("\n")
   }  
   if (!is.null(treated.output)) {
     cat( paste0("Treated group\n") )
@@ -152,7 +153,7 @@ plot.summary_causalWeights <- function(object, ...) {
                  period = factor(c("pre", "post"), levels = c("pre","post")))
     } else if (object$estimand == "ATE") {
       data.frame(value = unlist(object$ot),
-                 group = factor(rep(c("controls", "treated"), 2), levels = c("control", "treated")),
+                 group = factor(rep(c("control", "treated"), 2), levels = c("control", "treated")),
                  period = factor(rep(c("pre", "post"), each = 2), levels = c("pre","post")))
     }
     
@@ -224,14 +225,17 @@ plot.summary_causalWeights <- function(object, ...) {
                  period = factor(rep(c("pre", "post"), 2), levels = c("pre","post")))
     }
     
-    p <- ggplot2::ggplot(pareto_n_dat, ggplot2::aes(x = group, y = value, fill = period,
-                                                    label = paste0("N_eff = ", round(value, digits = 1)))) +
+    p <- ggplot2::ggplot(pareto_n_dat, 
+                         ggplot2::aes(x = group, y = value, fill = period,
+                                      label = paste0("N_eff = ", round(value, digits = 1)))) +
       ggplot2::geom_col( position = 'dodge' ) +
       ggplot2::scale_fill_manual(values = c("black","gray")) + 
       ggplot2::xlab("") + 
-      ggplot2::scale_y_continuous("N effective", expand = c(0,0), limits = c(0, max(pareto_n_dat$value) * 1.1)) +
-      ggplot2::geom_text(position=ggplot2::position_dodge(width=0.9),vjust = -1) +
-      ggplot2::ggtitle("Effective sample size") + ggplot2::theme_bw()
+      ggplot2::scale_y_continuous("N effective", expand = c(0,0), 
+                                  limits = c(0, max(pareto_n_dat$value) * 1.1)) +
+      ggplot2::geom_text(position=ggplot2::position_dodge(width=0.9),vjust = -.5) +
+      ggplot2::ggtitle("Effective sample size") + 
+      ggplot2::theme_bw()
     
     return(p)
   }
@@ -260,21 +264,23 @@ plot.summary_causalWeights <- function(object, ...) {
                  group = factor("treated", levels = c("control", "treated")),
                  period = factor(rep(c("pre", "post"), each = d), levels = c("pre","post")))
     } else if (object$estimand == "ATE") {
-      data.frame(value = unlist(object$mean.balance),
+      data.frame(value = c(unlist(object$mean.balance)),
                   covariate = rep(1:d, 4),
                   group = factor(rep(rep(c("control", "treated"), each = d), 2), 
                                  levels = c("control", "treated")),
                   period = factor(rep(c("pre", "post"), each = 2*d), levels = c("pre","post")))
     }
     
-    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = period, y = value, group = covariate, color = group)) +
+    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = period, y = value, group = interaction(covariate, group), color = group, size = group)) +
       ggplot2::geom_hline(yintercept = 0.1, linetype = 2) +
       ggplot2::geom_hline(yintercept = 0.2, linetype = 1, color = "red") +
-      ggplot2::geom_line() + 
+      ggplot2::geom_line(size = .5) + 
       ggplot2::geom_point() +
+      ggplot2::scale_size_manual(values = c(1.5, 1)) +
       ggplot2::scale_color_manual(values = c("black", "grey")) +
       ggplot2::ylab("Differences") + ggplot2::xlab("") + 
-      ggplot2::ggtitle("Absolute standardized mean difference") + ggplot2::theme_bw()
+      ggplot2::ggtitle("Absolute standardized mean difference") + 
+      ggplot2::theme_bw()
     
     return(p)
   }

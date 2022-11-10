@@ -174,9 +174,33 @@ SBW <- R6::R6Class("SBW",
   )
 )
 
+#' Options for the SBW method
+#'
+#' @param delta A number or vector of tolerances for the balancing functions. Default is NULL which will use a grid search
+#' @param grid.length The number of values to try in the grid search
+#' @param nboot The number of bootstrap samples to run during the grid search.
+#' @param ... Arguments passed on to [osqpSettings()][osqp::osqpSettings()]
+#'
+#' @return A list of class `sbwOptions` with slots
+#' \itemize{
+#'  \item `delta` Delta values to try
+#'  \item `grid.length` The number of parameters to try
+#'  \item `sumto1` Forced to be TRUE. Weights will always sum to 1.
+#'  \item `nboot` Number of bootstrap samples
+#'  \item `solver.options`A list with arguments passed to [osqpSettings()][osqp::osqpSettings()]
+#' }
+#' @export
+#'
+#' @details
+#' # Function balancing
+#' This method will balance  functions of the covariates within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
+#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing.
+#' 
+#' @example opts <- sbwOptions(delta = 0.1)
 sbwOptions <- function(
                    delta = NULL,
                    grid.length = 20L,
+                   nboot = 1000L,
                    ...) {
   if(inherits(options, "sbwOptions")) return(options)
   output <- list()
@@ -194,6 +218,13 @@ sbwOptions <- function(
     if(grid.length <= 0) stop("grid.length must be greater than 0")
   }
   output$sumto1 <- TRUE
+  
+  
+  if ( arg_not_used(nboot) ) {
+    output$nboot <- 1000L
+  } else {
+    output$nboot <- as.integer(nboot)
+  }
   
   output$solver.options <- list(...)[...names() %in% formalArgs(osqp::osqpSettings)]
   class(output) <- "sbwOptions"
@@ -258,9 +289,32 @@ EntropyBW <- R6::R6Class("EntropyBW",
  )
 )
 
+#' Options for the Entropy Balancing Weights
+#'
+#' @param delta A number or vector of tolerances for the balancing functions. Default is NULL which will use a grid search
+#' @param grid.length The number of values to try in the grid search
+#' @param nboot The number of bootstrap samples to run during the grid search.
+#' @param ... Arguments passed on to [lbfgsb3c()][lbfgsb3c::lbfgsb3c()]
+#'
+#' @return A list of class `entBWOptions` with slots
+#' \itemize{
+#'  \item `delta` Delta values to try
+#'  \item `grid.length` The number of parameters to try
+#'  \item `nboot` Number of bootstrap samples
+#'  \item `solver.options` A list of options passed to `[lbfgsb3c()][lbfgsb3c::lbfgsb3c()]
+#' }
+#' @export
+#'
+#' @details
+#' # Function balancing
+#' This method will balance  functions of the covariates within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
+#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing.
+#' 
+#' @example opts <- entBWOptions(delta = 0.1)
 entBWOptions <- function(
     delta = NULL,
     grid.length = 20L,
+    nboot = 1000L,
     ...) {
   if(inherits(options, "entBWOptions")) return(options)
   output <- list()
@@ -278,6 +332,11 @@ entBWOptions <- function(
     if(grid.length <= 0) stop("grid.length must be greater than 0")
   }
   
+  if ( arg_not_used(nboot) ) {
+    output$nboot <- 1000L
+  } else {
+    output$nboot <- as.integer(nboot)
+  }
   
   output$solver.options <- lbfgs3c_control(...)
   

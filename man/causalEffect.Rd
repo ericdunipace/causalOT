@@ -6,7 +6,7 @@
 \alias{causalEffect}
 \title{causalEffect class}
 \usage{
-causalEffect(data, causalWeights, model.outputs, augmented.estimate, call)
+causalEffect(data, causalWeights, model.outputs, augment.estimate, call)
 }
 \arguments{
 \item{data}{an object of class \link[=dataHolder-class]{dataHolder}}
@@ -15,7 +15,7 @@ causalEffect(data, causalWeights, model.outputs, augmented.estimate, call)
 
 \item{model.outputs}{Outputs of the \link[=estimate_model]{estimate_model()} function}
 
-\item{augmented.estimate}{Is the estimate to be the augmented (doubly robust) estimator? TRUE/FALSE}
+\item{augment.estimate}{Is the estimate to be the augmented (doubly robust) estimator? TRUE/FALSE}
 
 \item{call}{the call used to calculate the treatment effects}
 }
@@ -45,6 +45,8 @@ The slot \code{fit} is a list with slots \code{control}, \code{treated}, and \co
 
 \describe{
 \item{\code{estimate}}{The estimated treatment effect.}
+
+\item{\code{estimand}}{The estimand of interest}
 
 \item{\code{weights}}{The weights as an object of class \link[=causalWeights-class]{causalWeights}}
 

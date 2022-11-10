@@ -11,8 +11,10 @@
 #' @param cost_function A user supplied cost function. If supplied, must take arguments `x1`, `x2`, and `p`.
 #' @param p The power to raise the cost function. Default is 2.0. For user supplied cost functions, the cost will not be raised by this power unless the user so specifies.
 #' @param debias Should debiased barycentric projections be used? See details.
-#' @param cost.online Should an online cost algorithm be used? Default is "auto", which selects an online cost algorithm when the sample size in each group specified by `separate.samples.on`, \eqn{n_0}{n0} and \eqn{n_1}{n1}, is such that \deqn{n_0 \cdot n_1 \geq 5000^2}{n_0 * n_1 >= 5000^2}. Must be one of "auto", "online", or "tensorized".
+#' @param cost.online Should an online cost algorithm be used? Default is "auto", which selects an online cost algorithm when the sample size in each group specified by `separate.samples.on`, \eqn{n_0}{n0} and \eqn{n_1}{n1}, is such that \eqn{n_0 \cdot n_1 \geq 5000^2}{n_0 * n_1 >= 5000^2.} Must be one of "auto", "online", or "tensorized". The last of these is the offline option.
 #' @param diameter The diameter of the covariate space, if known.
+#' @param niter The maximum number of iterations to run the optimal transport problems
+#' @param tol The tolerance for convergence of the optimal transport problems
 #' @param ... Not used at this time.
 #'
 #' @return An object of class "bp" which is a list with slots:
@@ -72,7 +74,8 @@ barycentric_projection <- function(formula, data, weights,
                                    penalty = NULL, cost_function = NULL,
                                    p = 2, 
                                    debias = FALSE, cost.online = "auto",
-                                   diameter = NULL, ...) {
+                                   diameter = NULL, niter = 1000L,
+                                   tol = 1e-7, ...) {
   
   tx_form  <- paste0(separate.samples.on, "~ 0")
   
@@ -111,7 +114,7 @@ barycentric_projection <- function(formula, data, weights,
                  penalty = penalty, cost_function = cost_function, p = p, 
                  debias = TRUE, tensorized = cost.online,
                  diameter=diameter)
-  ot$sinkhorn_opt()
+  ot$sinkhorn_opt(niter, tol)
   
   potentials    <- ot$potentials
   cost_function <- ot$C_xy$fun
@@ -280,26 +283,33 @@ predict.bp <- function(object, newdata = NULL, source.sample, cost_function = NU
   y_hat_a  <- rep(NA_real_, n_new)
   y_hat_b  <- rep(NA_real_, n_new)
   
+  dots     <- list(...) # collect dots to prevent name conflicts
+  
   # target a measure
   if ( a_to_a ) {
-    y_hat_a <- construct_bp_est(bp_fun,  lambda, 
+    if (debias) {
+      z_targ_a <- ifelse(z_source == "a", "a", z_target)
+    } else {
+      z_targ_a <- z_target
+    }
+    y_hat_a <- construct_bp_est(bp_fun = bp_fun, lambda = lambda, 
                                 source = "a", target = "a",
-                                z_source, z_target,
-                                cost_fun, p, 
-                                x_new, x_a, y_hat_a, y_a,
-                                f_aa, a_log,
-                                tensorized,
-                                niter, tol, ...)
+                                z_source = z_source, z_target = z_targ_a,
+                                cost_function = cost_fun, p = p, 
+                                x_new = x_new, x_t = x_a, y_hat_t = y_hat_a, y_t = y_a,
+                                f_st = f_aa, l_target_measure = a_log,
+                                tensorized = tensorized,
+                                niter = niter, tol = tol, dots)
   }
   if (b_to_a) {
-    y_hat_a <- construct_bp_est(bp_fun, lambda, 
+    y_hat_a <- construct_bp_est(bp_fun = bp_fun, lambda = lambda,  
                      source = "b", target = "a",
-                     z_source, z_target,
-                     cost_fun, p, 
-                     x_new, x_a, y_hat_a, y_a,
-                     f_ab, a_log,
-                     tensorized,
-                     niter, tol, ...)
+                     z_source = z_source, z_target = z_target,
+                     cost_function = cost_fun, p = p, 
+                     x_new = x_new, x_t = x_a, y_hat_t = y_hat_a, y_t = y_a,
+                     f_st = f_ab, l_target_measure = a_log,
+                     tensorized = tensorized,
+                     niter = niter, tol = tol, dots)
   }
   
   # target b measure
@@ -311,24 +321,32 @@ predict.bp <- function(object, newdata = NULL, source.sample, cost_function = NU
                                 x_new, x_b, y_hat_b, y_b,
                                 g_ba, b_log,
                                 tensorized, 
-                                niter, tol, ...)
+                                niter, tol, dots)
   }
   if (b_to_b) {
+    if (debias) {
+      z_targ_b <- ifelse(z_source == "b", "b", z_target)
+    } else {
+      z_targ_b <- z_target
+    }
     y_hat_b <- construct_bp_est(bp_fun, lambda, 
                                 source = "b", target = "b",
-                                z_source, z_target,
+                                z_source, z_targ_b,
                                 cost_fun, p, 
                                 x_new, x_b, y_hat_b, y_b,
                                 g_bb, b_log,
                                 tensorized, 
-                                niter, tol, ...)
+                                niter, tol, dots)
   }
   
   # "debias" estimates using self BP
   if (debias) { # only works if has some outcome info already...
     # debiased potential towards self just returns the same outcome
-    y_hat_a <- ifelse(z_source == "a", y_new, y_hat_a + y_new - y_hat_b)
-    y_hat_b <- ifelse(z_source == "b", y_new, y_hat_b + y_new - y_hat_a)
+    y_hat_a_debias <- ifelse(z_source == "a", y_new, y_hat_a + y_new - y_hat_b)
+    y_hat_b_debias <- ifelse(z_source == "b", y_new, y_hat_b + y_new - y_hat_a)
+    
+    y_hat_a <- y_hat_a_debias
+    y_hat_b <- y_hat_b_debias
   }
   
   # not make sense if both given...
@@ -389,18 +407,18 @@ construct_bp_est  <- function(bp_fun,lambda,
                               x_new, x_t, y_hat_t, y_t,
                               f_st,l_target_measure,
                               tensorized,
-                              niter, tol, ...) {
+                              niter, tol, dots) {
   s_to_t_sel <- z_source == source & (z_target == target | z_target == "both")
   x_s_to_t   <- x_new[ s_to_t_sel , , drop = FALSE]
   C_s_to_t   <- cost(x_s_to_t, x_t, p = p, tensorized = tensorized, cost_function = cost_function)
   y_s_to_t   <- bp_fun(nrow(x_s_to_t), lambda, C_s_to_t, y_t,
                        f_st, l_target_measure, tensorized, 
-                       niter, tol, ...)
+                       niter, tol, dots)
   y_hat_t[ s_to_t_sel ] <- y_s_to_t
   return(y_hat_t)
 }
 
-bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, ...) {
+bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, dots) {
   
   if(tensorized) {
     G <- f/eps + a_log
@@ -452,7 +470,7 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
   return(as.numeric(y_source))
 }
 
-bp_pow1 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, ...) {
+bp_pow1 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, dots) {
   if(!tensorized) stop("L1 norm must have a tensorized cost function")
   
   G <- f/eps + a_log
@@ -463,12 +481,22 @@ bp_pow1 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
   return(y_source)
 }
 
-bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, ...) {
+bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, dots) {
   
   fun <- tensorized_switch_generator(tensorized)
   
-  y_source <- torch::torch_zeros(c(n), dtype = torch::torch_double(), requires_grad = TRUE)
-  opt     <- torch::optim_lbfgs(y_source, ...)
+  y_source  <- torch::torch_zeros(c(n), dtype = torch::torch_double(), requires_grad = TRUE)
+  
+  # get and set dots args
+  opt_args  <- c(list(params = y_source), dots)
+  opt_cons  <- torch::optim_lbfgs
+  poss_args <- names(formals(opt_cons))
+  m         <- match(poss_args, 
+                     names(opt_args), 
+                     0L)
+  if(opt_args$line_search_fn != "strong_wolfe") warning("line_search_fn = 'strong_wolfe' recommended for the torch LBFGS optimizer. You can pass the `line_search_fn` arg as an additional argument to this function.")
+  opt       <- do.call(what = opt_cons, 
+                      opt_args[m])
   
   y_s_old <- y_source$detach()$clone()
   
@@ -497,7 +525,7 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
     if(!inherits(y_target, "torch_tensor")) y_target <- torch::torch_tensor(as.numeric(y_target), dtype = torch::torch_double())
     m <- length(y_target)
     wt_mat <- fun(eps, C_yx, f, a_log)
-    for(i in 1:niter) {
+    for (i in 1:niter) {
       loss <- opt$step(closure)
       if(converged(y_source, y_s_old, tol)) break
       y_s_old <- y_source$detach()$clone()

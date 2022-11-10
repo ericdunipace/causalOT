@@ -13,6 +13,7 @@ OT <- R6::R6Class("OT",
     penalty = "torch_tensor",
     softmin = "function",
     debias = "logical",
+    device = "torch_device",
     diameter = "torch_tensor",
     tensorized = "logical",
     initialize = function(x, y, a = NULL, b = NULL, penalty, 
@@ -34,14 +35,14 @@ OT <- R6::R6Class("OT",
       
       use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
       if (use_cuda) {
-        device <-  torch::torch_device("cuda")
+        self$device <-  torch::torch_device("cuda")
         if (!tensorized) {
           rkeops::compile4float64()
           rkeops::compile4gpu()
           rkeops::use_gpu()
         }
       } else {
-        device <-  torch::torch_device("cpu")
+        self$device <-  torch::torch_device("cpu")
         if (!tensorized) {
           rkeops::compile4float64()
           rkeops::use_cpu()
@@ -53,20 +54,20 @@ OT <- R6::R6Class("OT",
       y <- torch::torch_tensor(y, dtype = torch::torch_double())$contiguous()
       d <- ncol(x)
       
-      a <- private$check_weights(a, x, device)
-      b <- private$check_weights(b, y, device)
-      a_log <- log_weights(a)$contiguous()$to(device = device)
-      b_log <- log_weights(b)$contiguous()$to(device = device)
+      a <- private$check_weights(a, x, self$device)
+      b <- private$check_weights(b, y, self$device)
+      a_log <- log_weights(a)$contiguous()$to(device = self$device)
+      b_log <- log_weights(b)$contiguous()$to(device = self$device)
       
       C_xy <- cost(x, y, p = p, tensorized = tensorized, cost_function = cost_function)
       C_yx <- cost(y, x, p = p, tensorized = tensorized, cost_function = cost_function)
-      C_xy$to_device <- device
-      C_yx$to_device <- device
+      C_xy$to_device <- self$device
+      C_yx$to_device <- self$device
       if(debias) {
         C_xx <- cost(x, x, p = p, tensorized = tensorized, cost_function = cost_function)
         C_yy <- cost(y, y, p = p, tensorized = tensorized, cost_function = cost_function)
-        C_xx$to_device <- device
-        C_yy$to_device <- device
+        C_xx$to_device <- self$device
+        C_yy$to_device <- self$device
       } else {
         C_xx <- C_yy <- NULL
       }
@@ -185,12 +186,12 @@ OT <- R6::R6Class("OT",
       if(length(value) != self$n) stop("Assignment measure to mass a must have same length as original problem")
       
       if(inherits(value, "torch_tensor")) {
-        private$a_ <- value
+        private$a_ <- value$to(device = self$device)
       } else {
-        private$a_ <- torch::torch_tensor(value, dtype = torch::torch_double())
+        private$a_ <- torch::torch_tensor(value, dtype = torch::torch_double(), device = self$device)
       }
       
-      private$a_log <- log_weights(private$a_)
+      private$a_log <- log_weights(private$a_)$to(device = self$device)
     },
     b = function(value) {
       if(missing(value)) return(private$b_)
@@ -1112,21 +1113,22 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
           
 )
 
-setMethod("ot_distance", signature(x1 = "matrix"),
-          
-function(x1, x2, a = NULL, b = NULL, penalty, p = 2, 
-         cost = NULL, 
-         debias = TRUE, online.cost = "auto",
-         diameter=NULL,
-         niter = 1000, tol = 1e-7) {
+ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2, 
+                            cost = NULL, 
+                            debias = TRUE, online.cost = "auto",
+                            diameter=NULL,
+                            niter = 1000, tol = 1e-7) {
   
   ot <- OT$new(x = x1, y = x2, 
-                     a = a, b = b,
-                     penalty = penalty, 
-                     cost = cost, p = p, debias = debias, 
-                     tensorized = online.cost,
-                     diameter = diameter)
+               a = a, b = b,
+               penalty = penalty, 
+               cost = cost, p = p, debias = debias, 
+               tensorized = online.cost,
+               diameter = diameter)
   
   return(loss_select(ot, niter, tol))
 }
-)
+
+setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)
+setMethod("ot_distance", signature(x1 = "array"), ot_dist_default)
+

@@ -52,8 +52,23 @@ COT <- R6::R6Class("COT",
                    p = options$p, debias = options$debias,
                    tensorized = options$cost.online,
                    diameter=NULL)
-     self$a <- as.numeric(self$ot$a)
-     self$b <- as.numeric(self$ot$b)
+     use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+     if (use_cuda) {
+       device <-  torch::torch_device("cuda")
+       if (!self$ot$tensorized) {
+         rkeops::compile4float64()
+         rkeops::compile4gpu()
+         rkeops::use_gpu()
+       }
+     } else {
+       device <-  torch::torch_device("cpu")
+       if (!self$ot$tensorized) {
+         rkeops::compile4float64()
+         rkeops::use_cpu()
+       }
+     }
+     self$a <- as.numeric(self$ot$a$to(device = torch::torch_device("cpu")))
+     self$b <- as.numeric(self$ot$b$to(device = torch::torch_device("cpu")))
      self$n <- as.numeric(self$ot$n)
      self$m <- as.numeric(self$ot$m)
      
@@ -78,6 +93,7 @@ COT <- R6::R6Class("COT",
      
      self$param  <- torch::torch_zeros(self$ot$n - 1,
                                         dtype = torch::torch_double(),
+                                       device = device,
                                         requires_grad = TRUE)
      # self$param  <- torch::torch_zeros(self$ot$n,
      #                                   dtype = torch::torch_double(),
@@ -96,6 +112,12 @@ COT <- R6::R6Class("COT",
          environment(cb) <- environment(tmpfun)
          attributes(cb) <- attributes(tmpfun)
          assignInNamespace(".cubic_interpolate", cb, "torch" )
+         
+         ln_srch <- private$torch_optim$args$line_search_fn
+         no_ls <- (is.null(ln_srch) || is.na(ln_srch) || ln_srch != "strong_wolfe")
+         if(no_ls && lambda != 0 ) {
+           warning(" Torch's LBFGS doesn't work well without 'strong_wolfe' line search on this problem. Specify it with line_search_fn = 'strong_wolfe' in the options argument.")
+         }
        }
      } else {
        private$torch_optim <- list(
@@ -112,7 +134,7 @@ COT <- R6::R6Class("COT",
      } else {
        self$scheduler <- list(step = function(value){invisible()})
      }
-     self$penalty.fun <- options$penalty
+     self$penalty.fun <- options$penalty.function
      
      self$niter = options$niter
      self$tol = options$tol
@@ -278,7 +300,7 @@ COT$set("private", "optimize_weights",
       } else {
         private$forward <- private$cot_forward
       }
-      private$torch_optimizer()
+      private$torch_optimizer_loop()
     } else if (is.infinite(lambda) && !self$ot$debias) { #L2 and ent ot distance, infinite
       self$weight <- rep(1.0 / self$ot$n, self$ot$n)
     } else if (!self$ot$debias && self$ot$tensorized) {
@@ -331,7 +353,7 @@ COT$set("private", "NNM_opt",
   }        
 )
 
-COT$set("private", "torch_optimizer",
+COT$set("private", "torch_optimizer_loop",
 function() {
   loss_0 <- loss <- self$ot$diameter * 1000.
   tol <- self$tol
@@ -499,9 +521,78 @@ function() {
 })
 
 # COT options function
+#' Options available for the COT method
+#'
+#' @param lambda The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.
+#' @param delta The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.
+#' @param penalty.function The penalty to use for the optimal transport distances. Should be one of "entropy" or "L2".
+#' @param debias Should debiased optimal transport be used? TRUE or FALSE. Only available for `penalty.function`="entropy". 
+#' @param p The power of the cost function to use for the cost.
+#' @param cost A function to calculate the pairwise costs. Should take arguments `x1`, `x2`, and `p`. Default is NULL.
+#' @param cost.online Should an online cost algorithm be used? One of "auto", "online", or "tensorized". "tensorized" is the offline option.
+#' @param balance.formula Formula for the balancing functions.
+#' @param grid.length The number of penalty parameters to explore in a grid search if none are provided in arguments `lambda` or `delta`.
+#' @param torch.optimizer The torch optimizer to use for methods using debiased entropy penalized optimal transport.
+#' @param torch.scheduler The scheduler for the optimizer
+#' @param niter The number of iterations to run the solver
+#' @param nboot The number of iterations for the bootstrap to select final penalty parameters.
+#' @param tol The tolerance for convergence
+#' @param ... Arguments passed to the solvers. See details
+#'
+#' @return A list of class `cotOptions` with the following slots
+#' \itemize{
+#' \item `lambda`The penalty parameter for the optimal transport distance
+#' \item `delta`The constraint for the balancing functions
+#' \item `penalty.function`The penalty function to use
+#' \item `debias`TRUE or FALSE if debiased optimal transport distances are used
+#' \item `balance.formula`
+#' \item `grid.length` The number of parameters to check in a grid search of best parameters
+#' \item `p` The power of the cost function
+#' \item `cost.online` Whether online costs are used
+#' \item `cost` The user supplied cost function if supplied.
+#' \item `torch.optimizer` The `torch` optimizer used for Sinkhorn Divergences
+#' \item `torch.scheduler` The scheduler for the `torch` optimizer
+#' \item `solver.options` The arguments to be passeed to the `torch.optimizer`
+#' \item `scheduler.options` The arguments to be passeed to the `torch.scheduler`
+#' \item `niter` The number of iterations to run the solver
+#' \item `nboot` The number of bootstrap samples
+#' \item `tol` The tolerance for convergence.
+#' }
+#' @export
+#' 
+#' @details 
+#' # Solvers and distances
+#' The function is setup to direct the COT optimizer to run three basic methods: debiased entropy penalized optimal transport (Sinkhorn Divergences), entropy penalized optimal transport (Sinkhorn Distances), or L2 penalized optimal transport. Each of these options utilizes a specific solver.
+#' 
+#' ## Sinkhorn Distances
+#' The optimal transport problem solved is \eqn{min_w OT_\lambda(w,b) } where \deqn{OT_\lambda(w,b) = \sum_{ij} C(x_i, x_j) P_{ij} + \lambda \sum_{ij} P_{ij}\log(P_{ij}),} such that the rows of the matrix \eqn{P_{ij}} sum to \eqn{w} and the columns sum to \eqn{b}. In this case \eqn{C(,)} is the cost between units i and j. 
+#' 
+#' The solver for this distance is provided by [lbfgsb3c()][lbfgsb3c::lbfgsb3c()] and so arguments in dots are passed to the function. We can also supply balancing functions via the formula argument in `balance.formula` (see below).
+#' 
+#' ## L2 OT Distances
+#' In this case, the optimal transport problem is again \eqn{min_w OT_\lambda(w,b) } where \deqn{OT_\lambda(w,b) = \sum_{ij} C(x_i, x_j) P_{ij} + \frac{\lambda}{2} \sum_{ij} P_{ij}^2,}
+#' 
+#' The solver for this distance is provided by [osqp()][osqp::osqp()] and so arguments in dots are passed to the solver via that packages [osqpSettings()][osqp::osqpSettings()] function. We can also supply balancing functions via the formula argument in `balance.formula` (see below).
+#' 
+#' ## Sinkhorn Divergences
+#' The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the `torch` package in `R` and by default will use the LBFGS solver. Your desired `torch` optimizer can be passed via `torch.optimizer` with a scheduler passed via `torch.scheduler`. GPU support is available as detailed in the `torch` package. Additional arguments in `...` are passed as extra arguments to the `torch` optimizer and schedulers as appropriate.
+#' 
+#' # Function balancing
+#' There may be certain functions of the covariates that we wish to balance within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
+#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing. This is currently only available for \eqn{L_2} penalized distances and Sinkhorn Distances.
+#' 
+#' # Cost functions
+#' The cost function specifies pairwise distances. If argument `cost` is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument `p`.So for `p = 2`, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
+#' If `cost` is provided, it should be a function that takes arguments `x1`, `x2`, and `p`.
+#' 
+#'
+#' @examples
+#' opts <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_lbfgs)
+#' opts <- cotOptions(lambda = NULL)
+#' opts <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
 cotOptions <- function(lambda = NULL,
                        delta = NULL,
-                       penalty = "entropy",
+                       penalty.function = "entropy",
                        debias = TRUE,
                        p = 2.0,
                        cost = NULL,
@@ -535,23 +626,23 @@ cotOptions <- function(lambda = NULL,
     if(any(delta < 0)) stop("delta must be >= 0")
     output$delta <- sort(delta, decreasing = TRUE)
   }
-  if ( arg_not_used(penalty) ) {
-    output$penalty <- "entropy"
+  if ( arg_not_used(penalty.function) ) {
+    output$penalty.function <- "entropy"
   } else {
-    output$penalty <- match.arg( penalty, c("entropy", "L2") )
+    output$penalty.function <- match.arg( penalty.function, c("entropy", "L2") )
   }
   
   if ( arg_not_used(debias) ) {
-    if(output$penalty == "entropy") {
+    if(output$penalty.function == "entropy") {
       output$debias  <- TRUE
-    } else if (output$penalty == "L2") {
+    } else if (output$penalty.function == "L2") {
       output$debias <- FALSE
     } else {
       stop("cotOption error: penalty function not found!")
     }
   } else {
     output$debias  <- isTRUE( debias )
-    if (is.null(used.args$debias) && output$penalty == "L2") output$debias <- FALSE
+    if (is.null(used.args$debias) && output$penalty.function == "L2") output$debias <- FALSE
   }
   if( arg_not_used(balance.formula) ) {
     output["balance.formula"] <- list(NULL)
@@ -635,15 +726,15 @@ cotOptions <- function(lambda = NULL,
     stop("Must supply a 'torch_optimizer_generator' object in options argument 'torch.optimizer' when option debias is TRUE")
   }
   
-  if(output$debias && output$penalty == "L2") {
+  if(output$debias && output$penalty.function == "L2") {
     warning("No debias options with L2 penalty. Defaulting to debias=FALSE")
     output$debias <- FALSE
   }
   
-  if (output$penalty == "L2") {
+  if (output$penalty.function == "L2") {
     output$solver.options <- list(...)[...names() %in% formalArgs(osqp::osqpSettings)]
   }
-  if (!output$debias && output$penalty == "entropy" && output$cost.online != "online") {
+  if (!output$debias && output$penalty.function == "entropy" && output$cost.online != "online") {
     output$solver.options <- lbfgs3c_control(...)
   }
 
@@ -870,16 +961,39 @@ SCM <- R6::R6Class("SCM",
  )
 )
 
-scmOptions <- function(lambda = NULL,
-                       delta = NULL,
-                       grid.length = 7L,
-                       nboot = 1000L,
-                       balance.formula = NULL,
+
+# @param lambda Penalty parameter on the weights. Not currently used but here because a plan is to add it.
+# @param delta The constraint parameter for the balancing functions. Not currently used.
+# @param grid.length The number of penalty parameters to try. Not currently used.
+# @param nboot The number of bootstrap samples. Not currently used.
+# @param balance.formula The formula that denotes the covariate functions to balance. Not currently used.
+
+#' Options for the SCM Method
+#'
+#' @param ... Arguments passed to the [osqpSettings()][osqp::osqpSettings()] function which solves the problem.
+#'
+#' @return A list with arguments to pass to [osqpSettings()][osqp::osqpSettings()]
+#' @export
+#' 
+#' @details Options for the solver used in the optimization of the Synthetic Control Method of Abadie and Gardeazabal (2003).
+#'
+#' @examples
+#' opts <- scmOptions()
+scmOptions <- function(
+    # lambda = NULL,
+    #                    delta = NULL,
+    #                    grid.length = 7L,
+    #                    nboot = 1000L,
+                       # balance.formula = NULL,
                        ...) { # dots are the osqp args
   mc <- match.call()
   used.args <- as.list(mc)[-1]
   # browser()
   
+  grid.length <- 7L
+  nboot <- 1000L
+  delta <- NULL
+  balance.formula <- NULL
   gsOpts <- gridSearchOptions(nboot = nboot, grid.length = grid.length)
   
   nboot <- gsOpts$nboot

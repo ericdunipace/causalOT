@@ -175,7 +175,7 @@ function(object,w) {
   metric <- bootStrap_(w,
              as.integer(nboot),
              object@solver)
-  
+
   # get index of minimizing penalty parameter
   min.idx <- which.min(metric)
   

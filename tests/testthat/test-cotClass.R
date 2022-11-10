@@ -193,7 +193,7 @@ testthat::test_that("ent debiased works, tensor", {
   lambda <- 10
   wlist <- list(a,a)
   
-  testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
+  testthat::expect_warning(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(penalty = "entropy",
                                                                    debias = TRUE,
                                                                    niter = 2L,
@@ -273,12 +273,12 @@ testthat::test_that("ent debiased works, online", {
   lambda <- 10
   wlist <- list(a,a)
   
-  mess<- testthat::capture_message(cot <- causalOT:::COT$new(source = x, target = y,
+  mess<- testthat::capture_message(testthat::expect_warning(cot <- causalOT:::COT$new(source = x, target = y,
                       options = list(penalty = "entropy",
                                      cost.online = "online",
                                      debias = TRUE,
                                      niter = 1L,
-                                     torch.optimizer = torch::optim_lbfgs)))
+                                     torch.optimizer = torch::optim_lbfgs))))
   
   testthat::expect_silent(cot2 <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(penalty = "entropy",

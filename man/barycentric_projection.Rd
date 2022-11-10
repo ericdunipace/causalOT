@@ -15,6 +15,8 @@ barycentric_projection(
   debias = FALSE,
   cost.online = "auto",
   diameter = NULL,
+  niter = 1000L,
+  tol = 1e-07,
   ...
 )
 }
@@ -35,9 +37,13 @@ barycentric_projection(
 
 \item{debias}{Should debiased barycentric projections be used? See details.}
 
-\item{cost.online}{Should an online cost algorithm be used? Default is "auto", which selects an online cost algorithm when the sample size in each group specified by \code{separate.samples.on}, \eqn{n_0}{n0} and \eqn{n_1}{n1}, is such that \deqn{n_0 \cdot n_1 \geq 5000^2}{n_0 * n_1 >= 5000^2}. Must be one of "auto", "online", or "tensorized".}
+\item{cost.online}{Should an online cost algorithm be used? Default is "auto", which selects an online cost algorithm when the sample size in each group specified by \code{separate.samples.on}, \eqn{n_0}{n0} and \eqn{n_1}{n1}, is such that \eqn{n_0 \cdot n_1 \geq 5000^2}{n_0 * n_1 >= 5000^2.} Must be one of "auto", "online", or "tensorized". The last of these is the offline option.}
 
 \item{diameter}{The diameter of the covariate space, if known.}
+
+\item{niter}{The maximum number of iterations to run the optimal transport problems}
+
+\item{tol}{The tolerance for convergence of the optimal transport problems}
 
 \item{...}{Not used at this time.}
 }

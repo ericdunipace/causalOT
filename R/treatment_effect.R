@@ -6,7 +6,7 @@
 #' @param sampleWeights An optional vector of the sample weights prior to any adjustment. By default, each observation is assumed to have the same sampling weights.
 #' @param model.function The modeling function to use, if desired. Must take arguments "formula", "data", and "weights". Other arguments passed via `...`, the dots.
 #' @param estimate.separately Should the outcome model be estimated separately in each treatment group? TRUE or FALSE.
-#' @param augmented.model Should an augmented, doubly robust estimator be used?
+#' @param augment.estimate Should an augmented, doubly robust estimator be used?
 #' @param normalize.weights Should the weights in the `causalWeights` argument be normalized to sum to one prior to effect estimation?
 #' @param ... Pass additional arguments to the outcome modeling functions.
 #'
@@ -28,7 +28,7 @@ estimate_effect <- function(causalWeights,
                             x = NULL, y = NULL,  
                             model.function,
                             estimate.separately = TRUE,
-                            augmented.model = FALSE,
+                            augment.estimate = FALSE,
                             normalize.weights = TRUE,
                             ...) {
   # save the call
@@ -48,7 +48,7 @@ estimate_effect <- function(causalWeights,
   cw <- causalWeights
   
   # make sure logicals are logical
-  augmented.model <- isTRUE(augmented.model)
+  augmented.model <- isTRUE(augment.estimate)
   normalize.weights <- isTRUE(normalize.weights)
   estimate.separately <- isTRUE(estimate.separately)
   
@@ -77,6 +77,7 @@ estimate_effect <- function(causalWeights,
 #' causalEffect class
 #'
 #' @slot estimate The estimated treatment effect.
+#' @slot estimand The estimand of interest
 #' @slot weights The weights as an object of class [causalWeights][causalOT::causalWeights-class]
 #' @slot augmentedData The data as a `data.frame` with variables `weights`, `y_obs`, `y_0`, `y_1`, `y_hat_0`, `y_hat_1`, `x`, and `z`. See details for more info.
 #' @slot fit The fitted model if present. See details.
@@ -101,6 +102,7 @@ estimate_effect <- function(causalWeights,
 #'
 #' @export
 setClass("causalEffect", slots = c(estimate = "numeric", 
+                                   estimand = "character",
                                    weights = "causalWeights",
                                    augmentedData = "data.frame",
                                    fit = "list",
@@ -112,11 +114,11 @@ setClass("causalEffect", slots = c(estimate = "numeric",
 #' @param data an object of class [dataHolder][causalOT::dataHolder-class]
 #' @param causalWeights  an object of class [causalWeights][causalOT::causalWeights-class]
 #' @param model.outputs Outputs of the [estimate_model()][causalOT::estimate_model] function
-#' @param augmented.estimate Is the estimate to be the augmented (doubly robust) estimator? TRUE/FALSE
+#' @param augment.estimate Is the estimate to be the augmented (doubly robust) estimator? TRUE/FALSE
 #' @param call the call used to calculate the treatment effects
 #'
 #' @return  an object of class [causalEffect][causalOT::causalEffect-class]
-causalEffect <- function(data, causalWeights, model.outputs, augmented.estimate, call) {
+causalEffect <- function(data, causalWeights, model.outputs, augment.estimate, call) {
   
   # get outcome and data length (terms from dataHolder)
   n        <- get_n(data)
@@ -148,7 +150,7 @@ causalEffect <- function(data, causalWeights, model.outputs, augmented.estimate,
               )
     
     # adjust outcome with the observed outcome
-    if (augmented.estimate) {
+    if (augment.estimate) {
       tau <- tau + sum(w1 * ( y_1_obs - y_hat_1[z==1]) ) - 
                    sum(w0 * ( y_0_obs - y_hat_0[z==0]) )
     }
@@ -173,9 +175,10 @@ causalEffect <- function(data, causalWeights, model.outputs, augmented.estimate,
   # create causalEffect object
   res <- new("causalEffect",
       estimate = tau,
+      estimand = estimand,
       weights = causalWeights,
       augmentedData = data.frame(
-        weights = renormalize(w),
+        weights = w,
         y_obs = data@y,
         y_0 = y_0,
         y_1 = y_1,
@@ -227,8 +230,8 @@ estimate_model <- function(data, causalWeights, model.function,
     fit   <- list(control = fit_0, treated = fit_1, overall_sample = NULL)
     
     # save predicted mean outcomes
-    y_hat_0 <- predict(object = fit_0, newdata = data.frame(x))
-    y_hat_1 <- predict(object = fit_1, newdata = data.frame(x))
+    y_hat_0 <- predict(object = fit_0, newdata = data.frame(x), ...)
+    y_hat_1 <- predict(object = fit_1, newdata = data.frame(x), ...)
     
   } else { #fit model jointly on all the data
     
@@ -254,9 +257,9 @@ estimate_model <- function(data, causalWeights, model.function,
     
     # get predicted mean outcomes
     y_hat_0 <- predict(object = fit_overall, data.frame(x, z = 0L, y = y),
-                       source.sample = z)
+                       source.sample = z, ...)
     y_hat_1 <- predict(object = fit_overall, data.frame(x, z = 1L, y = y),
-                       source.sample = z)
+                       source.sample = z, ...)
     
   }
   # save outputs
@@ -268,19 +271,14 @@ estimate_model <- function(data, causalWeights, model.function,
   return(output)
 }
 
-
-#' Confidence Intervals for Causal Effects
+#' Extract treatment effect estimate
 #'
 #' @param object An object of class [causalEffect][causalOT::causalEffect-class]
-#' @param parm Unused. Included to match forms of other `confint` functions
-#' @param level Confidence level. Should be between 0 and 1. Default is 0.95.
-#' @param ... Currently unused.
+#' @param ... Not used
 #'
-#' @return A list with slots "CI" giving the confidence bounds and "SD" giving estimates of the standard
-#' error of the causal effects.
-#' 
-#' @method confint causalEffect
+#' @return A number corresponding to the estimated treatment effect
 #' @export
+#' @method coef causalEffect
 #'
 #' @examples
 #' # set-up data
@@ -290,44 +288,173 @@ estimate_model <- function(data, causalWeights, model.function,
 #' 
 #' # calculate quantities
 #' weight <- calc_weight(data, method = "Logistic")
-#' tx_eff <- estimate_effect(data = data, weights = weight)
+#' tx_eff <- estimate_effect(causalWeights = weight)
 #' 
-#' # get asymptotic C.I.
-#' confint(tx_eff, model = "lm",
-#'     formula = list(treated = "y ~ .", control = "y ~ ."))
-confint.causalEffect <- function(object, parm, level = 0.95, 
-                                 ...) {
- 
-  if (object$options$split.model == FALSE && 
-      !is.null(object$outcome.model.fit) && 
-      "vcov" %in% attributes(methods(class = class(object$fit))  )$info$generic) {
-    if(!is.null(object$outcome.model.fit$weights) && any(object$outcome.model.fit$weights == 0)) {
-      SDS <- sqrt(diag(sandwich::vcovBS(object$outcome.model.fit,...)))
-      SD <- SDS["z"]
-    } else {
-      vcov_mat <- tryCatch(sandwich::vcovCL(object$outcome.model.fit,...),
-                           error = sandwich::vcovBS(object$outcome.model.fit,...),
-                           warning = sandwich::vcovBS(object$outcome.model.fit,...))
-      SDS <- sqrt(diag(vcov_mat))
-      SD <- SDS["z"]
-    }
-    
-    
-    # get levels
-    quant.lower <- (1 - level) * 0.5
-    quant.upper <- 1 - quant.lower
-    CI <- c(qnorm(c(quant.lower, quant.upper),
-                  mean = object$estimate, sd = SD))
-    
-    return(list(CI = CI,
-                SD = SD
-    ))
+#' all.equal(coef(tx_eff), c(estimate = tx_eff@estimate))
+coef.causalEffect <- function(object, ...) {
+  ret <- object@estimate
+  names(ret) <- "estimate"
+  return(ret)
+}
+
+#' Get the variance of a causalEffect
+#'
+#' @param object An object of class [causalEffect][causalOT::causalEffect-class]
+#' @param ... Passed on to the sandwich estimator if there is a model fit that supports one
+#'
+#' @return The variance of the treatment effect as a matrix
+#' @export
+#' 
+#' @method vcov causalEffect
+#'
+#' @examples
+#' # set-up data
+#' set.seed(1234)
+#' data <- Hainmueller$new()
+#' data$gen_data()
+#' 
+#' # calculate quantities
+#' weight <- calc_weight(data, method = "Logistic")
+#' tx_eff <- estimate_effect(causalWeights = weight)
+#' 
+#' vcov(tx_eff)
+vcov.causalEffect <- function(object, ...) {
+  
+  run.sandwich <- sandwich_avail_check(object)
+  
+  VAR <- if(run.sandwich) {
+    sandwich_vars(object, ...)
   } else {
-    return(ci_semiparm_eff(object, parm, level, ...))
+    semiparm_eff_var(object, ...)
   }
+  
+  VAR <- as.matrix(VAR)
+  rownames(VAR) <- colnames(VAR) <- "estimate"
+  
+  return(VAR)
+}
+
+semiparm_eff_var <- function(object, ...) {
+  
+  # calculates variance of estimating y(z)
+  semipar_var <- function(y, z, yhat, w, denom) {
+    # estimate of expected y(z)
+    e_y   <- sum(w * y * z - yhat * (w * z - 1))/denom
+    
+    # centered data
+    resid <- w * y * z - e_y - yhat * (w * z - 1)
+    
+    # weighted variance
+    return( sum( resid^2)/(denom - 1) )
+  }
+  
+  semipar_var_ATT_ATC <- function(y, z, yhat_0, y_hat_1, w, tau, denom, estimand) {
+    delta       <- w * (y_hat_1 - y_hat_0)
+    
+    delta_model <- switch(estimand,
+                          "ATT" = delta[z == 1],
+                          "ATC" = delta[z == 0])
+    
+    
+    # weights targeted to ATC or ATT
+    resid       <-   w * (y - y_hat_1) *      z  - # treated mean estimate
+                     w * (y - y_hat_0) * (1 - z) + # control mean estimate
+                     delta_model - # predictions from model
+                     tau # estimate of ATT or ATC
+    
+    # variance
+    return( sum( resid^2 ) / (denom - 1) )
+    
+  }
+  
+  # ATE specific variance calculation
+  semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, w_init, tau, denom) {
+    resid <- w * z * (y - yhat_1) - # treated model residual
+             w * (1 - z) * (y - yhat_0) + # control model residual
+             (yhat_1 - yhat_0) - # model prediction for all data
+             tau # estimate of treatment effect
+    
+    # weighted variance
+    return( sum( w_init * resid^2 )/(denom - 1)  )
+  }
+  
+  # pull out relevant terms from augmentedData
+  data    <- object@augmentedData
+  z       <- data$z
+  w       <- data$weights
+  y       <- data$y_obs
+  y_hat_0 <- data$y_hat_0
+  y_hat_1 <- data$y_hat_1
+  n       <- length(y)
+  n1      <- sum(z)
+  n0      <- n - n1
+  
+  # treatment effect
+  tau  <- object@estimate #estimated treatment effect
+  
+  # get causalWeights object
+  cw   <- object@weights
+  
+  # adjust predicted outcomes if not using a model
+  if (all(is.na(y_hat_0))) y_hat_0 <- rep(0.0, n)
+  if (all(is.na(y_hat_1))) y_hat_1 <- rep(0.0, n)
+  
+  # get proper denominator
+  estimand <- object@estimand
+  
+  denom <- switch(estimand,
+                  "ATE" = n,
+                  "ATT" = n1,
+                  "ATC" = n0)
+  
+  # rescale weight vectors to frequency weights
+  w_init <- cw@data@weights
+  w      <- w * denom
+  w_init <- w_init * denom
+  
+  # get sample variance estimates
+  if (estimand == "ATE" ) {
+    VAR_sample    <- semipar_var_ate(y, z = z, yhat_1 = y_hat_1,
+                              yhat_0 = y_hat_0, w = w, 
+                              w_init = w_init,
+                              tau = tau,
+                              denom = denom)
+  } else {
+    
+    # total var assuming no correlation between obs
+    VAR_sample <- semipar_var_ATT_ATC(y, z = z, yhat_1 = y_hat_1,
+                                      yhat_0 = y_hat_0, w = w, 
+                                      tau = tau,
+                                      denom = denom,
+                                      estimand = estimand)
+  }
+  
+  # variance of mean estimate
+  VAR <- VAR_sample/denom
+  
+  return(VAR)
   
 }
 
+sandwich_avail_check <- function(object) {
+  fit <- object@fit$overall_sample
+  return(!is.null(fit) && "vcov" %in% attributes(methods(class = class(fit))  )$info$generic)
+}
+
+sandwich_vars <- function(object, parm, level, ...) {
+  fit <- object@fit$overall_sample
+  vcov_mat <- if(any(fit$weights == 0)) {
+    sandwich::vcovBS(fit,...)
+  } else {
+    tryCatch(sandwich::vcovCL(fit,...),
+             error = sandwich::vcovBS(fit,...),
+             warning = sandwich::vcovBS(fit,...))
+    
+    
+  }
+  VARS <- diag(vcov_mat)
+  return( VARS["z"] )
+}
 
 
 ci_semiparm_eff <- function(object, parm, level, ...) {
@@ -507,477 +634,4 @@ ci_semiparm_eff <- function(object, parm, level, ...) {
   
 }
 
-ci_jack_ce <- function(object, parm, level, ...) {
-  est_jk <- function(i, dat, weight, n0, n1, dr) {
-    idx_i <- 1:n0
-    idx_j <- 1:n1
-    if (i <= n0) {
-      idx_i <- idx_i[-i]
-    } else if (i > n0) {
-      idx_j <- idx_j[-(i - n0)]
-    }
-    
-    dat.new <- dat[-i,,drop = FALSE]
-    
-    weight.new <- weight
-    estimand <- weight.new$estimand
-    method <- weight.new$method
-    
-    if (method %in% ot.methods()) {
-      if (estimand != "ATE") {
-        weight.new$gamma <- matrix(renormalize(weight.new$gamma[idx_i, idx_j]),
-                                   length(idx_i), length(idx_j))
-        weight.new$w0 <- rowSums(weight.new$gamma)
-        weight.new$w1 <- colSums(weight.new$gamma)
-      } else {
-        weight.new$gamma <- list(matrix(renormalize(weight.new$gamma[[1]][idx_i, -i]),
-                                        length(idx_i), nrow(dat.new)),
-                                 matrix(renormalize(weight.new$gamma[[2]][idx_j, -i]),
-                                        length(idx_j), nrow(dat.new)))
-        weight.new$w0 <- rowSums(weight.new$gamma[[1]])
-        weight.new$w1 <- rowSums(weight.new$gamma[[2]])
-      }
-    } else {
-      weight.new$w0 <- renormalize(weight.new$w0[idx_i])
-      weight.new$w1 <- renormalize(weight.new$w1[idx_j])
-    }
-    
-    
-    return(estimate_effect(data = dat.new, weights = weight.new,
-                           estimand = weight.new$estimand, doubly.robust = dr,
-                           outcome = 1, treatment.indicator = 2,
-                           matched = FALSE,
-                           balance.covariates = 3:ncol(dat.new))$estimate)
-  }
-  
-  data <- object$data
-  z    <- data[,data$options$treatment.indicator]
-  x    <- data[,data$options$balance.covariates, drop = FALSE]
-  y    <- data[,data$options$outcome]
-  x0 <- x[z == 0, ]
-  x1 <- x[z == 1, ]
-  
-  y0 <- y[z == 0]
-  y1 <- y[z == 1]
-  n0 <- nrow(x0)
-  n1 <- nrow(x1)
-  n <- n0 + n1
-  x  <- rbind(x0, x1)
-  
-  
-  dat <- data.frame(y = c(y0,y1), z = c(rep(0, n0), rep(1,n1)), x)
-  
-  tau <- object$estimate
-  
-  weight <- object$weights
-  
-  dr <- object$options$doubly.robust
-  
-  jk.estimates <- vapply(1:nrow(dat), FUN = est_jk, FUN.VALUE = 1, dat = dat,
-                         n0 = n0, n1 = n1,
-                         weight = weight, dr = dr)
-  var.jk <- (n - 1) / n * sum( (jk.estimates - tau)^2)
-  
-  upr <- tau + qnorm( 1 - (1 - level)/2) * sqrt(var.jk)
-  lwr <- tau + qnorm((1 - level)/2)      * sqrt(var.jk)
-  
-  out <- list(CI = c(lwr, upr),
-              SD =  sqrt(var.jk),
-              jk = jk.estimates,
-              tau = tau)
-  
-  return(out)
-}
-
-ci_boot_ce <- function(object, parm = NULL, level, n.boot = 1000, 
-                       boot.method = NULL,
-                       verbose = FALSE, ...) {
-  
-  boot.fun <- function(idx, object,  n0, n1, ...) {
-    weight <- object$weights
-    balance.covariates <- attributes(object$data)$balance.covariates
-    outcome <- attributes(object$data)$outcome
-    treatment.indicator <- attributes(object$data)$treatment.indicator
-    # wt.args <- c(list(data = object$data, constraint = weight$args$constraint,
-    #                   estimand = object$estimand, method = weight$method,
-    #                   transport.matrix = !is.null(weight$gamma),
-    #                   grid.search = isTRUE(weight$args$grid.search), 
-    #                   formula = weight$args$formula,
-    #                   balance.covariates = balance.covariates,
-    #                   treatment.indicator = treatment.indicator), 
-    #              weight$args,
-    #              ...)
-    # 
-    # wt.args <- wt.args[!duplicated(names(wt.args))]
-    # wtargn <- names(wt.args)
-    # wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-    # 
-    # weight <- eval(wf.call, envir = wt.args) 
-    weight.boot <- ci_idx_to_wt(idx = idx,
-                                estimand = object$estimand, 
-                                method = weight$method, 
-                                weight = weight, 
-                                object = object,
-                                balance.covariates = balance.covariates, 
-                                treatment.indicator = treatment.indicator,
-                                outcome = outcome,
-                                n0 = n0, n1 = n1, ...)
-    if (all(is.na(weight.boot$w0)) || all(is.na(weight.boot$w1))) {
-      return(NULL)
-    }
-    # est.args <- c(list(data = data, formula = object$formula,
-    #                    weights = weight,
-    #                    model = object$model,
-    #                    hajek = object$options$hajek,
-    #                    doubly.robust = object$options$doubly.robust,
-    #                    matched = object$options$matched,
-    #                    estimand = object$estimand,
-    #                    split.model = object$split.model,
-    #                    balance.covariates = balance.covariates,
-    #                    treatment.indicator = treatment.indicator,
-    #                    outcome = outcome),
-    #               object$options$addl.args,
-    #               ...)
-    # 
-    # est.args <- est.args[!duplicated(names(est.args))]
-    # estargn <- names(est.args)
-    # estf.call <- as.call(c(list(as.name("estimate_effect")), estargn))
-    # 
-    # est <- eval(estf.call, envir = est.args)$estimate
-    est  <- ci_idx_to_est(idx = idx, 
-                          object = object,
-                          weight = weight.boot,
-                          balance.covariates = balance.covariates, 
-                          treatment.indicator = treatment.indicator,
-                          outcome = outcome,
-                          n0 = n0, n1 = n1,
-                          ...)
-    # est <- eval(ef$call, envir = ef$args)$estimate
-    # clear_subset(data)
-    return(est)
-  }
-  
-  if (is.null(boot.method)) {
-    boot.method <- switch(object$weights$method,
-                          "None" = "n-out-of-n",
-                          "SBW" = "n-out-of-n",
-                          "Logistic" = "n-out-of-n",
-                          "NNM" = "m-out-of-n",
-                          "Wasserstein" = "m-out-of-n",
-                          "Constrained Wasserstein" = "m-out-of-n",
-                          "m-out-of-n"
-    )
-  } else {
-    boot.method <- match.arg(boot.method, choices = c("m-out-of-n", "n-out-of-n"))
-  } 
-  
-  ns <- get_n(object$data, balance.covariates = object$options$balance.covariates,
-              treatment.indicator = object$options$treatment.indicator, ...)
-  # N  <- sum(ns)
-  
-  boot.idx <- cot_boot_samples(n.boot = n.boot,
-                               boot.method = boot.method,
-                               estimand = object$estimand,
-                               method = object$weights$method,
-                               matched = object$options$matched,
-                               n0 = ns[1],
-                               n1 = ns[2]
-  )
-  # replicate(n = n.boot, sample.int(N,N, replace = TRUE))
-  if (verbose) {
-    pbapply::pboptions(type = "timer", style = 3, char = "=")
-  } else {
-    pbapply::pboptions(type = "none")
-  }
-  # if (boot.method == "m-out-of-n") {
-  #   nSamp <- c(adjust_m_of_n_btstrp(ns[1]),
-  #              adjust_m_of_n_btstrp(ns[2]))
-  # } else {
-  #   nSamp <- ns
-  # }
-  boots <- unlist(pbapply::pbsapply(boot.idx, boot.fun, data = data, object = object, 
-                                    n0 = ns[1], n1 = ns[2],
-                                    ...))
-  pbapply::pboptions(type = "none")
-  
-  ci <- quantile(boots, probs = c((1 - level)/2, 1 - (1 - level)/2))
-  # names(ci) <- c("lower", "upper")
-  sd_boot <- sd(boots)
-  
-  output <- list(CI = ci, SD = sd_boot)
-  if (boot.method == "m-out-of-n") {
-    ci_raw <- ci
-    sd_raw <- sd_boot
-    
-    m <- sum(c(adjust_m_of_n_btstrp(ns[1]),
-               adjust_m_of_n_btstrp(ns[2])))
-    n <- sum(ns)
-    
-    theta_hat <- object$estimate
-    theta_hat_m <- mean(boots)
-    l <- ci[1]
-    u <- ci[2]
-    ci_names <- names(ci)
-    output$CI <- c(theta_hat + sqrt(m / n) * (l - theta_hat_m),
-                   theta_hat + sqrt(m / n) * (u - theta_hat_m))
-    names(output$CI) <- ci_names
-    output$SD <- sd_boot * sqrt(m / n)
-    output$unadjusted = list(CI = ci_raw,
-                             SD = sd_raw)
-  }
-  
-  return(output)
-  
-}
-
-adjust_m_of_n_btstrp <- function(n, scale = 0.75) {
-  return(ceiling(n * 0.75))
-}
-
-cot_boot_samples <- function(n.boot, boot.method, estimand, method, matched, n0, n1, ...) {
-  n <- n0 + n1
-  if (boot.method == "m-out-of-n") {
-    n0samp <- adjust_m_of_n_btstrp(n0)
-    n1samp <- adjust_m_of_n_btstrp(n1)
-    nsamp  <- n0samp + n1samp
-  } else {
-    n0samp <- n0
-    n1samp <- n1
-    nsamp  <- n
-  }
-  matched <- isTRUE(matched)
-  # boot.idx <- replicate(n = n.boot, sample.int(n,n,replace = TRUE),
-  #                       simplify = FALSE)
-  # return(boot.idx)
-  # if that doesn't work then: 
-  if (!matched && !(method %in% ot.methods() )) {
-    boot.idx <- replicate(n = n.boot, sample.int(n = n, size = nsamp,
-                                                 replace = TRUE),
-                          simplify = FALSE)
-  } else {
-    if (estimand == "ATE") {
-      boot.idx <- replicate(n = n.boot,
-                            list(control = c(sample.int(n0, 
-                                                        n0samp, replace = TRUE)),
-                                 treated = c(sample.int(n1, 
-                                                        n1samp, replace = TRUE)),
-                                 total   = sample.int(n, 
-                                                      nsamp, replace = TRUE)), 
-                            simplify = FALSE)
-    } else if (estimand == "ATT" | estimand == "ATC") {
-      boot.idx <- replicate(n = n.boot, 
-                            list(sample.int(n0,n0samp, replace = TRUE), 
-                                 sample.int(n1,n1samp, replace = TRUE))
-                            , simplify = FALSE)
-    }
-  }
-  
-  
-  return(boot.idx)
-}
-
-ci_idx_to_wt <- function(idx, estimand, method, weight, object,
-                         balance.covariates, treatment.indicator,
-                         outcome,
-                         n0, n1, ...) {
-  weight$args$grid.search <- FALSE
-  # wt.args <- c(list(data = object$data[idx,, drop = FALSE], 
-  #                   constraint = weight$args$constraint,
-  #                   estimand = object$estimand, method = weight$method,
-  #                   transport.matrix = !is.null(weight$gamma),
-  #                   grid.search = isTRUE(weight$args$grid.search), 
-  #                   formula = weight$args$formula,
-  #                   balance.covariates = balance.covariates,
-  #                   treatment.indicator = treatment.indicator), 
-  #              weight$args,
-  #              ...)
-  # wt.args <- wt.args[!duplicated(names(wt.args))]
-  # wtargn <- lapply(names(wt.args), as.name)
-  # names(wtargn) <- names(wt.args)
-  # wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-  # return(eval(wf.call, envir = wt.args))
-  #if this doesn't work, then try the following
-  if (object$options$matched == FALSE &&
-      (method == "SBW" | method == "Logistic" | method == "None") ) {
-    wt.args <- c(list(data = object$data[idx,, drop = FALSE], 
-                      constraint = weight$args$constraint,
-                      estimand = object$estimand, method = weight$method,
-                      transport.matrix = !is.null(weight$gamma),
-                      grid.search = isTRUE(weight$args$grid.search), 
-                      formula = weight$args$formula,
-                      outcome = outcome,
-                      balance.covariates = balance.covariates,
-                      treatment.indicator = treatment.indicator,
-                      ...), 
-                 weight$args
-    )
-    wt.args <- wt.args[!duplicated(names(wt.args))]
-    wt.args <- wt.args[!sapply(wt.args, is.null)]
-    wtargn <- lapply(names(wt.args), as.name)
-    names(wtargn) <- names(wt.args)
-    wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-    return( tryCatch(eval(wf.call, envir = wt.args),
-                     error = function(e) {
-                       warning(e$message)
-                       return(calc_weight_error())
-                     }) )
-    
-  } else {
-    if (estimand == "ATE") {
-      tab.0 <- tabulate(idx[[1]], n0)
-      tab.1 <- tabulate(idx[[2]], n1)
-      tab   <- tabulate(idx[[3]], n0 + n1)
-      # tab   <- tabulate(unlist(idx[1:2]), 
-      #                   n0 + n1)
-      z     <- object$data[, treatment.indicator]
-      dat.0 <-  rbind(object$data[z == 0, ],
-                      object$data)
-      dat.1 <-  rbind(object$data[z == 1, ],
-                      object$data)
-      dat.0[, treatment.indicator] <- c(rep(0, n0), 
-                                        rep(1, n1 + n0))
-      dat.1[, treatment.indicator] <- c(rep(0, n1), 
-                                        rep(1, n1 + n0))
-      
-      wt.args <- list(
-        c(list(data = dat.0, constraint = weight$args$constraint[[1]],
-               estimand = "ATT", method = weight$method,
-               transport.matrix = !is.null(weight$gamma),
-               grid.search = isTRUE(weight$args$grid.search), 
-               formula = weight$args$formula,
-               outcome = outcome,
-               balance.covariates = balance.covariates,
-               treatment.indicator = treatment.indicator,
-               sample_weight = renormalize(c(tab.0, tab)),
-               ...), 
-          weight$args),
-        c(list(data = dat.1, constraint = weight$args$constraint[[2]],
-               estimand = "ATT", method = weight$method,
-               transport.matrix = !is.null(weight$gamma),
-               grid.search = isTRUE(weight$args$grid.search), 
-               formula = weight$args$formula,
-               outcome = outcome,
-               balance.covariates = balance.covariates,
-               treatment.indicator = treatment.indicator, 
-               sample_weight = renormalize(c(tab.1, tab)),
-               ...),
-          weight$args)
-      )
-      wt.args <- list(wt.args[[1]][!duplicated(names(wt.args[[1]]))],
-                      wt.args[[2]][!duplicated(names(wt.args[[2]]))])
-      wtargn  <- lapply(names(wt.args[[1]]), as.name)
-      names(wtargn)  <- names(wt.args[[1]])
-      
-      wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-      wts <- tryCatch(eval(wf.call, envir = wt.args[[1]]),
-                      error = function(e) {
-                        warning(e$message)
-                        return(calc_weight_error()) }  )
-      wts_1 <- tryCatch(eval(wf.call, envir = wt.args[[2]]),
-                        error = function(e) {
-                          warning(e$message)
-                          return(calc_weight_error()) }  )
-      wts$w1 <- wts_1$w0
-      wts$gamma <- list(wts$gamma, wts_1$gamma)
-      wts$estimand <- "ATE"
-      return(wts)
-    } else {
-      tab.0 <- tabulate(idx[[1]], n0)
-      tab.1 <- tabulate(idx[[2]], n1)
-      sample.wt <- list(a = renormalize(tab.0),
-                        b = renormalize(tab.1))
-      
-      # dat <- object$data[idx,]
-      # dat[,treatment.indicator] <- c(rep(0, n0), rep(1,n1))
-      wt.args <- c(list(data = object$data, constraint = weight$args$constraint,
-                        estimand = object$estimand, method = weight$method,
-                        transport.matrix = !is.null(weight$gamma),
-                        grid.search = isTRUE(weight$args$grid.search), 
-                        formula = weight$args$formula,
-                        outcome = outcome,
-                        balance.covariates = balance.covariates,
-                        treatment.indicator = treatment.indicator, 
-                        sample_weight = sample.wt,
-                        ...),
-                   weight$args)
-    }
-    wt.args <- wt.args[!duplicated(names(wt.args))]
-    wt.args <- wt.args[!sapply(wt.args, is.null)]
-    wtargn <- lapply(names(wt.args), as.name)
-    names(wtargn) <- names(wt.args)
-    wf.call <- as.call(c(list(as.name("calc_weight")), wtargn))
-    return(tryCatch(eval(wf.call, envir = wt.args),
-                    error = function(e) {
-                      warning(e$message)
-                      return(calc_weight_error())
-                    })
-    )
-  }
-  
-}
-
-ci_idx_to_est <- function(idx, 
-                          object,
-                          weight, 
-                          balance.covariates,
-                          treatment.indicator,
-                          outcome,
-                          n0, n1, ...) {
-  # if (!(weight$method %in% c("SBW", "Logistic")) & object$estimand == "ATE") {
-  #   idx <- c(idx[[1]], idx[[2]])
-  # }
-  # dat <- object$data[idx,, drop = FALSE]
-  environment(object$formula) <- environment()
-  
-  if (!object$options$matched && (weight$method == "SBW" | weight$method == "Logistic" | weight$method == "None") ){
-    sample.wt <- rep(1 / (n0 + n1), n0 + n1)
-    
-    est.args <- c(list(data = object$data[idx,], 
-                       formula = object$formula,
-                       weights = weight,
-                       model = object$model,
-                       hajek = object$options$hajek,
-                       doubly.robust = object$options$doubly.robust,
-                       matched = object$options$matched,
-                       estimand = object$estimand,
-                       split.model = object$options$split.model,
-                       sample_weight = sample.wt,
-                       balance.covariates = balance.covariates,
-                       treatment.indicator = treatment.indicator,
-                       outcome = outcome,
-                       ...),
-                  object$options$addl.args)
-  } else {
-    sample.wt <- list(
-      a = renormalize(tabulate(idx[[1]], n0)),
-      b = renormalize(tabulate(idx[[2]], n1))
-    )
-    
-    est.args <- c(list(data = object$data, 
-                       formula = object$formula,
-                       weights = weight,
-                       model = object$model,
-                       hajek = object$options$hajek,
-                       doubly.robust = object$options$doubly.robust,
-                       matched = object$options$matched,
-                       estimand = object$estimand,
-                       split.model = object$options$split.model,
-                       sample_weight = sample.wt,
-                       balance.covariates = balance.covariates,
-                       treatment.indicator = treatment.indicator,
-                       outcome = outcome,
-                       ...),
-                  object$options$addl.args)
-    
-  }
-  
-  est.args <- est.args[!duplicated(names(est.args))]
-  estargn <- lapply(names(est.args), as.name)
-  names(estargn) <- names(est.args)
-  estf.call <- as.call(c(list(as.name("estimate_effect")), estargn))
-  
-  return(eval(estf.call, envir = est.args)$estimate)
-}
-
-setMethod("confint", c(object = "causalEffect"), confint.causalEffect)
 
