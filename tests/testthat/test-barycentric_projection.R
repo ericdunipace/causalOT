@@ -193,7 +193,7 @@ testthat::test_that("barycentric_projection works, p = 3", {
   
   # check fit works if provide  weights as a vector
   w <- c(weights@w0, weights@w1)[order(order(data$get_z()))]
-  fit2 <- testthat::expect_warning(causalOT:::barycentric_projection(y ~ ., data = df, weight = w, p = power))
+  fit2 <- testthat::expect_silent(causalOT:::barycentric_projection(y ~ ., data = df, weight = w, p = power))
   fit3 <- fit
   fit3$data@weights <- w
   testthat::expect_equal(fit3, fit2)
@@ -204,9 +204,9 @@ testthat::test_that("barycentric_projection works, p = 3", {
   testthat::expect_equal(preds, preds2) # make sure S3 registered
   
   rkeops::compile4float64()
-  mess <- testthat::capture_output(fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online"))
+  mess <- testthat::capture_output((fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online")))
   testthat::expect_error(causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = as.numeric(power), cost.online = "online"))
-  mess <- testthat::capture_output(predo <- predict(fito))
+  mess <- testthat::capture_output(testthat::expect_warning(predo <- predict(fito)))
   testthat::expect_equal(preds, predo)
   
   # compare to manual est
@@ -268,12 +268,12 @@ testthat::test_that("barycentric_projection works, p = 3", {
   
   # for new 
   df.new <- data.frame(y = data$get_y(), z = data$get_z(), data$get_x())
-  preds2 <- causalOT:::predict.bp(fit, newdata=df.new, source.sample = data$get_z())
+  testthat::expect_warning(preds2 <- causalOT:::predict.bp(fit, newdata=df.new, source.sample = data$get_z()))
   testthat::expect_equal(preds, preds2)
   
   data$gen_data()
   df.new <- data.frame(y = data$get_y(), z = data$get_z(), data$get_x())
-  testthat::expect_silent(preds3 <- causalOT:::predict.bp(fit, newdata=df.new, source.sample = data$get_z()))
+  testthat::expect_warning(preds3 <- causalOT:::predict.bp(fit, newdata=df.new, source.sample = data$get_z()))
   
   fit_debias <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, debias = TRUE)
   predict_debias <- predict(fit_debias)

@@ -250,7 +250,7 @@ testthat::test_that("estimate effect works lm, ATT", {
   
   # augmented, separate
   ee2 <- estimate_effect(weights, model.function = lm,
-                         augment.model = TRUE)
+                         augment.estimate = TRUE)
   
   x  <- weights@data@x
   z  <- weights@data@z
@@ -281,7 +281,7 @@ testthat::test_that("estimate effect works lm, ATT", {
   testthat::expect_equal(ee2@estimate,
                          estimate_effect(weights, 
                                          model.function = lm, 
-                                         augment.model = TRUE,
+                                         augment.estimate = TRUE,
                                          estimate.separately = TRUE)@estimate)
   
   # non-augmented, joint
@@ -320,7 +320,7 @@ testthat::test_that("estimate effect works lm, ATT", {
   # augmented, separate
   ee2 <- estimate_effect(weights, model.function = lm,
                          estimate.separately = FALSE,
-                         augment.model = TRUE)
+                         augment.estimate = TRUE)
   
   x  <- weights@data@x
   z  <- weights@data@z
@@ -412,7 +412,7 @@ testthat::test_that("estimate effect works lm, ATC", {
   
   # augmented, separate
   ee2 <- estimate_effect(weights, model.function = lm,
-                         augment.model = TRUE)
+                         augment.estimate = TRUE)
   
   x  <- weights@data@x
   z  <- weights@data@z
@@ -439,7 +439,7 @@ testthat::test_that("estimate effect works lm, ATC", {
   testthat::expect_equal(ee2@estimate,
                          estimate_effect(weights, 
                                          model.function = lm, 
-                                         augment.model = TRUE,
+                                         augment.estimate = TRUE,
                                          estimate.separately = TRUE)@estimate)
   
   # non-augmented, joint
@@ -473,7 +473,7 @@ testthat::test_that("estimate effect works lm, ATC", {
   # augmented, separate
   ee2 <- estimate_effect(weights, model.function = lm,
                          estimate.separately = FALSE,
-                         augment.model = TRUE)
+                         augment.estimate = TRUE)
   
   x  <- weights@data@x
   z  <- weights@data@z
@@ -563,7 +563,7 @@ testthat::test_that("estimate effect works lm, ATE", {
   
   # augmented, separate
   ee2 <- estimate_effect(weights, model.function = lm,
-                         augment.model = TRUE)
+                         augment.estimate = TRUE)
   
   x  <- weights@data@x
   z  <- weights@data@z
@@ -596,7 +596,7 @@ testthat::test_that("estimate effect works lm, ATE", {
   testthat::expect_equal(ee2@estimate,
                          estimate_effect(weights, 
                                          model.function = lm, 
-                                         augment.model = TRUE,
+                                         augment.estimate = TRUE,
                                          estimate.separately = TRUE)@estimate)
   
   # non-augmented, joint
@@ -630,7 +630,7 @@ testthat::test_that("estimate effect works lm, ATE", {
   # augmented, separate
   ee2 <- estimate_effect(weights, model.function = lm,
                          estimate.separately = FALSE,
-                         augment.model = TRUE)
+                         augment.estimate = TRUE)
   
   x  <- weights@data@x
   z  <- weights@data@z

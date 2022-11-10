@@ -494,7 +494,7 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
   m         <- match(poss_args, 
                      names(opt_args), 
                      0L)
-  if(opt_args$line_search_fn != "strong_wolfe") warning("line_search_fn = 'strong_wolfe' recommended for the torch LBFGS optimizer. You can pass the `line_search_fn` arg as an additional argument to this function.")
+  if(is.null(opt_args$line_search_fn) || opt_args$line_search_fn != "strong_wolfe") warning("line_search_fn = 'strong_wolfe' recommended for the torch LBFGS optimizer. You can pass the `line_search_fn` arg as an additional argument to this function.")
   opt       <- do.call(what = opt_cons, 
                       opt_args[m])
   

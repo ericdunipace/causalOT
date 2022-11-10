@@ -60,8 +60,10 @@ estimate_effect <- function(causalWeights,
   
   # use an outcome model and get relevant quantities
   if (!missing(model.function) && !is.null(model.function)) {
-    model.outputs <- estimate_model(data, cw, model.function,
-                                    estimate.separately, ...)
+    model.outputs <- estimate_model(data = data, causalWeights = cw, 
+                                    model.function = model.function,
+                                    separate.estimation = estimate.separately,
+                                    ...)
     
   } else {
     model.outputs <- NULL
@@ -219,6 +221,7 @@ estimate_model <- function(data, causalWeights, model.function,
     environment(oform) <- list2env(list(w0=causalWeights@w0,
                                         w1=causalWeights@w1), 
                                    parent=environment(oform))
+    
     fit_0 <- mod(formula = oform, 
                  data = data.frame(x_0, y = y_0_obs), 
                  weights = w0, ...)

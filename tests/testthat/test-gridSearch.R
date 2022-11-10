@@ -133,7 +133,7 @@ testthat::test_that("gridSearch COT", {
   cw <- causalOT:::cot_solve(gs)
   testthat::expect_true(inherits(cw, "causalWeights"))
   
-  mess <- testthat::capture_output(testthat::expect_warninggs <- causalOT:::gridSearch(data = data,
+  mess <- testthat::capture_output(testthat::expect_warning(gs <- causalOT:::gridSearch(data = data,
                                                                estimand = "ATC",
                                                                method = method,
                                                                options = options)))
