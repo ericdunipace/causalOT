@@ -193,14 +193,15 @@ testthat::test_that("barycentric_projection works, p = 3", {
   
   # check fit works if provide  weights as a vector
   w <- c(weights@w0, weights@w1)[order(order(data$get_z()))]
-  fit2 <- causalOT:::barycentric_projection(y ~ ., data = df, weight = w, p = power)
+  fit2 <- testthat::expect_warning(causalOT:::barycentric_projection(y ~ ., data = df, weight = w, p = power))
   fit3 <- fit
   fit3$data@weights <- w
   testthat::expect_equal(fit3, fit2)
   
   # for same data
-  preds <- causalOT:::predict.bp(fit)
-  testthat::expect_equal(preds, predict(fit)) # make sure S3 registered
+  testthat::expect_warning(preds <- causalOT:::predict.bp(fit))
+  testthat::expect_warning(preds2 <- predict(fit))
+  testthat::expect_equal(preds, preds2) # make sure S3 registered
   
   rkeops::compile4float64()
   mess <- testthat::capture_output(fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online"))

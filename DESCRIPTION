@@ -28,7 +28,6 @@ Imports:
     osqp,
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
-    RSpectra,
     sandwich,
     torch
 LinkingTo: 

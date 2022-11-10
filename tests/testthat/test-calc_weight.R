@@ -68,19 +68,19 @@ testthat::test_that("calc_weight works", {
   
   testthat::skip_on_cran()
   
-  mess <- testthat::capture_output(weights <- calc_weight(x = data,
+  mess <- testthat::capture_output(testthat::expect_warning(weights <- calc_weight(x = data,
                               estimand = estimate,
                               method = "EnergyBW",
-                              options =list(niter = 2L)))
+                              options =list(niter = 2L))))
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "EnergyBW")
   testthat::expect_s4_class(weights, "causalWeights")
   
   
-  mess <- testthat::capture_output(weights <- calc_weight(x = data,
+  mess <- testthat::capture_output(testthat::expect_warning(weights <- calc_weight(x = data,
                               estimand = estimate,
                               method = "COT",
-                              options =list(lambda = 100, niter = 2L)))
+                              options =list(lambda = 100, niter = 2L))))
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "COT")
   testthat::expect_s4_class(weights, "causalWeights")

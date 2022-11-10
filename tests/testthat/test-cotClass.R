@@ -12,7 +12,7 @@ testthat::test_that("COT objects form", {
   delta <- 0.5
   
   #cot defaults
-  testthat::expect_silent(causalOT:::COT$new(source = x, target = y))
+  testthat::expect_warning(causalOT:::COT$new(source = x, target = y))
   
   #L2 setup
   testthat::expect_output(cot <- causalOT:::COT$new(source = x, target = y,
@@ -41,15 +41,15 @@ testthat::test_that("COT objects form", {
                                                            debias = TRUE))))
   
   # entropy debias
-  testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
+  testthat::expect_warning(cot <- causalOT:::COT$new(source = x, target = y,
                                             options = list(penalty = "entropy",
                                                            debias = TRUE)))
-  testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
+  testthat::expect_warning(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(penalty = "entropy",
                                                                    debias = TRUE,
                                                                    balance.formula = "~X1 + X2")))
   testthat::expect_true(inherits(cot$bf, "balanceFunction"))
-  testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
+  testthat::expect_warning(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(penalty = "entropy",
                                                                    lambda = Inf,
                                                                    debias = TRUE)))
@@ -280,7 +280,7 @@ testthat::test_that("ent debiased works, online", {
                                      niter = 1L,
                                      torch.optimizer = torch::optim_lbfgs))))
   
-  testthat::expect_silent(cot2 <- causalOT:::COT$new(source = x, target = y,
+  testthat::expect_warning(cot2 <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(penalty = "entropy",
                                                                    debias = TRUE,
                                                                    niter = 1L,

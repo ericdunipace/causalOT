@@ -120,10 +120,10 @@ testthat::test_that("cotProblem COT", {
                  debias = TRUE,
                  torch.optimizer = torch::optim_lbfgs)
   
-  testthat::expect_silent(gs <- causalOT:::cotProblem(data = data,
+  testthat::expect_silent(testthat::expect_warning(gs <- causalOT:::cotProblem(data = data,
                                                       estimand = "ATT",
                                                       method = method,
-                                                      options = options))
+                                                      options = options)))
   
   testthat::expect_true(inherits(gs, "gridSearch"))
   testthat::expect_true(inherits(gs@solver, "COT"))
