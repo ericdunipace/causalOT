@@ -5,6 +5,10 @@ bootStrap_ <- function(w_list, nboot, object) {
     .Call(`_causalOT_bootStrap_`, w_list, nboot, object)
 }
 
+sbw_oop_bs_ <- function(w_list, nboot, source, target, a) {
+    .Call(`_causalOT_sbw_oop_bs_`, w_list, nboot, source, target, a)
+}
+
 cost_calculation_ <- function(A_, B_, p) {
     .Call(`_causalOT_cost_calculation_`, A_, B_, p)
 }

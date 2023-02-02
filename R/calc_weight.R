@@ -147,10 +147,18 @@ function(object) {
   return(cw)
 }
 )
-
+#TODO: self object solver object@solver$solve(), like COT
 setOldClass("gridSearch")
 setMethod("cot_solve", signature(object = "gridSearch"),
           function(object) {
+            # browser()
+            if (inherits(object@solver, "COT") ) {
+              object@solver$solve()
+              res <- object@solver$grid_search()
+              cw <- causalWeights(object, res$weight, res$penalty)
+              
+              return(cw)
+            }
             
             # set up terms for the loop
             n_penalty <- length(object@penalty_list)

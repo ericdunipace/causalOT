@@ -7,18 +7,20 @@
 cotOptions(
   lambda = NULL,
   delta = NULL,
-  penalty.function = "entropy",
+  opt.direction = c("dual", "primal"),
   debias = TRUE,
   p = 2,
-  cost = NULL,
+  cost.function = NULL,
   cost.online = "auto",
+  diameter = NULL,
   balance.formula = NULL,
+  quick.balance.function = TRUE,
   grid.length = 7L,
-  torch.optimizer = torch::optim_lbfgs,
-  torch.scheduler = torch::lr_reduce_on_plateau,
-  niter = 1000,
+  torch.optimizer = torch::optim_rmsprop,
+  torch.scheduler = torch::lr_multiplicative,
+  niter = 2000,
   nboot = 100L,
-  tol = 1e-07,
+  tol = 1e-05,
   ...
 )
 }
@@ -27,48 +29,55 @@ cotOptions(
 
 \item{delta}{The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.}
 
-\item{penalty.function}{The penalty to use for the optimal transport distances. Should be one of "entropy" or "L2".}
+\item{opt.direction}{Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.}
 
-\item{debias}{Should debiased optimal transport be used? TRUE or FALSE. Only available for \code{penalty.function}="entropy".}
+\item{debias}{Should debiased optimal transport be used? TRUE or FALSE.}
 
 \item{p}{The power of the cost function to use for the cost.}
 
-\item{cost}{A function to calculate the pairwise costs. Should take arguments \code{x1}, \code{x2}, and \code{p}. Default is NULL.}
+\item{cost.function}{A function to calculate the pairwise costs. Should take arguments \code{x1}, \code{x2}, and \code{p}. Default is NULL.}
 
 \item{cost.online}{Should an online cost algorithm be used? One of "auto", "online", or "tensorized". "tensorized" is the offline option.}
+
+\item{diameter}{The diameter of the covariate space, if known. Default is NULL.}
 
 \item{balance.formula}{Formula for the balancing functions.}
 
 \item{grid.length}{The number of penalty parameters to explore in a grid search if none are provided in arguments \code{lambda} or \code{delta}.}
 
-\item{torch.optimizer}{The torch optimizer to use for methods using debiased entropy penalized optimal transport.}
+\item{torch.optimizer}{The torch optimizer to use for methods using debiased entropy penalized optimal transport. If \code{debiased} is FALSE or \code{opt.direction} is "primal", will default to \code{\link[torch:optim_lbfgs]{torch::optim_lbfgs()}}. Otherwise \code{\link[torch:optim_rmsprop]{torch::optim_rmsprop()}} is used.}
 
-\item{torch.scheduler}{The scheduler for the optimizer}
+\item{torch.scheduler}{The scheduler for the optimizer. Defaults to \code{\link[torch:lr_multiplicative]{torch::lr_multiplicative()}}.}
 
 \item{niter}{The number of iterations to run the solver}
 
-\item{nboot}{The number of iterations for the bootstrap to select final penalty parameters.}
+\item{nboot}{The number of iterations for the bootstrap to select the final penalty parameters.}
 
 \item{tol}{The tolerance for convergence}
 
 \item{...}{Arguments passed to the solvers. See details}
+
+\item{quick.balance.selection}{TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE.}
 }
 \value{
 A list of class \code{cotOptions} with the following slots
 \itemize{
 \item \code{lambda}The penalty parameter for the optimal transport distance
 \item \code{delta}The constraint for the balancing functions
-\item \code{penalty.function}The penalty function to use
+\item \code{opt.direction} Whether to solve the primal or dual optimization problems
 \item \code{debias}TRUE or FALSE if debiased optimal transport distances are used
-\item \code{balance.formula}
+\item \code{balance.formula} The formula giving how to generate the balancing functions.
+\itme \code{quick.balance.selection} TRUE or FALSE whether quick balance functions will be run.
 \item \code{grid.length} The number of parameters to check in a grid search of best parameters
 \item \code{p} The power of the cost function
 \item \code{cost.online} Whether online costs are used
-\item \code{cost} The user supplied cost function if supplied.
+\item \code{cost.function} The user supplied cost function if supplied.
+\item \code{diameter} The diameter of the covariate space.
 \item \code{torch.optimizer} The \code{torch} optimizer used for Sinkhorn Divergences
 \item \code{torch.scheduler} The scheduler for the \code{torch} optimizer
 \item \code{solver.options} The arguments to be passeed to the \code{torch.optimizer}
 \item \code{scheduler.options} The arguments to be passeed to the \code{torch.scheduler}
+\item \code{osqp.options} Arguments passed to the \code{osqp} function if quick balance functions are used.
 \item \code{niter} The number of iterations to run the solver
 \item \code{nboot} The number of bootstrap samples
 \item \code{tol} The tolerance for convergence.

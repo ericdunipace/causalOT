@@ -51,12 +51,12 @@ This creates an object of class `causalEffect` which can be fed into the native 
 ```r
 ci_tau <- confint(object = tau_hat, level = 0.95)
 ```
-or into `vcov` to calculate the variance of your estimate using the semiparametrically efficient variance formulae:
+or into `vcov` to calculate the variance of your estimate using the semiparametrically efficient variance formula:
 
 ```r
 var_tau <- vcov(object = tau_hat)
 ```
-This then gives the following treatement effect estimate, variance, and C.I.
+This then gives the following treatment effect estimate, variance, and C.I.
 
 ```r
 print(tau_hat@estimate)
@@ -176,17 +176,18 @@ tau_hat_bp <- estimate_effect(causalWeights = weights,
                            cost.online = "tensorized",
                            diameter = NULL,
                            niter = 1000L,
-                           tol = 1e-7
+                           tol = 1e-7,
+                           line_search_fn = "strong_wolfe"
                            )
-#> Error in if (opt_args$line_search_fn != "strong_wolfe") warning("line_search_fn = 'strong_wolfe' recommended for the torch LBFGS optimizer. You can pass the `line_search_fn` arg as an additional argument to this function."): argument is of length zero
 print(tau_hat_bp@estimate)
-#> Error in print(tau_hat_bp@estimate): object 'tau_hat_bp' not found
+#> [1] -0.0003117836
 ```
 This method currently doesn't have a variance estimator accounting for the weight uncertainty but we can use the asymptotic variance estimator of Hahn (1998):
 
 ```r
 vcov(tau_hat_bp)
-#> Error in vcov(tau_hat_bp): object 'tau_hat_bp' not found
+#>             estimate
+#> estimate 0.007548076
 vcov(tau_hat_wols)
 #>            estimate
 #> estimate 0.01194476
@@ -405,6 +406,6 @@ df2dataHolder(treatment.formula = "z ~ x",
 #>   ..@ n1     : int 265
 #>   ..@ weights: num [1:512] 0.00195 0.00195 0.00195 0.00195 0.00195 ...
 ```
-This can be passed to the `calc_weight` function directly to the argument `x`.
+This can be passed to the `calc_weight` function directly in the argument `x`.
 
 

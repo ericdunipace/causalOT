@@ -305,9 +305,13 @@ costTensor <- R6::R6Class("costTensor",
              } else {
                stop("cost function not found. please report this bug")
              }
-             self$data =  torch::torch_tensor(
-               self$fun(x, y, p),
+             self$data =  self$fun(x, y, p)
+             
+             if(!inherits(self$data, "torch_tensor")) {
+               self$data <-torch::torch_tensor(
+                 self$data,
                dtype = torch::torch_double())$contiguous()
+             }
            }
          ),
          active = list(
@@ -385,4 +389,28 @@ setMethod("to_device", signature(cost = "costOnline", device = "ANY"),
                               y = cost$data$y$to(device = device))
             return(cost)
           }
+)
+
+setGeneric("update_cost", function(cost, x, y) standardGeneric("update_cost"))
+
+setMethod("update_cost", signature(cost = "costOnline", x = "ANY", y = "ANY"),
+function(cost, x, y) {
+  n <- nrow(cost$data$x)
+  m <- nrow(cost$data$y)
+  stopifnot("data for cost rows has different number of rows" = (n == nrow(x)))
+  stopifnot("data for cost columns has different number of rows" = (m == nrow(y)))
+  stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+  cost$data <- list(x = x, y = y)
+}          
+)
+
+setMethod("update_cost", signature(cost = "costTensor", x = "ANY", y = "ANY"),
+function(cost, x, y) {
+  nm <- dim(cost$data)
+  
+  stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
+  stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
+  stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+  cost$data <- cost$fun(x,y,cost$p)
+}          
 )

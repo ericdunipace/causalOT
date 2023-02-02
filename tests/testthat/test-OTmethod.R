@@ -11,12 +11,12 @@ testthat::test_that("OT object forms tensor", {
   b <- rep(1/m, m)
   
   # giving masses
-  testthat::expect_silent(ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  testthat::expect_silent(ot1 <- causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
   cost = NULL, p = 2, debias = TRUE, tensorized = "auto",
   diameter=NULL))
   
   # no masses
-  testthat::expect_silent(ot2 <- OT$new(x = x, y = y, penalty = penalty, 
+  testthat::expect_silent(ot2 <- causalOT:::OT$new(x = x, y = y, penalty = penalty, 
                                        cost = NULL, p = 2, debias = TRUE, tensorized = "auto",
                                        diameter=NULL))
   
@@ -69,7 +69,7 @@ testthat::test_that("sinkhorn_loop runs, tensor", {
   niter <- 1000
   tol <- 1e-10
   
-  ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                 cost = NULL, p = 2, debias = FALSE, tensorized = "auto",
                 diameter=NULL)
   
@@ -104,12 +104,12 @@ testthat::test_that("sinkhorn_loop runs, online", {
   tol <- 1e-8
   
   # giving masses
-  ot <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                                          cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                                          diameter=NULL)
   output <- ot$.__enclos_env__$private$sinkhorn_loop(niter, tol)
   
-  ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                 cost = NULL, p = 2, debias = FALSE, tensorized = "auto",
                 diameter=NULL)
   
@@ -139,7 +139,7 @@ testthat::test_that("sinkhorn_self runs, tensor", {
   niter <- 1000
   tol <- 1e-10
   
-  ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                 cost = NULL, p = 2, debias = TRUE, tensorized = "auto",
                 diameter=NULL)
   
@@ -173,13 +173,13 @@ testthat::test_that("sinkhorn_self runs, online", {
   tol <- 1e-8
   
   # giving masses
-  ot <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                diameter=NULL)
   output_x <-  ot$.__enclos_env__$private$sinkhorn_self_loop("x", niter, tol)
   output_y <-  ot$.__enclos_env__$private$sinkhorn_self_loop("y", niter, tol)
   
-  ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                 cost = NULL, p = 2, debias = TRUE, tensorized = "auto",
                 diameter=NULL)
   
@@ -210,7 +210,7 @@ testthat::test_that("sinkhorn_cot runs, tensor", {
   niter <- 1000
   tol <- 1e-10
   
-  ot <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                 cost = NULL, p = 2, debias = FALSE, tensorized = "auto",
                 diameter=NULL)
   
@@ -224,7 +224,7 @@ testthat::test_that("sinkhorn_cot runs, tensor", {
   testthat::expect_true(all(output$f_xx==0))
   testthat::expect_true(all(as.logical(output$g_yy==0)))
   
-  ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                     cost = NULL, p = 2, debias = TRUE, tensorized = "auto",
                     diameter=NULL)
   
@@ -254,7 +254,7 @@ testthat::test_that("sinkhorn_cot runs, online", {
   niter <- 1000
   tol <- 1e-10
   
-  ot <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                cost = NULL, p = 2, debias = FALSE, tensorized = "online",
                diameter=NULL)
   
@@ -267,7 +267,7 @@ testthat::test_that("sinkhorn_cot runs, online", {
   testthat::expect_true(all(as.logical(output$f_xx==0)))
   testthat::expect_true(all(as.logical(output$g_yy==0)))
   
-  ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                 cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                 diameter=NULL)
   
@@ -298,7 +298,7 @@ testthat::test_that("sinkhorn_dist runs, tensor", {
                 cost = NULL, p = 2, debias = FALSE, tensorized = "auto",
                 diameter=NULL)
   
-  testthat::expect_error( sinkhorn_dist(ot1))
+  testthat::expect_error( causalOT:::sinkhorn_dist(ot1))
   ot1$sinkhorn_opt(niter, tol)
   loss <- causalOT:::sinkhorn_dist(ot1)
   output <- ot1$potentials
@@ -337,18 +337,18 @@ testthat::test_that("sinkhorn_dist runs, online", {
   tol <- 1e-8
   
   # giving masses
-  ot <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                diameter=NULL)
   output <- ot$sinkhorn_opt(niter, tol)$potentials
-  loss <- sinkhorn_dist(ot)
+  loss <- causalOT:::sinkhorn_dist(ot)
   
-  ot1 <- OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+  ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                 cost = NULL, p = 2, debias = TRUE, tensorized = "auto",
                 diameter=NULL)
   
   output1 <- ot1$sinkhorn_opt(niter, tol)$potentials
-  loss1 <- sinkhorn_dist(ot1)
+  loss1 <- causalOT:::sinkhorn_dist(ot1)
   
   testthat::expect_equal(loss$item(), loss1$item(), tolerance = 1e-4)
   testthat::expect_equal(sum(output$f_xy * a )$item(),

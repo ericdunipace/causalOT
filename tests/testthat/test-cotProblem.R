@@ -108,7 +108,6 @@ testthat::test_that("cotProblem EBW", {
   testthat::expect_equal(gs@method, method)
 })
 
-
 testthat::test_that("cotProblem COT", {
   set.seed(12312)
   hain <- causalOT:::Hainmueller$new(n=64)
@@ -131,7 +130,6 @@ testthat::test_that("cotProblem COT", {
   testthat::expect_equal(gs@method, method)
 })
 
-
 testthat::test_that("cotProblem NNM", {
   set.seed(12312)
   hain <- causalOT:::Hainmueller$new(n=64)
@@ -143,7 +141,7 @@ testthat::test_that("cotProblem NNM", {
                  debias = TRUE,
                  torch.optimizer = torch::optim_lbfgs)
   
-  testthat::expect_silent(gs <- causalOT:::cotProblem(data = data,
+  testthat::expect_warning(gs <- causalOT:::cotProblem(data = data,
                                                       estimand = "ATT",
                                                       method = method,
                                                       options = options))

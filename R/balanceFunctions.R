@@ -46,7 +46,7 @@ balanceFunction <- R6::R6Class("balanceFunction",
                              scale = FALSE)
       self$k <- ncol(self$A)
       
-      if (missing(delta) || is.null(delta) || is.na(delta)) {
+      if ( missing(delta) || is.null(delta) || all( is.na(delta) ) ) {
         self$delta <- max(abs(matrixStats:::colWeightedMeans(self$A, self$a)))
       } else {
         self$delta <- as.numeric(delta)
@@ -71,8 +71,8 @@ balanceFunction$set("public", "evalBoot",
 balanceFunction$set("public", "gridInit", 
         function(grid, length) {
           
-          if (missing(grid) || is.na(grid) || is.null(grid)) {
-            if(missing(length) || is.na(length) || is.null(length)) {
+          if (missing(grid) || is.null(grid) || all(is.na(grid)) ) {
+            if(missing(length) || is.null(length) || all(is.na(length)) ) {
               stop("One of grid.length or delta values must be provided in options")
             }
             max_delta <- max(abs(matrixStats::colWeightedMeans(self$A,self$a)))
@@ -137,8 +137,8 @@ SBW <- R6::R6Class("SBW",
       }
       A_delta <- Matrix::Matrix(data = t(self$A), 
                                          sparse = TRUE)
-      l_delta <- rep(-self$delta, nrow(A_delta))
-      u_delta <- rep(self$delta, nrow(A_delta))
+      l_delta <- rep(-self$delta[1], nrow(A_delta))
+      u_delta <- rep(self$delta[1], nrow(A_delta))
       
       # set final params
       P <- Matrix::sparseMatrix(i = 1:n, j = 1:n, x = 1)
@@ -150,9 +150,9 @@ SBW <- R6::R6Class("SBW",
       A <- rbind(A_bounds, A_sum_const, A_delta)
       private$solver <- osqp::osqp(P = P, q = q, A = A, l = l, u = u,
                            pars = options$solver.options)
-      self$delta <- delta
+      self$delta <- delta[1]
       self$solve <- function(penalty, w = NULL) {
-        if (penalty <= 0) stop("Penalty must be greater than or equal to 0")
+        if (penalty < 0) stop("Penalty must be greater than or equal to 0")
         
         self$delta <- as.numeric(penalty)
         # if (is.null(w) || (is.list(w) && length(w) == 0)) {
@@ -202,6 +202,7 @@ sbwOptions <- function(
                    delta = NULL,
                    grid.length = 20L,
                    nboot = 1000L,
+                   # verbose = FALSE,
                    ...) {
   if(inherits(options, "sbwOptions")) return(options)
   output <- list()
@@ -345,3 +346,114 @@ entBWOptions <- function(
   class(output) <- "entBWOptions"
   return(output)
 }
+
+
+# for use inside of OTProblem classes internally
+SBW_4_oop <- R6::R6Class("SBW",
+ public = list(
+   source = "torch_tensor",
+   target = "torch_tensor",
+   target_vector = "vector",
+   target_scale = "torch_tensor",
+   source_scale = "torch_tensor",
+   n = "integer",
+   d = "integer",
+   delta_idx = "numeric",
+   solve = function(penalty) {
+     if (penalty < 0) stop("Penalty must be greater than or equal to 0")
+     
+     model <- private$solver
+     
+     if (!missing(penalty) && !is.null(penalty)) {
+       l <- model$GetData(element = "l")
+       u <- model$GetData(element = "u")
+       u[self$delta_idx] <- penalty + self$target_vector
+       l[self$delta_idx] <- -penalty + self$target_vector
+       model$Update(l = l, u = u)
+     }
+     
+     res <- model$Solve()
+     
+     if (res$info$status_val == -3 || res$info$status_val == -4) {
+       return(NULL) 
+     } else {
+       return(res$x)
+     }
+     
+   },
+   initialize = function(source, target, prob.measure = TRUE,
+                         osqp_opts) {
+     
+     if (!inherits(source, "torch_tensor")) {
+       source <- torch::torch_tensor(as.matrix(source),
+                                     dtype = torch::torch_double())
+     }
+     
+     if (!inherits(target, "torch_tensor")) {
+       target <- torch::torch_tensor(matrix(target, nrow = 1),
+                                     dtype = torch::torch_double())
+     }
+     
+     stopifnot("source and target must have same number of columns" = ncol(source) == ncol(target))
+     
+     self$source <- source$detach()
+     self$target <- target$detach()
+     
+     self$source_scale  <- self$source/self$source$std(1)
+     self$target_scale  <- self$target/self$source$std(1)
+     self$target_vector <- as.numeric(self$target_scale)
+     
+     self$d <- ncol(self$source)
+     self$n <- nrow(self$source)
+     
+     # quadratic
+     P <- Matrix::Diagonal(self$n, 1)
+     
+     # set linear constraints
+     l_bounds <- rep(0,   self$n)
+     u_bounds <- rep(Inf, self$n)
+     A_bounds <- Matrix::Diagonal(self$n, 1)
+     
+     if (prob.measure) { # right now always sum to 1
+       l_sum_const <- u_sum_const <- 1
+       A_sum_const <- Matrix::sparseMatrix(i = rep(1,self$n),
+                                           j = 1:self$n,
+                                           x = 1)
+     } else {
+       l_sum_const <- u_sum_const <- A_sum_const <-NULL
+     }
+     A_delta <- Matrix::Matrix(data = t(as.matrix(self$source_scale)), 
+                               sparse = TRUE)
+     
+     l_delta <- self$target_vector
+     u_delta <- self$target_vector
+     
+     # set final params
+     q <- rep(0, self$n)
+     l <- c(l_bounds, l_sum_const, l_delta)
+     u <- c(u_bounds, u_sum_const, u_delta)
+     
+     self$delta_idx <- (length(c(l_bounds, l_sum_const))+1):length(l)
+     A <- rbind(A_bounds, A_sum_const, A_delta)
+     private$solver <- osqp::osqp(P = P, q = q, A = A, l = l, u = u,
+                                  pars = osqp_opts)
+     
+   }
+ ),
+ private = list(
+   solver = "function"
+ )
+)
+
+SBW_4_oop$set("public", "evalBoot",
+                    function(a) {
+                      
+                      # get weighted means for each group    
+                      # mean_s <- c(matrixStats::colWeightedMeans(self$source_scale, a))
+                      mean_s <- self$source_scale$transpose(1,2)$matmul(a)
+                      mean_t <- self$target_scale
+                      
+                      # average absolute differences
+                      return(as.numeric(mean(abs(mean_s - mean_t))))
+                    }
+)

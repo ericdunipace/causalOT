@@ -18,7 +18,7 @@ OT <- R6::R6Class("OT",
     tensorized = "logical",
     initialize = function(x, y, a = NULL, b = NULL, penalty, 
                           cost_function = NULL, p = 2, debias = TRUE, tensorized = "auto",
-                          diameter=NULL) {
+                          diameter=NULL, device = NULL) {
       # browser()
       if(missing(penalty) || is.null(penalty) || is.na(penalty) || penalty < 0) {
         stop("Must specify a penalty > 0!")
@@ -26,46 +26,57 @@ OT <- R6::R6Class("OT",
         penalty <- as.double(penalty)
       }
       
-      
       # check if should run online version in keops
       tensorized <- private$is_tensorized(tensorized, x, y)
       
       # should setup debiased potentials
       debias <- isTRUE(debias)
       
-      use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
-      if (use_cuda) {
-        self$device <-  torch::torch_device("cuda")
-        if (!tensorized) {
-          rkeops::compile4float64()
-          rkeops::compile4gpu()
-          rkeops::use_gpu()
-        }
-      } else {
-        self$device <-  torch::torch_device("cpu")
-        if (!tensorized) {
-          rkeops::compile4float64()
-          rkeops::use_cpu()
-        }
-      }
-      
       # setup data
-      x <- torch::torch_tensor(x, dtype = torch::torch_double())$contiguous()
-      y <- torch::torch_tensor(y, dtype = torch::torch_double())$contiguous()
+      if( ! inherits(x, "torch_tensor")) {
+        x <- torch::torch_tensor(x, dtype = torch::torch_double())$contiguous()
+      }
+      if( ! inherits(y, "torch_tensor")) {
+        y <- torch::torch_tensor(y, dtype = torch::torch_double())$contiguous()
+      }
       d <- ncol(x)
       
-      a <- private$check_weights(a, x, self$device)
-      b <- private$check_weights(b, y, self$device)
-      a_log <- log_weights(a)$contiguous()$to(device = self$device)
-      b_log <- log_weights(b)$contiguous()$to(device = self$device)
+      # device
+      if(is.null(device) || !torch::is_torch_device(device)) {
+        use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+        if (use_cuda) {
+          self$device <-  torch::torch_device("cuda")
+          if (!tensorized) {
+            rkeops::compile4float64()
+            rkeops::compile4gpu()
+            rkeops::use_gpu()
+          }
+        } else {
+          self$device <-  torch::torch_device("cpu")
+          if (!tensorized) {
+            rkeops::compile4float64()
+            rkeops::use_cpu()
+          }
+        }
+      } else {
+        self$device <- device
+      }
       
-      C_xy <- cost(x, y, p = p, tensorized = tensorized, cost_function = cost_function)
-      C_yx <- cost(y, x, p = p, tensorized = tensorized, cost_function = cost_function)
+      
+      # setup masses
+      a <- check_weights(a, x, self$device)
+      b <- check_weights(b, y, self$device)
+      a_log <- log_weights(a$detach())$contiguous()$to(device = self$device)
+      b_log <- log_weights(b$detach())$contiguous()$to(device = self$device)
+      
+      # setup costs
+      C_xy <- cost(x, y$detach(), p = p, tensorized = tensorized, cost_function = cost_function)
+      C_yx <- cost(y, x$detach(), p = p, tensorized = tensorized, cost_function = cost_function)
       C_xy$to_device <- self$device
       C_yx$to_device <- self$device
       if(debias) {
-        C_xx <- cost(x, x, p = p, tensorized = tensorized, cost_function = cost_function)
-        C_yy <- cost(y, y, p = p, tensorized = tensorized, cost_function = cost_function)
+        C_xx <- cost(x, x$detach(), p = p, tensorized = tensorized, cost_function = cost_function)
+        C_yy <- cost(y, y$detach(), p = p, tensorized = tensorized, cost_function = cost_function)
         C_xx$to_device <- self$device
         C_yy$to_device <- self$device
       } else {
@@ -191,7 +202,7 @@ OT <- R6::R6Class("OT",
         private$a_ <- torch::torch_tensor(value, dtype = torch::torch_double(), device = self$device)
       }
       
-      private$a_log <- log_weights(private$a_)$to(device = self$device)
+      private$a_log <- log_weights(private$a_$detach())$to(device = self$device)
     },
     b = function(value) {
       if(missing(value)) return(private$b_)
@@ -203,7 +214,7 @@ OT <- R6::R6Class("OT",
       } else {
         private$b_ <- torch::torch_tensor(value, dtype = torch::torch_double())
       }
-      private$b_log <- log_weights(private$b_)
+      private$b_log <- log_weights(private$b_$detach())
     }
   ),
   private = list(
@@ -213,12 +224,6 @@ OT <- R6::R6Class("OT",
     b_log = "torch_tensor",
     pot = "list",
     # softmin_jit = "script_function",
-    check_weights = function(a, x, device) {
-      if(missing(a) || is.null(a) || all(is.na(a))) {
-        a <- rep(1.0/nrow(x), nrow(x))
-      }
-      return(torch::torch_tensor(a, dtype = x$dtype, device = device)$contiguous())
-    },
     is_tensorized = function(tensorized, x, y) {
       # browser()
       if(tensorized == "auto") {
@@ -261,7 +266,9 @@ setMethod("log_weights", signature(a = "torch_tensor"),
 function(a) {
   min_val <- as.double(-1e5)
   a_log <- torch::torch_log(a)
+  torch::autograd_set_grad_mode(enabled = FALSE)
   a_log[a_log < min_val] <- min_val
+  torch::autograd_set_grad_mode(enabled = TRUE)
   return(a_log)
 }
 ) 
@@ -386,13 +393,13 @@ function(which.margin = "x", niter, tol) {
   if(which.margin == "x") {
     f_xx = private$pot$f_xx
     C_xx = self$C_xx
-    a = private$a_
-    a_log = private$a_log
+    a = private$a_$detach()
+    a_log = private$a_log$detach()
   } else if (which.margin == "y") {
     f_xx = private$pot$g_yy
     C_xx = self$C_yy
-    a = private$b_
-    a_log = private$b_log
+    a = private$b_$detach()
+    a_log = private$b_log$detach()
   } else {
     stop("Wrong margin given. Must be one of x or y")
   }
@@ -415,7 +422,7 @@ function(which.margin = "x", niter, tol) {
     }
   } 
   
-  loss <- loss_1 <- loss_2 <- 2 * sum(f_xx * a)
+  loss <- loss_1 <- loss_2 <- a$dot(f_xx) * 2.0
   # f_01 <- f_02 <- f_xx
   # f_1 <- f_2 <- f_xx
   
@@ -434,7 +441,7 @@ function(which.margin = "x", niter, tol) {
       # f_2 = ft_2
     }
     # loss = sum((f_1 + f_2) * a)
-    loss = a$dot(f_xx) * 2
+    loss = a$dot(f_xx) * 2.0
     if ((i %% print_period) == 0) {
       if (converged(loss$item(), loss_1$item(), tol)) break
       if (converged(loss$item(), loss_2$item(), tol)) break
@@ -459,10 +466,10 @@ function(niter, tol) {
   eps      <- torch::torch_tensor(self$penalty, dtype = torch::torch_double())
   diameter <- torch::torch_tensor(self$diameter, dtype = torch::torch_double())
   softmin  <- self$softmin
-  a        <- private$a_
-  b        <- private$b_
-  a_log    <- private$a_log
-  b_log    <- private$b_log
+  a        <- private$a_$detach()
+  b        <- private$b_$detach()
+  a_log    <- private$a_log$detach()
+  b_log    <- private$b_log$detach()
   C_xy     <- self$C_xy
   C_yx     <- self$C_yx
   n        <- self$n
@@ -473,8 +480,15 @@ function(niter, tol) {
   print_period <- 10L
   
   eps_log_switch = diameter$item()/round(log(.Machine$double.xmax))
+  missing_pot <- is.null(f_xy) || is.null(g_yx)
+  nan_f <- nan_g <- FALSE
+  if(!missing_pot) {
+    nan_f <- any(as.logical(f_xy$isnan()))
+    nan_g <- any(as.logical(g_yx$isnan()))
+  }
+  
   torch::with_no_grad({
-  if (is.null(f_xy) || is.null(g_yx)) {
+  if (missing_pot || nan_f || nan_g) {
     if (as.logical(eps > diameter)) {
       f_xy <- softmin(eps, 
                       C_xy, 
@@ -494,9 +508,13 @@ function(niter, tol) {
                       torch::torch_zeros_like(a_log, dtype = torch::torch_double()), 
                       a_log)
     }
+  } else {
+    f_xy <- f_xy$detach()
+    g_yx <- g_yx$detach()
   }
   
-  loss <- loss_0 <- sum(f_xy * a) + sum(g_yx * b)
+  loss <- loss_0 <- a$dot(f_xy) + b$dot(g_yx)
+  norm <- NULL
   
   for (i in 1:niter) {
     eps_cur = epsilon_select(diameter, eps, niter, i)
@@ -512,7 +530,10 @@ function(niter, tol) {
       f_xy = softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
     }
     
-    loss = sum(f_xy * a) + sum(g_yx * b)
+    # norm <- b$dot(g_yx)
+    # g_yx <- g_yx - norm
+    # f_xy <- f_xy + norm
+    loss = a$dot(f_xy) + b$dot(g_yx)
     # cat(paste0(loss$item(),", "))
     if ((i %% print_period) == 0) {
       if (converged(loss$item(), loss_0$item(), tol)) break
@@ -521,10 +542,14 @@ function(niter, tol) {
     loss_0 = loss
     
   }
+  
+  gt <- g_yx$detach()$clone()
+  ft <- f_xy$detach()$clone()
   })
   # torch::autograd_set_grad_mode(enabled = TRUE)
-  return(list(f_xy = softmin(eps, C_xy, g_yx, b_log), 
-              g_yx = softmin(eps, C_yx, f_xy, a_log)))
+  
+  return(list(f_xy = softmin(eps, C_xy, gt, b_log), 
+              g_yx = softmin(eps, C_yx, ft, a_log)))
 })
 
 OT$set("public", 
@@ -596,9 +621,17 @@ sinkhorn_dist <- function(OT) {
   if(is.null(pot) || length(pot) == 0) {
     stop("Must run sinkhorn optimization first")
   }
-  loss <- sum(pot$f_xy * a) + sum(pot$g_yx * b)
+  loss <- a$dot(pot$f_xy) + b$dot(pot$g_yx)
+  
+  # if(loss < 0) {
+  #   raw_pi <- ot$primal()
+  #   if(self$C_xy)
+  #   loss <- sum(round_pi(raw_pi$xy, rep(1,self$n), rep(1,self$m)) *
+  #     a$view(c(self$n,1)) * b$view(c(1,self$m)) * selfC_xy$data)
+  # }
+  
   if (OT$debias) {
-    loss <- loss - sum(pot$f_xx * a) - sum( pot$g_yy * b)
+    loss <- loss - a$dot(pot$f_xx) - b$dot(pot$g_yy)
   }
   return(loss)
 }
@@ -616,8 +649,11 @@ sinkhorn_loss <- function(OT) {
   if (OT$tensorized) {
     n <- nrow(C_xy)
     m <- ncol(C_xy)
+    a_log <- log_weights(OT$a)
+    b_log <- log_weights(OT$b)
     
-    K_xy <- (g_yx$view(c(1,m)) + f_xyx$view(c(n,1)) - C_xy$data)/eps
+    K_xy <- (g_yx$view(c(1,m)) + f_xyx$view(c(n,1)) - C_xy$data +
+               a_log$view(c(n,1)) + b_log$view(c(1,m)))/eps
     exponential_terms <-  -eps * K_xy$view(-1)$logsumexp(1)
     if (OT$debias) {
       C_yy <- OT$C_yy$data
@@ -626,12 +662,12 @@ sinkhorn_loss <- function(OT) {
       f_xx <- pot$f_xx
       g_yy <- pot$g_yy
       
-      K_xx <- (f_xx$view(c(1,n)) + f_xx - C_xx)/eps
-      K_yy <- (g_yy$view(c(1,m)) + g_yy - C_yy)/eps
+      K_xx <- (f_xx$view(c(1,n)) + f_xx - C_xx + a_log$view(c(n,1)) + a_log$view(c(1,n)))/eps
+      K_yy <- (g_yy$view(c(1,m)) + g_yy - C_yy + b_log$view(c(m,1)) + b_log$view(c(1,m)))/eps
       
       exponential_terms <- exponential_terms + 
-        0.5 * eps * (K_xx$view(-1)$logsumexp(1)) +
-        0.5 * eps * (K_yy$view(-1)$logsumexp(1))
+        0.5 * eps * K_xx$view(-1)$logsumexp(1) +
+        0.5 * eps * K_yy$view(-1)$logsumexp(1)
     }
   } else {
     x <- C_xy$data$x
@@ -662,8 +698,8 @@ sinkhorn_loss <- function(OT) {
                                1.0 / eps) )
       l_yy <- torch::torch_tensor(log(exp_sums_yy[,2]) + exp_sums_yy[,1])
       exponential_terms <- exponential_terms + 
-        0.5 * eps * (l_xx + a_log + f_xx/eps)$logsumexp(1)$exp() +
-        0.5 * eps * (l_yy + b_log + g_yy/eps)$logsumexp(1)$exp()
+        (l_xx + a_log + f_xx/eps)$logsumexp(1)$exp() * 0.5 * eps +
+        (l_yy + b_log + g_yy/eps)$logsumexp(1)$exp() * 0.5 * eps
     }
   }
   
@@ -679,9 +715,14 @@ energy_dist <- function(OT) {
   if (OT$tensorized) {
     a <- OT$a
     b <- OT$b
-    loss <- a$dot(OT$C_xy$data$matmul(b)) - 
-      0.5 * a$dot(OT$C_xx$data$matmul(a)) -
-      0.5 * b$dot(OT$C_yy$data$matmul(b))
+    loss_cross <- if (OT$C_yx$data$requires_grad) {
+      b$dot(OT$C_yx$data$matmul(a))
+    } else {
+      a$dot(OT$C_xy$data$matmul(b))
+    }
+    loss <- loss_cross - 
+      a$dot(OT$C_xx$data$matmul(a)) * 0.5 -
+      b$dot(OT$C_yy$data$matmul(b)) * 0.5
   } else {
     loss <- energy_dist_online(OT$C_xy$data$x,
                                OT$C_xy$data$y,
@@ -715,13 +756,139 @@ energy_dist_online <- torch::autograd_function(
         paste0("Y = Vj(",d,")"),
         "B = Vj(1)")
     )
-    cross_deriv <- sumred(list(x,y, b))
-    self_deriv <- sumred(list(x,x, a))
-    loss <- sum(a * cross_deriv) - 
-      0.5 * sum(a * self_deriv) -
-      0.5 * sum(b * sumred(list(y,y, b)))
+    a_cross_deriv <- sumred(list(x,y, b))
+    b_cross_deriv <- sumred(list(y,x, a))
+    a_self_deriv <- sumred(list(x,x, a))
+    b_self_deriv <- sumred(list(y,y, b))
+    loss <- sum(a * a_cross_deriv) - 
+      0.5 * sum(a * a_self_deriv) -
+      0.5 * sum(b * b_self_deriv)
     
-    ctx$save_for_backward(a_deriv = c(cross_deriv - self_deriv))
+    ctx$save_for_backward(a_deriv = c(a_cross_deriv - a_self_deriv),
+                          b_deriv = c(b_cross_deriv - b_self_deriv),
+                          a = a,
+                          x = x,
+                          b = b,
+                          y = y,
+                          forward_op = sumred)
+    return(loss)
+  },
+  backward = function(ctx, grad_output) {
+    grads <- list(x = NULL,
+                  y = NULL,
+                  a = NULL,
+                  b = NULL)
+    if (ctx$needs_input_grad$a) {
+      grads$a <- grad_output * ctx$saved_variables$a_deriv
+    }
+    
+    if (ctx$needs_input_grad$b) {
+      grads$b <- grad_output * ctx$saved_variables$b_deriv
+    }
+    
+    if (ctx$needs_input_grad$x) {
+      use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+      rkeops::compile4float64()
+      if (use_cuda) {
+        rkeops::compile4gpu()
+        rkeops::use_gpu()
+      }
+      
+      cost_grad_xy <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
+                                           var = "X")
+      grads$x <- grad_output * cost_grad_xy(list(X = ctx$saved_variables$x,
+                                              Y = ctx$saved_variables$y,
+                                              B = ctx$saved_variables$b,
+                                              eta = matrix(ctx$saved_variables$a)))
+      
+      cost_grad_xx <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
+                                         var = "X")
+      
+      grads$x <- c(grads$x - cost_grad_xx(list(X = ctx$saved_variables$x,
+                                             Y = ctx$saved_variables$x,
+                                             B = ctx$saved_variables$a,
+                                             eta = matrix(ctx$saved_variables$a))))
+    }
+    if (ctx$needs_input_grad$y) {
+      use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+      rkeops::compile4float64()
+      if (use_cuda) {
+        rkeops::compile4gpu()
+        rkeops::use_gpu()
+      }
+      cost_grad <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
+                                      var = "X")
+      grads$y <- grad_output * cost_grad(list(X = ctx$saved_variables$y,
+                                              Y = ctx$saved_variables$x,
+                                              B = ctx$saved_variables$a,
+                                              eta = matrix(ctx$saved_variables$b)))
+      cost_grad_yy <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
+                                      var = "X")
+      grads$y <- c(grads$y - cost_grad_yy(list(X = ctx$saved_variables$y,
+                                                   Y = ctx$saved_variables$y,
+                                                   B = ctx$saved_variables$b,
+                                                   eta = matrix(ctx$saved_variables$b))))
+    }
+    return(grads)
+  }
+)
+
+
+inf_sinkhorn_dist <- function(OT) {
+  if(!inherits(OT, "OT")) stop("Must be an OT object")
+  if(OT$debias) return(energy_dist(OT))
+  if (OT$tensorized) {
+    a <- OT$a
+    b <- OT$b
+    loss <- if (OT$C_yx$data$requires_grad) {
+      b$dot(OT$C_yx$data$matmul(a))
+    } else {
+      a$dot(OT$C_xy$data$matmul(b))
+    }
+  } else {
+    loss <- inf_sinkhorn_online(OT$C_xy$data$x,
+                               OT$C_xy$data$y,
+                               OT$a,
+                               OT$b,
+                               OT$C_xy$fun)
+    
+  }
+  
+  return(loss)
+}
+
+inf_sinkhorn_online <- torch::autograd_function(
+  forward = function(ctx, x, y, a, b, formula) {
+    x <- as.matrix(x)
+    y <- as.matrix(y)
+    d <- ncol(x)
+    a <- as.numeric(a)
+    b <- as.numeric(b)
+    
+    use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+    rkeops::compile4float64()
+    if (use_cuda) {
+      rkeops::compile4gpu()
+      rkeops::use_gpu()
+    }
+    sumred <- rkeops::keops_kernel(
+      formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
+      args = c(
+        paste0("X = Vi(",d,")"),
+        paste0("Y = Vj(",d,")"),
+        "B = Vj(1)")
+    )
+    a_deriv <- sumred(list(x,y, b))
+    b_deriv <- sumred(list(y,x, a))
+    loss <- sum(a * a_deriv)
+    
+    ctx$save_for_backward(a_deriv = c(a_deriv),
+                          b_deriv = c(b_deriv),
+                          a = a,
+                          b = b,
+                          x = x,
+                          y = y,
+                          forward_op = sumred)
     return(loss)
   },
   backward = function(ctx, grad_output) {
@@ -733,13 +900,27 @@ energy_dist_online <- torch::autograd_function(
       grads$a <- grad_output * ctx$saved_variables$a_deriv
     }
     if (ctx$needs_input_grad$b) {
-      stop("function energy_dist_online needs to implement gradient method for parameter b. Please report this bug")
+      grads$b <- grad_output * ctx$saved_variables$b_deriv
+    }
+    if (ctx$needs_input_grad$x) {
+      cost_grad <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
+                                      var = "X")
+      grads$x <- grad_output * cost_grad(list(X = ctx$saved_variables$x,
+                                              Y = ctx$saved_variables$y,
+                                              B = ctx$saved_variables$b,
+                                              eta = matrix(ctx$saved_variables$a)))
+    }
+    if (ctx$needs_input_grad$y) {
+      cost_grad <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
+                                      var = "X")
+      grads$x <- grad_output * cost_grad(list(X = ctx$saved_variables$y,
+                                              Y = ctx$saved_variables$x,
+                                              B = ctx$saved_variables$a,
+                                              eta = matrix(ctx$saved_variables$b)))
     }
     return(grads)
   }
 )
-  
-  
 
 semi_dual <- function(OT,pot,debias = FALSE) {
   
@@ -964,15 +1145,14 @@ transportationMatrix <- function(x = NULL, z = NULL, weights = NULL,
 }
 
 
-
 # function to handle special cases
 loss_select <- function(ot, niter, tol) {
   lambda <- ot$penalty
   if (is.finite(lambda)) {
     ot$sinkhorn_opt(niter, tol)
-    return(as.numeric(sinkhorn_dist(ot)))
+    return(sinkhorn_dist(ot))
   } else if ( is.infinite(lambda) ) {
-    return(as.numeric(energy_dist(ot)))
+    return(energy_dist(ot))
   }
 }
 
@@ -1073,10 +1253,10 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
                   tensorized = online.cost,
                   diameter = diameter)
     
-    return(list(pre = c(control = loss_select(ot0_init, niter, tol),
-                           treated = loss_select(ot1_init, niter, tol)),
-                post =  c(control = loss_select(ot0, niter, tol),
-                           treated = loss_select(ot1, niter, tol))
+    return(list(pre = c(control = as.numeric(loss_select(ot0_init, niter, tol)),
+                           treated = as.numeric(loss_select(ot1_init, niter, tol))),
+                post =  c(control = as.numeric(loss_select(ot0, niter, tol)),
+                           treated = as.numeric(loss_select(ot1, niter, tol)))
                 ))
     
    
@@ -1106,8 +1286,8 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
                diameter = diameter)
   
   
-  return(list(pre = loss_select(ot_init, niter, tol),
-              post = loss_select(ot_final, niter, tol)))
+  return(list(pre = as.numeric(loss_select(ot_init, niter, tol)),
+              post = as.numeric(loss_select(ot_final, niter, tol))))
   
 }
           
@@ -1126,7 +1306,7 @@ ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2,
                tensorized = online.cost,
                diameter = diameter)
   
-  return(loss_select(ot, niter, tol))
+  return(as.numeric(loss_select(ot, niter, tol)))
 }
 
 setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)

@@ -207,7 +207,7 @@ estimate_model <- function(data, causalWeights, model.function,
     mod <- model.function
   }
   
-  if ( isTRUE(all.equal(model.function, barycentric_projection)) ) {
+  if ( identical(model.function, barycentric_projection) ) {
     separate.estimation <- FALSE
   }
   
@@ -351,12 +351,12 @@ semiparm_eff_var <- function(object, ...) {
     return( sum( resid^2)/(denom - 1) )
   }
   
-  semipar_var_ATT_ATC <- function(y, z, yhat_0, y_hat_1, w, tau, denom, estimand) {
+  semipar_var_ATT_ATC <- function(y, z, yhat_0, yhat_1, w, tau, denom, estimand) {
     delta       <- w * (y_hat_1 - y_hat_0)
     
     delta_model <- switch(estimand,
-                          "ATT" = delta[z == 1],
-                          "ATC" = delta[z == 0])
+                          "ATT" = sum(delta[z == 1]),
+                          "ATC" = sum(delta[z == 0]))
     
     
     # weights targeted to ATC or ATT

@@ -101,6 +101,14 @@ setGeneric("get_y", function(object) standardGeneric("get_y"))
 setMethod("get_y", signature(object = "dataHolder"), function(object) {
   object@y
 })
+setGeneric("update_x", function(object, x) standardGeneric("update_x"))
+setMethod("update_x", signature(object = "dataHolder", x = "ANY"), function(object, x) {
+  x <- as.matrix(x)
+  n_new <- nrow(x)
+  if(object@n0+object@n1 != n_new) stop("new x doesn't have the same number of rows as the data")
+  object@x <- x
+  return(object)
+})
 setGeneric("update_y", function(object, y) standardGeneric("update_y"))
 setMethod("update_y", signature(object = "dataHolder", y = "ANY"), function(object, y) {
   y <- as.numeric(y)

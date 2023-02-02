@@ -25,6 +25,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sbw_oop_bs_
+Rcpp::NumericVector sbw_oop_bs_(Rcpp::List& w_list, int nboot, matrix& source, vector& target, Rcpp::NumericVector& a);
+RcppExport SEXP _causalOT_sbw_oop_bs_(SEXP w_listSEXP, SEXP nbootSEXP, SEXP sourceSEXP, SEXP targetSEXP, SEXP aSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type w_list(w_listSEXP);
+    Rcpp::traits::input_parameter< int >::type nboot(nbootSEXP);
+    Rcpp::traits::input_parameter< matrix& >::type source(sourceSEXP);
+    Rcpp::traits::input_parameter< vector& >::type target(targetSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type a(aSEXP);
+    rcpp_result_gen = Rcpp::wrap(sbw_oop_bs_(w_list, nboot, source, target, a));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cost_calculation_
 Rcpp::NumericMatrix cost_calculation_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p);
 RcppExport SEXP _causalOT_cost_calculation_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP) {
@@ -148,6 +163,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_bootStrap_", (DL_FUNC) &_causalOT_bootStrap_, 3},
+    {"_causalOT_sbw_oop_bs_", (DL_FUNC) &_causalOT_sbw_oop_bs_, 5},
     {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
     {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 4},
     {"_causalOT_cotEntropy_obj_", (DL_FUNC) &_causalOT_cotEntropy_obj_, 7},

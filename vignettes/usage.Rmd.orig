@@ -56,11 +56,11 @@ This creates an object of class `causalEffect` which can be fed into the native 
 ``` {r ci}
 ci_tau <- confint(object = tau_hat, level = 0.95)
 ```
-or into `vcov` to calculate the variance of your estimate using the semiparametrically efficient variance formulae:
+or into `vcov` to calculate the variance of your estimate using the semiparametrically efficient variance formula:
 ``` {r var}
 var_tau <- vcov(object = tau_hat)
 ```
-This then gives the following treatement effect estimate, variance, and C.I.
+This then gives the following treatment effect estimate, variance, and C.I.
 ``` {r print}
 print(tau_hat@estimate)
 print(var_tau)
@@ -152,7 +152,7 @@ The argument `source.sample` should be a vector that denotes the original treatm
 
 In the context of the estimate_effect function, we need to supply some extra arguments in `...`.
 
-``` {r bp_te}
+``` {r bp_te, cache = TRUE}
 tau_hat_bp <- estimate_effect(causalWeights = weights,
                            y = y,
                            model.function = barycentric_projection,
@@ -168,7 +168,8 @@ tau_hat_bp <- estimate_effect(causalWeights = weights,
                            cost.online = "tensorized",
                            diameter = NULL,
                            niter = 1000L,
-                           tol = 1e-7
+                           tol = 1e-7,
+                           line_search_fn = "strong_wolfe"
                            )
 print(tau_hat_bp@estimate)
 
@@ -318,6 +319,6 @@ df2dataHolder(treatment.formula = "z ~ x",
      data = df,
      weights = NA_real_)
 ```
-This can be passed to the `calc_weight` function directly to the argument `x`.
+This can be passed to the `calc_weight` function directly via the argument `x`.
 
 

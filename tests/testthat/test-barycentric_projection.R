@@ -1,6 +1,6 @@
 testthat::test_that("barycentric_projection works, p = 2 tensor", {
   causalOT:::torch_check()
-  
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^5
   pp <- 6
@@ -84,7 +84,7 @@ testthat::test_that("barycentric_projection works, p = 2 tensor", {
 
 testthat::test_that("barycentric_projection works, p = 1", {
   causalOT:::torch_check()
-  
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^5
   p <- 6
@@ -169,7 +169,7 @@ testthat::test_that("barycentric_projection works, p = 1", {
 
 testthat::test_that("barycentric_projection works, p = 3", {
   causalOT:::torch_check()
-  
+  testthat::skip_on_cran()
   set.seed(23483)
   n <- 2^5
   p <- 6

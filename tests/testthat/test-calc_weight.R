@@ -17,7 +17,7 @@ testthat::test_that("calc_weight works", {
         method = "NNM")
   
   testthat::expect_equal(weights@penalty,
-                         list(w0 = 0, w1 = 0))
+                         list(w0 = c(lambda = 0), w1 = c(lambda = 0)))
   testthat::expect_equal(weights@call, 
                          as.call(str2lang("calc_weight(x = data, z = NULL, estimand = estimate, method = 'NNM')")))
   testthat::expect_s4_class(weights, "causalWeights")
@@ -52,9 +52,11 @@ testthat::test_that("calc_weight works", {
   testthat::expect_equal(weights@method, "CBPS")
   testthat::expect_s4_class(weights, "causalWeights")
   
-  mess <- testthat::capture_output(testthat::expect_warning(weights <- calc_weight(x = data,
-                                                                                   estimand = estimate,
-                                                                                   method = "SBW")))
+  mess <- testthat::capture_output(testthat::expect_warning(
+    weights <- calc_weight(x = data,
+                         estimand = estimate,
+                         method = "SBW")
+    ))
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "SBW")
   testthat::expect_s4_class(weights, "causalWeights")
@@ -68,19 +70,19 @@ testthat::test_that("calc_weight works", {
   
   testthat::skip_on_cran()
   
-  mess <- testthat::capture_output(testthat::expect_warning(weights <- calc_weight(x = data,
+  mess <- testthat::capture_output(weights <- calc_weight(x = data,
                               estimand = estimate,
                               method = "EnergyBW",
-                              options =list(niter = 2L))))
+                              options =list(niter = 2L)))
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "EnergyBW")
   testthat::expect_s4_class(weights, "causalWeights")
   
   
-  mess <- testthat::capture_output(testthat::expect_warning(weights <- calc_weight(x = data,
+  mess <- testthat::capture_output(weights <- calc_weight(x = data,
                               estimand = estimate,
                               method = "COT",
-                              options =list(lambda = 100, niter = 2L))))
+                              options =list(lambda = 100, niter = 2L)))
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "COT")
   testthat::expect_s4_class(weights, "causalWeights")

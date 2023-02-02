@@ -65,7 +65,7 @@ gridSearch <- function(data, estimand, method, options = NULL) {
       } else {
         grid_specific_opts <- options
       }
-      
+      # browser()
       prob <- bfMethods(source = source_target$source,
                 target = source_target$target,
                 a = source_target$a,
@@ -73,8 +73,9 @@ gridSearch <- function(data, estimand, method, options = NULL) {
                 method = method, 
                 options = options)
       
-      grid <- prob$delta
-      grid.length <- prob$grid_length
+      grid <- grid_specific_opts$delta
+      grid.length <- length(grid)
+      if(grid.length == 0) grid.length <- grid_specific_opts$grid.length
       nboot <- grid_specific_opts$nboot
       
       if(!is.null(grid_specific_opts$delta) && length(grid) == 1) nboot <- 0L
@@ -156,9 +157,19 @@ setGeneric("grid_select", function(object, w) standardGeneric("grid_select"))
 setMethod("grid_select", signature(object = "ANY", w = "list"),
 function(object,w) {
 
-  if(length(w) == 1) {
+  if (length(w) == 1) {
     return(list(weight = w[[1]],
                 idx = 1))
+  }
+  
+  # how many bootstrap iterations
+  nboot <- object@nboot
+  
+  # run special COT selections
+  if (inherits(object@solver, "COT") ) {
+    res <- object@solver$grid_search(nboot)
+    
+    return(res)
   }
   
   # remove weights that are infeasible
@@ -168,9 +179,7 @@ function(object,w) {
   na_tf <- sapply(w, function(ww) all(is.na(ww)))
   if (any(na_tf)) w <- w[!na_tf]
 
-  # how many bootstrap iterations
-  nboot <- object@nboot
-
+  
   # C++ for loop
   metric <- bootStrap_(w,
              as.integer(nboot),
