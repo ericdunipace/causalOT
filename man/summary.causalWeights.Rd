@@ -20,7 +20,7 @@
 )
 
 \method{plot}{causalWeights}(
-  object,
+  x,
   r_eff = NULL,
   penalty,
   p = 2,

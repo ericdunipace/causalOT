@@ -1663,7 +1663,7 @@ OTProblem_$set("public", "setup_arguments",
    max_diameter <- max(diameters)
    if ( missing(lambda) || is.null(lambda) || all(is.na(lambda)) ) {
      lambda <- c(
-                 exp(seq(log(max_diameter * 1e-4), log(max_diameter * 1e2), length.out = grid.length)),
+                 exp(seq(log(max_diameter * 1e-6), log(max_diameter * 1e4), length.out = grid.length)),
                  Inf)
    } 
    self$penalty$lambda <- sort(lambda, decreasing = TRUE)
@@ -2125,12 +2125,20 @@ unaryop.weightEnv <- function(e1,e2, fun) {
 
 
 #' @export
-sum.weightEnv <- function(e1, na.rm = FALSE) {
+sum.weightEnv <- function(..., na.rm = FALSE) {
   out <- torch::torch_tensor(0.0, dtype = torch::torch_double())
-  listE1 <- ls(e1)
-  for (e in listE1) {
-    out <- out + sum(e1[[e]])
+  l   <- list(...)
+  if(length(l) == 1) {
+    listE1 <- ls(e1)
+    for (e in listE1) {
+      out$add_( sum(e1[[e]]) )
+    }
+  } else {
+    for (i in seq_along(l) ) {
+      out$add_(sum(l[[i]]))
+    }
   }
+  
   return(out)
 }
 
@@ -2523,7 +2531,7 @@ cotDualTrain <- R6::R6Class(
       private$nn_holder  <- nn_fun$new(self$ot$n, length(private$bt) )
       private$parameters <- private$nn_holder$parameters
       
-      self$penalty$lambda[ is.infinite(self$penalty$lambda) ] <- self$ot$diameter * 1e4
+      self$penalty$lambda[ is.infinite(self$penalty$lambda) ] <- self$ot$diameter * 1e5
       self$penalty$lambda[self$penalty$lambda == 0] <- self$ot$diameter / 1e9
       self$penalty$lambda <- sort(self$penalty$lambda, decreasing = TRUE)
       
@@ -2553,7 +2561,8 @@ cotDualTrain <- R6::R6Class(
       a1 <- private$nn_holder$calc_a1(f1, C_xy, private$b_log, torch::jit_scalar(private$lambda), torch::jit_scalar(private$nn_holder$n))
       a2 <- private$nn_holder$calc_a2(f1, C_xx, torch::jit_scalar(private$lambda), torch::jit_scalar(private$nn_holder$n))
       a  <- (a1 + a2) * 0.5
-      return(list(a = a, a1 = a1, a2 = a2))
+      # return(list(a = a, a1 = a1, a2 = a2))
+      return(a)
     }
   )},
   private = {list(
@@ -2612,7 +2621,9 @@ cotDualTrain <- R6::R6Class(
         }
         
       }
-      
+      # browser()
+      self$ot_objects[[i]]$penalty <- 0.05 #self$ot_objects[[i]]$diameter
+      if(is.finite(self$ot_objects[[i]]$penalty ))  self$ot_objects[[i]]$sinkhorn_opt(20, 1e-3)
       dists <- self$dist$detach()$item()
       return(dists)
     }      ,
@@ -2756,40 +2767,40 @@ cotDualTrain <- R6::R6Class(
         stop("Input must have same number of groups as do the parameters.")
       }
     }, #overwrite super
-    setup_choose_hyperparameters = function() {
-      
-      #delta values
-      delta_values <- self$penalty$delta
-      # if ( !is.na(delta_values) ) {
-      #   delta_values <- rep(delta_values, 3)
-      # }
-      n_d <- length(self$penalty$delta)
-      
-      # lambda values
-      lambda_values <- rep(self$penalty$lambda, 3)
-      n_l <- length(self$penalty$lambda)
-      
-      # setup temp weights list
-      n_w <- length(self$weights_list)
-      weights_list <- vector("list",  n_w * 3L)
-      add <- NULL
-      
-      # separate original weights values for a1 = OT(a,b), a2 = OT(a,a), and a3 = a1/2 + a2/2
-      for (l in seq_along(self$penalty$lambda)) {
-        weights_list[[l]] <- weights_list[[l + n_l]] <- weights_list[[l+ 2 * n_l]] <- vector("list", n_d)
-        for (d in seq_along(self$penalty$delta)) {
-          add <- ls(self$weights_list[[l]][[d]])
-          weights_list[[l]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[1L]]
-          weights_list[[l + n_l]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[2L]]
-          weights_list[[l + n_l*2L]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[3L]]
-        }
-      }
-      
-      return(list(delta = delta_values,
-                  lambda = lambda_values,
-                  weights_list = weights_list))
-      
-    }, #overwrite super
+    # setup_choose_hyperparameters = function() {
+    #   
+    #   #delta values
+    #   delta_values <- self$penalty$delta
+    #   # if ( !is.na(delta_values) ) {
+    #   #   delta_values <- rep(delta_values, 3)
+    #   # }
+    #   n_d <- length(self$penalty$delta)
+    #   
+    #   # lambda values
+    #   lambda_values <- rep(self$penalty$lambda, 3)
+    #   n_l <- length(self$penalty$lambda)
+    #   
+    #   # setup temp weights list
+    #   n_w <- length(self$weights_list)
+    #   weights_list <- vector("list",  n_w * 3L)
+    #   add <- NULL
+    #   
+    #   # separate original weights values for a1 = OT(a,b), a2 = OT(a,a), and a3 = a1/2 + a2/2
+    #   for (l in seq_along(self$penalty$lambda)) {
+    #     weights_list[[l]] <- weights_list[[l + n_l]] <- weights_list[[l+ 2 * n_l]] <- vector("list", n_d)
+    #     for (d in seq_along(self$penalty$delta)) {
+    #       add <- ls(self$weights_list[[l]][[d]])
+    #       weights_list[[l]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[1L]]
+    #       weights_list[[l + n_l]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[2L]]
+    #       weights_list[[l + n_l*2L]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[3L]]
+    #     }
+    #   }
+    #   
+    #   return(list(delta = delta_values,
+    #               lambda = lambda_values,
+    #               weights_list = weights_list))
+    #   
+    # }, #overwrite super
     torch_optim_setup = function(torch_optim, 
                                  torch_scheduler,
                                  torch_args) {
@@ -2838,7 +2849,7 @@ cotDualTrain <- R6::R6Class(
         }
         if(inherits(torch_scheduler, "lr_multiplicative") &&
            is.null( sched_args$lr_lambda ) ) {
-          sched_args$lr_lambda <- function(epoch) 0.99
+          sched_args$lr_lambda <- function(epoch) {0.99}
         }
         scheduler_call <- rlang::call2(torch_scheduler,
                                        optimizer = private$opt,

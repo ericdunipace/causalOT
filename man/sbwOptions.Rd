@@ -30,7 +30,7 @@ Options for the SBW method
 }
 \section{Function balancing}{
 This method will balance  functions of the covariates within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
-\deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing.
+\deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing.
 }
 
 \examples{

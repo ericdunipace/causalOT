@@ -5,14 +5,14 @@
 \alias{plot.summary_causalWeights}
 \title{Plotting and print methods for summary_causalWeights}
 \usage{
-\method{print}{summary_causalWeights}(object, ...)
+\method{print}{summary_causalWeights}(x, ...)
 
-\method{plot}{summary_causalWeights}(object, ...)
+\method{plot}{summary_causalWeights}(x, ...)
 }
 \arguments{
-\item{object}{an object of class "summary_causalWeights" returned by the function \code{\link[=summary.causalWeights]{summary.causalWeights()}}}
-
 \item{...}{Not used}
+
+\item{object}{an object of class "summary_causalWeights" returned by the function \code{\link[=summary.causalWeights]{summary.causalWeights()}}}
 }
 \description{
 Plotting and print methods for summary_causalWeights

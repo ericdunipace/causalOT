@@ -378,7 +378,7 @@ testthat::test_that("training function works for dual optimizer",{
   )
   testthat::expect_equal(
     capture.output(print(priv$sched$lr_lambdas[[1]]))[1], 
-    "function(epoch) 0.99"
+    "function(epoch) {0.99}"
   )
   
   testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma),

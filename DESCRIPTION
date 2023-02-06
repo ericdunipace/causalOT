@@ -2,7 +2,7 @@ Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
 Version: 1.0
-Date: 2022-09-11
+Date: 2023-02-01
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -28,6 +28,7 @@ Imports:
     osqp,
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
+    rlang,
     rkeops,
     sandwich,
     torch

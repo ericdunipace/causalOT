@@ -136,18 +136,15 @@ OT <- R6::R6Class("OT",
         torch_tens <- torch::torch_zeros_like(self$b,
                                               dtype = dbl)
         pen <- torch::torch_tensor(self$penalty, dtype = dbl)
-        softmin_jit <- torch::jit_trace(
-          function(eps, C_xy, y_potential, b_log) {
-            return ( -eps * ( torch::torch_add(y_potential / eps, b_log) - C_xy / eps )$logsumexp(2) )
-          },
-          pen,
-          self$C_xy$data,
-          torch_tens,
-          torch_tens
+        softmin_jit <- torch::jit_compile(
+          "def softmin(eps: Tensor, C_xy: Tensor, y_potential: Tensor, b_log: Tensor):
+            return -eps * (y_potential/eps + b_log - C_xy/eps).logsumexp(1)
+          "
         )
-        assignInNamespace("softmin_jit", softmin_jit, "causalOT")
+          
+        # assignInNamespace("softmin_jit", softmin_jit, "causalOT")
         self$softmin <- function(eps, C_xy, y_potential, b_log) {
-          softmin_jit(eps, C_xy$data, y_potential, b_log)
+          softmin_jit$softmin(eps, C_xy$data, y_potential, b_log)
         }
         
       }
@@ -330,7 +327,7 @@ epsilon_select <- function(diameter, eps, tot_iter, cur_iter){
     return( eps)
   }
 
-  eps_new = (diameter - eps) * exp(-0.75*(cur_iter - 1)) + eps
+  eps_new = (diameter - eps) * exp(-0.9*(cur_iter - 1)) + eps
   
   return (eps_new)
 }
@@ -408,7 +405,7 @@ function(which.margin = "x", niter, tol) {
   softmin  <- self$softmin
   n        <- length(a)
   
-  print_period <- 10L
+  print_period <- 1L
   
   eps_log_switch = diameter$item()/round(log(.Machine$double.xmax))
   
@@ -422,7 +419,8 @@ function(which.margin = "x", niter, tol) {
     }
   } 
   
-  loss <- loss_1 <- loss_2 <- a$dot(f_xx) * 2.0
+  loss <- loss_1 <- loss_2 <- a$dot(f_xx)$item() * 2.0
+  ft_1 = f_xx$detach()$clone()
   # f_01 <- f_02 <- f_xx
   # f_1 <- f_2 <- f_xx
   
@@ -433,18 +431,19 @@ function(which.margin = "x", niter, tol) {
     
     if (eps_cur$item() > eps_log_switch) {
       # Anderson acceleration
-      ft_1 = softmin(eps_cur, C_xx, f_xx, a_log)
+      ft_1= softmin(eps_cur, C_xx, f_xx, a_log)
+      # f_xx$mul_(0.5)
+      # f_xx$add_(0.5 * ft_1)
       f_xx = 0.5 * (ft_1 + f_xx)  # OT(b,b)
-      # f_2 = 0.5 * (ft_2 + f_2)  # OT(b,b)
     } else {
       f_xx = softmin(eps_cur, C_xx, f_xx, a_log)
       # f_2 = ft_2
     }
     # loss = sum((f_1 + f_2) * a)
-    loss = a$dot(f_xx) * 2.0
+    loss = a$dot(f_xx)$item() * 2.0
     if ((i %% print_period) == 0) {
-      if (converged(loss$item(), loss_1$item(), tol)) break
-      if (converged(loss$item(), loss_2$item(), tol)) break
+      if (abs(loss - loss_1) < tol) break
+      if (abs(loss - loss_2) < tol) break
     }
     
     loss_2 = loss_1
@@ -477,7 +476,7 @@ function(niter, tol) {
   f_xy     <- private$pot$f_xy
   g_yx     <- private$pot$g_yx
   
-  print_period <- 10L
+  print_period <- 1L
   
   eps_log_switch = diameter$item()/round(log(.Machine$double.xmax))
   missing_pot <- is.null(f_xy) || is.null(g_yx)
@@ -513,7 +512,7 @@ function(niter, tol) {
     g_yx <- g_yx$detach()
   }
   
-  loss <- loss_0 <- a$dot(f_xy) + b$dot(g_yx)
+  loss <- loss_0 <- (a$dot(f_xy) + b$dot(g_yx))$item()
   norm <- NULL
   
   for (i in 1:niter) {
@@ -530,13 +529,13 @@ function(niter, tol) {
       f_xy = softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
     }
     
-    # norm <- b$dot(g_yx)
-    # g_yx <- g_yx - norm
-    # f_xy <- f_xy + norm
-    loss = a$dot(f_xy) + b$dot(g_yx)
+    norm <- b$dot(g_yx)
+    g_yx <- g_yx - norm
+    f_xy <- f_xy + norm
+    loss = ( a$dot(f_xy) )$item() #+ b$dot(g_yx))$item()
     # cat(paste0(loss$item(),", "))
-    if ((i %% print_period) == 0) {
-      if (converged(loss$item(), loss_0$item(), tol)) break
+    if ( (i %% print_period) == 0 ) {
+      if (abs(loss - loss_0) < tol) break
     }
     
     loss_0 = loss
@@ -1241,13 +1240,13 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
                   diameter = diameter)
     
     ot0 <- OT$new(x = x0, y = x, 
-                  a = cw@w0, b = b,
+                  a = renormalize(cw@w0), b = b,
                   penalty = penalty, 
                   cost = cost, p = p, debias = debias, 
                   tensorized = online.cost,
                   diameter = diameter)
     ot1 <- OT$new(x = x1, y = x, 
-                  a = cw@w1, b = b,
+                  a = renormalize(cw@w1), b = b,
                   penalty = penalty, 
                   cost = cost, p = p, debias = debias, 
                   tensorized = online.cost,
@@ -1279,7 +1278,7 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
                      diameter = diameter)
   
   ot_final <- OT$new(x = x0, y = x1, 
-               a = cw@w0, b = cw@w1,
+               a = renormalize(cw@w0), b = renormalize(cw@w1),
                penalty = penalty, 
                cost = cost, p = p, debias = debias, 
                tensorized = online.cost,

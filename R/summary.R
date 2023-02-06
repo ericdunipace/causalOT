@@ -71,8 +71,9 @@ summary.causalWeights <- function(object, r_eff = NULL, penalty, p = 2, cost = N
 #' @describeIn plot.summary_causalWeights 
 #' @export
 #' @method print summary_causalWeights
-print.summary_causalWeights <- function(object,...) {
+print.summary_causalWeights <- function(x,...) {
   
+  object   <- x
   estimand <- object$estimand
   
   control.output <- treated.output <- NULL
@@ -138,8 +139,8 @@ setMethod("show", "summary_causalWeights", function(object){print(object)})
 #'
 #' @export
 #' @method plot summary_causalWeights
-plot.summary_causalWeights <- function(object, ...) {
- 
+plot.summary_causalWeights <- function(x, ...) {
+  object   <- x
   estimand <- object$estimand
   
   plot_ot <- function(object, ...) {
@@ -311,9 +312,10 @@ plot.summary_causalWeights <- function(object, ...) {
 #' @method plot causalWeights
 #'
 #' @describeIn  summary.causalWeights
-plot.causalWeights <- function(object,  r_eff = NULL, penalty, p = 2, cost = NULL, 
+plot.causalWeights <- function(x,  r_eff = NULL, penalty, p = 2, cost = NULL, 
                                debias = TRUE, online.cost = "auto", diameter = NULL, niter = 1000, 
                                tol = 1e-07, ...) {
+  object   <- x
   mc <- match.call()
   mc[[1]] <- quote(causalOT:::summary.causalWeights)
   summary.object <- eval(mc, envir = parent.frame())

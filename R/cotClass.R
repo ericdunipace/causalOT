@@ -202,7 +202,7 @@ COT <- R6::R6Class(
 #' \item `opt.direction` Whether to solve the primal or dual optimization problems
 #' \item `debias`TRUE or FALSE if debiased optimal transport distances are used
 #' \item `balance.formula` The formula giving how to generate the balancing functions.
-#' \itme `quick.balance.selection` TRUE or FALSE whether quick balance functions will be run.
+#' \item `quick.balance.selection` TRUE or FALSE whether quick balance functions will be run.
 #' \item `grid.length` The number of parameters to check in a grid search of best parameters
 #' \item `p` The power of the cost function
 #' \item `cost.online` Whether online costs are used
@@ -221,28 +221,21 @@ COT <- R6::R6Class(
 #' 
 #' @details 
 #' # Solvers and distances
-#' The function is setup to direct the COT optimizer to run three basic methods: debiased entropy penalized optimal transport (Sinkhorn Divergences), entropy penalized optimal transport (Sinkhorn Distances), or L2 penalized optimal transport. Each of these options utilizes a specific solver.
+#' The function is setup to direct the COT optimizer to run two basic methods: debiased entropy penalized optimal transport (Sinkhorn Divergences) or entropy penalized optimal transport (Sinkhorn Distances). 
 #' 
 #' ## Sinkhorn Distances
 #' The optimal transport problem solved is \eqn{min_w OT_\lambda(w,b) } where \deqn{OT_\lambda(w,b) = \sum_{ij} C(x_i, x_j) P_{ij} + \lambda \sum_{ij} P_{ij}\log(P_{ij}),} such that the rows of the matrix \eqn{P_{ij}} sum to \eqn{w} and the columns sum to \eqn{b}. In this case \eqn{C(,)} is the cost between units i and j. 
 #' 
-#' The solver for this distance is provided by [lbfgsb3c()][lbfgsb3c::lbfgsb3c()] and so arguments in dots are passed to the function. We can also supply balancing functions via the formula argument in `balance.formula` (see below).
-#' 
-#' ## L2 OT Distances
-#' In this case, the optimal transport problem is again \eqn{min_w OT_\lambda(w,b) } where \deqn{OT_\lambda(w,b) = \sum_{ij} C(x_i, x_j) P_{ij} + \frac{\lambda}{2} \sum_{ij} P_{ij}^2,}
-#' 
-#' The solver for this distance is provided by [osqp()][osqp::osqp()] and so arguments in dots are passed to the solver via that packages [osqpSettings()][osqp::osqpSettings()] function. We can also supply balancing functions via the formula argument in `balance.formula` (see below).
-#' 
 #' ## Sinkhorn Divergences
-#' The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the `torch` package in `R` and by default will use the LBFGS solver. Your desired `torch` optimizer can be passed via `torch.optimizer` with a scheduler passed via `torch.scheduler`. GPU support is available as detailed in the `torch` package. Additional arguments in `...` are passed as extra arguments to the `torch` optimizer and schedulers as appropriate.
+#' The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the `torch` package in `R` and by default will use the `optim_rmsprop` solver. Your desired `torch` optimizer can be passed via `torch.optimizer` with a scheduler passed via `torch.scheduler`. GPU support is available as detailed in the `torch` package. Additional arguments in `...` are passed as extra arguments to the `torch` optimizer and schedulers as appropriate.
 #' 
 #' # Function balancing
 #' There may be certain functions of the covariates that we wish to balance within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
-#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing. This is currently only available for \eqn{L_2} penalized distances and Sinkhorn Distances.
+#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing. This is currently only available for \eqn{L_2} penalized distances and Sinkhorn Distances.
 #' 
 #' # Cost functions
-#' The cost function specifies pairwise distances. If argument `cost` is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument `p`.So for `p = 2`, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
-#' If `cost` is provided, it should be a function that takes arguments `x1`, `x2`, and `p`.
+#' The cost function specifies pairwise distances. If argument `cost.function` is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument `p`.So for `p = 2`, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
+#' If `cost.function` is provided, it should be a function that takes arguments `x1`, `x2`, and `p`.
 #' 
 #'
 #' @examples

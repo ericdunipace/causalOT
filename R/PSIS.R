@@ -34,7 +34,7 @@ PSIS.causalWeights <- function(x, r_eff = NULL, ...) {
     res$w1 <- list(diagnostics = list(pareto_k = NA, n_eff = length(x@w1)))
   } else if (x@estimand == "ATC") {
     res$w0 <- list(diagnostics = list(pareto_k = NA, n_eff = length(x@w0)))
-    res$w1 = PSIS.default(x$w1, r_eff = r_eff[2],...)
+    res$w1 = PSIS.default(x@w1, r_eff = r_eff[2],...)
   } else if (x@estimand == "ATE" || x@estimand == "feasible" || x@estimand == "cATE") {
     res$w0 = PSIS.default(x@w0, r_eff = r_eff[1],...)
     res$w1 = PSIS.default(x@w1, r_eff = r_eff[2],...)

@@ -38,14 +38,43 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
     center    <- switch(estimand,
                         "ATC" = colMeans(data[z==0,continuous.covar]),
                         "ATT" = colMeans(data[z==1,continuous.covar]))
-    
+
     covar     <- switch(estimand,
                         "ATC" = cov(data[z==0,continuous.covar]),
                         "ATT" = cov(data[z==1,continuous.covar]))
-    
+
+    non_zero  <- which(diag(covar) > 0)
+    covar     <- covar[non_zero, non_zero]
+    center    <- center[non_zero]
+    continuous.covar   <- continuous.covar[non_zero]
+
+    bin.nan  <- apply(data[,binary.covar], 2, function(x) var(x) == 0)
+    binary.covar <- binary.covar[!bin.nan]
+
     scaled_x  <- cbind(scale(data[,continuous.covar], center = center, scale = FALSE)
                        %*% inv_sqrt_mat(covar)
-                       ,  data[,binary.covar])
+                       ,  (data[,binary.covar]))
+    
+    # center    <- switch(estimand,
+    #                     "ATC" = colMeans(data[z==0,bal.cov]),
+    #                     "ATT" = colMeans(data[z==1,bal.cov]))
+    # 
+    # covar     <- switch(estimand,
+    #                     "ATC" = cov(data[z==0,bal.cov]),
+    #                     "ATT" = cov(data[z==1,bal.cov]))
+    # 
+    # non_zero  <- which(diag(covar) > 0)
+    # covar     <- covar[non_zero, non_zero]
+    # center    <- center[non_zero]
+    # bal.cov   <- bal.cov[non_zero]
+    # 
+    # scaled_x  <- cbind(scale(data[,bal.cov], center = center, scale = FALSE)
+    #                    %*% inv_sqrt_mat(covar))
+    # 
+    
+    # scaled_x  <- scale(data[,bal.cov])
+    # scaled_x  <- scaled_x[,apply(scaled_x,2,function(xx) all(!is.nan(xx))), drop = FALSE]
+    
     x <- data[,bal.cov]
     
     newdat <- data.frame(cbind(z = z, x))
@@ -69,8 +98,7 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                                                  data = newdat
                                                 ), 
                               estimand = estimand, method = "SBW", 
-                              options = list(verbose = FALSE,
-                                             delta = seq(0, 2, length.out = 20)))
+                              options = list(verbose = FALSE))
     
     
     weights$SCM  = calc_weight(x = scaled_x, z = z,
@@ -82,20 +110,16 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
     # browser()
     # debugonce(causalOT:::grid_select, signature = signature(object = "ANY", w = "list"))
     # debugonce(causalOT:::cot_solve, signature = signature(object = "gridSearch"))
+    torch::torch_manual_seed(sample.int(.Machine$integer.max, 1))
     weights$COT =  calc_weight(x = scaled_x, z = z,
                                estimand = estimand, method = "COT",
-                               options = list(line_search_fn = "strong_wolfe"))
-    
-    # m1 <- Measure(x = scaled_x[z==1,], adapt = "weights")
-    # m0 <- Measure(x = scaled_x[z==0,])
-    # m  <- Measure(x = scaled_x)
-    # OT1 <- OTProblem(m1, m0)
-    # OT1$set_ot_arguments(debias = TRUE)
-    # OT1$solve(torch_args = list(line_search_fn = "strong_wolfe"))
-    # OT1$choose_hyperparameters()
-    # OT1$info()$hyperparam.metrics
-    # OT1$selected_lambda
-    # OT1$.__enclos_env__$private$final_loss
+                               options = list(niter = 1e4,
+                                              nboot = 100L,
+                                              grid.length = 10L,
+                                              # lambda = 1e-4,
+                                              tol = 1e-5
+                                              )
+                               )
     
     return(weights)
     
@@ -116,20 +140,51 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
     center    <- switch(estimand,
                         "ATC" = colMeans(data[z==0,continuous.covar]),
                         "ATT" = colMeans(data[z==1,continuous.covar]))
-    
+
     covar     <- switch(estimand,
                         "ATC" = cov(data[z==0,continuous.covar]),
                         "ATT" = cov(data[z==1,continuous.covar]))
-    
+
+    non_zero  <- which(diag(covar) > 0)
+    covar     <- covar[non_zero, non_zero]
+    center    <- center[non_zero]
+    continuous.covar   <- continuous.covar[non_zero]
+
+    bin.nan  <- apply(data[,binary.covar], 2, function(x) var(x) == 0)
+    binary.covar <- binary.covar[!bin.nan]
+
     scaled_x  <- cbind(scale(data[,continuous.covar], center = center, scale = FALSE)
                        %*% inv_sqrt_mat(covar)
-                       ,  data[,binary.covar])
+                       ,  (data[,binary.covar]))
+
+    # center    <- switch(estimand,
+    #                     "ATC" = colMeans(data[z==0,bal.cov]),
+    #                     "ATT" = colMeans(data[z==1,bal.cov]))
+    # 
+    # covar     <- switch(estimand,
+    #                     "ATC" = cov(data[z==0,bal.cov]),
+    #                     "ATT" = cov(data[z==1,bal.cov]))
+    # 
+    # non_zero  <- which(diag(covar) > 0)
+    # covar     <- covar[non_zero, non_zero]
+    # center    <- center[non_zero]
+    # bal.cov   <- bal.cov[non_zero]
+    # 
+    # scaled_x  <- cbind(scale(data[,bal.cov], center = center, scale = FALSE)
+    #                    %*% inv_sqrt_mat(covar))
+    
+    
+    # scaled_x  <- scale(data[,bal.cov])
+    # scaled_x  <- scaled_x[,apply(scaled_x,2,function(xx) all(!is.nan(xx))), drop = FALSE]
+    
     x <- data[,bal.cov]
     y <- data[,outcome]
-    nsave <- nrow(x)
+    nsave <- switch(estimand,
+                   "ATT" = n1,
+                   "ATC" = n0) # size of original group
     
     max_cost <- sum( (apply(scaled_x,2,min) - 
-                        apply(scaled_x,2,max))^2 )
+                        apply(scaled_x,2,max))^2 )/2
     
     newdat <- data.frame(cbind(z = z, x))
     
@@ -140,23 +195,23 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                     estimate.separately = TRUE,
                     aurgment.estimate = FALSE,
                     normalize.weights = TRUE)
-    bp <- lapply(weights, estimate_effect,
-                 x = scaled_x,
-                 y = y,
-                 p = 3,
-                 model.function = barycentric_projection,
-                 estimate.separately = TRUE,
-                 aurgment.estimate = FALSE,
-                 normalize.weights = TRUE,
-                 line_search_fn = "strong_wolfe")
+    # bp <- lapply(weights, estimate_effect,
+    #              x = scaled_x,
+    #              y = y,
+    #              p = 3,
+    #              model.function = barycentric_projection,
+    #              estimate.separately = TRUE,
+    #              aurgment.estimate = FALSE,
+    #              normalize.weights = TRUE,
+    #              line_search_fn = "strong_wolfe")
     
     ci.hajek <-  lapply(hajek, confint)
     
-    ci.bp <- lapply(bp, confint)
+    # ci.bp <- lapply(bp, confint)
     
     sd.hajek <-  sqrt(sapply(hajek, vcov))
     
-    sd.bp <- sqrt(sapply(bp, vcov))
+    # sd.bp <- sqrt(sapply(bp, vcov))
     
     
     init.wass <- ot_distance(x1 = scaled_x[z==1,], x2 = scaled_x[z==0,],
@@ -165,7 +220,8 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
   
     final.wass <- sapply(weights, function(w) {
       ot_distance(x1 = scaled_x[z==1,], x2 = scaled_x[z==0,],
-                  a = w@w1, b = w@w0,
+                  a = causalOT:::renormalize(w@w1), 
+                  b = causalOT:::renormalize(w@w0),
                   p = 2, penalty = max_cost, diameter = max_cost)
     })
     
@@ -173,6 +229,7 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                             method = names(weights),
                             estimate = sapply(hajek, coef),
                              sd = c(sd.hajek),
+                             orig.tx = orig.tx,
                              cover.orig = sapply(ci.hajek, function(e) e[1] < orig.tx && e[2] > orig.tx),
                              est.in.ci = sapply(hajek, function(e) orig.ci[1] < coef(e) && orig.ci[2] > coef(e)),
                              bias = sapply(hajek, function(e) (coef(e) - orig.tx)),
@@ -180,19 +237,22 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                             init.wass = init.wass,
                             final.wass = final.wass,
                             n = nsave,
-                            estimand = estimand),
-                data.frame(estimator = "bp",
-                           method = names(weights),
-                           estimate = sapply(bp, coef),
-                          sd = c(sd.bp),
-                          cover.orig = sapply(ci.bp, function(e) e[1] < orig.tx && e[2] > orig.tx),
-                          est.in.ci = sapply(bp, function(e) orig.ci[1] < coef(e) && orig.ci[2] > coef(e)),
-                          bias = sapply(bp, function(e) (coef(e) - orig.tx)),
-                          # mse = sapply(bp, function(e) (e$estimate - orig.tx))^2 + sapply(ci.bp, function(e) e$SD^2),
-                          init.wass = init.wass,
-                          final.wass = final.wass,
-                          n = nsave,
-                          estimand = estimand)))
+                            estimand = estimand)
+                # , data.frame(estimator = "bp",
+                #            method = names(weights),
+                #            estimate = sapply(bp, coef),
+                #           orig.tx = orig.tx,
+                #           sd = c(sd.bp),
+                #           cover.orig = sapply(ci.bp, function(e) e[1] < orig.tx && e[2] > orig.tx),
+                #           est.in.ci = sapply(bp, function(e) orig.ci[1] < coef(e) && orig.ci[2] > coef(e)),
+                #           bias = sapply(bp, function(e) (coef(e) - orig.tx)),
+                #           # mse = sapply(bp, function(e) (e$estimate - orig.tx))^2 + sapply(ci.bp, function(e) e$SD^2),
+                #           init.wass = init.wass,
+                #           final.wass = final.wass,
+                #           n = nsave,
+                #           estimand = estimand)
+                )
+           )
   }
   
   pph_control  <- pph %>% subset(pph[,tx.ind] == 0 & pph[,"sitecode"] != base.site) #control pool
@@ -201,25 +261,29 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
   site_treated <- pph %>% subset(pph[,tx.ind] == 1 & pph[,"sitecode"] == base.site)
   site_control <- pph %>% subset(pph[,tx.ind] == 0 & pph[,"sitecode"] == base.site)
   
-  original.tx <- mean(site_treated[,outcome] - mean(site_control[,outcome]))
+  original.tx <- mean(site_treated[,outcome]) - mean(site_control[,outcome])
   original.ci <- t.test(x = site_treated[,outcome], y = site_control[,outcome], alternative = "two.sided")$conf.int
   
   treat_data <- rbind(pph_control, site_treated)
   control_data <- rbind(site_control, pph_treated)
   
-  weight_control <- weight.by.tx(data = control_data, continuous.covar = continuous.covar, 
+  weight_control <- weight.by.tx(data = control_data, continuous.covar = continuous.covar,
                                  binary.covar = binary.covar, outcome = outcome, tx.ind = tx.ind, estimand = "ATC")
-  weight_treated <- weight.by.tx(data = treat_data, continuous.covar = continuous.covar, 
+  weight_treated <- weight.by.tx(data = treat_data, continuous.covar = continuous.covar,
                                  binary.covar = binary.covar, outcome = outcome, tx.ind = tx.ind, estimand = "ATT")
   
   
-  estimates_control <- estimate.by.tx(data = control_data, weights = weight_control, continuous.covar = continuous.covar, 
+  estimates_control <- estimate.by.tx(data = control_data, weights = weight_control, continuous.covar = continuous.covar,
                                  binary.covar = binary.covar, outcome = outcome, tx.ind = tx.ind, estimand = "ATC",
                                  orig.tx = original.tx, orig.ci = original.ci)
-  estimates_treated <- estimate.by.tx(data = treat_data, weights = weight_treated, continuous.covar = continuous.covar, 
-                                 binary.covar = binary.covar, outcome = outcome, tx.ind = tx.ind, estimand = "ATT",
+  estimates_treated <- estimate.by.tx(data = treat_data, weights = weight_treated,
+                                      continuous.covar = continuous.covar,
+                                 binary.covar = binary.covar, outcome = outcome,
+                                 tx.ind = tx.ind, estimand = "ATT",
                                  orig.tx = original.tx, orig.ci = original.ci)
   overall.estimates <- rbind(estimates_treated,  estimates_control)
+  # overall.estimates <- estimates_treated
+  # overall.estimates <- estimates_control
   overall.estimates$sitecode <- base.site
   return(overall.estimates)
   
@@ -274,6 +338,7 @@ overall <- rbind(egypt, turkey, hocmon, cuchi, burkina) %>%
 combined_est <- overall %>% group_by( method, estimator) %>% 
   summarize(
     estimate = weighted.mean(estimate,n),
+    orig.tx = weighted.mean(orig.tx, n),
     bias = weighted.mean(bias,n),
     # rmse = sqrt(weighted.mean(mse, n)),
     cover.orig = mean(cover.orig),
@@ -353,4 +418,3 @@ print(xtab,
       include.rownames = FALSE,
       file =  "tables/pph.tex")
 
-#### distributional balance ####

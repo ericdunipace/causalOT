@@ -2,7 +2,7 @@ converged <- function(new, old, tol) {
   diff = abs(old - new)
   error = diff / abs(old + .Machine$double.eps)
   rel_conv <- as.logical(sum(error) < tol)
-  abs_conv <- as.logical(sum(diff) < tol)
+  abs_conv <- as.logical(sum(diff) < tol * tol)
   conv_check = rel_conv || abs_conv
 
   return (conv_check)
@@ -376,32 +376,32 @@ is.nan.torch_tensor <- function(x) {
 }
   
   
-R6_bootStrap <- function() {
-  n <- self$n
-  m <- self$m
-  a <- self$a
-  b <- self$b
-  
-  a_tilde <- rmultinom(1, n, prob = a)/n
-  b_tilde <- rmultinom(1, m, prob = b)/m
-  
-  return(list(a = a_tilde, b = b_tilde))
-}
-
-R6_boot <- function(w_list) {
-  masses <- private$bootStrap()
-  a <- masses$a
-  b_tilde <- masses$b
-  n <- self$n
-  m <- self$m
-  
-  means <- rep(NA_real_, length(w_list))
-  for(i in seq_along(w_list)) {
-    w <- w_list[i]
-    stopifnot(length(w) == n)
-    w_tilde <- renormalize(w *rmultinom(1, n, prob = a))
-    means[i] <- self$eval(w_tilde, b_tilde)
-  }
-  
-  return(means)
-}
+# R6_bootStrap <- function() {
+#   n <- self$n
+#   m <- self$m
+#   a <- self$a
+#   b <- self$b
+#   
+#   a_tilde <- rmultinom(1, n, prob = a)/n
+#   b_tilde <- rmultinom(1, m, prob = b)/m
+#   
+#   return(list(a = a_tilde, b = b_tilde))
+# }
+# 
+# R6_boot <- function(w_list) {
+#   masses <- private$bootStrap()
+#   a <- masses$a
+#   b_tilde <- masses$b
+#   n <- self$n
+#   m <- self$m
+#   
+#   means <- rep(NA_real_, length(w_list))
+#   for(i in seq_along(w_list)) {
+#     w <- w_list[i]
+#     stopifnot(length(w) == n)
+#     w_tilde <- renormalize(w *rmultinom(1, n, prob = a))
+#     means[i] <- self$eval(w_tilde, b_tilde)
+#   }
+#   
+#   return(means)
+# }

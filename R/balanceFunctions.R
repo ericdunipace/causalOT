@@ -29,15 +29,22 @@ balanceFunction <- R6::R6Class("balanceFunction",
       self$n <- length(a)
       self$m <- length(b)
       
-      sd_target  <- matrixStats::colWeightedSds(target, w = b*self$m)
+      # drop 0 var covariates
       sd_source  <- matrixStats::colWeightedSds(source, w = a*self$n)
+      non_zero <- which(sd_source > 0)
+      
+      if(length(non_zero) == 0) stop("All source covariates have 0 variance.")
+      
+      # other SD
+      
+      sd_target  <- matrixStats::colWeightedSds(target, w = b*self$m)
       sd_total   <- matrixStats::colWeightedMeans(
         rbind(sd_source, sd_target),
         w = c(self$n, self$m)
       )
       
-      self$source <- scale(source, center = FALSE, scale = sd_total)
-      self$target <- scale(target, center = FALSE, scale = sd_total)
+      self$source <- scale(source[,non_zero, drop = FALSE], center = FALSE, scale = sd_total[non_zero])
+      self$target <- scale(target[,non_zero, drop = FALSE], center = FALSE, scale = sd_total[non_zero])
       
       self$target_vector <- c(matrixStats::colWeightedMeans(self$target, w = b))
       # setup scaled and center matrix A
@@ -148,8 +155,11 @@ SBW <- R6::R6Class("SBW",
       
       self$delta_idx <- (length(c(l_bounds, l_sum_const))+1):length(l)
       A <- rbind(A_bounds, A_sum_const, A_delta)
-      private$solver <- osqp::osqp(P = P, q = q, A = A, l = l, u = u,
-                           pars = options$solver.options)
+      
+      private$osqp_args <- list(P = P, q = q, A = A, l = l, u = u,
+                                pars = options$solver.options)
+      
+      private$solver <- do.call(osqp::osqp, private$osqp_args)
       self$delta <- delta[1]
       self$solve <- function(penalty, w = NULL) {
         if (penalty < 0) stop("Penalty must be greater than or equal to 0")
@@ -164,12 +174,17 @@ SBW <- R6::R6Class("SBW",
         #     as.numeric(w)
         #   }
         # }
-        tryCatch(osqp_R6_solve(private$solver, self$delta, self$delta_idx, self$a),
+        private$osqp_args$u[self$delta_idx] <- self$delta
+        private$osqp_args$l[self$delta_idx] <- -self$delta
+        private$solver <- do.call(osqp::osqp, private$osqp_args)
+        
+        tryCatch(osqp_R6_solve(private$solver, NULL, self$delta_idx, self$a),
                       error = function(e) {NULL})
       }
     }
   ),
   private = list(
+    osqp_args = "list",
     solver = "function"
   )
 )
@@ -194,7 +209,7 @@ SBW <- R6::R6Class("SBW",
 #' @details
 #' # Function balancing
 #' This method will balance  functions of the covariates within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
-#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing.
+#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing.
 #' 
 #' @examples 
 #' opts <- sbwOptions(delta = 0.1)
@@ -310,7 +325,7 @@ EntropyBW <- R6::R6Class("EntropyBW",
 #' @details
 #' # Function balancing
 #' This method will balance  functions of the covariates within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
-#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. $\sigma$ is the pooled standard deviation prior to balancing.
+#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing.
 #' 
 #' @examples 
 #' opts <- entBWOptions(delta = 0.1)
