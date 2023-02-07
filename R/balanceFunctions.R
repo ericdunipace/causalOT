@@ -1,4 +1,5 @@
 # TODO add grid_solve method, update for lambda and warm start
+# TODO remove dependency on lbfgsb3c in favor of torch??? could get GPU support...
 
 
 # balance function super class
