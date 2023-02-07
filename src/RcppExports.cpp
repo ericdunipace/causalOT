@@ -40,6 +40,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// entBW_obj_
+double entBW_obj_(const SEXP& vars_, const SEXP& A_, double delta);
+RcppExport SEXP _causalOT_entBW_obj_(SEXP vars_SEXP, SEXP A_SEXP, SEXP deltaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
+    Rcpp::traits::input_parameter< const SEXP& >::type A_(A_SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    rcpp_result_gen = Rcpp::wrap(entBW_obj_(vars_, A_, delta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// entBW_grad_
+vector entBW_grad_(const SEXP& vars_, const SEXP& A_, double delta);
+RcppExport SEXP _causalOT_entBW_grad_(SEXP vars_SEXP, SEXP A_SEXP, SEXP deltaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
+    Rcpp::traits::input_parameter< const SEXP& >::type A_(A_SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    rcpp_result_gen = Rcpp::wrap(entBW_grad_(vars_, A_, delta));
+    return rcpp_result_gen;
+END_RCPP
+}
 // logSumExp
 double logSumExp(vector& x_);
 RcppExport SEXP _causalOT_logSumExp(SEXP x_SEXP) {
@@ -77,6 +103,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_bootStrap_", (DL_FUNC) &_causalOT_bootStrap_, 3},
     {"_causalOT_sbw_oop_bs_", (DL_FUNC) &_causalOT_sbw_oop_bs_, 5},
+    {"_causalOT_entBW_obj_", (DL_FUNC) &_causalOT_entBW_obj_, 3},
+    {"_causalOT_entBW_grad_", (DL_FUNC) &_causalOT_entBW_grad_, 3},
     {"_causalOT_logSumExp", (DL_FUNC) &_causalOT_logSumExp, 1},
     {"_causalOT_rowLogSumExp", (DL_FUNC) &_causalOT_rowLogSumExp, 1},
     {"_causalOT_colLogSumExp", (DL_FUNC) &_causalOT_colLogSumExp, 1},

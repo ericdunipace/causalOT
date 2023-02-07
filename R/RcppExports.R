@@ -9,6 +9,14 @@ sbw_oop_bs_ <- function(w_list, nboot, source, target, a) {
     .Call(`_causalOT_sbw_oop_bs_`, w_list, nboot, source, target, a)
 }
 
+entBW_obj_ <- function(vars_, A_, delta) {
+    .Call(`_causalOT_entBW_obj_`, vars_, A_, delta)
+}
+
+entBW_grad_ <- function(vars_, A_, delta) {
+    .Call(`_causalOT_entBW_grad_`, vars_, A_, delta)
+}
+
 logSumExp <- function(x_) {
     .Call(`_causalOT_logSumExp`, x_)
 }
