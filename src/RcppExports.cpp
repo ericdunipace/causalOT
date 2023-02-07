@@ -40,93 +40,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// cost_calculation_
-Rcpp::NumericMatrix cost_calculation_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p);
-RcppExport SEXP _causalOT_cost_calculation_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type A_(A_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type B_(B_SEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    rcpp_result_gen = Rcpp::wrap(cost_calculation_(A_, B_, p));
-    return rcpp_result_gen;
-END_RCPP
-}
-// cost_mahal_
-Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p, const std::string estimand);
-RcppExport SEXP _causalOT_cost_mahal_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP, SEXP estimandSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type A_(A_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type B_(B_SEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type estimand(estimandSEXP);
-    rcpp_result_gen = Rcpp::wrap(cost_mahal_(A_, B_, p, estimand));
-    return rcpp_result_gen;
-END_RCPP
-}
-// cotEntropy_obj_
-double cotEntropy_obj_(const SEXP& vars_, const SEXP& source_, const SEXP& target_, const SEXP& cost_, const SEXP& b_, double delta, double lambda);
-RcppExport SEXP _causalOT_cotEntropy_obj_(SEXP vars_SEXP, SEXP source_SEXP, SEXP target_SEXP, SEXP cost_SEXP, SEXP b_SEXP, SEXP deltaSEXP, SEXP lambdaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type source_(source_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type target_(target_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type b_(b_SEXP);
-    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(cotEntropy_obj_(vars_, source_, target_, cost_, b_, delta, lambda));
-    return rcpp_result_gen;
-END_RCPP
-}
-// cotEntropy_grad_
-Rcpp::NumericVector cotEntropy_grad_(const SEXP& vars_, const SEXP& source_, const SEXP& target_, const SEXP& cost_, const SEXP& b_, double delta, double lambda);
-RcppExport SEXP _causalOT_cotEntropy_grad_(SEXP vars_SEXP, SEXP source_SEXP, SEXP target_SEXP, SEXP cost_SEXP, SEXP b_SEXP, SEXP deltaSEXP, SEXP lambdaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type source_(source_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type target_(target_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type b_(b_SEXP);
-    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(cotEntropy_grad_(vars_, source_, target_, cost_, b_, delta, lambda));
-    return rcpp_result_gen;
-END_RCPP
-}
-// entBW_obj_
-double entBW_obj_(const SEXP& vars_, const SEXP& A_, double delta);
-RcppExport SEXP _causalOT_entBW_obj_(SEXP vars_SEXP, SEXP A_SEXP, SEXP deltaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type A_(A_SEXP);
-    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
-    rcpp_result_gen = Rcpp::wrap(entBW_obj_(vars_, A_, delta));
-    return rcpp_result_gen;
-END_RCPP
-}
-// entBW_grad_
-vector entBW_grad_(const SEXP& vars_, const SEXP& A_, double delta);
-RcppExport SEXP _causalOT_entBW_grad_(SEXP vars_SEXP, SEXP A_SEXP, SEXP deltaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type A_(A_SEXP);
-    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
-    rcpp_result_gen = Rcpp::wrap(entBW_grad_(vars_, A_, delta));
-    return rcpp_result_gen;
-END_RCPP
-}
 // logSumExp
 double logSumExp(vector& x_);
 RcppExport SEXP _causalOT_logSumExp(SEXP x_SEXP) {
@@ -164,12 +77,6 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_causalOT_bootStrap_", (DL_FUNC) &_causalOT_bootStrap_, 3},
     {"_causalOT_sbw_oop_bs_", (DL_FUNC) &_causalOT_sbw_oop_bs_, 5},
-    {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
-    {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 4},
-    {"_causalOT_cotEntropy_obj_", (DL_FUNC) &_causalOT_cotEntropy_obj_, 7},
-    {"_causalOT_cotEntropy_grad_", (DL_FUNC) &_causalOT_cotEntropy_grad_, 7},
-    {"_causalOT_entBW_obj_", (DL_FUNC) &_causalOT_entBW_obj_, 3},
-    {"_causalOT_entBW_grad_", (DL_FUNC) &_causalOT_entBW_grad_, 3},
     {"_causalOT_logSumExp", (DL_FUNC) &_causalOT_logSumExp, 1},
     {"_causalOT_rowLogSumExp", (DL_FUNC) &_causalOT_rowLogSumExp, 1},
     {"_causalOT_colLogSumExp", (DL_FUNC) &_causalOT_colLogSumExp, 1},

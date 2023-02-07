@@ -9,30 +9,6 @@ sbw_oop_bs_ <- function(w_list, nboot, source, target, a) {
     .Call(`_causalOT_sbw_oop_bs_`, w_list, nboot, source, target, a)
 }
 
-cost_calculation_ <- function(A_, B_, p) {
-    .Call(`_causalOT_cost_calculation_`, A_, B_, p)
-}
-
-cost_mahal_ <- function(A_, B_, p, estimand) {
-    .Call(`_causalOT_cost_mahal_`, A_, B_, p, estimand)
-}
-
-cotEntropy_obj_ <- function(vars_, source_, target_, cost_, b_, delta, lambda) {
-    .Call(`_causalOT_cotEntropy_obj_`, vars_, source_, target_, cost_, b_, delta, lambda)
-}
-
-cotEntropy_grad_ <- function(vars_, source_, target_, cost_, b_, delta, lambda) {
-    .Call(`_causalOT_cotEntropy_grad_`, vars_, source_, target_, cost_, b_, delta, lambda)
-}
-
-entBW_obj_ <- function(vars_, A_, delta) {
-    .Call(`_causalOT_entBW_obj_`, vars_, A_, delta)
-}
-
-entBW_grad_ <- function(vars_, A_, delta) {
-    .Call(`_causalOT_entBW_grad_`, vars_, A_, delta)
-}
-
 logSumExp <- function(x_) {
     .Call(`_causalOT_logSumExp`, x_)
 }
