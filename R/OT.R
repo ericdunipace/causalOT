@@ -137,7 +137,7 @@ OT <- R6::R6Class("OT",
                                               dtype = dbl)
         pen <- torch::torch_tensor(self$penalty, dtype = dbl)
         softmin_jit <- torch::jit_compile(
-          "def softmin(eps: Tensor, C_xy: Tensor, y_potential: Tensor, b_log: Tensor):
+          "def softmin(eps: float, C_xy: Tensor, y_potential: Tensor, b_log: Tensor):
             return -eps * (y_potential/eps + b_log - C_xy/eps).logsumexp(1)
           "
         )
@@ -332,6 +332,17 @@ epsilon_select <- function(diameter, eps, tot_iter, cur_iter){
   return (eps_new)
 }
 
+epsilon_trajectory <- function(diameter, eps, tot_iter){
+  
+  if (eps > diameter) {
+    return (rep(eps, tot_iter))
+  }
+  
+  eps_new = (diameter - eps) * exp(-0.9*(1:tot_iter - 1)) + eps
+  
+  return (eps_new)
+}
+
 OT$set("public", 
 "sinkhorn_opt",
 function(niter = 1e3, tol = 1e-7) {
@@ -400,14 +411,14 @@ function(which.margin = "x", niter, tol) {
   } else {
     stop("Wrong margin given. Must be one of x or y")
   }
-  eps      <- torch::torch_tensor(self$penalty, dtype = torch::torch_double())
-  diameter <- torch::torch_tensor(self$diameter, dtype = torch::torch_double())
+  eps      <- torch::jit_scalar(self$penalty)
+  diameter <- torch::jit_scalar(self$diameter)
   softmin  <- self$softmin
   n        <- length(a)
   
   print_period <- 1L
   
-  eps_log_switch = diameter$item()/round(log(.Machine$double.xmax))
+  eps_log_switch = diameter/round(log(.Machine$double.xmax))
   
   torch::with_no_grad({
   if(is.null(f_xx)) {
@@ -424,27 +435,28 @@ function(which.margin = "x", niter, tol) {
   # f_01 <- f_02 <- f_xx
   # f_1 <- f_2 <- f_xx
   
-  for (i in 1:niter) {
-    eps_cur = epsilon_select(diameter, eps, niter, i)
+  epsilons <- epsilon_trajectory(diameter, eps, niter)
+  eps_cur <- NULL
+  
+  for (eps_cur in epsilons) {
+    # eps_cur = epsilons[i]
+    # eps_cur = epsilon_select(diameter, eps, niter, i)
     # ft_1 = softmin(eps_cur, C_xx, f_2,  a_log)
     # ft_2 = softmin(eps_cur, C_xx, ft_1, a_log)
     
-    if (eps_cur$item() > eps_log_switch) {
+    if (eps_cur > eps_log_switch) {
       # Anderson acceleration
-      ft_1= softmin(eps_cur, C_xx, f_xx, a_log)
-      # f_xx$mul_(0.5)
-      # f_xx$add_(0.5 * ft_1)
-      f_xx = 0.5 * (ft_1 + f_xx)  # OT(b,b)
+      ft_1 = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
+      f_xx = ft_1 + f_xx; f_xx = f_xx * 0.5;  # OT(b,b)
     } else {
-      f_xx = softmin(eps_cur, C_xx, f_xx, a_log)
-      # f_2 = ft_2
+      f_xx = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
     }
     # loss = sum((f_1 + f_2) * a)
     loss = a$dot(f_xx)$item() * 2.0
-    if ((i %% print_period) == 0) {
+    # if ((i %% print_period) == 0) {
       if (abs(loss - loss_1) < tol) break
       if (abs(loss - loss_2) < tol) break
-    }
+    # }
     
     loss_2 = loss_1
     loss_1 = loss
@@ -462,8 +474,8 @@ OT$set("private",
        "sinkhorn_loop",
 function(niter, tol) {
   # ttorch::autograd_set_grad_mode(enabled = FALSE)
-  eps      <- torch::torch_tensor(self$penalty, dtype = torch::torch_double())
-  diameter <- torch::torch_tensor(self$diameter, dtype = torch::torch_double())
+  eps      <- torch::jit_scalar(self$penalty)
+  diameter <- torch::jit_scalar(self$diameter)
   softmin  <- self$softmin
   a        <- private$a_$detach()
   b        <- private$b_$detach()
@@ -478,7 +490,7 @@ function(niter, tol) {
   
   print_period <- 1L
   
-  eps_log_switch = diameter$item()/round(log(.Machine$double.xmax))
+  eps_log_switch = diameter/round(log(.Machine$double.xmax))
   missing_pot <- is.null(f_xy) || is.null(g_yx)
   nan_f <- nan_g <- FALSE
   if(!missing_pot) {
@@ -507,23 +519,26 @@ function(niter, tol) {
                       torch::torch_zeros_like(a_log, dtype = torch::torch_double()), 
                       a_log)
     }
-  } else {
-    f_xy <- f_xy$detach()
-    g_yx <- g_yx$detach()
-  }
+  } 
   
   loss <- loss_0 <- (a$dot(f_xy) + b$dot(g_yx))$item()
   norm <- NULL
+  ft = f_xy$detach()$clone()
+  gt = g_yx$detach()$clone()
+  epsilons <- epsilon_trajectory(diameter, eps, niter)
+  eps_cur <- NULL
   
-  for (i in 1:niter) {
-    eps_cur = epsilon_select(diameter, eps, niter, i)
-    
-    if (eps_cur$item() > eps_log_switch) {
+  for (e in epsilons) {
+    eps_cur = torch::jit_scalar(e)
+    # eps_cur = epsilons[i]
+    # eps_cur = epsilon_select(diameter, eps, niter, i)
+    # browser()
+    if (eps_cur > eps_log_switch) {
       gt = softmin(eps_cur, C_yx, f_xy, a_log)
       ft = softmin(eps_cur, C_xy, g_yx, b_log)
       # Anderson acceleration
-      g_yx = 0.5 * (g_yx + gt)  # OT(b,a)
-      f_xy = 0.5 * (f_xy + ft)  # OT(a,b)
+      g_yx = g_yx + gt;  g_yx = g_yx * 0.5;  # OT(b,a)
+      f_xy = f_xy + ft;  f_xy = f_xy * 0.5; # OT(a,b)
     } else {
       g_yx = softmin(eps_cur, C_yx, f_xy, a_log) # OT(b,a)
       f_xy = softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
@@ -534,9 +549,9 @@ function(niter, tol) {
     f_xy <- f_xy + norm
     loss = ( a$dot(f_xy) )$item() #+ b$dot(g_yx))$item()
     # cat(paste0(loss$item(),", "))
-    if ( (i %% print_period) == 0 ) {
+    # if ( (i %% print_period) == 0 ) {
       if (abs(loss - loss_0) < tol) break
-    }
+    # }
     
     loss_0 = loss
     
@@ -1222,7 +1237,7 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
     x1 <- get_x1(dh)
     x <- get_x(dh)
     z <- get_z(dh)
-    b <- get_w(dh)
+    b <- renormalize(get_w(dh))
     a0_init <- renormalize(b[z==0])
     a1_init <- renormalize(b[z==1])
     
