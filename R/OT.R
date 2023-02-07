@@ -43,7 +43,7 @@ OT <- R6::R6Class("OT",
       
       # device
       if(is.null(device) || !torch::is_torch_device(device)) {
-        use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+        use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
         if (use_cuda) {
           self$device <-  torch::torch_device("cuda")
           if (!tensorized) {
@@ -494,8 +494,8 @@ function(niter, tol) {
   missing_pot <- is.null(f_xy) || is.null(g_yx)
   nan_f <- nan_g <- FALSE
   if(!missing_pot) {
-    nan_f <- any(as.logical(f_xy$isnan()))
-    nan_g <- any(as.logical(g_yx$isnan()))
+    nan_f <- as.logical(f_xy$isnan()$any()$to(device = "cpu"))
+    nan_g <- as.logical(g_yx$isnan()$any()$to(device = "cpu"))
   }
   
   torch::with_no_grad({
