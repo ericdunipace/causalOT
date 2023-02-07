@@ -59,7 +59,15 @@ OT <- R6::R6Class("OT",
           }
         }
       } else {
-        self$device <- device
+        
+        if (!tensorized ) {
+          rkeops::compile4float64()
+          if (capture.output(print(device)) == "torch_device(type='cuda')") {
+            rkeops::compile4gpu()
+            rkeops::use_gpu()
+          }
+        }
+        self$device <- torch::torch_device("cpu")
       }
       
       
