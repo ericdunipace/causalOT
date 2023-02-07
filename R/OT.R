@@ -106,8 +106,10 @@ OT <- R6::R6Class("OT",
         )
         C_xy$reduction <- Max_SumShiftExp
         C_yx$reduction <- Max_SumShiftExp
-        C_xx$reduction <- Max_SumShiftExp
-        C_yy$reduction <- Max_SumShiftExp
+        if (debias) {
+          C_xx$reduction <- Max_SumShiftExp
+          C_yy$reduction <- Max_SumShiftExp
+        }
         softmin <- softmin_online
       }
       
@@ -303,7 +305,7 @@ softmin_tensorized <- function(eps, C_xy, y_potential, b_log) {
 #     )
 
 softmin_online <- function(eps, C_xy, y_potential, b_log) {
-  exp_sums <- C_xy$reduction( list(as.matrix(C_xy$data$x),  as.matrix(C_xy$data$y),
+  exp_sums <- C_xy$reduction( list(as.matrix(C_xy$data$x$to(device = "cpu")),  as.matrix(C_xy$data$y$to(device = "cpu")),
                         as.numeric((b_log + y_potential / eps)$to(device = "cpu")),
                         as.numeric(1.0 / eps)) )
 
@@ -456,7 +458,8 @@ function(which.margin = "x", niter, tol) {
     if (eps_cur > eps_log_switch) {
       # Anderson acceleration
       ft_1 = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
-      f_xx = ft_1 + f_xx; f_xx = f_xx * 0.5;  # OT(b,b)
+      f_xx$add_(ft_1)$mul_(0.5) #OT(a,a)
+      #f_xx = ft_1 + f_xx; f_xx = f_xx * 0.5;  # OT(a,a)
     } else {
       f_xx = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
     }
@@ -541,21 +544,23 @@ function(niter, tol) {
     eps_cur = torch::jit_scalar(e)
     # eps_cur = epsilons[i]
     # eps_cur = epsilon_select(diameter, eps, niter, i)
-    # browser()
+    
     if (eps_cur > eps_log_switch) {
       gt = softmin(eps_cur, C_yx, f_xy, a_log)
       ft = softmin(eps_cur, C_xy, g_yx, b_log)
       # Anderson acceleration
-      g_yx = g_yx + gt;  g_yx = g_yx * 0.5;  # OT(b,a)
-      f_xy = f_xy + ft;  f_xy = f_xy * 0.5; # OT(a,b)
+      #g_yx = g_yx + gt;  g_yx = g_yx * 0.5;  # OT(b,a)
+      #f_xy = f_xy + ft;  f_xy = f_xy * 0.5; # OT(a,b)
+      g_yx$add_(gt)$mul_(0.5);  # OT(b,a)
+      f_xy$add_(ft)$mul_(0.5); # OT(a,b)
     } else {
       g_yx = softmin(eps_cur, C_yx, f_xy, a_log) # OT(b,a)
       f_xy = softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
     }
     
     norm <- b$dot(g_yx)
-    g_yx <- g_yx - norm
-    f_xy <- f_xy + norm
+    g_yx$sub_(norm)
+    f_xy$add_(norm)
     loss = ( a$dot(f_xy) )$item() #+ b$dot(g_yx))$item()
     # cat(paste0(loss$item(),", "))
     # if ( (i %% print_period) == 0 ) {
