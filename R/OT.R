@@ -67,7 +67,6 @@ OT <- R6::R6Class("OT",
             rkeops::use_gpu()
           }
         }
-        self$device <- torch::torch_device("cpu")
       }
       
       
@@ -76,6 +75,8 @@ OT <- R6::R6Class("OT",
       b <- check_weights(b, y, self$device)
       a_log <- log_weights(a$detach())$contiguous()$to(device = self$device)
       b_log <- log_weights(b$detach())$contiguous()$to(device = self$device)
+      
+      if(!tensorized) self$device <- torch::torch_device("cpu")
       
       # setup costs
       C_xy <- cost(x, y$detach(), p = p, tensorized = tensorized, cost_function = cost_function)
