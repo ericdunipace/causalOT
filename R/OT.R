@@ -303,10 +303,10 @@ softmin_tensorized <- function(eps, C_xy, y_potential, b_log) {
 
 softmin_online <- function(eps, C_xy, y_potential, b_log) {
   exp_sums <- C_xy$reduction( list(as.matrix(C_xy$data$x),  as.matrix(C_xy$data$y),
-                        as.numeric(b_log + y_potential / eps),
+                        as.numeric((b_log + y_potential / eps)$to(device = "cpu")),
                         as.numeric(1.0 / eps)) )
 
-  out <- -eps * (log(exp_sums[,2]) + exp_sums[,1])
+  out <- torch::torch_tensor(-eps * (log(exp_sums[,2]) + exp_sums[,1]), dtype = torch::torch_double(), device = b_log$device)
   return(out)
 }
 
