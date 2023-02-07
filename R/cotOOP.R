@@ -1353,8 +1353,6 @@ OTProblem_ <- R6::R6Class("OTProblem",
          loss <- self$dist + loss
        # }
        
-       
-       
        loss$backward()
        return(loss)
      }
