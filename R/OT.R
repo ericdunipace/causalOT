@@ -76,7 +76,7 @@ OT <- R6::R6Class("OT",
       a_log <- log_weights(a$detach())$contiguous()$to(device = self$device)
       b_log <- log_weights(b$detach())$contiguous()$to(device = self$device)
       
-      if(!tensorized) self$device <- torch::torch_device("cpu")
+      if(!tensorized) self$device <- torch::torch_device("cpu") # avoids copying matrices more than needed
       
       # setup costs
       C_xy <- cost(x, y$detach(), p = p, tensorized = tensorized, cost_function = cost_function)
