@@ -328,7 +328,7 @@ softmin_online <- function(eps, C_xy, y_potential, b_log) {
                         as.numeric((b_log + y_potential / eps)$to(device = "cpu")),
                         as.numeric(1.0 / eps)) )
 
-  out <- torch::torch_tensor(-eps * (log(exp_sums[,2]) + exp_sums[,1]), dtype = self$dtype, device = b_log$device)
+  out <- torch::torch_tensor(-eps * (log(exp_sums[,2]) + exp_sums[,1]), dtype = b_log$dtype, device = b_log$device)
   return(out)
 }
 
