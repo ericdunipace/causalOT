@@ -771,11 +771,13 @@ energy_dist_online <- torch::autograd_function(
     a <- as.numeric(a)
     b <- as.numeric(b)
     
-    use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
-    rkeops::compile4float64()
+    use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
+    # rkeops::compile4float64()
     if (use_cuda) {
       rkeops::compile4gpu()
       rkeops::use_gpu()
+    } else {
+      rkeops::compile4float64()
     }
     sumred <- rkeops::keops_kernel(
       formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
