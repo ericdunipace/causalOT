@@ -68,7 +68,7 @@ OT <- R6::R6Class("OT",
       }
       
       # dtype
-      if (!torch::is_torch_dtype(dtype)) {
+      if (!is.null(dtype) && !torch::is_torch_dtype(dtype)) {
         warning("Provided dtype is not or class torch_dtype. Using automatic selection.")
         dtype <- NULL
       }
@@ -163,10 +163,9 @@ OT <- R6::R6Class("OT",
       
       if (self$tensorized) {
         
-        dbl <- torch::torch_double()
         torch_tens <- torch::torch_zeros_like(self$b,
-                                              dtype = dbl)
-        pen <- torch::torch_tensor(self$penalty, dtype = dbl)
+                                              dtype = self$dtype)
+        pen <- torch::torch_tensor(self$penalty, dtype = self$dtype)
         softmin_jit <- torch::jit_compile(
           "def softmin(eps: float, C_xy: Tensor, y_potential: Tensor, b_log: Tensor):
             return -eps * (y_potential/eps + b_log - C_xy/eps).logsumexp(1)
@@ -227,7 +226,7 @@ OT <- R6::R6Class("OT",
       if(inherits(value, "torch_tensor")) {
         private$a_ <- value$to(device = self$device)
       } else {
-        private$a_ <- torch::torch_tensor(value, dtype = torch::torch_double(), device = self$device)
+        private$a_ <- torch::torch_tensor(value, dtype = self$dtype, device = self$device)
       }
       
       private$a_log <- log_weights(private$a_$detach())$to(device = self$device)
@@ -240,7 +239,7 @@ OT <- R6::R6Class("OT",
       if(inherits(value, "torch_tensor")) {
         private$b_ <- value
       } else {
-        private$b_ <- torch::torch_tensor(value, dtype = torch::torch_double())
+        private$b_ <- torch::torch_tensor(value, dtype = self$dtype)
       }
       private$b_log <- log_weights(private$b_$detach())
     }
@@ -318,10 +317,10 @@ softmin_tensorized <- function(eps, C_xy, y_potential, b_log) {
 #     function(eps, C_xy, y_potential, b_log) {
 #       return ( -eps * ( torch::torch_add(y_potential / eps, b_log) - C_xy / eps )$logsumexp(2) )
 #     },
-#     torch::torch_tensor(10., dtype = torch::torch_double()),
-#     torch::torch_tensor(matrix(0, 2,3), dtype = torch::torch_double()),
-#     torch::torch_tensor(rep(0,3), dtype = torch::torch_double()),
-#     torch::torch_tensor(rep(0,3), dtype = torch::torch_double())
+#     torch::torch_tensor(10., dtype = self$dtype),
+#     torch::torch_tensor(matrix(0, 2,3), dtype = self$dtype),
+#     torch::torch_tensor(rep(0,3), dtype = self$dtype),
+#     torch::torch_tensor(rep(0,3), dtype = self$dtype)
 #     )
 
 softmin_online <- function(eps, C_xy, y_potential, b_log) {
@@ -329,7 +328,7 @@ softmin_online <- function(eps, C_xy, y_potential, b_log) {
                         as.numeric((b_log + y_potential / eps)$to(device = "cpu")),
                         as.numeric(1.0 / eps)) )
 
-  out <- torch::torch_tensor(-eps * (log(exp_sums[,2]) + exp_sums[,1]), dtype = torch::torch_double(), device = b_log$device)
+  out <- torch::torch_tensor(-eps * (log(exp_sums[,2]) + exp_sums[,1]), dtype = self$dtype, device = b_log$device)
   return(out)
 }
 
@@ -403,7 +402,7 @@ function(niter = 1e3, tol = 1e-7) {
   
   if ( self$debias ) {
     g_yy <- private$pot$g_yy
-    if(is.null(g_yy)) g_yy <- torch::torch_zeros_like(fg_list$g_yx, dtype = torch::torch_double())
+    if(is.null(g_yy)) g_yy <- torch::torch_zeros_like(fg_list$g_yx, dtype = self$dtype)
     f_xx <- private$sinkhorn_self_loop("x", niter, tol)
     self$potentials <- list(
          f_xy = fg_list$f_xy,
@@ -453,7 +452,7 @@ function(which.margin = "x", niter, tol) {
   
   torch::with_no_grad({
   if(is.null(f_xx)) {
-    f_xx <- torch::torch_zeros_like(a_log, dtype = torch::torch_double())
+    f_xx <- torch::torch_zeros_like(a_log, dtype = self$dtype)
     if (as.logical(eps > diameter)) {
       f_xx <- softmin(eps, C_xx, f_xx, a_log)
     } else {
@@ -535,20 +534,20 @@ function(niter, tol) {
     if (as.logical(eps > diameter)) {
       f_xy <- softmin(eps, 
                       C_xy, 
-                      torch::torch_zeros_like(b_log, dtype = torch::torch_double()), 
+                      torch::torch_zeros_like(b_log, dtype = self$dtype), 
                       b_log)
       g_yx <- softmin(eps, 
                       C_yx, 
-                      torch::torch_zeros_like(a_log, dtype = torch::torch_double()), 
+                      torch::torch_zeros_like(a_log, dtype = self$dtype), 
                       a_log)
     } else {
       f_xy <- softmin(diameter, 
                       C_xy, 
-                      torch::torch_zeros_like(b_log,dtype = torch::torch_double()), 
+                      torch::torch_zeros_like(b_log,dtype = self$dtype), 
                       b_log)
       g_yx <- softmin(diameter, 
                       C_yx, 
-                      torch::torch_zeros_like(a_log, dtype = torch::torch_double()), 
+                      torch::torch_zeros_like(a_log, dtype = self$dtype), 
                       a_log)
     }
   } 
