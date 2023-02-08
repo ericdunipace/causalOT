@@ -116,7 +116,11 @@ OT <- R6::R6Class("OT",
       if(tensorized) {
         softmin <- softmin_tensorized
       } else {
-        if(capture.output(self$dtype) == "torch_Double") rkeops::compile4float64()
+        if(capture.output(self$dtype) == "torch_Double") {
+          rkeops::compile4float64()
+        } else {
+          rkeops::compile4float32()
+        }
         Max_SumShiftExp <- rkeops::keops_kernel(
           formula = paste0("Max_SumShiftExp_Reduction( G - P *", C_xy$fun, ", 0)"),
           args = c(
