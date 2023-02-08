@@ -15,10 +15,11 @@ OT <- R6::R6Class("OT",
     debias = "logical",
     device = "torch_device",
     diameter = "torch_tensor",
+    dtype = "torch_dtype",
     tensorized = "logical",
     initialize = function(x, y, a = NULL, b = NULL, penalty, 
                           cost_function = NULL, p = 2, debias = TRUE, tensorized = "auto",
-                          diameter=NULL, device = NULL) {
+                          diameter=NULL, device = NULL, dtype = NULL) {
       # browser()
       if(missing(penalty) || is.null(penalty) || is.na(penalty) || penalty < 0) {
         stop("Must specify a penalty > 0!")
@@ -32,16 +33,7 @@ OT <- R6::R6Class("OT",
       # should setup debiased potentials
       debias <- isTRUE(debias)
       
-      # setup data
-      if( ! inherits(x, "torch_tensor")) {
-        x <- torch::torch_tensor(x, dtype = torch::torch_double())$contiguous()
-      }
-      if( ! inherits(y, "torch_tensor")) {
-        y <- torch::torch_tensor(y, dtype = torch::torch_double())$contiguous()
-      }
-      d <- ncol(x)
-      
-      # device
+      # device check
       if(is.null(device) || !torch::is_torch_device(device)) {
         use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
         if (use_cuda) {
@@ -60,15 +52,43 @@ OT <- R6::R6Class("OT",
         }
       } else {
         self$device <- device
+        attempt_cuda <- grepl("cuda",  capture.output(print(self$device)))
+        use_cuda <- attempt_cuda && torch::cuda_device_count()>=1
         if (!tensorized ) {
           # rkeops::compile4float64()
-          if (capture.output(print(self$device)) == "torch_device(type='cuda')") {
+          if (use_cuda) {
             rkeops::compile4gpu()
             rkeops::use_gpu()
           }
         }
+        if(attempt_cuda && !use_cuda) {
+          warning("CUDA not available even though you tried. Switching to CPU") 
+          self$device <- torch::torch_device("cpu")
+        }
       }
       
+      # dtype
+      if (!torch::is_torch_dtype(dtype)) {
+        warning("Provided dtype is not or class torch_dtype. Using automatic selection.")
+        dtype <- NULL
+      }
+      if (is.null(dtype)) {
+        self$dtype <- switch(as.integer(use_cuda) + 1L,
+                             torch::torch_double(),
+                             torch::torch_float32()
+        )
+      } else {
+        self$dtype <- dtype
+      }
+      
+      # setup data
+      if ( ! inherits(x, "torch_tensor")) {
+        x <- torch::torch_tensor(x, dtype = self$dtype)$contiguous()
+      }
+      if ( ! inherits(y, "torch_tensor")) {
+        y <- torch::torch_tensor(y, dtype = self$dtype)$contiguous()
+      }
+      d <- ncol(x)
       
       # setup masses
       a <- check_weights(a, x, self$device)
@@ -818,10 +838,12 @@ energy_dist_online <- torch::autograd_function(
     
     if (ctx$needs_input_grad$x) {
       use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
-      rkeops::compile4float64()
+      
       if (use_cuda) {
         rkeops::compile4gpu()
         rkeops::use_gpu()
+      } else {
+        rkeops::compile4float64()
       }
       
       cost_grad_xy <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
@@ -841,10 +863,12 @@ energy_dist_online <- torch::autograd_function(
     }
     if (ctx$needs_input_grad$y) {
       use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
-      rkeops::compile4float64()
+      
       if (use_cuda) {
         rkeops::compile4gpu()
         rkeops::use_gpu()
+      } else {
+        rkeops::compile4float64()
       }
       cost_grad <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
                                       var = "X")
@@ -896,10 +920,12 @@ inf_sinkhorn_online <- torch::autograd_function(
     b <- as.numeric(b)
     
     use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
-    rkeops::compile4float64()
+    
     if (use_cuda) {
       rkeops::compile4gpu()
       rkeops::use_gpu()
+    } else {
+      rkeops::compile4float64()
     }
     sumred <- rkeops::keops_kernel(
       formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
