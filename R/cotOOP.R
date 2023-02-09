@@ -46,7 +46,7 @@ Measure_ <- R6::R6Class("Measure",
                          adapt = c("none","weights", "x"), 
                          balance.functions = NA_real_,
                          target.values = NA_real_,
-                         dtype = torch::torch_double(), device = NULL) {
+                         dtype = NULL, device = NULL) {
      # browser()
      if(!is.matrix(x)) x <- as.matrix(x)
      self$d <- ncol(x)
@@ -57,7 +57,7 @@ Measure_ <- R6::R6Class("Measure",
      
      # device
      if (is.null(device)) {
-       cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count()>1
+       cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1
        if (cuda_opt) {
          self$device <-  torch::torch_device("cuda")
        } else {
@@ -69,6 +69,13 @@ Measure_ <- R6::R6Class("Measure",
      }
      
      #dtype
+     if ( is.null(dtype) ) {
+       if (grepl("cuda", capture.output(print(self$device)) ) ) {
+         dtype <- torch::torch_float()
+       } else {
+         dtype <- torch::torch_double()
+       }
+     }
      stopifnot("Argument 'dtype' must be of class 'torch_dtype'. Please see '?torch_dtype' for more info." = torch::is_torch_dtype(dtype))
      
      # set data
@@ -160,7 +167,7 @@ Measure_ <- R6::R6Class("Measure",
        
        private$transform_ <- function(value) {
          full_param <- torch::torch_cat(
-           list( torch::torch_zeros(1L, dtype = value$dtype),
+           list( torch::torch_zeros(1L, device = self$device, dtype = value$dtype),
                 value)
          )
          return(full_param$log_softmax(1)$exp())
@@ -319,6 +326,11 @@ Measure_ <- R6::R6Class("Measure",
      
      if(!inherits(value, "torch_tensor")) {
        value <- torch::torch_tensor(value, dtype = private$mass_$dtype)$contiguous()
+     } else {
+       stopifnot("Input tensor and original weights have different dtypes! " = isTRUE(value$dtype == self$dtype))
+       if (value$device != self$device) {
+         value <- value$to(device = self$device)
+       }
      }
      
      private$assign_mass_(value)
@@ -337,7 +349,7 @@ Measure_ <- R6::R6Class("Measure",
      
      # check if input is tensor
      if (!inherits(value, "torch_tensor")) {
-       value <- torch::torch_tensor(value, dtype = private$data_$dtype)
+       value <- torch::torch_tensor(value, device = self$device, dtype = private$data_$dtype)
      } else {
        stopifnot("Input tensor and original data have different dtypes! " = isTRUE(value$dtype == private$data_$dtype))
      }
