@@ -472,6 +472,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss + !!o2)
      } else {
+       stopifnot(private$device != o2$device)
+       stopifnot(private$dtype != o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss + !!o2$loss)
@@ -481,6 +483,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss - !!o2)
      } else {
+       stopifnot(private$device != o2$device)
+       stopifnot(private$dtype != o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss - !!o2$loss)
@@ -490,6 +494,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss * !!o2)
      } else {
+       stopifnot(private$device != o2$device)
+       stopifnot(private$dtype != o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss * !!o2$loss)
@@ -499,6 +505,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss / !!o2)
      } else {
+       stopifnot(private$device != o2$device)
+       stopifnot(private$dtype != o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss / !!o2$loss)
@@ -547,6 +555,9 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if (measure_1$d != measure_2$d) {
        stop(sprintf("Measures should have the same number of columns! measure_1 has %s columns, while measure_2 has %s columns.", measure_1$d, measure_2$d))
      }
+    
+     private$dtype <- dtype
+     private$device <- device
      
      #environment with names as obj_add, and measures as elements of environment
      self$measures <- rlang::env(!!add_1 := measure_1, !!add_2 := measure_2)
@@ -599,6 +610,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
  private = list(
    # objects
    args_set = "logical",
+   device = "torch_device",
+   dtype = "torch_dtype",
    final_loss = "list",
    iterations_run = "list",
    lbfgs_reset = 0L,
@@ -1601,7 +1614,8 @@ OTProblem_$set("public", "setup_arguments",
                                      debias = debias, 
                                      tensorized = cost.online,
                                      diameter = diameter,
-                                    device = measure_1$device)
+                                    device = private$device,
+                                    dtype = private$dtype)
      if(not_warned && isTRUE(!(device_vector == measure_1$device)) ){
        warning("All measures not on same device. This could slow things down.")
        not_warned <- FALSE
