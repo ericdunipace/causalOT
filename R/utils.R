@@ -216,7 +216,7 @@ check_weights_torch <- function(a, x, device) {
 }
 
 check_weights_torch_torch <- function(a, x, device) {
-  if(all(as.logical(a$isnan()))) {
+  if(all(as.logical(a$isnan()$to(device = "cpu")))) {
     a <- rep(1.0/nrow(x), nrow(x))
   }
   stopifnot("x must be a torch_tensor" = inherits(x, "torch_tensor"))
