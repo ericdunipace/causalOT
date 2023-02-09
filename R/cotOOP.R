@@ -643,11 +643,11 @@ OTProblem_ <- R6::R6Class("OTProblem",
      # the langrangian terms to add to the loss
      l_to <- length(self$target_objects)
      
-     loss <- torch::torch_tensor(0.0, dtype = torch::torch_double())
+     loss <- torch::torch_tensor(0.0, dtype = private$dtype, device = private$device)
      # calc_deriv <- FALSE
      
      machine_tol <- .Machine$double.xmin
-     coef <- torch::torch_tensor(10000.0, dtype = torch::torch_double())
+     coef <- torch::torch_tensor(10000.0, dtype = private$dtype, device = private$device))
      
      if (length(l_to) > 0) {
        
@@ -677,7 +677,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
          if (v$bf$requires_grad) { # center v$bf
            d   <- ncol(v$bf)
            torch::with_no_grad(
-             v$bf$subtract_(bal$view(c(1,d)))
+             v$bf$subtract_(bal$view(c(1L,d)))
              )
            next
          }
@@ -697,9 +697,9 @@ OTProblem_ <- R6::R6Class("OTProblem",
          
          # approx answer if infeasible
          # if (res$info$status_val == -3 || res$info$status_val == -4) {
-           abs_bal   <- bal$detach()$abs()
+           abs_bal   <- bal$detach()$abs()$to(device = "cpu")
            const.viol<- as.logical(abs_bal > delta)
-           find.max  <- as.logical(abs_bal == abs_bal$max())
+           find.max  <- as.logical(abs_bal == max(abs_bal) )
            which.max <- which(find.max)
            which.sign<- bal$detach()[which.max]$sign()
            #   if ( length(which.max) == 0 ) {
