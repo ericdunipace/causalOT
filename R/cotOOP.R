@@ -1163,7 +1163,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        min_lr <- sched$min_lrs[[1]]
        
        improved <- sched$.is_better(loss, sched$best)$item()
-       sched$step(loss)
+       sched$step(loss$to(device = "cpu"))
        
        if (inherits(private$opt, "optim_lbfgs") && isTRUE(private$opt$defaults$line_search_fn == "strong_wolfe") ) {
          if (private$lbfgs_count == sched$patience) {
