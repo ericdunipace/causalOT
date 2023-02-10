@@ -1203,7 +1203,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
    # optimization inner loop
    optimization_loop = function(niter, tol) {
      # set initial loss
-     loss_old <- self$dist$detach()item()
+     loss_old <- self$dist$detach()$item()
      
      # check convergence variable initialization  
      check <- TRUE
