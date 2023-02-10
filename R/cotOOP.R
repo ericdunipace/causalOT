@@ -1156,7 +1156,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        check <- FALSE
        
        old_mode <- sched$threshold_mode
-       if (as.logical(loss == sched$best) ) sched$threshold_mode <- "abs"
+       if (as.logical((loss == sched$best)$to(device = "cpu")) ) sched$threshold_mode <- "abs"
        
        init_lr <- sched$optimizer$defaults$lr
        lr <- get_lr()
