@@ -1203,7 +1203,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
    # optimization inner loop
    optimization_loop = function(niter, tol) {
      # set initial loss
-     loss_old <- self$dist$detach()$clone()
+     loss_old <- self$dist$detach()item()
      
      # check convergence variable initialization  
      check <- TRUE
@@ -1218,10 +1218,10 @@ OTProblem_ <- R6::R6Class("OTProblem",
        # check <- lr_reduce(opt_sched, loss$detach())
        
        # see if converged
-       if ( check && converged(loss, loss_old, tol) ) break
+       if ( check && converged(loss$item(), loss_old, tol) ) break
        
        # if not converged, save old loss
-       loss_old <- loss$detach()$clone()
+       loss_old <- loss$item()
      }
      
      #reset torch optimizer if present
