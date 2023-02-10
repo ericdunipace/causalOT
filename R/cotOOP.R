@@ -333,7 +333,7 @@ Measure_ <- R6::R6Class("Measure",
      if(!inherits(value, "torch_tensor")) {
        value <- torch::torch_tensor(value, dtype = private$mass_$dtype)$contiguous()
      } else {
-       stopifnot("Input tensor and original weights have different dtypes! " = isTRUE(value$dtype == self$dtype))
+       stopifnot("Input tensor and original weights have different dtypes! " = isTRUE(value$dtype == private$mass_$dtype))
        if (value$device != self$device) {
          value <- value$to(device = self$device)
        }
@@ -2787,7 +2787,7 @@ cotDualTrain <- R6::R6Class(
         v <- NULL
         u <- NULL
         torch::with_no_grad(
-          for (i in seq_along(param_addresses)) {
+          for ( i in seq_along(param_addresses) ) {
             v <- param_addresses[[i]]
             u <- value_addresses[[1L]]
             if (self$measures[[v]]$adapt == "weights")  {

@@ -7,9 +7,9 @@
 OTProblem(measure_1, measure_2, ...)
 }
 \arguments{
-\item{measure_1}{}
+\item{measure_1}{An object of class \link{Measure}}
 
-\item{measure_2}{}
+\item{measure_2}{An object of class \link{Measure}}
 
 \item{...}{Not used at this time}
 }

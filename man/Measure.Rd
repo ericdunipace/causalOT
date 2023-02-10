@@ -30,7 +30,7 @@ Measure(
 
 \item{dtype}{The torch_tensor dtype.}
 
-\item{device}{The device to have the data on.}
+\item{device}{The device to have the data on. Should be result of \href{torch::torch_device}{torch_device()}}
 }
 \value{
 An R6 object of class "Measure"
