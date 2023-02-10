@@ -98,6 +98,12 @@ Measure_ <- R6::R6Class("Measure",
      } else {
        self$balance_functions <- balance.functions
      }
+     if (!inherits( self$balance_target, "torch_tensor") && !as.logical(all(is.na(self$balance.functions$to(device = "cpu"))) ) ) {
+       self$balance_target <- torch::torch_tensor(as.matrix(self$balance_target), 
+                                                     dtype = dtype, device = self$device)$contiguous()
+     } else {
+       self$balance_functions <- self$balance_target$to(device = self$device, dtype = self$dtype)
+     }
      
      if (self$adapt == "x") {
        if (!all(is.na(self$balance_functions)) && !self$balance_functions$requires_grad) self$balance_functions$requires_grad <- TRUE
@@ -647,7 +653,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      # calc_deriv <- FALSE
      
      machine_tol <- .Machine$double.xmin
-     coef <- torch::torch_tensor(10000.0, dtype = private$dtype, device = private$device))
+     coef <- torch::torch_tensor(10000.0, dtype = private$dtype, device = private$device)
      
      if (length(l_to) > 0) {
        
@@ -849,8 +855,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
            
            if(v$bf$requires_grad) next
            
-           bf <- SBW_4_oop$new(source = v$bf,
-                               target = v$bt,
+           bf <- SBW_4_oop$new(source = v$bf$to(device = "cpu"),
+                               target = v$bt$to(device = "cpu"),
                                # a      = m$weights,
                                prob.measure = m$probability_measure,
                                osqp_opts = osqp_args)
