@@ -658,7 +658,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if (length(l_to) > 0) {
        
        # variables in for loop
-       delta <- bal <- n <- d <- v <- w <- NULL
+       delta <- bal <- ng_bal <- n <- d <- v <- w <- NULL
        problem <- q <- res <- l <- u <- A <- gamma <- NULL
        abs_bal <- const.viol <- which.max <- which.sign <- NULL
        
@@ -706,16 +706,16 @@ OTProblem_ <- R6::R6Class("OTProblem",
            ng_bal <- bal$detach()
            abs_bal   <- ng_bal$abs()
            const.viol<- abs_bal > delta
-           find.max  <- abs_bal == max(abs_bal)
            which.max <- abs_bal$argmax()
-           which.sign<- bal$detach()[which.max]$sign()
+           which.sign<- ng_bal[which.max]$sign()
+           gamma <- torch::torch_zeros_like(ng_bal)
            #   if ( length(which.max) == 0 ) {
            #   browser()
            #   torch::torch_zeros_like(bal[1L], dtype = bal$dtype)
            # } else {
            #   bal$detach()[which.max]$sign()
            # }
-           gamma     <- (const.viol & find.max) * which.sign
+           gamma[which.max] <- which.sign * const.viol[which.max]
          # }
          
          # update loss
