@@ -703,10 +703,11 @@ OTProblem_ <- R6::R6Class("OTProblem",
          
          # approx answer if infeasible
          # if (res$info$status_val == -3 || res$info$status_val == -4) {
-           abs_bal   <- bal$detach()$abs()$to(device = "cpu")
-           const.viol<- as.logical(abs_bal > delta)
-           find.max  <- as.logical(abs_bal == max(abs_bal) )
-           which.max <- which(find.max)
+           ng_bal <- bal$detach()
+           abs_bal   <- ng_bal$abs()
+           const.viol<- abs_bal > delta
+           find.max  <- abs_bal == max(abs_bal)
+           which.max <- abs_bal$argmax()
            which.sign<- bal$detach()[which.max]$sign()
            #   if ( length(which.max) == 0 ) {
            #   browser()
