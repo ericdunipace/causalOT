@@ -98,11 +98,11 @@ Measure_ <- R6::R6Class("Measure",
      } else {
        self$balance_functions <- balance.functions
      }
-     if (!inherits( self$balance_target, "torch_tensor") && !all(is.na(self$self$balance_target)) )  {
+     if (!inherits( self$balance_target, "torch_tensor") && !all(is.na(self$balance_target)) )  {
        self$balance_target <- torch::torch_tensor(self$balance_target, 
                                                      dtype = dtype, device = self$device)$contiguous()
-     } else {
-       self$balance_functions <- self$balance_target$squeeze(-1)$to(device = self$device, dtype = self$dtype)
+     } else if (!all(is.na(self$balance_target))) {
+       self$balance_target <- self$balance_target$to(device = self$device, dtype = self$dtype)
      }
      
      if (self$adapt == "x") {
@@ -423,7 +423,7 @@ Measure_ <- R6::R6Class("Measure",
 #' @param balance.functions A matrix of functions of the covariates to target for mean balance. If NULL and `target.values` are provided, will use the data in `x`.
 #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
 #' @param dtype The torch_tensor dtype.
-#' @param device The device to have the data on.
+#' @param device The device to have the data on. Should be result of [torch_device()](torch::torch_device)
 #'
 #' @return An R6 object of class "Measure"
 #' @export
@@ -1512,8 +1512,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
 
 #' Object Oriented OT Problem
 #'
-#' @param measure_1 
-#' @param measure_2 
+#' @param measure_1 An object of class [Measure]
+#' @param measure_2 An object of class [Measure]
 #' @param ... Not used at this time 
 #'
 #' @return An R6 object of class "OTProblem"

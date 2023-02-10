@@ -11,7 +11,7 @@ Measure(
   adapt = c("none", "weights", "x"),
   balance.functions = NA_real_,
   target.values = NA_real_,
-  dtype = torch::torch_double(),
+  dtype = NULL,
   device = NULL
 )
 }
