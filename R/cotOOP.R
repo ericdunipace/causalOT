@@ -98,11 +98,11 @@ Measure_ <- R6::R6Class("Measure",
      } else {
        self$balance_functions <- balance.functions
      }
-     if (!inherits( self$balance_target, "torch_tensor") && !as.logical(all(is.na(self$balance.functions$to(device = "cpu"))) ) ) {
-       self$balance_target <- torch::torch_tensor(as.matrix(self$balance_target), 
+     if (!inherits( self$balance_target, "torch_tensor") && !all(is.na(self$self$balance_target)) )  {
+       self$balance_target <- torch::torch_tensor(self$balance_target, 
                                                      dtype = dtype, device = self$device)$contiguous()
      } else {
-       self$balance_functions <- self$balance_target$to(device = self$device, dtype = self$dtype)
+       self$balance_functions <- self$balance_target$squeeze(-1)$to(device = self$device, dtype = self$dtype)
      }
      
      if (self$adapt == "x") {
@@ -115,12 +115,12 @@ Measure_ <- R6::R6Class("Measure",
      stopifnot("Argument 'target.values' must be NA or the same length as the number of columns in 'balance.functions'." = all(is.na(self$balance_target)) || length(self$balance_target) == ncol(self$balance_functions))
  
      # adjust be Std Dev
-     if (!all(is.na(self$balance_target))) {
+     if (inherits( self$balance_target, "torch_tensor") && !as.logical(all(is.na(self$balance_target))$to(device = "cpu")) ) {
        if (!self$adapt == "x") {
          sds <- self$balance_functions$std(1)
          self$balance_functions <- self$balance_functions/sds
-         self$balance_target <- self$balance_target / as.numeric(sds)
-         non_zero_sd <-  as.logical(0 < sds)
+         self$balance_target <- self$balance_target /sds
+         non_zero_sd <-  as.logical(0 < sds$to(device = "cpu"))
          if (sum(non_zero_sd) == 0) {
            warning("All columns of balance.functions have zero variance. Balance functions not used.")
            self$balance_functions <- NA_real_
@@ -194,7 +194,7 @@ Measure_ <- R6::R6Class("Measure",
      } else {
        stop("adapt hasn't been properly set!")
      }
-     
+     if (torch::cuda_is_available()) torch::cuda_empty_cache()
      return(invisible(self))
    } 
  ),
@@ -436,7 +436,7 @@ Measure <- function(x, weights = NULL,
                     adapt = c("none","weights", "x"), 
                     balance.functions = NA_real_,
                     target.values = NA_real_,
-                    dtype = torch::torch_double(), device = NULL) {
+                    dtype = NULL, device = NULL) {
   
   return(Measure_$new(x = x, weights = weights,
                       probability.measure = probability.measure,
@@ -779,6 +779,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        value
      }
    },
+   
    delta_values_setup = function(run.quick = TRUE, osqp_args = NULL) {
      
      # check if any target_objects
