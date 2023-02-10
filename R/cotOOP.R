@@ -329,9 +329,9 @@ Measure_ <- R6::R6Class("Measure",
        stopifnot("supplied weights must be >=0" = all(as.logical(value >=0)))
        if(as.logical(sum(value) != 1)) value <- value/sum(value)
      }
-     
+     browser()
      if(!inherits(value, "torch_tensor")) {
-       value <- torch::torch_tensor(value, dtype = private$mass_$dtype)$contiguous()
+       value <- torch::torch_tensor(value, dtype = private$mass_$dtype, device = self$device)$contiguous()
      } else {
        stopifnot("Input tensor and original weights have different dtypes! " = isTRUE(value$dtype == private$mass_$dtype))
        if (value$device != self$device) {
@@ -1211,14 +1211,14 @@ OTProblem_ <- R6::R6Class("OTProblem",
      # run optimization steps for given penalties
      for ( i in 1:niter ) {
        # take opt step and return loss
-       loss <- private$optimization_step(private$opt, private$osqp_args, tol = tol)
+       loss <- private$optimization_step(private$opt, private$osqp_args, tol = tol)$detach()$to(device = "cpu")
        
        # reduce lr
-       check <- private$lr_reduce(loss$detach())
+       check <- private$lr_reduce(loss)
        # check <- lr_reduce(opt_sched, loss$detach())
        
        # see if converged
-       if ( check && converged(loss$detach(), loss_old, tol) ) break
+       if ( check && converged(loss, loss_old, tol) ) break
        
        # if not converged, save old loss
        loss_old <- loss$detach()$clone()
