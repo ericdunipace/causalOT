@@ -172,10 +172,9 @@ mirror_softmax <- torch::autograd_function( # for mirror descent
   d1 <- g1$item() + g2$item() - 3 * (f1 - f2)/(x1 - x2)
   d2_square <- d1^2 - g1$item() * g2$item()
   # browser()
-  if (!d2_square$isnan()$item() && d2_square$isfinite()$item() && d2_square$item() >= 0) {
+  if (!is.nan(d2_square) && is.finite(d2_square) && d2_square >= 0) {
     d2 <- sqrt(d2_square)
-    mult_term <- ((g2$item() + d2 - d1)/(g2$item() - g1$item() + 2 * 
-                                    d2))
+    mult_term <- ((g2$item() + d2 - d1)/(g2$item() - g1$item() + 2 * d2))
     min_pos <- if (x1 < x2 && !is.nan(mult_term) ) {
       x2 - (x2 - x1) * mult_term
     } else if (x1 == x2) {
