@@ -329,12 +329,12 @@ Measure_ <- R6::R6Class("Measure",
        stopifnot("supplied weights must be >=0" = all(as.logical(value >=0)))
        if(as.logical(sum(value) != 1)) value <- value/sum(value)
      }
-     # browser()
+     browser()
      if(!inherits(value, "torch_tensor")) {
        value <- torch::torch_tensor(value, dtype = private$mass_$dtype, device = self$device)$contiguous()
      } else {
        stopifnot("Input tensor and original weights have different dtypes! " = isTRUE(value$dtype == private$mass_$dtype))
-       if (value$device != self$device) {
+       if (isFALSE(value$device == self$device) ) {
          value <- value$to(device = self$device)
        }
      }
@@ -478,8 +478,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss + !!o2)
      } else {
-       stopifnot(private$device != o2$device)
-       stopifnot(private$dtype != o2$dtype)
+       stopifnot(private$device == o2$device)
+       stopifnot(private$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss + !!o2$loss)
@@ -489,8 +489,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss - !!o2)
      } else {
-       stopifnot(private$device != o2$device)
-       stopifnot(private$dtype != o2$dtype)
+       stopifnot(private$device == o2$device)
+       stopifnot(private$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss - !!o2$loss)
@@ -500,8 +500,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss * !!o2)
      } else {
-       stopifnot(private$device != o2$device)
-       stopifnot(private$dtype != o2$dtype)
+       stopifnot(private$device == o2$device)
+       stopifnot(private$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss * !!o2$loss)
@@ -511,8 +511,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss / !!o2)
      } else {
-       stopifnot(private$device != o2$device)
-       stopifnot(private$dtype != o2$dtype)
+       stopifnot(private$device == o2$device)
+       stopifnot(private$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss / !!o2$loss)
@@ -552,7 +552,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      dtype <- measure_1$x$dtype
      device <- measure_1$x$device
      
-     if(measure_2$x$dtype != dtype) {
+     if(measure_2$x$dtype == dtype) {
        stop(sprintf("Measures must have same data type! measure_1 is of type %s, while measure_2 is of type %s.", dtype, measure_2$x$dtype))
      }
      if (!(measure_2$x$device == device) ) { # can't use != with torch device
@@ -1387,7 +1387,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        # }
        
        loss$backward()
-       return(loss)
+       return(loss$to(device = "cpu"))
      }
      
      if( inherits(opt, "optim_lbfgs") ) {
