@@ -229,12 +229,12 @@ OT <- R6::R6Class("OT",
       if(length(value) != self$n) stop("Assignment measure to mass a must have same length as original problem")
       
       if(inherits(value, "torch_tensor")) {
-        private$a_ <- value$to(device = self$device)
+        private$a_ <- value$to(device = private$a_$device)
       } else {
-        private$a_ <- torch::torch_tensor(value, dtype = self$dtype, device = self$device)
+        private$a_ <- torch::torch_tensor(value, dtype = self$dtype, device = private$a_$device)
       }
       
-      private$a_log <- log_weights(private$a_$detach())$to(device = self$device)
+      private$a_log <- log_weights(private$a_$detach())$to(device = private$a_$device)
     },
     b = function(value) {
       if(missing(value)) return(private$b_)
@@ -242,11 +242,11 @@ OT <- R6::R6Class("OT",
       if(length(value) != self$m) stop("Assignment measure to mass a must have same length as original problem")
       
       if(inherits(value, "torch_tensor")) {
-        private$b_ <- value
+        private$b_ <- value$to(device = private$b_$device)
       } else {
-        private$b_ <- torch::torch_tensor(value, dtype = self$dtype)
+        private$b_ <- torch::torch_tensor(value, dtype = private$b_$device)
       }
-      private$b_log <- log_weights(private$b_$detach())
+      private$b_log <- log_weights(private$b_$detach())$to(device = private$b_$device)
     }
   ),
   private = list(

@@ -162,10 +162,11 @@ function(cost, x, y) {
 setMethod("update_cost", signature(cost = "costTensor", x = "ANY", y = "ANY"),
 function(cost, x, y) {
   nm <- dim(cost$data)
-  
+  device <- cost$data$device
+  dtype <- cost$data$dtype
   stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
   stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
-  cost$data <- cost$fun(x,y,cost$p)
+  cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
 }          
 )
