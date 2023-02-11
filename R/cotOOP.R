@@ -552,7 +552,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      dtype <- measure_1$x$dtype
      device <- measure_1$x$device
      
-     if(measure_2$x$dtype == dtype) {
+     if(isFALSE(measure_2$x$dtype == dtype) ) {
        stop(sprintf("Measures must have same data type! measure_1 is of type %s, while measure_2 is of type %s.", dtype, measure_2$x$dtype))
      }
      if (!(measure_2$x$device == device) ) { # can't use != with torch device
