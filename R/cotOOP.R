@@ -329,7 +329,7 @@ Measure_ <- R6::R6Class("Measure",
        stopifnot("supplied weights must be >=0" = all(as.logical(value >=0)))
        if(as.logical(sum(value) != 1)) value <- value/sum(value)
      }
-     browser()
+     # browser()
      if(!inherits(value, "torch_tensor")) {
        value <- torch::torch_tensor(value, dtype = private$mass_$dtype, device = self$device)$contiguous()
      } else {
