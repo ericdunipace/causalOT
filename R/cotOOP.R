@@ -1809,7 +1809,12 @@ function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
 )
 
 OTProblem_$set("public", "choose_hyperparameters",
-function(n_boot_lambda = 100L, n_boot_delta = 1000L) {
+function(n_boot_lambda = 100L, n_boot_delta = 1000L, lambda_bootstrap = Inf) {
+  
+  # check arguments
+  stopifnot("n_boot_lambda must be >= 0"= n_boot_lambda>=0)
+  stopifnot("n_boot_delta must be >= 0"= n_boot_delta>=0)
+  stopifnot("lambda_bootstrap must be > 0"=lambda_bootstrap>0)
   
   # alter lists if needed for inherited classes
   res <- private$setup_choose_hyperparameters()
@@ -1917,7 +1922,7 @@ function(n_boot_lambda = 100L, n_boot_delta = 1000L) {
   if (n_lambda > 1) {
     
     # use Energy Dist
-    private$set_lambda(Inf)
+    private$set_lambda(lambda_bootstrap)
     
     # setup holder
     lambda_metrics <- rep(0.0, n_lambda)
@@ -2030,15 +2035,15 @@ function (wts, boot) {
   wt_adds   <- ls(wts)
   sel_probs <- NULL
   prob_hold <- NULL
-  p1_add <- p2_add <- NULL
+  p1_add    <- p2_add <- NULL
   
-  n <- NULL
-  w <- NULL
-  b <- NULL
-  m <- NULL
-  w_star <- NULL
-  ot_obj <- NULL
-  meas <- NULL
+  n         <- NULL
+  w         <- NULL
+  b         <- NULL
+  m         <- NULL
+  w_star    <- NULL
+  ot_obj    <- NULL
+  meas      <- NULL
   
   for (add in addresses) {
    b <- boot[[add]]
@@ -2079,7 +2084,11 @@ function (wts, boot) {
    }
    
   }
-  
+  if(is.finite(self$ot_objects[[i]]$penalty ))  {
+    for(o in ls(self$ot_objects)) {
+      self$ot_objects[[o]]$sinkhorn_opt(20, 1e-3)
+    }
+  }
   dists <- self$dist$detach()$item()
   return(dists)
 }               
@@ -2604,18 +2613,18 @@ cotDualTrain <- R6::R6Class(
       wt_adds   <- ls(wts)
       sel_probs <- NULL
       prob_hold <- NULL
-      p1_add <- p2_add <- NULL
+      p1_add    <- p2_add <- NULL
       
-      n <- NULL
-      w <- NULL
-      b <- NULL
-      m <- NULL
-      w_star <- NULL
-      ot_obj <- NULL
-      meas <- NULL
+      n         <- NULL
+      w         <- NULL
+      b         <- NULL
+      m         <- NULL
+      w_star    <- NULL
+      ot_obj    <- NULL
+      meas      <- NULL
       
       for (add in addresses) {
-        b <- boot[[add]]
+        b    <- boot[[add]]
         meas <- self$measures[[add]]
         
         w <- if(add %in% wt_adds) {
@@ -2648,13 +2657,13 @@ cotDualTrain <- R6::R6Class(
               update_cost(self$ot_objects[[i]]$C_yx, w, self$measures[[p1_add]]$x$detach())
             }
           } else {
-            stop("Problem address not found. You found a bug!")
+            stop("OT Problem address not found. You found a bug!")
           }
         }
         
       }
       # browser()
-      self$ot_objects[[i]]$penalty <- 0.05 #self$ot_objects[[i]]$diameter
+      # self$ot_objects[[i]]$penalty <- private$boot_lambda #0.05 #self$ot_objects[[i]]$diameter
       if(is.finite(self$ot_objects[[i]]$penalty ))  self$ot_objects[[i]]$sinkhorn_opt(20, 1e-3)
       dists <- self$dist$detach()$item()
       return(dists)

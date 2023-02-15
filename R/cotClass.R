@@ -11,6 +11,7 @@ COT <- R6::R6Class(
   public = {list(
     niter = "integer",
     tol = "numeric",
+    lambda_bootstrap = "numeric",
     nboot = "integer",
     gridInit = function(...) {
       private$optimizer$penalty$lambda
@@ -18,7 +19,8 @@ COT <- R6::R6Class(
     grid_search = function(...) {
       
       private$optimizer$choose_hyperparameters(n_boot_lambda = self$nboot, 
-                                               n_boot_delta = self$nboot)
+                                               n_boot_delta = self$nboot,
+                                               lambda_bootstrap = self$lambda_bootstrap)
       
       lambda <- private$optimizer$selected_lambda
       if (length( private$optimizer$selected_delta ) == 1 && is.numeric(private$optimizer$selected_delta) ) {
@@ -62,6 +64,7 @@ COT <- R6::R6Class(
       self$niter = options$niter
       self$tol = options$tol
       self$nboot = options$nboot
+      self$lambda_bootstrap = options$lambda.bootstrap
       
       #setup bf
       if (!is.null(options$balance.formula)) {
@@ -192,6 +195,7 @@ COT <- R6::R6Class(
 #' @param torch.scheduler The scheduler for the optimizer. Defaults to [torch::lr_multiplicative()].
 #' @param niter The number of iterations to run the solver
 #' @param nboot The number of iterations for the bootstrap to select the final penalty parameters.
+#' @param lambda.bootstrap The penalty parameter to use for the bootstrap hyperparameter selection of lambda.
 #' @param tol The tolerance for convergence
 #' @param ... Arguments passed to the solvers. See details
 #'
@@ -215,6 +219,7 @@ COT <- R6::R6Class(
 #' \item `osqp.options` Arguments passed to the `osqp` function if quick balance functions are used.
 #' \item `niter` The number of iterations to run the solver
 #' \item `nboot` The number of bootstrap samples
+#' \item `lambda.bootstrap` The penalty parameter to use for the bootstrap hyperparameter selection.
 #' \item `tol` The tolerance for convergence.
 #' }
 #' @export
@@ -257,6 +262,7 @@ cotOptions <- function(lambda = NULL,
                        torch.scheduler = torch::lr_multiplicative,
                        niter = 2e3,
                        nboot = 100L,
+                       lambda.bootstrap = 0.05,
                        tol = 1e-5, ...) { # dots are the solver and scheduler args
   # setup_arguments function arguments
   # lambda, delta, 
@@ -403,6 +409,13 @@ cotOptions <- function(lambda = NULL,
     output$nboot <- 100L
   } else {
     output$nboot <- as.integer(nboot)
+  }
+  
+  if (missing(lambda.bootstrap) || arg_not_used (lambda.bootstrap)) {
+    output$lambda.bootstrap <- 0.05
+  } else {
+    output$lambda.bootstrap <- as.numeric(lambda.bootstrap)
+    stopifnot("lambda.bootstrap must be > 0"= lambda.bootstrap>0)
   }
 
   if (arg_not_used(tol)) {

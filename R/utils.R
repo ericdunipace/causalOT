@@ -262,25 +262,25 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
   #   phi1
   
   phi_a0 = phi(x, dx, alpha0)
-  if (as.logical(phi_a0 <= phi0 + c1 * alpha0 * derphi0)) {
+  if (as.logical((phi_a0 <= phi0 + c1 * alpha0 * derphi0)$to(device = "cpu"))) {
     return(list(alpha = alpha0, phi1 = phi_a0))
   }
   
   # Otherwise, compute the minimizer of a quadratic interpolant:
   alpha1 = -(derphi0) * alpha0 ^ 2 / 2.0 / (phi_a0 - phi0 - derphi0 * alpha0)
   phi_a1 = phi(x, dx, alpha1)
-  if (as.logical( (phi_a1 <= (phi0 + c1 * alpha1 * derphi0) ))  && as.logical(alpha1 >= 0)  ) {
+  if (as.logical( (phi_a1 <= (phi0 + c1 * alpha1 * derphi0) )$to(device = "cpu"))  && as.logical((alpha1 >= 0)$to(device = "cpu"))  ) {
     return(list(alpha = alpha1, phi1 = phi_a1))
   }
-  if (as.logical(alpha1 < 0) ) alpha1 <- alpha0 - 0.01  #avoids the negative step size
+  if (as.logical((alpha1 < 0)$to(device = "cpu")) ) alpha1 <- alpha0 - 0.01  #avoids the negative step size
   # Otherwise, loop with cubic interpolation until we find an alpha which
   # satisfies the first Wolfe condition (since we are backtracking, we will
   # assume that the value of alpha is not too small and satisfies the second
   # condition.
   a <- b <- alpha2 <- phi_a2 <- NULL
-  while (as.logical(alpha1 > amin) ) {      # we are assuming alpha>0 is a descent direction
+  while (as.logical((alpha1 > amin)$to(device = "cpu")) ) {      # we are assuming alpha>0 is a descent direction
     factor = alpha0^2 * alpha1^2 * (alpha1 - alpha0)
-    if (as.logical(factor == 0) ) break
+    if (as.logical((factor == 0)$to(device = "cpu")) ) break
     a = alpha0^2 * (phi_a1 - phi0 - derphi0 * alpha1) - 
       alpha1^2 * (phi_a0 - phi0 - derphi0 * alpha0)
     a = a / factor
@@ -290,11 +290,11 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
     
     alpha2 = (-b + sqrt(abs(b^2 - 3 * a * derphi0))) / (3.0 * a)
     phi_a2 = phi(x,  dx, alpha2)
-    if ( as.logical(phi_a2 <= (phi0 + c1 * alpha2 * derphi0)) && as.logical(alpha2 >= 0) ) {
+    if ( as.logical((phi_a2 <= (phi0 + c1 * alpha2 * derphi0)$to(device = "cpu"))) && as.logical((alpha2 >= 0)$to(device = "cpu")) ) {
       return(list(alpha = alpha2, phi1 = phi_a2))
     }
     
-    if (as.logical( (alpha1 - alpha2) > alpha1 / 2.0) || as.logical((1 - alpha2/alpha1) < 0.96) ) {
+    if (as.logical( ((alpha1 - alpha2) > alpha1 / 2.0)$to(device = "cpu")) || as.logical(((1 - alpha2/alpha1) < 0.96))$to(device = "cpu") ) {
       alpha2 = alpha1 / 2.0
       alpha0 = alpha1
       alpha1 = alpha2
@@ -371,7 +371,7 @@ is.na.torch_tensor <- function(x) {
 
 #' @export
 is.nan.torch_tensor <- function(x) {
-  as.logical(x$isnan())
+  as.logical(x$isnan()$to(device = "cpu"))
 }
   
   
