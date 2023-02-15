@@ -326,8 +326,8 @@ Measure_ <- R6::R6Class("Measure",
      stopifnot("Input value is not same length as nrows of data" = (length(value) == self$n) )
      
      if (self$probability_measure) {
-       stopifnot("supplied weights must be >=0" = all(as.logical(value >=0)))
-       if(as.logical(sum(value) != 1)) value <- value/sum(value)
+       stopifnot("supplied weights must be >=0" = all(as.logical((value >=0)$to(device = "cpu"))))
+       if(as.logical((sum(value) != 1)$to(device = "cpu"))) value <- value/sum(value)
      }
      # browser()
      if(!inherits(value, "torch_tensor")) {
