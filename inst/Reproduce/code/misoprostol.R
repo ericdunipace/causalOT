@@ -195,23 +195,23 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                     estimate.separately = TRUE,
                     aurgment.estimate = FALSE,
                     normalize.weights = TRUE)
-    # bp <- lapply(weights, estimate_effect,
-    #              x = scaled_x,
-    #              y = y,
-    #              p = 3,
-    #              model.function = barycentric_projection,
-    #              estimate.separately = TRUE,
-    #              aurgment.estimate = FALSE,
-    #              normalize.weights = TRUE,
-    #              line_search_fn = "strong_wolfe")
+    bp <- lapply(weights, estimate_effect,
+                 x = scaled_x,
+                 y = y,
+                 p = 3,
+                 model.function = barycentric_projection,
+                 estimate.separately = TRUE,
+                 aurgment.estimate = TRUE,
+                 normalize.weights = TRUE,
+                 line_search_fn = "strong_wolfe")
     
     ci.hajek <-  lapply(hajek, confint)
     
-    # ci.bp <- lapply(bp, confint)
+    ci.bp <- lapply(bp, confint)
     
     sd.hajek <-  sqrt(sapply(hajek, vcov))
     
-    # sd.bp <- sqrt(sapply(bp, vcov))
+    sd.bp <- sqrt(sapply(bp, vcov))
     
     
     init.wass <- ot_distance(x1 = scaled_x[z==1,], x2 = scaled_x[z==0,],
@@ -238,19 +238,19 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                             final.wass = final.wass,
                             n = nsave,
                             estimand = estimand)
-                # , data.frame(estimator = "bp",
-                #            method = names(weights),
-                #            estimate = sapply(bp, coef),
-                #           orig.tx = orig.tx,
-                #           sd = c(sd.bp),
-                #           cover.orig = sapply(ci.bp, function(e) e[1] < orig.tx && e[2] > orig.tx),
-                #           est.in.ci = sapply(bp, function(e) orig.ci[1] < coef(e) && orig.ci[2] > coef(e)),
-                #           bias = sapply(bp, function(e) (coef(e) - orig.tx)),
-                #           # mse = sapply(bp, function(e) (e$estimate - orig.tx))^2 + sapply(ci.bp, function(e) e$SD^2),
-                #           init.wass = init.wass,
-                #           final.wass = final.wass,
-                #           n = nsave,
-                #           estimand = estimand)
+                , data.frame(estimator = "bp",
+                           method = names(weights),
+                           estimate = sapply(bp, coef),
+                          orig.tx = orig.tx,
+                          sd = c(sd.bp),
+                          cover.orig = sapply(ci.bp, function(e) e[1] < orig.tx && e[2] > orig.tx),
+                          est.in.ci = sapply(bp, function(e) orig.ci[1] < coef(e) && orig.ci[2] > coef(e)),
+                          bias = sapply(bp, function(e) (coef(e) - orig.tx)),
+                          # mse = sapply(bp, function(e) (e$estimate - orig.tx))^2 + sapply(ci.bp, function(e) e$SD^2),
+                          init.wass = init.wass,
+                          final.wass = final.wass,
+                          n = nsave,
+                          estimand = estimand)
                 )
            )
   }

@@ -115,7 +115,7 @@ Measure_ <- R6::R6Class("Measure",
      stopifnot("Argument 'target.values' must be NA or the same length as the number of columns in 'balance.functions'." = all(is.na(self$balance_target)) || length(self$balance_target) == ncol(self$balance_functions))
  
      # adjust be Std Dev
-     if (inherits( self$balance_target, "torch_tensor") && !as.logical(all(is.na(self$balance_target))$to(device = "cpu")) ) {
+     if (inherits( self$balance_target, "torch_tensor") && !as.logical(all(is.na(self$balance_target$to(device = "cpu")))) ) {
        if (!self$adapt == "x") {
          sds <- self$balance_functions$std(1)
          self$balance_functions <- self$balance_functions/sds
@@ -1103,7 +1103,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        weights_delta[[paste(d)]] <- private$parameters_get_set(clone = TRUE)
        
        # save iterations and final losses
-       losses_delta[[paste(d)]] <- res$loss$detach()$item()
+       losses_delta[[paste(d)]] <- res$loss
        iter_delta[[paste(d)]] <- res$iter
        
      }
@@ -1156,14 +1156,14 @@ OTProblem_ <- R6::R6Class("OTProblem",
        check <- FALSE
        
        old_mode <- sched$threshold_mode
-       if (as.logical((loss == sched$best)$to(device = "cpu")) ) sched$threshold_mode <- "abs"
+       if (as.logical(loss == sched$best) ) sched$threshold_mode <- "abs"
        
        init_lr <- sched$optimizer$defaults$lr
        lr <- get_lr()
        min_lr <- sched$min_lrs[[1]]
        
-       improved <- sched$.is_better(loss, sched$best)$item()
-       sched$step(loss$to(device = "cpu"))
+       improved <- as.logical(sched$.is_better(loss, sched$best))
+       sched$step(loss)
        
        if (inherits(private$opt, "optim_lbfgs") && isTRUE(private$opt$defaults$line_search_fn == "strong_wolfe") ) {
          if (private$lbfgs_count == sched$patience) {
@@ -1211,17 +1211,17 @@ OTProblem_ <- R6::R6Class("OTProblem",
      # run optimization steps for given penalties
      for ( i in 1:niter ) {
        # take opt step and return loss
-       loss <- private$optimization_step(private$opt, private$osqp_args, tol = tol)$detach()$to(device = "cpu")
+       loss <- private$optimization_step(private$opt, private$osqp_args, tol = tol)$detach()$to(device = "cpu")$item()
        
        # reduce lr
        check <- private$lr_reduce(loss)
        # check <- lr_reduce(opt_sched, loss$detach())
        
        # see if converged
-       if ( check && converged(loss$item(), loss_old, tol) ) break
+       if ( check && (i >1) && converged(loss, loss_old, tol) ) break
        
        # if not converged, save old loss
-       loss_old <- loss$item()
+       loss_old <- loss
      }
      
      #reset torch optimizer if present
@@ -1737,7 +1737,7 @@ OTProblem_$set("public", "setup_arguments",
 )
 
 OTProblem_$set("public", "solve",
-function(niter = 100L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
+function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
          torch_optim = torch::optim_lbfgs,
          torch_scheduler = torch::lr_reduce_on_plateau,
          torch_args = NULL,
@@ -2571,7 +2571,7 @@ cotDualTrain <- R6::R6Class(
       
       private$niter <- self$ot_niter
       private$tol <- self$tol
-      
+      private$prev_lambda <- private$lambda
       return(invisible(self))
       
     }
@@ -2710,6 +2710,7 @@ cotDualTrain <- R6::R6Class(
       private$torch_optim_reset()
       
       # reset the parameters to 0, speeds up estimation for lower lambdas
+      # torch::with_no_grad(private$nn_holder$gamma$mul_(private$lambda/private$prev_lambda))
       torch::with_no_grad(private$nn_holder$gamma$copy_(0.0))
       if(!is.null( private$nn_holder$beta) ) torch::with_no_grad(private$nn_holder$beta$copy_(0.0))
       
@@ -2721,7 +2722,7 @@ cotDualTrain <- R6::R6Class(
         res <- private$nn_holder$forward(private$C_xy, private$C_xx, 
                                          private$b_log, 
                                          private$lambda, private$bf, private$bt, private$delta)
-        
+        # print(res$loss$detach()$item())
         if ((i > 2L) && private$nn_holder$converged(res, avg_diff_old, 
                                                     loss_old, old_param,
                                         tol,
@@ -2739,8 +2740,8 @@ cotDualTrain <- R6::R6Class(
         # private$sched$step()
         
       }
-      
-      return(list(loss = res$loss$detach(),
+      private$prev_lambda <- private$lambda
+      return(list(loss = res$loss$detach()$item(),
                   iter = i))
       
     }, # overwrite super function
@@ -2938,6 +2939,7 @@ cotDualTrain <- R6::R6Class(
     nn_holder = "dualCotOpt",
     niter = "integer",
     optim = "optim",
+    prev_lambda = "numeric",
     sched = "scheduler",
     C_xy = "torch_tensor",
     C_xx = "torch_tensor",
