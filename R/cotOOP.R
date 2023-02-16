@@ -1712,7 +1712,7 @@ OTProblem_$set("public", "setup_arguments",
          v <- names_TO[i]
          measure <- self$measures[[v]]
          if(measure$adapt == "weights") {
-           diffs[i] <- max(abs((self$target_objects[[v]]$bf * measure$weights$detach()$view(c(measure$n,1)))$sum(1) - self$target_objects[[v]]$bt))$item()
+           diffs[i] <- ((self$target_objects[[v]]$bf * measure$weights$detach()$view(c(measure$n,1)))$sum(1) - self$target_objects[[v]]$bt)$abs()$max()$item()
          }
          
        }
