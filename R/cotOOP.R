@@ -334,8 +334,8 @@ Measure_ <- R6::R6Class("Measure",
        value <- torch::torch_tensor(value, dtype = private$mass_$dtype, device = self$device)$contiguous()
      } else {
        stopifnot("Input tensor and original weights have different dtypes! " = isTRUE(value$dtype == private$mass_$dtype))
-       if (isFALSE(value$device == self$device) ) {
-         value <- value$to(device = self$device)
+       if (isFALSE(value$device == private$mass_$device) ) {
+         value <- value$to(device = private$mass_$device)
        }
      }
      
@@ -1712,7 +1712,7 @@ OTProblem_$set("public", "setup_arguments",
          v <- names_TO[i]
          measure <- self$measures[[v]]
          if(measure$adapt == "weights") {
-           diffs[i] <- max(abs(as.numeric((self$target_objects[[v]]$bf * measure$weights$detach()$view(c(measure$n,1)))$sum(1)) - self$target_objects[[v]]$bt))
+           diffs[i] <- max(abs((self$target_objects[[v]]$bf * measure$weights$detach()$view(c(measure$n,1)))$sum(1) - self$target_objects[[v]]$bt))$item()
          }
          
        }
