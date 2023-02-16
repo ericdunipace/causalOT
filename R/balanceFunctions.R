@@ -406,18 +406,18 @@ SBW_4_oop <- R6::R6Class("SBW",
      }
      
      if (!inherits(target, "torch_tensor")) {
-       target <- torch::torch_tensor(matrix(target, nrow = 1),
+       target <- torch::torch_tensor(target,
                                      dtype = torch::torch_double())
      }
      
-     stopifnot("source and target must have same number of columns" = ncol(source) == ncol(target))
+     stopifnot("source and target must have same number of columns" = ncol(source) == length(target))
      
      self$source <- source$detach()
      self$target <- target$detach()
      
      self$source_scale  <- self$source/self$source$std(1)
      self$target_scale  <- self$target/self$source$std(1)
-     self$target_vector <- as.numeric(self$target_scale)
+     self$target_vector <- as.numeric(self$target_scale$to(device = "cpu"))
      
      self$d <- ncol(self$source)
      self$n <- nrow(self$source)
@@ -438,7 +438,7 @@ SBW_4_oop <- R6::R6Class("SBW",
      } else {
        l_sum_const <- u_sum_const <- A_sum_const <-NULL
      }
-     A_delta <- Matrix::Matrix(data = t(as.matrix(self$source_scale)), 
+     A_delta <- Matrix::Matrix(data = t(as.matrix(self$source_scale$to(device = "cpu"))), 
                                sparse = TRUE)
      
      l_delta <- self$target_vector

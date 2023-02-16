@@ -102,7 +102,7 @@ Measure_ <- R6::R6Class("Measure",
        self$balance_target <- torch::torch_tensor(self$balance_target, 
                                                      dtype = dtype, device = self$device)$contiguous()
      } else if (!all(is.na(self$balance_target))) {
-       self$balance_target <- self$balance_target$to(device = self$device, dtype = self$dtype)
+       self$balance_target <- self$balance_target$to(device = self$device, dtype = self$dtype)$contiguous()
      }
      
      if (self$adapt == "x") {
