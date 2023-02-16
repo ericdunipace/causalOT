@@ -875,9 +875,9 @@ OTProblem_ <- R6::R6Class("OTProblem",
            
            means <- sbw_oop_bs_(w, 
                                 nboot, 
-                                as.matrix(bf$source_scale), 
-                                as.numeric(bf$target_scale), 
-                                as.numeric(m$init_weights))
+                                as.matrix(bf$source_scale$to(device = "cpu")), 
+                                as.numeric(bf$target_scale$to(device = "cpu")), 
+                                as.numeric(m$init_weights$to(device = "cpu")))
            
            # means <- rep(0.0, length(w))
            # for (i in 1L:1000L) {
