@@ -9,6 +9,7 @@ Measure_ <- R6::R6Class("Measure",
    # values
    adapt  = "character",
    device = "torch_device",
+   dtype  = "torch_dtype",
    n      = "integer",
    d      = "integer",
    probability_measure = "logical",
@@ -55,31 +56,34 @@ Measure_ <- R6::R6Class("Measure",
      self$adapt <- match.arg(adapt)
      self$probability_measure <- isTRUE(probability.measure)
      
+     
+     self$device <- cuda_device_check(device)
+     self$dtype  <- cuda_dtype_check(dtype, self$device)
      # device
-     if (is.null(device)) {
-       cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1
-       if (cuda_opt) {
-         self$device <-  torch::torch_device("cuda")
-       } else {
-         self$device <-  torch::torch_device("cpu")
-       }
-     } else {
-       stopifnot("device argument must be NULL or an object of class 'torch_device'" = torch::is_torch_device(device))
-       self$device <- device
-     }
-     
-     #dtype
-     if ( is.null(dtype) ) {
-       if (grepl("cuda", capture.output(print(self$device)) ) ) {
-         dtype <- torch::torch_float()
-       } else {
-         dtype <- torch::torch_double()
-       }
-     }
-     stopifnot("Argument 'dtype' must be of class 'torch_dtype'. Please see '?torch_dtype' for more info." = torch::is_torch_dtype(dtype))
-     
+     # if (is.null(device)) {
+     #   cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1
+     #   if (cuda_opt) {
+     #     self$device <-  torch::torch_device("cuda")
+     #   } else {
+     #     self$device <-  torch::torch_device("cpu")
+     #   }
+     # } else {
+     #   stopifnot("device argument must be NULL or an object of class 'torch_device'" = torch::is_torch_device(device))
+     #   self$device <- device
+     # }
+     # 
+     # #dtype
+     # if ( is.null(dtype) ) {
+     #   if (grepl("cuda", capture.output(print(self$device)) ) ) {
+     #     dtype <- torch::torch_float()
+     #   } else {
+     #     dtype <- torch::torch_double()
+     #   }
+     # }
+     # stopifnot("Argument 'dtype' must be of class 'torch_dtype'. Please see '?torch_dtype' for more info." = torch::is_torch_dtype(dtype))
+     # 
      # set data
-     private$data_ <- torch::torch_tensor(x, dtype = dtype, device = self$device)$contiguous()
+     private$data_ <- torch::torch_tensor(x, dtype = self$dtype, device = self$device)$contiguous()
      
      if (self$adapt == "x") {
        if(!private$data_$requires_grad) private$data_$requires_grad <- TRUE
@@ -94,13 +98,13 @@ Measure_ <- R6::R6Class("Measure",
      # browser()
      if (!inherits(balance.functions, "torch_tensor") && !all(is.na(balance.functions)) ) {
        self$balance_functions <- torch::torch_tensor(as.matrix(balance.functions), 
-                                                     dtype = dtype, device = self$device)$contiguous()
+                                                     dtype = self$dtype, device = self$device)$contiguous()
      } else {
        self$balance_functions <- balance.functions
      }
      if (!inherits( self$balance_target, "torch_tensor") && !all(is.na(self$balance_target)) )  {
        self$balance_target <- torch::torch_tensor(self$balance_target, 
-                                                     dtype = dtype, device = self$device)$contiguous()
+                                                     dtype = self$dtype, device = self$device)$contiguous()
      } else if (!all(is.na(self$balance_target))) {
        self$balance_target <- self$balance_target$to(device = self$device, dtype = self$dtype)$contiguous()
      }
@@ -139,7 +143,7 @@ Measure_ <- R6::R6Class("Measure",
      if (self$adapt == "weights"){
        # browser()
        private$mass_ <- torch::torch_zeros(length(weights)-1L,
-                                            dtype = dtype,
+                                            dtype = self$dtype,
                                            device = self$device)
        private$get_mass_ <- function() {
          private$transform_(private$mass_)
@@ -2382,9 +2386,17 @@ dual_forwards_keops <- list(
 # optimizer without bf
 cotDualOpt <- torch::nn_module(
   classname = "cotDualOpt",
-  initialize = function(n, d = NULL) {
+  initialize = function(n, d = NULL, device = NULL, dtype = NULL) {
+    
+    self$device <- cuda_device_check(device)
+    self$dtype  <- cuda_dtype_check(dtype, self$device)
+    
     self$n <- torch::jit_scalar(as.integer(n))
-    self$gamma <- torch::nn_parameter(torch::torch_zeros(self$n, dtype = torch::torch_double()), requires_grad = TRUE)
+    self$gamma <- torch::nn_parameter(
+      torch::torch_zeros(self$n,
+                         dtype = self$dtype, 
+                         device = self$device),
+      requires_grad = TRUE)
     private$set_forward(bf = FALSE)
   },
   forward = function(C_xy, C_xx, b_log, lambda, bf=NULL, bt=NULL, delta = NULL) {
@@ -2447,6 +2459,8 @@ cotDualOpt <- torch::nn_module(
   },
   calc_a1 =  "torch_jit",
   calc_a2 =  "torch_jit",
+  dtype = "torch_dtype",
+  device = "torch_dtype",
   private = list(
     ts_forward = "function",
     set_forward = function(bf = FALSE) {
@@ -2482,11 +2496,20 @@ cotDualOpt_keops <- torch::nn_module(
 cotDualBfOpt <- torch::nn_module(
   classname="cotDualBfOpt",
   inherit = cotDualOpt,
-  initialize = function(n, d) {
+  initialize = function(n, d, device = NULL, dtype = NULL) {
+    self$device <- cuda_device_check(device)
+    self$dtype  <- cuda_dtype_check(dtype, self$device)
+    
     self$n <- torch::jit_scalar(as.integer(n))
     self$d <- torch::jit_scalar(as.integer(d))
-    self$gamma <- torch::nn_parameter(torch::torch_zeros(self$n, dtype = torch::torch_double()), requires_grad = TRUE)
-    self$beta <- torch::nn_parameter(torch::torch_zeros(self$d, dtype = torch::torch_double()), requires_grad = TRUE)
+    self$gamma <- torch::nn_parameter(
+      torch::torch_zeros(self$n, 
+                         dtype = self$dtype,
+                         device = self$device), requires_grad = TRUE)
+    self$beta <- torch::nn_parameter(
+      torch::torch_zeros(self$d, 
+                         dtype = self$dtype,
+                         device = self$device), requires_grad = TRUE)
     private$set_forward(bf = TRUE)
   },
   forward = function(C_xy, C_xx, b_log, lambda, bf, bt, delta) {
@@ -2569,7 +2592,10 @@ cotDualTrain <- R6::R6Class(
                        cotDualOpt,
                        cotDualBfOpt
       )
-      private$nn_holder  <- nn_fun$new(self$ot$n, length(private$bt) )
+      private$nn_holder  <- nn_fun$new(n = self$ot$n, 
+                                       d = length(private$bt),
+                                       device = self$measures[[m_add[1L]]]$device,
+                                       dtype = self$measures[[m_add[1L]]]$dtype)
       private$parameters <- private$nn_holder$parameters
       
       self$penalty$lambda[ is.infinite(self$penalty$lambda) ] <- self$ot$diameter * 1e5

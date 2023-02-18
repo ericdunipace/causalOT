@@ -373,6 +373,38 @@ is.na.torch_tensor <- function(x) {
 is.nan.torch_tensor <- function(x) {
   as.logical(x$isnan()$to(device = "cpu"))
 }
+
+cuda_device_check <- function(device) {
+  if (is.null(device)) {
+    cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1
+    if (cuda_opt) {
+      device <-  torch::torch_device("cuda")
+    } else {
+      device <-  torch::torch_device("cpu")
+    }
+  } else {
+    stopifnot("device argument must be NULL or an object of class 'torch_device'" = torch::is_torch_device(device))
+  }
+  return(device)
+}
+
+cuda_dtype_check <- function(dtype, device = NULL) {
+  #dtype
+  stopifnot("device not set" = !is.null(device))
+  if ( is.null(dtype) ) {
+    if (grepl("cuda", capture.output(print(device)) ) ) {
+      dtype <- torch::torch_float()
+    } else {
+      dtype <- torch::torch_double()
+    }
+  }
+  stopifnot("Argument 'dtype' must be of class 'torch_dtype'. Please see '?torch_dtype' for more info." = torch::is_torch_dtype(dtype))
+  
+  return(dtype)
+}
+
+
+
   
   
 # R6_bootStrap <- function() {
