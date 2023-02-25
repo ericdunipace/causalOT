@@ -127,10 +127,10 @@ barycentric_projection <- function(formula, data, weights,
   if(cost_alg == "L1" && !tensorized) warning("With an L1 cost and `online.cost` set to 'online', you need to provide a cost function that generates the appropriate cost matrix. Otherwise predictions will generate an error.")
   
   output <- list(
-    potentials    = list(f_ab = as.numeric(potentials$f_xy),
-                         g_ba = as.numeric(potentials$g_yx),
-                         f_aa = as.numeric(potentials$f_xx),
-                         g_bb = as.numeric(potentials$g_yy)),
+    potentials    = list(f_ab = as.numeric(potentials$f_xy$to(device = "cpu")),
+                         g_ba = as.numeric(potentials$g_yx$to(device = "cpu")),
+                         f_aa = as.numeric(potentials$f_xx$to(device = "cpu")),
+                         g_bb = as.numeric(potentials$g_yy$to(device = "cpu"))),
     penalty       = as.numeric(penalty),
     cost_function = cost_function,
     cost_alg      = cost_alg,
@@ -422,14 +422,25 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
   
   if(tensorized) {
     G <- f/eps + a_log
-    y_source <- torch::torch_matmul((G - C_yx$data/eps)$log_softmax(2)$exp(), torch::torch_tensor(y_target, dtype = torch::torch_double()))
+    if(!inherits(y_target, "torch_tensor")) {
+      y_targ <-  torch::torch_tensor(y_target, dtype = G$dtype, device = G$device)
+    } else {
+      y_targ <- y_target
+    }
+    
+    y_source <- torch::torch_matmul((G - C_yx$data/eps)$log_softmax(2)$exp(), y_targ)
     
   } else {
     # rkeops::compile4float64()
-    G <- f/eps + a_log
-    x <- as.matrix(C_yx$data$x)
-    y <- as.matrix(C_yx$data$y)
+    G <- (f/eps + a_log)$to(device = "cpu")
+    x <- as.matrix(C_yx$data$x$to(device = "cpu"))
+    y <- as.matrix(C_yx$data$y$to(device = "cpu"))
     d <- ncol(x)
+    if(inherits(y_target, "torch_tensor")) {
+      y_targ <- y_target$to("cpu")
+    } else {
+      y_targ <- y_target
+    }
     
     wt_red <- rkeops::keops_kernel(
       formula = paste0("Max_SumShiftExp_Reduction(G - P *", C_yx$fun,", 0)"),
@@ -458,13 +469,15 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
     
     sum_data <- list(X = as.matrix(x),
                      Y = as.matrix(y),
-                     Outcome = as.numeric(y_target),
+                     Outcome = as.numeric(y_targ),
                      G = as.numeric(G),
                      P = as.numeric(1/eps),
                      Norm = log(wt_norm[,2]) + wt_norm[,1]
                     )
     
-    y_source <- online_red(sum_data)
+    y_source <- torch::torch_tensor(online_red(sum_data),
+                                    dtype = f$dtype,
+                                    device = f$device)
   }
   
   return(as.numeric(y_source))
@@ -474,9 +487,14 @@ bp_pow1 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
   if(!tensorized) stop("L1 norm must have a tensorized cost function")
   
   G <- f/eps + a_log
-  wts <- (G - C_yx$data/eps)$log_softmax(2)$exp()
+  wts <- (G - C_yx$data/eps)$log_softmax(2)$exp()$to(device = "cpu")
+  if(inherits(y_target, "torch_tensor")) {
+    y_targ <- as.numeric(y_target$to("cpu"))
+  } else {
+    y_targ <- as.numeric(y_target)
+  }
   
-  y_source <- apply(wts,1,function(w) matrixStats::weightedMedian(x=y_target, w=c(w)))
+  y_source <- apply(as.matrix(wts),1,function(w) matrixStats::weightedMedian(x=y_targ, w=c(w)))
   
   return(y_source)
 }
@@ -485,7 +503,9 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
   
   fun <- tensorized_switch_generator(tensorized)
   
-  y_source  <- torch::torch_zeros(c(n), dtype = torch::torch_double(), requires_grad = TRUE)
+  y_source  <- torch::torch_zeros(c(n), dtype = f$dtype, 
+                                  device = f$device,
+                                  requires_grad = TRUE)
   
   # get and set dots args
   opt_args  <- c(list(params = y_source), dots)
@@ -522,7 +542,7 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
       loss$backward()
       return(loss)
     }
-    if(!inherits(y_target, "torch_tensor")) y_target <- torch::torch_tensor(as.numeric(y_target), dtype = torch::torch_double())
+    if(!inherits(y_target, "torch_tensor")) y_target <- torch::torch_tensor(as.numeric(y_target), dtype = f$dtype, device = f$device)
     m <- length(y_target)
     wt_mat <- fun(eps, C_yx, f, a_log)
     for (i in 1:niter) {
@@ -531,7 +551,7 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
       y_s_old <- y_source$detach()$clone()
     }
   }
-  return(as.numeric(y_source))
+  return(as.numeric(y_source$to(device = "cpu")))
 }
 
 # functions if tensorized or not
@@ -543,10 +563,12 @@ tensorized_switch_generator <- function(tensorized) {
              y_form <- sub("X", "S", x_form)
              y_form <- sub("Y", "T", y_form)
              
-             G <- f/eps + a_log
-             x <- as.matrix(C_yx$data$x)
-             y <- as.matrix(C_yx$data$y)
+             G <- (f/eps + a_log)$to(device = "cpu")
+             x <- as.matrix(C_yx$data$x$to(device = "cpu"))
+             y <- as.matrix(C_yx$data$y$to(device = "cpu"))
              d <- ncol(x)
+             ys<- (y_source)$to(device = "cpu")
+             yt<- (y_target)$to(device = "cpu")
              
              wt_red <- rkeops::keops_kernel(
                formula = paste0("Max_SumShiftExp_Reduction(G - P *", x_form,", 0)"),
@@ -576,8 +598,8 @@ tensorized_switch_generator <- function(tensorized) {
              
              sum_data <- list(X = as.matrix(x),
                               Y = as.matrix(y),
-                              S = as.numeric(y_source),
-                              T = as.numeric(y_target),
+                              S = as.numeric(ys),
+                              T = as.numeric(yt),
                               G = as.numeric(G),
                               P = as.numeric(1.0/eps),
                               Norm = log(wt_norm[,2]) + wt_norm[,1]
