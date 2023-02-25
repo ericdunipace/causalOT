@@ -2596,7 +2596,7 @@ cotDualTrain <- R6::R6Class(
         targ  <- self$target_objects[[ t_add[1] ]]
         
         private$bf <- targ$bf
-        private$bt <- torch::torch_tensor( targ$bt, dtype = torch::torch_double())
+        private$bt <- targ$bt
         
       } else {
         private$bf <- private$bt <- NULL
