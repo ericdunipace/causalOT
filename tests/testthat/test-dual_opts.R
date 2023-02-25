@@ -15,7 +15,7 @@ testthat::test_that("test forward functions", {
   
   gamma <- torch::torch_tensor(stats::rnorm(n), 
                                device = m1$device,
-                               dtype = torch::torch_double())
+                               dtype = m1$dtype)
   
   ot_tens <- causalOT:::OT$new(x = x, y = z, debias = TRUE, tensorized = "tensorized", penalty = 10)
   
@@ -51,7 +51,7 @@ testthat::test_that("test forward functions", {
   
   beta1 <- torch::torch_tensor(stats::rnorm(2), 
                                device = gamma$device,
-                               dtype = torch::torch_double())
+                               dtype = gamma$dtype)
   
   f_prime <- gamma$detach() #- m1$balance_functions$matmul(beta1_det)
   beta1_det <- beta1$detach()
@@ -73,13 +73,16 @@ testthat::test_that("test forward functions", {
   loss_gamma <- gamma$dot(a1_script-a2_script)$item()
   
   testthat::expect_equal(loss_gamma * - 1,
-                         res$loss$item(), label = "loss calc")
+                         res$loss$item(), label = "loss calc",
+                         tol = 1e-5)
   
   
   testthat::expect_equal( (a1_script-a2_script)$norm()$item(),
-                          res$avg_diff$item())
+                          res$avg_diff$item(),
+                          tol = 1e-5)
   
-  testthat::expect_equal(res$bf_diff$item(), 0.0)
+  testthat::expect_equal(res$bf_diff$item(), 0.0,
+                         tol = 1e-5)
 
   
   

@@ -2232,8 +2232,8 @@ NNM <- R6::R6Class(
     solve = function(...) {
       C_xy <- private$C_xy
       if (!private$tensorized) { 
-        x = as.matrix(C_xy$data$x)
-        y = as.matrix(C_xy$data$y)
+        x = as.matrix(C_xy$data$x$to(device = "cpu"))
+        y = as.matrix(C_xy$data$y$to(device = "cpu"))
         d = ncol(x)
         
         # browser()
@@ -2328,22 +2328,27 @@ dual_forward_code_tensorized <- "
 # rkeops forward functions
 dual_forwards_keops <- list(
   calc_a1 = function(f, C_xy, b_log, lambda, n) {
+    xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
+    ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     f_lambda <- f/lambda
-    exp_sums_g <- C_xy$reduction( list(as.matrix(C_xy$data$y), as.matrix(C_xy$data$x),  
-                                       as.numeric(f_lambda),
+    exp_sums_g <- C_xy$reduction( list(xmat, ymat,  
+                                       as.numeric(f_lambda$to(device = "cpu")),
                                        1.0 / lambda) )
     
     g <- lambda * b_log - lambda * (log(exp_sums_g[,2]) + exp_sums_g[,1])
-    exp_sums_a1 <- C_xy$reduction( list(as.matrix(C_xy$data$x), as.matrix(C_xy$data$y), 
-                                        as.numeric(g / lambda),
+    exp_sums_a1 <- C_xy$reduction( list(xmat, ymat, 
+                                        as.numeric(g$to(device = "cpu") / lambda),
                                         1.0 / lambda) )
     a1_log <-  torch::torch_tensor(log(exp_sums_a1[,2]) + exp_sums_a1[,1], dtype = f$dtype) + f_lambda
     return(a1_log$log_softmax(1)$exp())
   },
   calc_a2 = function(f, C_xy, lambda, n) {
     f_lambda <- f/lambda
-    exp_sums_a2 <- C_xy$reduction( list(as.matrix(C_xy$data$y), as.matrix(C_xy$data$x),
-                                        as.numeric(f_lambda),
+    xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
+    ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
+    
+    exp_sums_a2 <- C_xy$reduction( list(ymat, xmat,
+                                        as.numeric(f_lambda$to(device = "cpu")),
                                         1.0 / lambda) )
     a2_log <-  torch::torch_tensor(log(exp_sums_a2[,2]) + exp_sums_a2[,1], dtype = f$dtype) + f_lambda
     return(a2_log$log_softmax(1)$exp())
