@@ -1024,7 +1024,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      armijo_loss_fun <- function(x, dx, alpha, ...) {
        
        # assign linearly shifted weights
-       private$weights <- x + dx * alpha
+       private$weights <- x + dx * as.numeric(alpha$item())
        
        # update OT problems
        private$ot_update()
