@@ -995,7 +995,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
                                 u = c(cur_env$delta + bt_cpu, rep(Inf,n), sum_bounds[2]),
                                 pars = osqp_args)
        } else {
-         osqp_opt <- osqp::osqp(q = as.numeric(private$weights[[addy]]$grad), 
+         osqp_opt <- osqp::osqp(q = as.numeric(private$weights[[addy]]$grad$to(device = "cpu")), 
                                 A = rbind(
                                   Matrix::Diagonal(n, x = 1),
                                   sums
