@@ -44,23 +44,6 @@ testthat::test_that("calc_weight works", {
   testthat::expect_equal(weights@method, "Probit")
   testthat::expect_s4_class(weights, "causalWeights")
   
-  
-  mess <- testthat::capture_output(weights <- calc_weight(x = data,
-                        estimand = estimate,
-                        method = "CBPS"))
-  testthat::expect_equal(weights@estimand, estimate)
-  testthat::expect_equal(weights@method, "CBPS")
-  testthat::expect_s4_class(weights, "causalWeights")
-  
-  mess <- testthat::capture_output(testthat::expect_warning(
-    weights <- calc_weight(x = data,
-                         estimand = estimate,
-                         method = "SBW")
-    ))
-  testthat::expect_equal(weights@estimand, estimate)
-  testthat::expect_equal(weights@method, "SBW")
-  testthat::expect_s4_class(weights, "causalWeights")
-  
   testthat::expect_warning(weights <- calc_weight(x = data,
                                                   estimand = estimate,
                                                   method = "EntropyBW"))
@@ -71,21 +54,40 @@ testthat::test_that("calc_weight works", {
   testthat::skip_on_cran()
   
   mess <- testthat::capture_output(weights <- calc_weight(x = data,
-                              estimand = estimate,
-                              method = "EnergyBW",
-                              options =list(niter = 2L)))
+                                                          estimand = estimate,
+                                                          method = "EnergyBW",
+                                                          options =list(niter = 2L)))
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "EnergyBW")
   testthat::expect_s4_class(weights, "causalWeights")
   
   
   mess <- testthat::capture_output(weights <- calc_weight(x = data,
-                              estimand = estimate,
-                              method = "COT",
-                              options =list(lambda = 100, niter = 2L)))
+                                                          estimand = estimate,
+                                                          method = "COT",
+                                                          options =list(lambda = 100, niter = 2L)))
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "COT")
   testthat::expect_s4_class(weights, "causalWeights")
+  
+  testthat::skip_if_not_installed("CBPS")
+  mess <- testthat::capture_output(weights <- calc_weight(x = data,
+                        estimand = estimate,
+                        method = "CBPS"))
+  testthat::expect_equal(weights@estimand, estimate)
+  testthat::expect_equal(weights@method, "CBPS")
+  testthat::expect_s4_class(weights, "causalWeights")
+  
+  testthat::skip_if_not_installed("osqp")
+  mess <- testthat::capture_output(testthat::expect_warning(
+    weights <- calc_weight(x = data,
+                         estimand = estimate,
+                         method = "SBW")
+    ))
+  testthat::expect_equal(weights@estimand, estimate)
+  testthat::expect_equal(weights@method, "SBW")
+  testthat::expect_s4_class(weights, "causalWeights")
+  
   
   
 })
