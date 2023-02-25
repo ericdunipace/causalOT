@@ -2331,7 +2331,7 @@ dual_forwards_keops <- list(
     xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     ymat <- as.matrix(C_xy$data$y$to(device = "cpu"))
     f_lambda <- f/lambda
-    exp_sums_g <- C_xy$reduction( list(xmat, ymat,  
+    exp_sums_g <- C_xy$reduction( list(ymat, xmat,  
                                        as.numeric(f_lambda$to(device = "cpu")),
                                        1.0 / lambda) )
     
