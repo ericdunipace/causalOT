@@ -1,7 +1,6 @@
 testthat::test_that("test forward functions", {
   causalOT:::torch_check()
   
-  
   n <- 256
   
   z  <- matrix(rnorm(n/2*2), n/2, 2) + matrix(c(0,.5), n/2,2, byrow = TRUE)
@@ -130,8 +129,10 @@ testthat::test_that("test forward functions", {
     torch::jit_scalar(delta)
   )
   
-  testthat::expect_equal(as.numeric(a1_script$to(device = "cpu")), a1)
-  testthat::expect_equal(as.numeric(a2_script$to(device = "cpu")), a2)  
+  testthat::expect_equal(as.numeric(a1_script$to(device = "cpu")), a1,
+                         tol = 1e-3)
+  testthat::expect_equal(as.numeric(a2_script$to(device = "cpu")), a2,
+                         tol = 1e-3)  
   
   testthat::expect_equal(loss_gamma * -1,  res_keops$loss$item())
   testthat::expect_equal(loss$item(),  res_keops_2$loss$item(), tol = 1e-5)

@@ -2329,7 +2329,7 @@ dual_forward_code_tensorized <- "
 dual_forwards_keops <- list(
   calc_a1 = function(f, C_xy, b_log, lambda, n) {
     xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
-    ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
+    ymat <- as.matrix(C_xy$data$y$to(device = "cpu"))
     f_lambda <- f/lambda
     exp_sums_g <- C_xy$reduction( list(xmat, ymat,  
                                        as.numeric(f_lambda$to(device = "cpu")),
@@ -2345,9 +2345,9 @@ dual_forwards_keops <- list(
   calc_a2 = function(f, C_xy, lambda, n) {
     f_lambda <- f/lambda
     xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
-    ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
+    # ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     
-    exp_sums_a2 <- C_xy$reduction( list(ymat, xmat,
+    exp_sums_a2 <- C_xy$reduction( list(xmat, xmat,
                                         as.numeric(f_lambda$to(device = "cpu")),
                                         1.0 / lambda) )
     a2_log <-  torch::torch_tensor(log(exp_sums_a2[,2]) + exp_sums_a2[,1], dtype = f$dtype, device = f$device) + f_lambda
