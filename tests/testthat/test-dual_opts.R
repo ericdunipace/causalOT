@@ -1,5 +1,3 @@
-
-
 testthat::test_that("test forward functions", {
   causalOT:::torch_check()
   
