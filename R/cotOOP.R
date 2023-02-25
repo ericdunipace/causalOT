@@ -1041,25 +1041,26 @@ OTProblem_ <- R6::R6Class("OTProblem",
      
      if (-derphi0$item() >  tol) {
        search_res <-  scalar_search_armijo(phi = armijo_loss_fun,
-                                           phi0 = init_loss$detach(),
-                                           derphi0 = derphi0,
+                                           phi0 = init_loss$detach()$item(),
+                                           derphi0 = derphi0$item(),
                                            x = old_weights,
                                            dx = deltaG,
                                            c1 = 1e-4, alpha0 = 1.0, 
                                            amin = 0)
        if ( !is.null(search_res$alpha)) {
+         if(inherits(search_res$alpha, "torch_tensor")) search_res$alpha <- as.numeric(search_res$alpha$item())
          search_res$alpha = min(max(search_res$alpha,0), 1)
-         new_weights <- old_weights +  deltaG * as.numeric(search_res$alpha)
+         new_weights <- old_weights +  deltaG * search_res$alpha
          private$parameters_get_set(new_weights)
-         loss <- search_res$phi1
+         loss <- search_res$phi1$detach()
        } else {
          private$parameters_get_set(old_weights)
-         loss <- init_loss
+         loss <- init_loss$detach()
        }
        
      } else {
        private$parameters_get_set(old_weights)
-       loss <- init_loss
+       loss <- init_loss$detach()
      }
      
      return(loss)

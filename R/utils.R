@@ -290,11 +290,11 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
     
     alpha2 = (-b + sqrt(abs(b^2 - 3 * a * derphi0))) / (3.0 * a)
     phi_a2 = phi(x,  dx, alpha2)
-    if ( as.logical((phi_a2 <= (phi0 + c1 * alpha2 * derphi0)$to(device = "cpu"))) && as.logical((alpha2 >= 0)$to(device = "cpu")) ) {
+    if ( as.logical((phi_a2 <= phi0 + c1 * alpha2 * derphi0)$to(device = "cpu")) && as.logical((alpha2 >= 0)$to(device = "cpu")) ) {
       return(list(alpha = alpha2, phi1 = phi_a2))
     }
     
-    if (as.logical( ((alpha1 - alpha2) > alpha1 / 2.0)$to(device = "cpu")) || as.logical(((1 - alpha2/alpha1) < 0.96))$to(device = "cpu") ) {
+    if (as.logical( ((alpha1 - alpha2) > alpha1 / 2.0)$to(device = "cpu")) || as.logical(((1 - alpha2/alpha1) < 0.96)$to(device = "cpu") ) ) {
       alpha2 = alpha1 / 2.0
       alpha0 = alpha1
       alpha1 = alpha2
