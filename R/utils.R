@@ -327,7 +327,7 @@ torch_lbfgs_check <- function(opt){
     ln_srch <- opt$defaults$line_search_fn
     no_ls <- (is.null(ln_srch) || is.na(ln_srch) || ln_srch != "strong_wolfe")
     if(no_ls ) {
-      warning(" Torch's LBFGS doesn't work well without 'strong_wolfe' line search on this problem. Specify it with line_search_fn = 'strong_wolfe' in the options argument.")
+      warning(" Torch's LBFGS doesn't work well without 'strong_wolfe' line search on this problem. Specify it with line_search_fn = 'strong_wolfe' in the appropriate options argument.")
     }
   }
 }
