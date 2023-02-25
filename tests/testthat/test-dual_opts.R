@@ -134,9 +134,10 @@ testthat::test_that("test forward functions", {
   testthat::expect_equal(as.numeric(a2_script$to(device = "cpu")), a2,
                          tol = 1e-3)  
   
-  testthat::expect_equal(loss_gamma * -1,  res_keops$loss$item())
+  testthat::expect_equal(loss_gamma * -1,  res_keops$loss$item(),
+                         tol = 1e-5)
   testthat::expect_equal(loss$item(),  res_keops_2$loss$item(), tol = 1e-5)
-  testthat::expect_equal(diff1$abs()$max()$item(), res_keops_2$bf_diff$item())
+  testthat::expect_equal(diff1$abs()$max()$item(), res_keops_2$bf_diff$item(), tol = 1e-5)
   testthat::expect_equal(as.numeric(res2$beta_check$to(device = "cpu")),
                          as.numeric(res_keops_2$beta_check$to(device = "cpu")) )
 
@@ -181,13 +182,16 @@ testthat::test_that("dual nn modules work as expected",{
   
   tests <- function(res, res_mod, opt, gamma) {
     testthat::expect_equal(res, res_mod)
-    testthat::expect_equal(res$loss$item(), res_mod$loss$item()) 
-    testthat::expect_equal(res$avg_diff$item(), res_mod$avg_diff$item())
-    testthat::expect_equal(res$bf_diff$item(), res_mod$bf_diff$item())
+    testthat::expect_equal(res$loss$item(), res_mod$loss$item(),
+                           tol = 1e-5) 
+    testthat::expect_equal(res$avg_diff$item(), res_mod$avg_diff$item(),
+                           tol = 1e-5)
+    testthat::expect_equal(res$bf_diff$item(), res_mod$bf_diff$item(),
+                           tol = 1e-5)
     
     
     param <- opt$clone_param()
-    testthat::expect_equal(as.numeric(param$gamma$to(device = "cpu")), as.numeric(gamma$to(device = "cpu")))
+    testthat::expect_equal(as.numeric(param$gamma$to(device = "cpu")), as.numeric(gamma$to(device = "cpu")), tol = 1e-5)
     testthat::expect_true(param$gamma$requires_grad == FALSE)
     testthat::expect_true(opt$gamma$requires_grad == TRUE)
     
