@@ -35,16 +35,16 @@ testthat::test_that("test forward functions", {
   g    <- lambda * b_log - lambda * ((gamma$detach()$view(c(n,1))-C_xy)/lambda)$logsumexp(1)
   K    <- (gamma$detach()$view(c(n,1)) + g - C_xy)/lambda
   a1   <- (K )$logsumexp(2)$exp()$detach()
-  a1   <- as.numeric(a1/a1$sum())
+  a1   <- as.numeric((a1/a1$sum())$to(device = "cpu"))
   
-  testthat::expect_equal(a1, as.numeric(a1_script), label = "calc_a1")
+  testthat::expect_equal(a1, as.numeric(a1_script$to(device = "cpu")), label = "calc_a1")
   
   f_star <- gamma$detach()
   K2   <- ((f_star$view(c(n,1)) + f_star -C_xx)/lambda)
   norm  <-  K2$view(c(n*n,1))$logsumexp(1)
-  a2     <- as.numeric((K2 - norm)$logsumexp(1)$exp()$detach())
+  a2     <- as.numeric((K2 - norm)$logsumexp(1)$exp()$detach()$to(device = "cpu"))
   
-  testthat::expect_equal(a2, as.numeric(a2_script), label = "calc_a2")
+  testthat::expect_equal(a2, as.numeric(a2_script$to(device = "cpu")), label = "calc_a2")
   
   testthat::expect_equal(gamma$dot(a1_script-a2_script)$item() * - 1,
                          dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))$loss$item(), label = "loss calc")
@@ -58,15 +58,15 @@ testthat::test_that("test forward functions", {
   g    <- lambda * b_log - lambda * (f_prime$view(c(n,1))/lambda-C_xy/lambda)$logsumexp(1)
   K    <- (f_prime$view(c(n,1)) + g - C_xy)/lambda
   a1   <- (K )$logsumexp(2)$exp()$detach()
-  a1   <- as.numeric(a1/a1$sum())
+  a1   <- as.numeric((a1/a1$sum())$to(device = "cpu"))
 
   f_star <- gamma$detach() #- m1$balance_functions$matmul(beta2_det)
   K2   <- ((f_star$view(c(n,1)) + f_star -C_xx)/lambda)
   norm  <-  K2$view(c(n*n,1))$logsumexp(1)
-  a2     <- as.numeric((K2 - norm)$logsumexp(1)$exp()$detach())
+  a2     <- as.numeric((K2 - norm)$logsumexp(1)$exp()$detach()$to(device = "cpu"))
   
-  testthat::expect_equal(a1, as.numeric(a1_script), label = "calc_a1")
-  testthat::expect_equal(a2, as.numeric(a2_script), label = "calc_a2")
+  testthat::expect_equal(a1, as.numeric(a1_script$to(device = "cpu")), label = "calc_a1")
+  testthat::expect_equal(a2, as.numeric(a2_script$to(device = "cpu")), label = "calc_a2")
   
   res <- dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
 
@@ -129,14 +129,14 @@ testthat::test_that("test forward functions", {
     torch::jit_scalar(delta)
   )
   
-  testthat::expect_equal(as.numeric(a1_script), a1)
-  testthat::expect_equal(as.numeric(a2_script), a2)  
+  testthat::expect_equal(as.numeric(a1_script$to(device = "cpu")), a1)
+  testthat::expect_equal(as.numeric(a2_script$to(device = "cpu")), a2)  
   
   testthat::expect_equal(loss_gamma * -1,  res_keops$loss$item())
   testthat::expect_equal(loss$item(),  res_keops_2$loss$item(), tol = 1e-5)
   testthat::expect_equal(diff1$abs()$max()$item(), res_keops_2$bf_diff$item())
-  testthat::expect_equal(as.numeric(res2$beta_check),
-                         as.numeric(res_keops_2$beta_check) )
+  testthat::expect_equal(as.numeric(res2$beta_check$to(device = "cpu")),
+                         as.numeric(res_keops_2$beta_check$to(device = "cpu")) )
 
   
 })
@@ -185,7 +185,7 @@ testthat::test_that("dual nn modules work as expected",{
     
     
     param <- opt$clone_param()
-    testthat::expect_equal(as.numeric(param$gamma), as.numeric(gamma))
+    testthat::expect_equal(as.numeric(param$gamma$to(device = "cpu")), as.numeric(gamma$to(device = "cpu")))
     testthat::expect_true(param$gamma$requires_grad == FALSE)
     testthat::expect_true(opt$gamma$requires_grad == TRUE)
     
@@ -328,18 +328,18 @@ testthat::test_that("training function works for dual optimizer",{
   # testthat::expect_equal(as.numeric(w[[2]]), as.numeric(a1))
   # testthat::expect_equal(as.numeric(w[[3]]), as.numeric(a2))
   # testthat::expect_equal(as.numeric(w[[1]]), as.numeric(a2 + a1)*0.5)
-  testthat::expect_equal(as.numeric(w), as.numeric(a2 + a1)*0.5)
+  testthat::expect_equal(as.numeric(w$to(device = "cpu")), as.numeric(((a2 + a1)*0.5)$to(device = "cpu")))
   
   testthat::expect_equal(names(cot$.__enclos_env__$private$parameters),
                          c("gamma", "beta"))
-  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma),
-                         as.numeric(cot$.__enclos_env__$private$parameters$gamma))
+  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma$to(device = "cpu")),
+                         as.numeric(cot$.__enclos_env__$private$parameters$gamma$to(device = "cpu")))
   testthat::expect_equal(rlang::obj_address(cot$.__enclos_env__$private$nn_holder$gamma),
                          rlang::obj_address(cot$.__enclos_env__$private$parameters$gamma))
   torch::with_no_grad(cot$.__enclos_env__$private$nn_holder$beta$copy_(c(1,2)))
-  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$beta),
+  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$beta$to(device = "cpu")),
                          c(1,2))
-  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$parameters$beta),
+  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$parameters$beta$to(device = "cpu")),
                          c(1,2))
   
   
@@ -389,15 +389,15 @@ testthat::test_that("training function works for dual optimizer",{
     "function(epoch) {0.99}"
   )
   
-  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma),
-                         as.numeric(cot$.__enclos_env__$private$parameters$gamma$params))
+  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma$to(device = "cpu")),
+                         as.numeric(cot$.__enclos_env__$private$parameters$gamma$params$to(device = "cpu")))
   
   testthat::expect_equal(priv$lambda/100,
                          cot$.__enclos_env__$private$parameters$gamma$lr)
   
   
-  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$beta),
-                         as.numeric(cot$.__enclos_env__$private$parameters$beta$params))
+  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$beta$to(device = "cpu")),
+                         as.numeric(cot$.__enclos_env__$private$parameters$beta$params$to(device = "cpu")))
   
   testthat::expect_equal(0.01,
                          cot$.__enclos_env__$private$parameters$beta$lr)
@@ -425,21 +425,21 @@ testthat::test_that("training function works for dual optimizer",{
   
   testthat::expect_equal(rlang::obj_address(priv$nn_holder$gamma),
                          rlang::obj_address(priv$parameters$gamma$params))
-  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma),
-                         as.numeric(cot$.__enclos_env__$private$parameters$gamma$params))
-  testthat::expect_true(all(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma) != 0) )
+  testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma$to(device = "cpu")),
+                         as.numeric(cot$.__enclos_env__$private$parameters$gamma$params$to(device = "cpu")))
+  testthat::expect_true(all(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma$to(device = "cpu")) != 0) )
   
   # test parameters get set
   pars <- priv$parameters
   testthat::expect_true(pars$gamma$params$requires_grad == TRUE)
-  testthat::expect_equal(as.numeric(pars$gamma$params), as.numeric(cot$.__enclos_env__$private$nn_holder$gamma))
+  testthat::expect_equal(as.numeric(pars$gamma$params$to(device = "cpu")), as.numeric(cot$.__enclos_env__$private$nn_holder$gamma$to(device = "cpu")))
   
   
   pars <- priv$parameters_get_set()
   ws    <- pars[[ls(pars)]]
   w2    <- cot$weights
   # testthat::expect_equal(as.numeric(ws[[1]]), as.numeric(w2[[1]]))
-  testthat::expect_equal(as.numeric(ws), as.numeric(w2))
+  testthat::expect_equal(as.numeric(ws$to(device = "cpu")), as.numeric(w2$to(device = "cpu")))
   
   ms <- cot$measures
   m  <- NULL
@@ -453,8 +453,8 @@ testthat::test_that("training function works for dual optimizer",{
   testthat::expect_error(priv$parameters_get_set(ws ))
   testthat::expect_error(priv$parameters_get_set(list(ws,ws) ))
   testthat::expect_silent(priv$parameters_get_set(list(ws) ))
-  testthat::expect_equal(as.numeric(m$weights),
-                         as.numeric(ws))
+  testthat::expect_equal(as.numeric(m$weights$to(device = "cpu")),
+                         as.numeric(ws$to(device = "cpu")))
   
   # testthat::expect_true(rlang::obj_address(cot$.__enclos_env__$private$nn_holder$gamma) == rlang::obj_address(pars$gamma))
   # 
