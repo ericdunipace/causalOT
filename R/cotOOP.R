@@ -2178,17 +2178,17 @@ unaryop.weightEnv <- function(e1,e2, fun) {
 
 #' @export
 sum.weightEnv <- function(..., na.rm = FALSE) {
-  out <- torch::torch_tensor(0.0, dtype = torch::torch_double())
+  out <- 0.0
   l   <- list(...)
   if (length(l) == 1) {
     e1 <- l[[1]]
     listE1 <- ls(e1)
     for (e in listE1) {
-      out$add_( sum(e1[[e]]) )
+      out <- sum(e1[[e]]) + out
     }
   } else {
     for (i in seq_along(l) ) {
-      out$add_(sum(l[[i]]))
+      out <- sum(l[[i]]) + out
     }
   }
   
