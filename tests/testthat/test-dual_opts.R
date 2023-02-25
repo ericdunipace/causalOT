@@ -1,4 +1,4 @@
-# TODO: [] bf dual opt bugs
+
 
 testthat::test_that("test forward functions", {
   causalOT:::torch_check()
@@ -13,7 +13,9 @@ testthat::test_that("test forward functions", {
   m1 <- Measure(x, target.values = colMeans(z), adapt = "weights")
   mt <- Measure(z)
   
-  gamma <- torch::torch_tensor(stats::rnorm(n), dtype = torch::torch_double())
+  gamma <- torch::torch_tensor(stats::rnorm(n), 
+                               device = m1$device,
+                               dtype = torch::torch_double())
   
   ot_tens <- causalOT:::OT$new(x = x, y = z, debias = TRUE, tensorized = "tensorized", penalty = 10)
   
@@ -47,7 +49,9 @@ testthat::test_that("test forward functions", {
   testthat::expect_equal(gamma$dot(a1_script-a2_script)$item() * - 1,
                          dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))$loss$item(), label = "loss calc")
   
-  beta1 <- torch::torch_tensor(stats::rnorm(2), dtype = torch::torch_double())
+  beta1 <- torch::torch_tensor(stats::rnorm(2), 
+                               device = gamma$device,
+                               dtype = torch::torch_double())
   
   f_prime <- gamma$detach() #- m1$balance_functions$matmul(beta1_det)
   beta1_det <- beta1$detach()
@@ -79,7 +83,7 @@ testthat::test_that("test forward functions", {
 
   
   
-  diff1 <- (m1$balance_functions$transpose(2,1)$matmul(a1_script) - torch::torch_tensor(m1$balance_target, dtype = torch::torch_double()))
+  diff1 <- (m1$balance_functions$transpose(2,1)$matmul(a1_script) - m1$balance_target)
   beta_check1 <- diff1 * beta1$detach() - delta * beta1$detach()$abs()
 
   loss_beta = diff1$dot(beta1) - delta * beta1$abs()$sum()
@@ -93,7 +97,7 @@ testthat::test_that("test forward functions", {
                                    torch::jit_scalar(lambda),
                                    torch::jit_scalar(as.integer(n)),
                                    beta1, m1$balance_functions,
-                                   torch::torch_tensor(m1$balance_target, dtype = torch::torch_double()),
+                                   m1$balance_target,
                                    torch::jit_scalar(delta))
   
   testthat::expect_equal(loss$item(), res2$loss$item(), tol = 1e-4)
@@ -121,7 +125,7 @@ testthat::test_that("test forward functions", {
   res_keops_2 <- keops_fun$cot_bf_dual(
     gamma, C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
     beta1, m1$balance_functions,
-    torch::torch_tensor(m1$balance_target, dtype = torch::torch_double()),
+    m1$balance_target,
     torch::jit_scalar(delta)
   )
   
@@ -152,7 +156,9 @@ testthat::test_that("dual nn modules work as expected",{
   
   opt <- causalOT:::cotDualOpt$new(n, 2)
   
-  gamma <- torch::torch_tensor(stats::rnorm(n), dtype = torch::torch_double())
+  gamma <- torch::torch_tensor(stats::rnorm(n), 
+                               device = m1$device,
+                               dtype = m1$dtype)
   
   torch::with_no_grad(opt$gamma$copy_(gamma))
   
@@ -201,23 +207,24 @@ testthat::test_that("dual nn modules work as expected",{
   
   # bf
   optbf <- causalOT:::cotDualBfOpt$new(n,2)
-  beta1 <- torch::torch_tensor(c(1,2), dtype = torch::torch_double())
+  
   torch::with_no_grad({
-    optbf$beta$copy_(beta1)
+    optbf$beta$copy_(c(1,2))
     optbf$gamma$copy_(gamma)
     }
     )
+  beta1 <- optbf$beta$detach()$clone()
   res <- dual_forwards$cot_bf_dual(
     gamma$detach() - m1$balance_functions$matmul(beta1), 
                                    C_xy$data, C_xx$data, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
                                    beta1, m1$balance_functions,
-                                   torch::torch_tensor(m1$balance_target, dtype = torch::torch_double()),
+                                   m1$balance_target,
                                    torch::jit_scalar(delta)
                                    )
   
   res_mod <- optbf$forward(C_xy, C_xx, b_log, lambda,
                            m1$balance_functions,
-                           torch::torch_tensor(m1$balance_target, dtype = torch::torch_double()),
+                           m1$balance_target,
                            torch::jit_scalar(delta))
   
   tests(res, res_mod, optbf,  gamma -  m1$balance_functions$matmul(beta1))
@@ -252,13 +259,13 @@ testthat::test_that("dual nn modules work as expected",{
     gamma$detach() - m1$balance_functions$matmul(beta1), 
     C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
     beta1, m1$balance_functions,
-    torch::torch_tensor(m1$balance_target, dtype = torch::torch_double()),
+    m1$balance_target,
     torch::jit_scalar(delta)
   )
   
   res_mod <- optbf$forward(C_xy, C_xx, b_log, lambda,
                            m1$balance_functions,
-                           torch::torch_tensor(m1$balance_target, dtype = torch::torch_double()),
+                           m1$balance_target,
                            torch::jit_scalar(delta))
   tests(res, res_mod, optbf, gamma - m1$balance_functions$matmul(beta1))
   testthat::expect_true(all(as.logical(optbf$beta == c(1,2))))
