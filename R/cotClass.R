@@ -142,11 +142,11 @@ COT <- R6::R6Class(
   )},
   active = {list(
     b = function(value) {
-      as.numeric(private$target$weights)
+      as.numeric(private$target$weights$to(device = "cpu"))
     },
     weights = function(value) {
       if(missing(value)) {
-        as.numeric(private$source$weights)
+        as.numeric(private$source$weights$to(device = "cpu"))
       } else {
         private$source$weights <- value
       }
