@@ -2317,7 +2317,7 @@ dual_forward_code_tensorized <- "
    
    beta_check = bf_diff * beta.detach() - delta * beta.detach().abs()
    
-   loss_beta = bf_diff.dot(beta) - delta * beta.abs().sum()
+   loss_beta = bf_diff.dot(beta) - beta.abs().sum() * delta
    
    loss = (loss_gamma + loss_beta) * -1.0 # mult by neg 1 because is a maximization
                                    
