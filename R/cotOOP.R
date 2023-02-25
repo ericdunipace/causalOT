@@ -329,10 +329,6 @@ Measure_ <- R6::R6Class("Measure",
      stopifnot("Input is NULL" = !isTRUE(is.null(value)))
      stopifnot("Input value is not same length as nrows of data" = (length(value) == self$n) )
      
-     if (self$probability_measure) {
-       stopifnot("supplied weights must be >=0" = all(as.logical((value >=0)$to(device = "cpu"))))
-       if(as.logical((sum(value) != 1)$to(device = "cpu"))) value <- value/sum(value)
-     }
      # browser()
      if(!inherits(value, "torch_tensor")) {
        value <- torch::torch_tensor(value, dtype = private$mass_$dtype, device = self$device)$contiguous()
@@ -341,6 +337,11 @@ Measure_ <- R6::R6Class("Measure",
        if (isFALSE(value$device == private$mass_$device) ) {
          value <- value$to(device = private$mass_$device)
        }
+     }
+     
+     if (self$probability_measure) {
+       stopifnot("supplied weights must be >=0" = all(as.logical((value >=0)$to(device = "cpu"))))
+       if(as.logical((sum(value) != 1)$to(device = "cpu"))) value <- (value/sum(value))$detach()
      }
      
      private$assign_mass_(value)
@@ -474,6 +475,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
    weights_list = "list", # list of estimated weights for each penalty
    
    # values
+   device = "torch_device",
+   dtype = "torch_dtype",
    ot_niter = "integer",
    ot_tol = "numeric",
    
@@ -482,8 +485,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss + !!o2)
      } else {
-       stopifnot(private$device == o2$device)
-       stopifnot(private$dtype == o2$dtype)
+       stopifnot(self$device == o2$device)
+       stopifnot(self$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss + !!o2$loss)
@@ -493,8 +496,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss - !!o2)
      } else {
-       stopifnot(private$device == o2$device)
-       stopifnot(private$dtype == o2$dtype)
+       stopifnot(self$device == o2$device)
+       stopifnot(self$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss - !!o2$loss)
@@ -504,8 +507,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss * !!o2)
      } else {
-       stopifnot(private$device == o2$device)
-       stopifnot(private$dtype == o2$dtype)
+       stopifnot(self$device == o2$device)
+       stopifnot(self$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss * !!o2$loss)
@@ -515,8 +518,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(! is_ot_problem(o2)) {
        self$loss <- rlang::expr(!!self$loss / !!o2)
      } else {
-       stopifnot(private$device == o2$device)
-       stopifnot(private$dtype == o2$dtype)
+       stopifnot(self$device == o2$device)
+       stopifnot(self$dtype == o2$dtype)
        private$append(o2, "measures")
        private$append(o2, "problems")
        self$loss <- rlang::expr(!!self$loss / !!o2$loss)
@@ -566,8 +569,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
        stop(sprintf("Measures should have the same number of columns! measure_1 has %s columns, while measure_2 has %s columns.", measure_1$d, measure_2$d))
      }
     
-     private$dtype <- dtype
-     private$device <- device
+     self$dtype <- dtype
+     self$device <- device
      
      #environment with names as obj_add, and measures as elements of environment
      self$measures <- rlang::env(!!add_1 := measure_1, !!add_2 := measure_2)
@@ -620,8 +623,6 @@ OTProblem_ <- R6::R6Class("OTProblem",
  private = list(
    # objects
    args_set = "logical",
-   device = "torch_device",
-   dtype = "torch_dtype",
    final_loss = "list",
    iterations_run = "list",
    lbfgs_reset = 0L,
@@ -653,11 +654,11 @@ OTProblem_ <- R6::R6Class("OTProblem",
      # the langrangian terms to add to the loss
      l_to <- length(self$target_objects)
      
-     loss <- torch::torch_tensor(0.0, dtype = private$dtype, device = private$device)
+     loss <- torch::torch_tensor(0.0, dtype = self$dtype, device = self$device)
      # calc_deriv <- FALSE
      
      machine_tol <- .Machine$double.xmin
-     coef <- torch::torch_tensor(10000.0, dtype = private$dtype, device = private$device)
+     coef <- torch::torch_tensor(10000.0, dtype = self$dtype, device = self$device)
      
      if (length(l_to) > 0) {
        
@@ -967,7 +968,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      osqp_arg_call <- rlang::call2(osqp::osqpSettings, !!!osqp_args)
      osqp_args <- eval(osqp_arg_call)
      
-     res <- cur_env <- meas <- osqp_opt <- n <- prob.measure <- sums <- sum_bounds <- NULL
+     res <- cur_env <- meas <- osqp_opt <- n <- prob.measure <- sums <- sum_bounds <- bt_cpu <- NULL
      
      
      # get solutions most correlated with the gradients
@@ -983,14 +984,15 @@ OTProblem_ <- R6::R6Class("OTProblem",
                             c(1, 1))
        if (addy %in% bf_address) {
          cur_env <- self$target_objects[[addy ]]
-         osqp_opt <- osqp::osqp(q = as.numeric(private$weights[[addy]]$grad), 
+         bt_cpu <- as.numeric(cur_env$bt$to(device = "cpu"))
+         osqp_opt <- osqp::osqp(q = as.numeric(private$weights[[addy]]$grad$to(device = "cpu")), 
                                 A = rbind(
-                                  t(as.matrix(cur_env$bf)),
+                                  t(as.matrix(cur_env$bf$to(device = "cpu"))),
                                   Matrix::Diagonal(n, x = 1),
                                   sums
                                 ),
-                                l = c(-cur_env$delta + cur_env$bt, rep(0,n), sum_bounds[1]),
-                                u = c(cur_env$delta + cur_env$bt, rep(Inf,n), sum_bounds[2]),
+                                l = c(-cur_env$delta + bt_cpu, rep(0,n), sum_bounds[1]),
+                                u = c(cur_env$delta + bt_cpu, rep(Inf,n), sum_bounds[2]),
                                 pars = osqp_args)
        } else {
          osqp_opt <- osqp::osqp(q = as.numeric(private$weights[[addy]]$grad), 
@@ -1413,7 +1415,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      opt_args <- torch_args[match(optim_args_names,
                                   names_args, nomatch = 0L)]
      opt_call <- rlang::call2(torch_optim,
-                              private$parameters,
+                              params = private$parameters,
                               !!!opt_args)
      private$opt <- eval(opt_call)
      
@@ -1454,17 +1456,22 @@ OTProblem_ <- R6::R6Class("OTProblem",
      if(!is.null(private$opt)) {
        opt_call <- private$opt_calls$opt
        if(is.null(lr)) {
-         private$opt <- eval(opt_call)
+         private$opt <- eval(rlang::call_modify(opt_call, 
+                                                params = private$parameters))
        } else {
          # browser()
          # def <- rlang::call_match(opt_call[[1]], opt_call, defaults = TRUE)
-         private$opt <- eval(rlang::call_modify(opt_call, lr = lr))
+         private$opt <- eval(rlang::call_modify(opt_call, 
+                                                params = private$parameters,
+                                                lr = lr))
        }
        
      }
      
      if(!is.null(private$sched)) {
-       private$sched <- eval(private$opt_calls$sched)
+       private$sched <- eval(rlang::call_modify(
+         private$opt_calls$sched, 
+                               optimizer = private$opt))
      }
      
    },
@@ -1626,8 +1633,8 @@ OTProblem_$set("public", "setup_arguments",
                                      debias = debias, 
                                      tensorized = cost.online,
                                      diameter = diameter,
-                                    device = private$device,
-                                    dtype = private$dtype)
+                                    device = self$device,
+                                    dtype = self$dtype)
      if(not_warned && isTRUE(!(device_vector == measure_1$device)) ){
        warning("All measures not on same device. This could slow things down.")
        not_warned <- FALSE
@@ -2173,7 +2180,8 @@ unaryop.weightEnv <- function(e1,e2, fun) {
 sum.weightEnv <- function(..., na.rm = FALSE) {
   out <- torch::torch_tensor(0.0, dtype = torch::torch_double())
   l   <- list(...)
-  if(length(l) == 1) {
+  if (length(l) == 1) {
+    e1 <- l[[1]]
     listE1 <- ls(e1)
     for (e in listE1) {
       out$add_( sum(e1[[e]]) )
@@ -2814,6 +2822,7 @@ cotDualTrain <- R6::R6Class(
       param_addresses <- ls(self$measures)
       
       if(!rlang::is_environment(value)){
+        stopifnot("value must be a list or environment" = is.list(value))
         names(value) <- value_addresses <- 1:length(value)
       } else {
         value_addresses <- ls(value)

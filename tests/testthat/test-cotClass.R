@@ -200,6 +200,7 @@ testthat::test_that("grid_search function works",{
   delta <- 0.5
   
   #setup
+  torch::torch_manual_seed(123123)
   testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(verbose = FALSE, 
                                                                    opt.direction = "dual",

@@ -502,7 +502,7 @@ function(which.margin = "x", niter, tol) {
   # ft_2 = softmin(eps, C_xx, f_1, a_log)
   # f_xx = 0.5 * ft_1 + 0.5 * ft_2
   # torch::autograd_set_grad_mode(enabled = TRUE) # get last step for grad if needed
-  f_xx = softmin(eps, C_xx, f_xx, a_log)
+  f_xx = softmin(eps, C_xx, f_xx$detach(), a_log)
   return(f_xx)
 })
 

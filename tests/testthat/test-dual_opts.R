@@ -317,10 +317,11 @@ testthat::test_that("training function works for dual optimizer",{
                     torch::jit_scalar(as.integer(n)))
   # debugonce(cot$.__enclos_env__$.__active__$weights)
   w <- cot$weights
-  testthat::expect_true(length(w) == 3)
-  testthat::expect_equal(as.numeric(w[[2]]), as.numeric(a1))
-  testthat::expect_equal(as.numeric(w[[3]]), as.numeric(a2))
-  testthat::expect_equal(as.numeric(w[[1]]), as.numeric(a2 + a1)*0.5)
+  # testthat::expect_true(length(w) == 3)
+  # testthat::expect_equal(as.numeric(w[[2]]), as.numeric(a1))
+  # testthat::expect_equal(as.numeric(w[[3]]), as.numeric(a2))
+  # testthat::expect_equal(as.numeric(w[[1]]), as.numeric(a2 + a1)*0.5)
+  testthat::expect_equal(as.numeric(w), as.numeric(a2 + a1)*0.5)
   
   testthat::expect_equal(names(cot$.__enclos_env__$private$parameters),
                          c("gamma", "beta"))
@@ -430,21 +431,23 @@ testthat::test_that("training function works for dual optimizer",{
   pars <- priv$parameters_get_set()
   ws    <- pars[[ls(pars)]]
   w2    <- cot$weights
-  testthat::expect_equal(as.numeric(ws[[1]]), as.numeric(w2[[1]]))
+  # testthat::expect_equal(as.numeric(ws[[1]]), as.numeric(w2[[1]]))
+  testthat::expect_equal(as.numeric(ws), as.numeric(w2))
   
   ms <- cot$measures
   m  <- NULL
-  for(i in ls(ms)) {
+  for (i in ls(ms)) {
     if(ms[[i]]$adapt == "weights") {
       m <- ms[[i]]
       break
     }
   }
   
-  testthat::expect_error(priv$parameters_get_set(ws[1:2]) )
-  testthat::expect_silent(priv$parameters_get_set(ws[1]) )
+  testthat::expect_error(priv$parameters_get_set(ws ))
+  testthat::expect_error(priv$parameters_get_set(list(ws,ws) ))
+  testthat::expect_silent(priv$parameters_get_set(list(ws) ))
   testthat::expect_equal(as.numeric(m$weights),
-                         as.numeric(ws[[1]]))
+                         as.numeric(ws))
   
   # testthat::expect_true(rlang::obj_address(cot$.__enclos_env__$private$nn_holder$gamma) == rlang::obj_address(pars$gamma))
   # 

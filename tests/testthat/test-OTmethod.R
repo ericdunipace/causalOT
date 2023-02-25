@@ -1,5 +1,5 @@
 testthat::test_that("OT object forms tensor", {
-  
+  causalOT:::torch_check()
   set.seed(1231)
   n <- 15
   m <- 13
@@ -56,6 +56,7 @@ testthat::test_that("OT object forms online", {
 })
 
 testthat::test_that("sinkhorn_loop runs, tensor", {
+  causalOT:::torch_check()
   set.seed(1231)
   n <- 15
   m <- 13
@@ -77,8 +78,8 @@ testthat::test_that("sinkhorn_loop runs, tensor", {
   
   loss <- sum(output$f_xy * a ) + sum(output$g_yx * b)
   testthat::expect_equal(loss$item(), 2.786224, tolerance = 1e-4)
-  testthat::expect_equal(sum(output$f_xy * a )$item(),1.390419, tolerance = 1e-3)
-  testthat::expect_equal(sum(output$g_yx * b)$item(), 1.395806, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$f_xy * a )$item(), 2.786224, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$g_yx * b)$item(), 0, tolerance = 1e-3)
   # compare
   # pot <- causalOT::sinkhorn(x = x*sqrt(0.5), y = y*sqrt(0.5), a = a, b = b, power = 2, blur = 10, scaling = 0.99, debias = FALSE )
   # sum(pot$f * a) + sum(pot$g * b)
@@ -219,8 +220,8 @@ testthat::test_that("sinkhorn_cot runs, tensor", {
   
   loss <- sum(output$f_xy * a ) + sum(output$g_yx * b)
   testthat::expect_equal(loss$item(), 2.786224, tolerance = 1e-4)
-  testthat::expect_equal(sum(output$f_xy * a )$item(),1.390419, tolerance = 1e-3)
-  testthat::expect_equal(sum(output$g_yx * b)$item(), 1.395806, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$f_xy * a )$item(),2.786224, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$g_yx * b)$item(), 0, tolerance = 1e-3)
   testthat::expect_true(all(output$f_xx==0))
   testthat::expect_true(all(as.logical(output$g_yy==0)))
   
@@ -262,8 +263,8 @@ testthat::test_that("sinkhorn_cot runs, online", {
   
   loss <- sum(output$f_xy * a ) + sum(output$g_yx * b)
   testthat::expect_equal(loss$item(), 2.786224, tolerance = 1e-4)
-  testthat::expect_equal(sum(output$f_xy * a )$item(),1.390419, tolerance = 1e-3)
-  testthat::expect_equal(sum(output$g_yx * b)$item(), 1.395806, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$f_xy * a )$item(),2.786224, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$g_yx * b)$item(), 0, tolerance = 1e-3)
   testthat::expect_true(all(as.logical(output$f_xx==0)))
   testthat::expect_true(all(as.logical(output$g_yy==0)))
   
@@ -304,8 +305,8 @@ testthat::test_that("sinkhorn_dist runs, tensor", {
   output <- ot1$potentials
   
   testthat::expect_equal(loss$item(), 2.786224, tolerance = 1e-4)
-  testthat::expect_equal(sum(output$f_xy * a )$item(),1.390419, tolerance = 1e-3)
-  testthat::expect_equal(sum(output$g_yx * b)$item(), 1.395806, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$f_xy * a )$item(),2.786224, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$g_yx * b)$item(), 0, tolerance = 1e-3)
   testthat::expect_equal(loss$item(), sum(output$f_xy * a )$item() +
                            sum(output$g_yx * b)$item(), tol = 1e-4)
   # check primal

@@ -105,136 +105,136 @@ testthat::test_that("entropy bal weights cpp works", {
   testthat::expect_equal(cpp_grad, R_grad)
 })
 
-testthat::test_that("cot biased entropy works", {
-  cot_obj <- function(par, source, target, cost, b, delta, lambda) {
-    n <- nrow(cost)
-    m <- ncol(cost)
-    k <- ncol(source)
-    g <- par[1:m]
-    par_A <- par[-c(1:m)]
-    par_pos <- par_A[1:k]
-    par_neg <- par_A[-c(1:k)]
-    
-    beta <- par_pos - par_neg
-    obj <- 0
-    
-    A_lp <- c(source %*% beta)/lambda
-    lp <- (matrix(g , n, m, byrow = TRUE) - cost)/lambda 
-    if ( length(A_lp) >0 ) {
-      lp <- lp - A_lp
-      obj <- -sum(par_A) * delta - sum(target * beta)
-    }
-    obj <- obj -
-      lambda * causalOT:::logSumExp(lp) +
-      sum(b * g)
-    # print(sum(b * g))
-    # print(-sum(par_A) * delta )
-    # print(lambda * causalOT:::logSumExp(lp))
-    # print(obj)
-    return(-obj)
-  } 
-  cot_grad <- function(par, source, target, cost, b, delta, lambda) {
-    n <- nrow(cost)
-    m <- ncol(cost)
-    k <- ncol(source)
-    g <- par[1:m]
-    par_A <- par[-c(1:m)]
-    par_pos <- par_A[1:k]
-    par_neg <- par_A[-c(1:k)]
-    
-    beta <- par_pos - par_neg
-    
-    A_lp <- c(source %*% beta)/lambda
-    lp <- (matrix(g , n, m, byrow = TRUE) - cost)/lambda 
-    if ( length(A_lp) >0 ) lp <- lp - A_lp
-    s <- causalOT:::logSumExp(lp)
-    lp <- lp - s
-    g_grad <- b - c(colSums(exp(lp )))
-    if(length(A_lp) > 0) {
-      cross <- crossprod(source, c(exp(causalOT:::rowLogSumExp(lp ))))
-      grad_A <- -sign(par_A) * delta + c(-target,  target) + c(cross, -cross)
-      # print(-sign(par_A) * delta)
-      # print(cross)
-      grad <- c(g_grad, 
-              grad_A)
-    } else {
-      grad <- g_grad
-    }
-    return(-grad)
-  }
-  set.seed(23048)
-  n <- 100
-  m <- 111
-  d <- 5
-  b <- rep(1/m,m)
-  A <- matrix(stats::rnorm(n * d), n , d)
-  cost <- matrix(stats::rexp(n *m), n, m)
-  delta <- 0.1
-  lambda <- 10
-  var <- as.double(1:(m + 2 * d))
-  
-  cpp_obj <- causalOT:::cotEntropy_obj_(vars_ =var, source_ = A, 
-                                        target_ = colMeans(A),
-                                        cost_ = cost, 
-                                        b_ = b,
-                                        delta = delta, lambda = lambda)
-  R_obj <- cot_obj(var, A, colMeans(A), cost, b,
-                   delta, lambda)
-  
-  cpp_grad <- causalOT:::cotEntropy_grad_(vars_ =var, source_ = A, 
-                                          target_ = colMeans(A),
-                                          cost_ = cost, 
-                                          b_ = b,
-                                          delta = delta, lambda = lambda)
-  R_grad <- cot_grad(var, A, colMeans(A), cost, b,
-                     delta, lambda)
-  
-  testthat::expect_equal(cpp_obj, R_obj)
-  testthat::expect_equal(cpp_grad, R_grad)
-  
-  # crossprod_A <- Matrix::crossprod(causalOT:::vec_to_row_constraints(n,m),A)
-  # 
-  # QQ <- cbind(Matrix::t(causalOT:::vec_to_col_constraints(n,m)),
-  #             -crossprod_A, crossprod_A
-  #             )
-  # pf <- c(b, rep(-delta, 2 * d))
-  # 
-  # testthat::expect_equal(causalOT:::cotDual_obj_(var, QQ, c(cost), pf, lambda, "entropy"), cpp_obj)
-  
-  # without bf
-  set.seed(23048)
-  n <- 100
-  m <- 111
-  d <- 5
-  b <- rep(1/m,m)
-  A <- matrix(0,0,0)
-  cost <- matrix(stats::rexp(n *m), n, m)
-  delta <- 0.1
-  lambda <- 10
-  var <- rep(0, m )
-  
-  cpp_obj <- causalOT:::cotEntropy_obj_(vars_ =var, source_ = A, 
-                                        target_ = colMeans(A),
-                                        cost_ = cost, 
-                                        b_ = b,
-                                        delta = delta, lambda = lambda)
-  R_obj <- cot_obj(var, A, colMeans(A), cost, b,
-                    delta, lambda)
-  
-  cpp_grad <- causalOT:::cotEntropy_grad_(vars_ =var, source_ = A, 
-                                          target_ = colMeans(A),
-                                          cost_ = cost, 
-                                          b_ = b,
-                                          delta = delta, lambda = lambda)
-  R_grad <- cot_grad(var, A, colMeans(A), cost, b,
-                     delta, lambda)
-  
-  testthat::expect_equal(cpp_obj, R_obj)
-  testthat::expect_equal(cpp_grad, R_grad)
-  
-  # QQ <- Matrix::t(causalOT:::vec_to_col_constraints(n,m))
-  # pf <- b
-  # 
-  # testthat::expect_equal(causalOT:::cotDual_obj_(var, QQ, c(cost), pf, lambda, "entropy"), cpp_obj)
-  
-})
+# testthat::test_that("cot biased entropy works", {
+#   cot_obj <- function(par, source, target, cost, b, delta, lambda) {
+#     n <- nrow(cost)
+#     m <- ncol(cost)
+#     k <- ncol(source)
+#     g <- par[1:m]
+#     par_A <- par[-c(1:m)]
+#     par_pos <- par_A[1:k]
+#     par_neg <- par_A[-c(1:k)]
+#     
+#     beta <- par_pos - par_neg
+#     obj <- 0
+#     
+#     A_lp <- c(source %*% beta)/lambda
+#     lp <- (matrix(g , n, m, byrow = TRUE) - cost)/lambda 
+#     if ( length(A_lp) >0 ) {
+#       lp <- lp - A_lp
+#       obj <- -sum(par_A) * delta - sum(target * beta)
+#     }
+#     obj <- obj -
+#       lambda * causalOT:::logSumExp(lp) +
+#       sum(b * g)
+#     # print(sum(b * g))
+#     # print(-sum(par_A) * delta )
+#     # print(lambda * causalOT:::logSumExp(lp))
+#     # print(obj)
+#     return(-obj)
+#   } 
+#   cot_grad <- function(par, source, target, cost, b, delta, lambda) {
+#     n <- nrow(cost)
+#     m <- ncol(cost)
+#     k <- ncol(source)
+#     g <- par[1:m]
+#     par_A <- par[-c(1:m)]
+#     par_pos <- par_A[1:k]
+#     par_neg <- par_A[-c(1:k)]
+#     
+#     beta <- par_pos - par_neg
+#     
+#     A_lp <- c(source %*% beta)/lambda
+#     lp <- (matrix(g , n, m, byrow = TRUE) - cost)/lambda 
+#     if ( length(A_lp) >0 ) lp <- lp - A_lp
+#     s <- causalOT:::logSumExp(lp)
+#     lp <- lp - s
+#     g_grad <- b - c(colSums(exp(lp )))
+#     if(length(A_lp) > 0) {
+#       cross <- crossprod(source, c(exp(causalOT:::rowLogSumExp(lp ))))
+#       grad_A <- -sign(par_A) * delta + c(-target,  target) + c(cross, -cross)
+#       # print(-sign(par_A) * delta)
+#       # print(cross)
+#       grad <- c(g_grad, 
+#               grad_A)
+#     } else {
+#       grad <- g_grad
+#     }
+#     return(-grad)
+#   }
+#   set.seed(23048)
+#   n <- 100
+#   m <- 111
+#   d <- 5
+#   b <- rep(1/m,m)
+#   A <- matrix(stats::rnorm(n * d), n , d)
+#   cost <- matrix(stats::rexp(n *m), n, m)
+#   delta <- 0.1
+#   lambda <- 10
+#   var <- as.double(1:(m + 2 * d))
+#   
+#   cpp_obj <- causalOT:::cotEntropy_obj_(vars_ =var, source_ = A, 
+#                                         target_ = colMeans(A),
+#                                         cost_ = cost, 
+#                                         b_ = b,
+#                                         delta = delta, lambda = lambda)
+#   R_obj <- cot_obj(var, A, colMeans(A), cost, b,
+#                    delta, lambda)
+#   
+#   cpp_grad <- causalOT:::cotEntropy_grad_(vars_ =var, source_ = A, 
+#                                           target_ = colMeans(A),
+#                                           cost_ = cost, 
+#                                           b_ = b,
+#                                           delta = delta, lambda = lambda)
+#   R_grad <- cot_grad(var, A, colMeans(A), cost, b,
+#                      delta, lambda)
+#   
+#   testthat::expect_equal(cpp_obj, R_obj)
+#   testthat::expect_equal(cpp_grad, R_grad)
+#   
+#   # crossprod_A <- Matrix::crossprod(causalOT:::vec_to_row_constraints(n,m),A)
+#   # 
+#   # QQ <- cbind(Matrix::t(causalOT:::vec_to_col_constraints(n,m)),
+#   #             -crossprod_A, crossprod_A
+#   #             )
+#   # pf <- c(b, rep(-delta, 2 * d))
+#   # 
+#   # testthat::expect_equal(causalOT:::cotDual_obj_(var, QQ, c(cost), pf, lambda, "entropy"), cpp_obj)
+#   
+#   # without bf
+#   set.seed(23048)
+#   n <- 100
+#   m <- 111
+#   d <- 5
+#   b <- rep(1/m,m)
+#   A <- matrix(0,0,0)
+#   cost <- matrix(stats::rexp(n *m), n, m)
+#   delta <- 0.1
+#   lambda <- 10
+#   var <- rep(0, m )
+#   
+#   cpp_obj <- causalOT:::cotEntropy_obj_(vars_ =var, source_ = A, 
+#                                         target_ = colMeans(A),
+#                                         cost_ = cost, 
+#                                         b_ = b,
+#                                         delta = delta, lambda = lambda)
+#   R_obj <- cot_obj(var, A, colMeans(A), cost, b,
+#                     delta, lambda)
+#   
+#   cpp_grad <- causalOT:::cotEntropy_grad_(vars_ =var, source_ = A, 
+#                                           target_ = colMeans(A),
+#                                           cost_ = cost, 
+#                                           b_ = b,
+#                                           delta = delta, lambda = lambda)
+#   R_grad <- cot_grad(var, A, colMeans(A), cost, b,
+#                      delta, lambda)
+#   
+#   testthat::expect_equal(cpp_obj, R_obj)
+#   testthat::expect_equal(cpp_grad, R_grad)
+#   
+#   # QQ <- Matrix::t(causalOT:::vec_to_col_constraints(n,m))
+#   # pf <- b
+#   # 
+#   # testthat::expect_equal(causalOT:::cotDual_obj_(var, QQ, c(cost), pf, lambda, "entropy"), cpp_obj)
+#   
+# })

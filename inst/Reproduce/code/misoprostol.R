@@ -193,15 +193,15 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                     y = y,
                     model.function = NULL,
                     estimate.separately = TRUE,
-                    aurgment.estimate = FALSE,
+                    augment.estimate = FALSE,
                     normalize.weights = TRUE)
     bp <- lapply(weights, estimate_effect,
                  x = scaled_x,
                  y = y,
-                 p = 3,
+                 p = 4,
                  model.function = barycentric_projection,
                  estimate.separately = TRUE,
-                 aurgment.estimate = TRUE,
+                 augment.estimate = TRUE,
                  normalize.weights = TRUE,
                  line_search_fn = "strong_wolfe")
     
@@ -216,13 +216,13 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
     
     init.wass <- ot_distance(x1 = scaled_x[z==1,], x2 = scaled_x[z==0,],
                a = rep(1/n1,n1), b = rep(1/n0,n0),
-               p = 2, penalty = max_cost, diameter = max_cost)
+               p = 2, penalty = 0.05, diameter = max_cost)
   
     final.wass <- sapply(weights, function(w) {
       ot_distance(x1 = scaled_x[z==1,], x2 = scaled_x[z==0,],
                   a = causalOT:::renormalize(w@w1), 
                   b = causalOT:::renormalize(w@w0),
-                  p = 2, penalty = max_cost, diameter = max_cost)
+                  p = 2, penalty = 0.05, diameter = max_cost)
     })
     
     return(rbind(data.frame(estimator = "hajek",
@@ -362,7 +362,7 @@ overall %>%
 
 #### plot of estimates ####
 
-pdf(file = "figures/pph.pdf", 
+pdf(file = "figures/pph_hajek.pdf", 
     width = 5.5, height = 2)
 print(combined_est %>% 
   filter(estimator == "hajek") %>% 
@@ -398,6 +398,42 @@ print(combined_est %>%
   )
 dev.off()
 
+pdf(file = "figures/pph.pdf", 
+    width = 5.5, height = 2)
+print(combined_est %>% 
+        mutate(method = forcats::fct_relevel(method,
+                                             "COT",
+                                             "NNM",
+                                             "SCM",
+                                             "SBW",
+                                             "CBPS",
+                                             "GLM"
+        ),
+        estimator = factor(estimator, labels = c("B.P.","Hajek"),
+                           levels = c("bp","hajek"))) %>% 
+        ggplot(aes(x = estimate, y = method, color = estimator)) +
+        geom_vline(xintercept = original.tau, color = "black", alpha = 0.4) +
+        geom_vline(xintercept = original.ci[1], color = "black", linetype = 2, alpha = 0.4) +
+        geom_vline(xintercept = original.ci[2], color = "black", linetype = 2, alpha = 0.4) +
+        geom_point(size = 2)  + 
+        scale_x_continuous(minor_breaks = seq(-50,75,25),
+                           breaks = seq(-50,75,25)) +
+        scale_color_manual(values = c("grey",rep("black",5))) +
+        theme_bw() +
+        ylab("") + theme(panel.grid.major.y = element_blank(),
+                         panel.grid.minor.y = element_blank(),
+                         panel.grid.major.x = element_blank()
+        ) +
+        xlab("difference in blood loss after 20 minutes (mL)") +
+        theme(plot.title = element_text(hjust = 0.5),
+              legend.position = "right",
+              legend.box = "vertical",
+              legend.box.margin = margin(0,0,0,0)
+              
+        ) 
+)
+dev.off()
+
 #### coverage table ####
 xtab <- combined_est %>% 
   filter(estimator == "hajek") %>% 
@@ -416,5 +452,27 @@ align(xtab) <- "ll|p{1.75in}p{1.75in}"
 print(xtab, 
       sanitize.colnames.function = function(x){x},
       include.rownames = FALSE,
-      file =  "tables/pph.tex")
+      file =  "tables/pph_est.tex")
 
+#### OT distances ####
+otd <- overall %>% 
+  filter(estimator == "hajek") %>% 
+  group_by(method) %>% 
+  select(method, init.wass, final.wass) %>% 
+  summarize(init = mean(init.wass),
+            init_var = var(init.wass),
+            mean = mean(final.wass),
+            variance = var(final.wass))
+print(otd)
+
+otd_tab <- otd %>% 
+  select(method, mean, variance) %>% 
+  xtable(
+    caption = sprintf("Mean and varaince of Sinkhorn divergences after weighting. The initial Sinkhorn distance was %s, on average, with a variance of %s", format(otd$init[1], digits = 2, nsmall = 2), format(otd$init_var[1], digits = 2, nsmall = 2)),
+    label = "tab:pph_sinkhorn",
+    digits = 2)
+
+print(otd_tab, 
+      sanitize.colnames.function = function(x){x},
+      include.rownames = FALSE,
+      file =  "tables/pph_sinkhorn.tex")

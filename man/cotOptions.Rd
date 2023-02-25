@@ -20,6 +20,7 @@ cotOptions(
   torch.scheduler = torch::lr_multiplicative,
   niter = 2000,
   nboot = 100L,
+  lambda.bootstrap = 0.05,
   tol = 1e-05,
   ...
 )
@@ -53,6 +54,8 @@ cotOptions(
 
 \item{nboot}{The number of iterations for the bootstrap to select the final penalty parameters.}
 
+\item{lambda.bootstrap}{The penalty parameter to use for the bootstrap hyperparameter selection of lambda.}
+
 \item{tol}{The tolerance for convergence}
 
 \item{...}{Arguments passed to the solvers. See details}
@@ -80,6 +83,7 @@ A list of class \code{cotOptions} with the following slots
 \item \code{osqp.options} Arguments passed to the \code{osqp} function if quick balance functions are used.
 \item \code{niter} The number of iterations to run the solver
 \item \code{nboot} The number of bootstrap samples
+\item \code{lambda.bootstrap} The penalty parameter to use for the bootstrap hyperparameter selection.
 \item \code{tol} The tolerance for convergence.
 }
 }

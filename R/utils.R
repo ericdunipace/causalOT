@@ -403,9 +403,155 @@ cuda_dtype_check <- function(dtype, device = NULL) {
   return(dtype)
 }
 
-
-
+jacobian_torch <- function(vector_function, parameters) {
+  stopifnot("parameters must be a list"= is.list(parameters))
+  # stopifnot("losses must be a list" = is.list(losses))
   
+  n_param <- length(parameters)
+  n_fun   <- length(vector_function)
+  nc      <- ncol(vector_function)
+  stopifnot("input must be a vector not a matrix" = is.na(nc) || nc==1)
+  
+  deriv_list <- vector("list", n_fun)
+
+  for (i in 1:n_fun) {
+    deriv_list[[i]] <- torch::autograd_grad(vector_function[i],
+                         inputs = parameters,
+                         retain_graph = TRUE,
+                         create_graph = TRUE,
+                         allow_unused = TRUE)
+  }
+  # deriv_list <- lapply(1:n_fun, function(i) torch::autograd_grad(vector_function[i], 
+  #                                                                           inputs = parameters,
+  #                                                                           retain_graph = TRUE,
+  #                                                                           create_graph = TRUE,
+  #                                                                           allow_unused = TRUE))
+  
+  first_derivatives <- lapply(X = deriv_list, 
+                              FUN = .none_deriv_to_zeros,
+                              parameters = parameters
+                              )
+  
+  return(
+    torch::torch_vstack(first_derivatives)$transpose(-1,1)
+  )
+}
+
+.none_deriv_to_zeros <- function(derivs, parameters) {
+  
+  deriv_out <- vector("list", length(parameters))
+  
+  for (p in seq_along(parameters) ) {
+    deriv_out[[p]] <- if(derivs[[p]]$numel() == 0) {
+      torch::torch_zeros_like(parameters[[p]])
+    } else {
+      derivs[[p]]
+    }
+  }
+  
+  return( torch::torch_hstack(deriv_out) )
+}
+
+hessian_torch <- function(loss, parameters) {
+  stopifnot("parameters must be a list"= is.list(parameters))
+  
+  n_param <- length(parameters)
+  
+  param_lengths <- sapply(parameters, length)
+  total_n       <- sum(param_lengths)
+  param_idx     <- .get_parameter_indices(param_lengths)
+  hessian_out  <- torch::torch_zeros(c(total_n, total_n),
+                                     dtype = parameters[[1]]$dtype,
+                                     device = parameters[[1]]$device)
+  
+  first_deriv <- torch::autograd_grad(loss, 
+                               parameters, 
+                               retain_graph = TRUE, 
+                               create_graph = TRUE,
+                               allow_unused = TRUE)
+  
+  indexes_def <- .check_undefined_grad(first_deriv)
+  hessian_list <- vector("list", length(indexes_def))
+  cur_deriv <- NULL
+  cur_idx   <- NULL
+  
+  for (p in seq_along(indexes_def)) {
+    cur_idx <- indexes_def[[p]]
+    cur_deriv <- first_deriv[[cur_idx]]
+    hessian_list[[p]] <- .second_deriv(cur_deriv, parameters)
+  }
+  
+  used_idx <- unlist(param_idx[indexes_def])
+  target_hessian <- torch::torch_vstack(hessian_list)$detach()
+  hessian_out[used_idx][, used_idx] <- target_hessian
+  
+  return(
+    hessian_out
+  )
+  
+}
+
+.get_parameter_indices <- function(p_lengths) {
+  
+  n          <- sum(p_lengths)
+  idx        <- 1:n
+  cur_idx    <- 1L
+  cur_length <- NULL
+  out_idx    <- vector("list", length(p_lengths))
+  
+  for (p in seq_along(p_lengths) ) {
+    cur_length   <- p_lengths[[p]]
+    out_idx[[p]] <- cur_idx:(cur_idx +  cur_length - 1L)
+    cur_idx      <- cur_idx + cur_length 
+  }
+  
+  return( out_idx )
+  
+}
+
+.check_undefined_grad <- function(derivatives) {
+  
+  # is_none <- sapply(derivatives, function(p) p$numel() == 0)
+  # none_idx <- which(is_none)
+  
+  not_none <- sapply(derivatives, function(p) p$numel() != 0)
+  
+  return(which(not_none))
+  
+}
+
+.second_deriv <- function(first_param, parameters) {
+  
+  length_first <- length(first_param)
+  selection_vector <- torch::torch_zeros(length_first,
+                                         dtype = torch::torch_long(),
+                                         device = first_param$device)
+  ag_output <- NULL
+  ag_vectors <- vector("list", length_first)
+  
+  for (i in 1:length_first) {
+    selection_vector$copy_(0L)
+    selection_vector[i] <- 1L
+
+    ag_output <- torch::autograd_grad(outputs = first_param, 
+                               inputs = parameters, 
+                               grad_outputs = selection_vector,
+                               retain_graph = TRUE, 
+                               create_graph = FALSE,
+                               allow_unused = TRUE)
+    ag_vectors[[i]] <- .none_deriv_to_zeros(ag_output, parameters)$detach()
+    
+  }
+  
+  return(torch::torch_vstack(ag_vectors))
+}
+
+.idx_2d_to_1d <- function(idx, nrow, ncol) {
+  rep_idx <- rep(idx,length(idx))
+  out_idx <-  rep_idx + nrow * (rep(idx, each = length(idx)) - 1L)
+  stopifnot(max(out_idx) <= nrow*ncol)
+  return(out_idx)
+}
   
 # R6_bootStrap <- function() {
 #   n <- self$n
