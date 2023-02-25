@@ -1023,8 +1023,11 @@ OTProblem_ <- R6::R6Class("OTProblem",
      # need function to update weights and run update on OT
      armijo_loss_fun <- function(x, dx, alpha, ...) {
        
+       if(inherits(alpha, "torch_tensor")) {
+         alpha <- as.numeric(alpha$item())
+       }
        # assign linearly shifted weights
-       private$weights <- x + dx * as.numeric(alpha$item())
+       private$weights <- x + dx * alpha
        
        # update OT problems
        private$ot_update()
