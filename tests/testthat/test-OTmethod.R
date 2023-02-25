@@ -75,16 +75,17 @@ testthat::test_that("sinkhorn_loop runs, tensor", {
                 diameter=NULL)
   
   output <- ot1$.__enclos_env__$private$sinkhorn_loop(niter, tol)
-  
-  loss <- sum(output$f_xy * torch::torch_tensor(a,
-                                                dtype = output$f_xy$dtype,
-                                                device = output$f_xy$device)) + 
-    sum(output$g_yx * torch::torch_tensor(b,
-                                          dtype = output$g_yx$dtype,
-                                          device = output$g_yx$device))
+  at <- torch::torch_tensor(a,
+                            dtype = output$f_xy$dtype,
+                            device = output$f_xy$device)
+  bt <- torch::torch_tensor(b,
+                            dtype = output$g_yx$dtype,
+                            device = output$g_yx$device)
+  loss <- sum(output$f_xy * at) + 
+    sum(output$g_yx * bt)
   testthat::expect_equal(loss$item(), 2.786224, tolerance = 1e-4)
-  testthat::expect_equal(sum(output$f_xy * a )$item(), 2.786224, tolerance = 1e-3)
-  testthat::expect_equal(sum(output$g_yx * b)$item(), 0, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$f_xy * at )$item(), 2.786224, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$g_yx * bt)$item(), 0, tolerance = 1e-3)
   # compare
   # pot <- causalOT::sinkhorn(x = x*sqrt(0.5), y = y*sqrt(0.5), a = a, b = b, power = 2, blur = 10, scaling = 0.99, debias = FALSE )
   # sum(pot$f * a) + sum(pot$g * b)
@@ -254,19 +255,17 @@ testthat::test_that("sinkhorn_cot runs, tensor", {
   
   ot$sinkhorn_cot(niter, tol)
   output <- ot$potentials
+  at <- torch::torch_tensor(a,
+                            dtype = output$f_xy$dtype,
+                            device = output$f_xy$device)
+  bt <- torch::torch_tensor(b,
+                            dtype = output$g_yx$dtype,
+                            device = output$g_yx$device)
   
-  loss <- sum(output$f_xy * torch::torch_tensor(a,
-                                                dtype = output$f_xy$dtype,
-                                                device = output$f_xy$device) ) + sum(output$g_yx * torch::torch_tensor(b,
-                                                                                                                       dtype = output$g_yx$dtype,
-                                                                                                                       device = output$g_yx$device))
+  loss <- sum(output$f_xy *  at) + sum(output$g_yx * bt)
   testthat::expect_equal(loss$item(), 2.786224, tolerance = 1e-4)
-  testthat::expect_equal(sum(output$f_xy * torch::torch_tensor(a,
-                                                               dtype = output$f_xy$dtype,
-                                                               device = output$f_xy$device) )$item(),2.786224, tolerance = 1e-3)
-  testthat::expect_equal(sum(output$g_yx * torch::torch_tensor(b,
-                                                               dtype = output$g_yx$dtype,
-                                                               device = output$g_yx$device))$item(), 0, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$f_xy * at )$item(),2.786224, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$g_yx * bt)$item(), 0, tolerance = 1e-3)
   testthat::expect_true(all(output$f_xx==0))
   testthat::expect_true(all(as.logical(output$g_yy==0)))
   
@@ -275,16 +274,10 @@ testthat::test_that("sinkhorn_cot runs, tensor", {
                     diameter=NULL)
   
   output1 <- ot1$sinkhorn_cot(niter, tol)$potentials
-  loss1 <- sum(output$f_xy * torch::torch_tensor(a,
-                                                 dtype = output$f_xy$dtype,
-                                                 device = output$f_xy$device) ) + sum(output$g_yx * torch::torch_tensor(b,
-                                                                                                                        dtype = output$g_yx$dtype,
-                                                                                                                        device = output$g_yx$device))
+  loss1 <- sum(output$f_xy * at ) + sum(output$g_yx * bt)
   
   testthat::expect_equal(loss1$item(), loss$item(), tolerance = 1e-4)
-  testthat::expect_equal(sum(output1$f_xx * torch::torch_tensor(a,
-                                                                dtype = output$f_xy$dtype,
-                                                                device = output$f_xy$device) )$item()*2, 2.17266, tolerance = 1e-4)
+  testthat::expect_equal(sum(output1$f_xx * at )$item()*2, 2.17266, tolerance = 1e-4)
   testthat::expect_true(all(as.logical(output1$g_yy==0)))
 })
 
@@ -311,19 +304,17 @@ testthat::test_that("sinkhorn_cot runs, online", {
                diameter=NULL)
   
   output <- ot$sinkhorn_cot(niter, tol)$potentials
+  at <- torch::torch_tensor(a,
+                            dtype = output$f_xy$dtype,
+                            device = output$f_xy$device)
+  bt <- torch::torch_tensor(b,
+                            dtype = output$g_yx$dtype,
+                            device = output$g_yx$device)
   
-  loss <- sum(output$f_xy * torch::torch_tensor(a,
-                                                dtype = output$f_xy$dtype,
-                                                device = output$f_xy$device) ) + sum(output$g_yx * torch::torch_tensor(b,
-                                                                        dtype = output$g_yx$dtype,
-                                                                        device = output$g_yx$device))
+  loss <- sum(output$f_xy *  at) + sum(output$g_yx * bt)
   testthat::expect_equal(loss$item(), 2.786224, tolerance = 1e-4)
-  testthat::expect_equal(sum(output$f_xy * torch::torch_tensor(a,
-                                                               dtype = output$f_xy$dtype,
-                                                               device = output$f_xy$device) )$item(),2.786224, tolerance = 1e-3)
-  testthat::expect_equal(sum(output$g_yx * torch::torch_tensor(b,
-                                                               dtype = output$g_yx$dtype,
-                                                               device = output$g_yx$device))$item(), 0, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$f_xy * at )$item(),2.786224, tolerance = 1e-3)
+  testthat::expect_equal(sum(output$g_yx * bt)$item(), 0, tolerance = 1e-3)
   testthat::expect_true(all(as.logical(output$f_xx==0)))
   testthat::expect_true(all(as.logical(output$g_yy==0)))
   
@@ -332,14 +323,10 @@ testthat::test_that("sinkhorn_cot runs, online", {
                 diameter=NULL)
   
   output1 <- ot1$sinkhorn_cot( niter, tol)$potentials
-  loss1 <- sum(output$f_xy * a ) + sum(output$g_yx * torch::torch_tensor(b,
-                                                                         dtype = output$g_yx$dtype,
-                                                                         device = output$g_yx$device))
+  loss1 <- sum(output$f_xy * at ) + sum(output$g_yx * bt)
   
   testthat::expect_equal(loss1, loss, tolerance = 1e-4)
-  testthat::expect_equal(sum(output1$f_xx * torch::torch_tensor(a,
-                                                                dtype = output$f_xy$dtype,
-                                                                device = output$f_xy$device) )$item()*2, 2.17266, tolerance = 1e-4)
+  testthat::expect_equal(sum(output1$f_xx * at )$item()*2, 2.17266, tolerance = 1e-4)
   testthat::expect_true(all(as.logical(output1$g_yy==0)))
   
 })
