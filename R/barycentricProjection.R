@@ -421,20 +421,32 @@ construct_bp_est  <- function(bp_fun,lambda,
 bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, dots) {
   
   if(tensorized) {
-    G <- f/eps + a_log
+    G <- if(inherits(f, "torch_tensor") ) {
+      f/eps + a_log
+    } else {
+      torch::torch_tensor(f/eps + a_log,
+                          dtype = C_yx$data$dtype,
+                          device = C_yx$data$device)
+    }
     if(!inherits(y_target, "torch_tensor")) {
-      y_targ <-  torch::torch_tensor(y_target, dtype = G$dtype, device = G$device)
+      y_targ <-  torch::torch_tensor(y_target, dtype = C_yx$data$dtype, device = C_yx$data$device)
     } else {
       y_targ <- y_target
     }
     
-    y_source <- torch::torch_matmul((G - C_yx$data/eps)$log_softmax(2)$exp(), y_targ)
+    y_source <- torch::torch_matmul((G - C_yx$data/eps)$log_softmax(2)$exp(), y_targ)$to(device = "cpu")
     
   } else {
     # rkeops::compile4float64()
-    G <- (f/eps + a_log)$to(device = "cpu")
-    x <- as.matrix(C_yx$data$x$to(device = "cpu"))
-    y <- as.matrix(C_yx$data$y$to(device = "cpu"))
+    G <- f/eps + a_log
+    if(inherits(C_yx$data$x, "torch_tensor")) {
+      x <- as.matrix(C_yx$data$x$to(device = "cpu"))
+      y <- as.matrix(C_yx$data$y$to(device = "cpu"))
+    } else {
+      x <- as.matrix(C_yx$data$x)
+      y <- as.matrix(C_yx$data$y)
+    }
+    
     d <- ncol(x)
     if(inherits(y_target, "torch_tensor")) {
       y_targ <- y_target$to("cpu")
@@ -475,9 +487,7 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
                      Norm = log(wt_norm[,2]) + wt_norm[,1]
                     )
     
-    y_source <- torch::torch_tensor(online_red(sum_data),
-                                    dtype = f$dtype,
-                                    device = f$device)
+    y_source <- online_red(sum_data)
   }
   
   return(as.numeric(y_source))
@@ -486,7 +496,12 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
 bp_pow1 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, dots) {
   if(!tensorized) stop("L1 norm must have a tensorized cost function")
   
-  G <- f/eps + a_log
+  G <- if(inherits(f, "torch_tensor")) {
+    f/eps + a_log
+  } else {
+    torch::torch_tensor(f/eps + a_log, device = C_yx$data$device,
+                        dtype = C_yx$data$dtype)
+  }
   wts <- (G - C_yx$data/eps)$log_softmax(2)$exp()$to(device = "cpu")
   if(inherits(y_target, "torch_tensor")) {
     y_targ <- as.numeric(y_target$to("cpu"))
@@ -503,8 +518,23 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
   
   fun <- tensorized_switch_generator(tensorized)
   
-  y_source  <- torch::torch_zeros(c(n), dtype = f$dtype, 
-                                  device = f$device,
+  if(tensorized) {
+    device = C_yx$data$device
+    dtype <- C_yx$data$dtype
+  } else {
+    if(inherits(C_yx$data$x, "torch_tensor")) {
+      device = C_yx$data$x$device
+      dtype <- C_yx$data$x$dtype
+    } else {
+      device <- cuda_device_check(NULL)
+      dtype  <- cuda_dtype_check(NULL, device)
+      
+    }
+    
+  }
+  
+  y_source  <- torch::torch_zeros(c(n), dtype = dtype, 
+                                  device = device,
                                   requires_grad = TRUE)
   
   # get and set dots args
@@ -542,7 +572,7 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
       loss$backward()
       return(loss)
     }
-    if(!inherits(y_target, "torch_tensor")) y_target <- torch::torch_tensor(as.numeric(y_target), dtype = f$dtype, device = f$device)
+    if(!inherits(y_target, "torch_tensor")) y_target <- torch::torch_tensor(as.numeric(y_target), dtype = dtype, device = device)
     m <- length(y_target)
     wt_mat <- fun(eps, C_yx, f, a_log)
     for (i in 1:niter) {
@@ -563,12 +593,23 @@ tensorized_switch_generator <- function(tensorized) {
              y_form <- sub("X", "S", x_form)
              y_form <- sub("Y", "T", y_form)
              
-             G <- (f/eps + a_log)$to(device = "cpu")
-             x <- as.matrix(C_yx$data$x$to(device = "cpu"))
-             y <- as.matrix(C_yx$data$y$to(device = "cpu"))
+             G <- switch(inherits(f, "torch_tensor") + 1L,
+                         f/eps + a_log,
+                         (f/eps + a_log)$to(device = "cpu"))
+             x <- switch(inherits(C_yx$data$x, "torch_tensor") + 1L,
+                    as.matrix(C_yx$data$x),
+                    as.matrix(C_yx$data$x$to(device = "cpu")))
+              
+             y <- switch(inherits(C_yx$data$y, "torch_tensor") + 1L,
+                         as.matrix(C_yx$data$y),
+                         as.matrix(C_yx$data$y$to(device = "cpu")))
              d <- ncol(x)
              ys<- (y_source)$to(device = "cpu")
-             yt<- (y_target)$to(device = "cpu")
+             yt<- if(inherits(y_target, "torch_tensor")) {
+               (y_target)$to(device = "cpu")
+             } else {
+               as.numeric(y_target)
+             }
              
              wt_red <- rkeops::keops_kernel(
                formula = paste0("Max_SumShiftExp_Reduction(G - P *", x_form,", 0)"),
