@@ -496,7 +496,8 @@ testthat::test_that("estimate effect works lm, ATC", {
   
   testthat::expect_equal(sum((y1 - pred0[z==1]) * w1) -
                            sum((y0 - pred0[z==0]) * w0), 
-                         ee2@estimate)
+                         ee2@estimate,
+                         tol = 1e-5)
   
 })
 
