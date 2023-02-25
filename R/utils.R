@@ -374,6 +374,51 @@ is.nan.torch_tensor <- function(x) {
   as.logical(x$isnan()$to(device = "cpu"))
 }
 
+is_torch_tensor <- function(x) {
+  inherits(x, "torch_tensor")
+}
+
+as_numeric <- function(x) {
+  return(as.numeric(switch(is_torch_tensor(x) + 1L,
+                    x,
+                    x$to(device = "cpu"))))
+}
+
+
+as_matrix <- function(x) {
+  return(as.matrix(switch(is_torch_tensor(x) + 1L,
+                           x,
+                           x$to(device = "cpu"))))
+}
+
+get_device <- function(...) {
+  args <- list(...)
+  nargs <- ...length()
+  device <- vector("list", nargs) |> setNames(...names())
+  for(i in 1:nargs) {
+   if (inherits(args[[i]], "torch_tensor"))  {
+     device[[i]] <- args[[i]]$device
+   } else {
+     device[[i]] <- torch::torch_device("cpu")
+   }
+  }
+  return(device)
+}
+
+get_dtype <- function(...) {
+  args <- list(...)
+  nargs <- ...length()
+  dtype <- vector("list", nargs) |> setNames(...names())
+  for(i in 1:nargs) {
+    if (inherits(args[[i]], "torch_tensor"))  {
+      dtype[[i]] <- args[[i]]$dtype
+    } else {
+      dtype[[i]] <- torch::torch_double()
+    }
+  }
+  return(dtype)
+}
+
 cuda_device_check <- function(device) {
   if (is.null(device)) {
     cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1

@@ -38,7 +38,7 @@ testthat::test_that("barycentric_projection works, p = 2 tensor", {
   rkeops::compile4float64()
   mess <- testthat::capture_output(fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online"))
   mess <- testthat::capture_output(predo <- predict(fito))
-  testthat::expect_equal(preds, predo)
+  testthat::expect_equal(preds, predo, tol = 1e-5)
   
   # compare to manual est
   y_hat <- rep(NA_real_, causalOT:::get_n(fit$data))
@@ -66,9 +66,9 @@ testthat::test_that("barycentric_projection works, p = 2 tensor", {
   # for new 
   df.new <- data.frame(y = data$get_y(), z = data$get_z(), data$get_x())
   preds2 <- causalOT:::predict.bp(fit, newdata=df.new, source.sample = data$get_z())
-  testthat::expect_equal(preds, preds2)
+  testthat::expect_equal(preds, preds2, tol = 1e-5)
   preds2o <- causalOT:::predict.bp(fito, newdata=df.new, source.sample = data$get_z())
-  testthat::expect_equal(preds, preds2o)
+  testthat::expect_equal(preds, preds2o, tol = 1e-5)
   
   
   

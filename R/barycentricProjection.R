@@ -647,7 +647,9 @@ tensorized_switch_generator <- function(tensorized) {
                             )
              
              reds <- online_red(sum_data)
-             ctx$save_for_backward(data = sum_data, kernel_op = online_red)
+             ctx$save_for_backward(data = sum_data, kernel_op = online_red,
+                                   dtype = y_source$dtype,
+                                   device = y_source$device)
              loss <- sum(reds)
              return(loss)
            },
@@ -656,7 +658,10 @@ tensorized_switch_generator <- function(tensorized) {
              s_grad <- rkeops::keops_grad(s$kernel_op, var="S")
              # browser()
              eta <- as.matrix(rep(as.numeric(grad_output), length(s$data$Norm)))
-             grad <- list(y_source = as.numeric(s_grad(c(s$data, list(eta = eta)))))
+             cpu_grad <- as.numeric(s_grad(c(s$data, list(eta = eta))))
+             grad <- list(y_source = torch::torch_tensor(cpu_grad,
+                                                         device = ctx$device,
+                                                         dtype = ctx$dtype))
              
              return(grad)
              

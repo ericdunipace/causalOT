@@ -917,19 +917,28 @@ inf_sinkhorn_dist <- function(OT) {
 
 inf_sinkhorn_online <- torch::autograd_function(
   forward = function(ctx, x, y, a, b, formula) {
-    x <- as.matrix(x)
-    y <- as.matrix(y)
+    
+    device <- get_device(x,y,a,b)
+    dtype <- get_dtype(x,y,a,b)
+    
+    x <- as_matrix(x)
+    y <- as_matrix(y)
     d <- ncol(x)
-    a <- as.numeric(a)
-    b <- as.numeric(b)
+    a <- as_numeric(a)
+    b <- as_numeric(b)
+    
     
     use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
     
     if (use_cuda) {
       rkeops::compile4gpu()
       rkeops::use_gpu()
+      # dtype <- torch::torch_float()
+      # device <- torch::torch_device("cuda")
     } else {
       rkeops::compile4float64()
+      # dtype <- torch::torch_double()
+      # device <- torch::torch_device("cpu")
     }
     sumred <- rkeops::keops_kernel(
       formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
@@ -948,7 +957,9 @@ inf_sinkhorn_online <- torch::autograd_function(
                           b = b,
                           x = x,
                           y = y,
-                          forward_op = sumred)
+                          forward_op = sumred,
+                          device = dtype,
+                          dtype = device)
     return(loss)
   },
   backward = function(ctx, grad_output) {
@@ -957,26 +968,38 @@ inf_sinkhorn_online <- torch::autograd_function(
                   a = NULL,
                   b = NULL)
     if (ctx$needs_input_grad$a) {
-      grads$a <- grad_output * ctx$saved_variables$a_deriv
+      grads$a <- grad_output *
+        torch::torch_tensor(ctx$saved_variables$a_deriv, 
+                             dtype = ctx$dtype$a,
+                             device = ctx$dtype$a)
     }
     if (ctx$needs_input_grad$b) {
-      grads$b <- grad_output * ctx$saved_variables$b_deriv
+      grads$b <- grad_output * 
+        torch::torch_tensor(ctx$saved_variables$b_deriv, 
+                            dtype = ctx$dtype$b,
+                            device = ctx$dtype$b)
     }
     if (ctx$needs_input_grad$x) {
       cost_grad <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
                                       var = "X")
-      grads$x <- grad_output * cost_grad(list(X = ctx$saved_variables$x,
-                                              Y = ctx$saved_variables$y,
-                                              B = ctx$saved_variables$b,
-                                              eta = matrix(ctx$saved_variables$a)))
+      grads$x <- grad_output * 
+        torch::torch_tensor(cost_grad(list(X = ctx$saved_variables$x,
+                  Y = ctx$saved_variables$y,
+                  B = ctx$saved_variables$b,
+                  eta = matrix(ctx$saved_variables$a))), 
+                  dtype = ctx$dtype$x,
+                  device = ctx$dtype$x)
     }
     if (ctx$needs_input_grad$y) {
       cost_grad <- rkeops::keops_grad(op = ctx$saved_variables$forward_op,
                                       var = "X")
-      grads$x <- grad_output * cost_grad(list(X = ctx$saved_variables$y,
-                                              Y = ctx$saved_variables$x,
-                                              B = ctx$saved_variables$a,
-                                              eta = matrix(ctx$saved_variables$b)))
+      grads$x <- grad_output * 
+        torch::torch_tensor(cost_grad(list(X = ctx$saved_variables$y,
+                          Y = ctx$saved_variables$x,
+                          B = ctx$saved_variables$a,
+                          eta = matrix(ctx$saved_variables$b))),
+            dtype = ctx$dtype$y,
+            device = ctx$dtype$y)
     }
     return(grads)
   }
