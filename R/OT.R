@@ -283,7 +283,7 @@ OT <- R6::R6Class("OT",
       if (tensorized) {
         diameter <- max(diam_cost$data)$item() 
       } else {
-        exp_sums <- C_yx$reduction( list( as.matrix(diam_cost$data$x),  as.matrix(diam_cost$data$y), rep(0.,2), -1.) )
+        exp_sums <- C_yx$reduction( list( as.matrix(diam_cost$data$x$to(device = "cpu")),  as.matrix(diam_cost$data$y$to(device = "cpu")), rep(0.,2), -1.) )
         diameter <- max(exp_sums[,1])
       }
       return(diameter)
