@@ -593,23 +593,13 @@ tensorized_switch_generator <- function(tensorized) {
              y_form <- sub("X", "S", x_form)
              y_form <- sub("Y", "T", y_form)
              
-             G <- switch(inherits(f, "torch_tensor") + 1L,
-                         f/eps + a_log,
-                         (f/eps + a_log)$to(device = "cpu"))
-             x <- switch(inherits(C_yx$data$x, "torch_tensor") + 1L,
-                    as.matrix(C_yx$data$x),
-                    as.matrix(C_yx$data$x$to(device = "cpu")))
+             G <- as_numeric(f/eps + a_log)
+             x <- as_matrix(C_yx$data$x)
               
-             y <- switch(inherits(C_yx$data$y, "torch_tensor") + 1L,
-                         as.matrix(C_yx$data$y),
-                         as.matrix(C_yx$data$y$to(device = "cpu")))
+             y <- as_matrix(C_yx$data$y)
              d <- ncol(x)
              ys<- (y_source)$to(device = "cpu")
-             yt<- if(inherits(y_target, "torch_tensor")) {
-               (y_target)$to(device = "cpu")
-             } else {
-               as.numeric(y_target)
-             }
+             yt<- as_numeric(y_target)
              
              wt_red <- rkeops::keops_kernel(
                formula = paste0("Max_SumShiftExp_Reduction(G - P *", x_form,", 0)"),
@@ -657,8 +647,8 @@ tensorized_switch_generator <- function(tensorized) {
              s <- ctx$saved_variables
              s_grad <- rkeops::keops_grad(s$kernel_op, var="S")
              # browser()
-             eta <- as.matrix(rep(as.numeric(grad_output), length(s$data$Norm)))
-             cpu_grad <- as.numeric(s_grad(c(s$data, list(eta = eta))))
+             eta <- as.matrix(rep(as_numeric(grad_output), length(s$data$Norm)))
+             cpu_grad <- as_numeric(s_grad(c(s$data, list(eta = eta))))
              grad <- list(y_source = torch::torch_tensor(cpu_grad,
                                                          device = ctx$device,
                                                          dtype = ctx$dtype))
