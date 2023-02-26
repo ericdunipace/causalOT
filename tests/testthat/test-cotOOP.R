@@ -16,8 +16,8 @@ testthat::test_that("measure forms", {
   mc <- m$clone(deep = TRUE)
   testthat::expect_true(rlang::obj_address(mc) != rlang::obj_address(m))
   testthat::expect_true(rlang::obj_address(m$x) != rlang::obj_address(mc$x))
-  testthat::expect_equal(as.matrix(m$x), as.matrix(mc$x))
-  testthat::expect_equal(as.matrix(m$weights), as.matrix(mc$weights))
+  testthat::expect_equal(as_matrix(m$x), as_matrix(mc$x))
+  testthat::expect_equal(as_matrix(m$weights), as_matrix(mc$weights))
   
   m_w <- Measure(x = x, adapt = "weights")
   testthat::expect_true(isTRUE(as.logical(m_w$weights$requires_grad)))

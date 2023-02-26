@@ -2232,6 +2232,7 @@ NNM <- R6::R6Class(
     solve = function(...) {
       C_xy <- private$C_xy
       if (!private$tensorized) { 
+        
         x = as.matrix(C_xy$data$x$to(device = "cpu"))
         y = as.matrix(C_xy$data$y$to(device = "cpu"))
         d = ncol(x)
@@ -2250,7 +2251,8 @@ NNM <- R6::R6Class(
             paste0("Y = Vj(",d,")"))
         )
         mins = torch::torch_tensor(c(argmin_op(list(x,y))) + 1, 
-                                   dtype = torch::torch_int64())
+                                   dtype = torch::torch_int64(),
+                                   device = C_xy$data$x$device)
         
       } else {
         mins = C_xy$data$argmin(1)

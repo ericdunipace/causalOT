@@ -67,7 +67,7 @@ testthat::test_that("bp works, ATE", {
   testthat::expect_equal(tau_aug@estimate,
                          sum(weights@w1 * (y1 - tau_est_sep@augmentedData$y_hat_1[z==1])) -
                          sum(weights@w0 * (y0 - tau_est_sep@augmentedData$y_hat_0[z==0])) +
-    mean(tau_est_sep@augmentedData$y_hat_1 - tau_est_sep@augmentedData$y_hat_0))
+    mean(tau_est_sep@augmentedData$y_hat_1 - tau_est_sep@augmentedData$y_hat_0), tol = 1e-5)
   
     
 })

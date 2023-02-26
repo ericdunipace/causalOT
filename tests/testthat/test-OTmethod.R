@@ -327,7 +327,7 @@ testthat::test_that("sinkhorn_cot runs, online", {
   
   testthat::expect_equal(loss1, loss, tolerance = 1e-4)
   testthat::expect_equal(sum(output1$f_xx * at )$item()*2, 2.17266, tolerance = 1e-4)
-  testthat::expect_true(all(as.logical(output1$g_yy==0)))
+  testthat::expect_true(all(as.logical((output1$g_yy==0)$to(device = "cpu"))))
   
 })
 

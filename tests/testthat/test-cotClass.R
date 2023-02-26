@@ -104,7 +104,7 @@ testthat::test_that("ent works", {
   
   osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
   
-  testthat::expect_true(as.numeric((cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target)$abs()$max()$to(device = "cpu")$item()) < 1.5)
+  testthat::expect_true(as_numeric((cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target)$abs()$max()$to(device = "cpu")$item()) < 1.5)
   
   testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(debias = FALSE,
