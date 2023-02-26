@@ -652,7 +652,8 @@ tensorized_switch_generator <- function(tensorized) {
              grad <- list(y_source = torch::torch_tensor(cpu_grad,
                                                          device = ctx$device,
                                                          dtype = ctx$dtype))
-             
+             print(grad$y_source$device)
+             print(grad$y_source$dtype)
              return(grad)
              
            }),
