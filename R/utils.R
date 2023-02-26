@@ -187,17 +187,17 @@ mirror_softmax <- torch::autograd_function( # for mirror descent
   }
 }
 
-cot_torch_bincount <- function (self, weights = list(), minlength = 0L) 
-{
-  args <- mget(x = c("self", "weights", "minlength"))
-  args$self <- torch_sub(args$self, 1L)
-  expected_types <- list(self = "Tensor", weights = "Tensor", 
-                         minlength = "int64_t")
-  nd_args <- "self"
-  return_types <- list(list("Tensor"))
-  call_c_function(fun_name = "bincount", args = args, expected_types = expected_types, 
-                  nd_args = nd_args, return_types = return_types, fun_type = "namespace")
-}
+# cot_torch_bincount <- function (self, weights = list(), minlength = 0L) 
+# {
+#   args <- mget(x = c("self", "weights", "minlength"))
+#   args$self <- torch_sub(args$self, 1L)
+#   expected_types <- list(self = "Tensor", weights = "Tensor", 
+#                          minlength = "int64_t")
+#   nd_args <- "self"
+#   return_types <- list(list("Tensor"))
+#   call_c_function(fun_name = "bincount", args = args, expected_types = expected_types, 
+#                   nd_args = nd_args, return_types = return_types, fun_type = "namespace")
+# }
 
 torch_check <- function() {
   testthat::skip_if_not_installed("torch")
@@ -318,11 +318,11 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
 
 torch_lbfgs_check <- function(opt){
   if (inherits(opt, "optim_lbfgs")) {
-    cb <- causalOT:::.cubic_interpolate
+    cb <- .cubic_interpolate
     tmpfun <- get(".cubic_interpolate", envir = asNamespace("torch"))
     environment(cb) <- environment(tmpfun)
     attributes(cb) <- attributes(tmpfun)
-    assignInNamespace(".cubic_interpolate", cb, "torch" )
+    utils::assignInNamespace(".cubic_interpolate", cb, "torch" )
     
     ln_srch <- opt$defaults$line_search_fn
     no_ls <- (is.null(ln_srch) || is.na(ln_srch) || ln_srch != "strong_wolfe")

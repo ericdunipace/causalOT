@@ -7,9 +7,9 @@
 mean_balance(x = NULL, z = NULL, weights = NULL, ...)
 }
 \arguments{
-\item{x}{Either a matrix, an object of class \link[=dataHolder-class]{dataHolder}, or an object of class DataSim}
+\item{x}{Either a matrix, an object of class \linkS4class{dataHolder}, or an object of class DataSim}
 
-\item{z}{A integer vector denoting the treatments of each observations. Can be null if \code{x} is a DataSim object or already of class \link[=dataHolder-class]{dataHolder}.}
+\item{z}{A integer vector denoting the treatments of each observations. Can be null if \code{x} is a DataSim object or already of class \linkS4class{dataHolder}.}
 
 \item{weights}{An object of class \link[=causalWeights-class]{causalWeights}.}
 

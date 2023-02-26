@@ -244,7 +244,7 @@ sbwOptions <- function(
     output$nboot <- as.integer(nboot)
   }
   
-  output$solver.options <- list(...)[...names() %in% formalArgs(osqp::osqpSettings)]
+  output$solver.options <- list(...)[...names() %in% methods::formalArgs(osqp::osqpSettings)]
   class(output) <- "sbwOptions"
   return(output)
   

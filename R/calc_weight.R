@@ -1,6 +1,6 @@
 #' Estimate causal weights
 #'
-#' @param x A numeric matrix of covariates. You can also pass an object of class [dataHolder][causalOT::dataHolder-class] or [DataSim][causalOT::DataSim-class], which will make argument `z` not necessary,
+#' @param x A numeric matrix of covariates. You can also pass an object of class [causalOT::dataHolder-class] or [causalOT::DataSim-class], which will make argument `z` not necessary,
 #' @param z A binary treatment indicator.
 #' @param estimand The estimand of interest. One of "ATT","ATC", or "ATE".
 #' @param method The method to estimate the causal weights. Must be one of the methods returned by [supported.methods()][supported.methods()].

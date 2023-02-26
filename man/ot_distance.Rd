@@ -20,7 +20,7 @@ ot_distance(
 )
 }
 \arguments{
-\item{x1}{Either an object of class \link[causalOT]{causalWeights} or a matrix of the covariates in the first sample}
+\item{x1}{Either an object of class \linkS4class{causalWeights} or a matrix of the covariates in the first sample}
 
 \item{x2}{\code{NULL} or a matrix of the covariates in the second sample.}
 
@@ -40,9 +40,9 @@ ot_distance(
 
 \item{diameter}{The diameter of the metric space, if known. Default is NULL.}
 
-\item{niter}{}
+\item{niter}{The maximum number of iterations for the Sinkhorn updates}
 
-\item{tol}{}
+\item{tol}{The tolerance for convergence}
 }
 \value{
 For objects of class matrix, numeric value giving the optimal transport distance. For objects of class causalWeights, results are returned as a list for before ('pre') and after adjustment ('post').
@@ -55,8 +55,11 @@ if ( torch::torch_is_installed()) {
 x <- matrix(stats::rnorm(10*5), 10, 5)
 z <- stats:rbinom(10, 1, 0.5)
 weights <- calc_weight(x = x, z = z, method = "Logistic", estimand = "ATT")
-ot1 <- ot_distance(x1 = weights, lambda = 100, p = 2, debiast = TRUE, tensorized = "auto", diameter = NULL)
-ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,], a= weights@w0, b = weights@w1,
+ot1 <- ot_distance(x1 = weights, lambda = 100, 
+p = 2, debiast = TRUE, tensorized = "auto", 
+diameter = NULL)
+ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,], 
+a= weights@w0, b = weights@w1,
  lambda = 100, p = 2, debiast = TRUE, tensorized = "auto", diameter = NULL)
 
  all.equal(ot1, ot2)

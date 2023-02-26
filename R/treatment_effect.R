@@ -3,7 +3,6 @@
 #' @param causalWeights An object of class [causalWeights][causalOT::causalWeights-class]
 #' @param x A dataHolder, matrix, data.frame, or object of class DataSim. See [calc_weight][causalOT::calc_weight] for more details how to input the data. If `NULL`, will use the info in the `causalWeights` argument.
 #' @param y The outcome vector.
-#' @param sampleWeights An optional vector of the sample weights prior to any adjustment. By default, each observation is assumed to have the same sampling weights.
 #' @param model.function The modeling function to use, if desired. Must take arguments "formula", "data", and "weights". Other arguments passed via `...`, the dots.
 #' @param estimate.separately Should the outcome model be estimated separately in each treatment group? TRUE or FALSE.
 #' @param augment.estimate Should an augmented, doubly robust estimator be used?
@@ -175,7 +174,7 @@ causalEffect <- function(data, causalWeights, model.outputs, augment.estimate, c
   y_1[z==1]<- y_1_obs
   
   # create causalEffect object
-  res <- new("causalEffect",
+  res <- methods::new("causalEffect",
       estimate = tau,
       estimand = estimand,
       weights = causalWeights,
@@ -218,6 +217,8 @@ estimate_model <- function(data, causalWeights, model.function,
     x_1     <- get_x1(data)
     
     oform   <- formula("y ~ . ")
+    w0      <- causalWeights@w0
+    w1      <- causalWeights@w1
     environment(oform) <- list2env(list(w0=causalWeights@w0,
                                         w1=causalWeights@w1), 
                                    parent=environment(oform))
@@ -233,8 +234,8 @@ estimate_model <- function(data, causalWeights, model.function,
     fit   <- list(control = fit_0, treated = fit_1, overall_sample = NULL)
     
     # save predicted mean outcomes
-    y_hat_0 <- predict(object = fit_0, newdata = data.frame(x), ...)
-    y_hat_1 <- predict(object = fit_1, newdata = data.frame(x), ...)
+    y_hat_0 <- stats::predict(object = fit_0, newdata = data.frame(x), ...)
+    y_hat_1 <- stats::predict(object = fit_1, newdata = data.frame(x), ...)
     
   } else { #fit model jointly on all the data
     
@@ -458,183 +459,3 @@ sandwich_vars <- function(object, parm, level, ...) {
   VARS <- diag(vcov_mat)
   return( VARS["z"] )
 }
-
-
-ci_semiparm_eff <- function(object, parm, level, ...) {
-  
-  # calculates variance of estimating y(z)
-  semipar_var <- function(y, z, yhat, w, e_y, n) {
-    resid <- w * y * z - e_y - yhat * (w * z - 1)
-    return( mean( resid^2 ) / denom )
-  }
-  
-  
-  semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, tau, n) {
-    return(mean((w * z * (y - yhat_1) - w * (1 - z) * (y - yhat_0) + (yhat_1 - yhat_0) - tau)^2) / n )
-  }
-  
-  # pull out relevant terms from augmentedData
-  
-  
-  # run appropriate functions
-  
-  model.fun <- object$model
-  form <- object$formula
-  estimand <- object$estimand
-  dots <- list(...)
-  # b_names <- base::...names
-  
-  if(is.null(model.fun)) {
-    if("model" %in% names(dots)) {
-      
-      model.fun <- calc_model(dots$model)
-    } else {
-      stop("Must specify an argument 'model' as input to this function or in the effect estimation function")
-    }
-    form <- NULL
-  }
-  
-  if(is.null(form)) {
-    if("formula" %in% names(dots)) {
-      form <- calc_form(formula = dots$formula, 
-                        doubly.robust = object$options$doubly.robust, 
-                        target = object$estimand,
-                        split.model = object$options$split.model
-      )
-      environment(form$treated) <- environment(form$control) <- environment()
-    } else {
-      stop("Must specify an argument 'formula' as input to this function or in the effect estimation function")
-    }
-  } else {
-    environment(form$treated) <- environment(form$control) <- environment()
-  }
-  
-  # treatment effect
-  tau  <- object$estimate #estimated treatment effect
-  
-  # get variance components
-  E_Y1 <- object$variance.component$E_Y1 #expectation of Y(1)
-  E_Y0 <- object$variance.component$E_Y0 #expectation of Y(0)
-  E_Y1_X <- object$variance.component$E_Y1_X  #estimated values of E(Y(1) | X)
-  E_Y0_X <- object$variance.component$E_Y0_X  #estimated values of E(Y(0) | X)
-  
-  #get observed values of outcome
-  data.obj <- object$data
-  z       <- data.obj[,object$options$treatment.indicator]
-  y       <- data.obj[,object$options$outcome]
-  n       <- length(y)
-  n1      <- sum(z)
-  n0      <- n-n1
-  
-  weights <- object$weights
-  # get conditional mean predictions for each unit
-  if ( estimand == "ATE" && ( any(is.na(E_Y1_X)) || any(is.na(E_Y0_X)) ) ) {
-    x     <- data.obj[, object$options$balance.covariates, drop = FALSE]
-    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
-    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
-    
-    E_Y0_X <- predict(fit_0, newdata = x)
-    E_Y1_X <- predict(fit_1, newdata = x)
-    
-  } else if (estimand == "ATT" && any(is.na(E_Y0_X)) ) {
-    x    <- data.obj[, object$options$balance.covariates, drop = FALSE]
-    
-    fit_0 <- model.fun(form$control, as.data.frame(cbind(y, x)[z==0,,drop = FALSE]), weights = weights$w0)
-    
-    E_Y0_X <- predict(fit_0, newdata = x)
-  } else if (estimand == "ATC" && any(is.na(E_Y1_X)) ) {
-    x    <- data.obj[, object$options$balance.covariates, drop = FALSE]
-    
-    fit_1 <- model.fun(form$treated, as.data.frame(cbind(y, x)[z==1,,drop = FALSE]), weights = weights$w1)
-    
-    E_Y1_X <- predict(fit_1, newdata = x)
-  } 
-  
-  # reorder data
-  orders  <- order(z)
-  w       <- c(weights$w0, weights$w1)
-  
-  # if (object$options$hajek == TRUE) {
-  #   if (estimand == "ATE") {
-  #     w <- w * n
-  #     denom <- n
-  #   } else if (estimand == "ATT") {
-  #     w <- w * n1
-  #     denom <- n1
-  #   } else if (estimand == "ATC") {
-  #     w <- w * n0
-  #     denom <- n0
-  #   }
-  # } else {
-  #   if (estimand == "ATE") {
-  #     denom <- n
-  #   } else if (estimand == "ATT") {
-  #     denom <- n1
-  #   } else if (estimand == "ATC") {
-  #     denom <- n0
-  #   }
-  # }
-  if (estimand == "ATE") {
-    w <- w * n
-    denom <- n
-  } else if (estimand == "ATT") {
-    w <- w * n1
-    denom <- n1
-  } else if (estimand == "ATC") {
-    w <- w * n0
-    denom <- n0
-  }
-  
-  y       <- y[orders]
-  z       <- sort(z)
-  
-  # get variance estimates
-  # semipar_var(y, z, yhat, w, e_y)
-  if (estimand == "ATE" ) {
-    E_Y0_X <- E_Y0_X[orders]
-    E_Y1_X <- E_Y1_X[orders]
-    # VAR_Y1 <- semipar_var(y, z = z,
-    #                       yhat = E_Y1_X, w = w, e_y = E_Y1,
-    #                       n = denom)
-    # VAR_Y0 <- semipar_var(y, z = 1 - z, 
-    #                       yhat = E_Y0_X, w = w, e_y = E_Y0,
-    #                       n = denom)
-    VAR    <- semipar_var_ate(y, z = z, yhat_1 = E_Y1_X,
-                              yhat_0 = E_Y0_X, w, tau = tau,
-                              n = denom)
-    # VAR <- (n1/n * VAR_Y1 + n0/n * VAR_Y0)
-    # VAR <- (VAR_Y1 + VAR_Y0)
-    
-  } else if (estimand == "ATT" ) {
-    E_Y0_X <- E_Y0_X[orders]
-    VAR_Y1 <- var(y[z==1]) # assuming var(Y | Z) = var(Y(Z))
-    VAR_Y0 <- semipar_var(y, z = 1 - z, yhat = E_Y0_X, w = w, e_y = E_Y0, n = denom)
-    VAR <- (VAR_Y1 + VAR_Y0)/n1
-  } else if (estimand == "ATC"  ) {
-    E_Y1_X <- E_Y1_X[orders]
-    VAR_Y1 <- semipar_var(y, z = z,     yhat = E_Y1_X, w = w, e_y = E_Y1, n = denom)
-    VAR_Y0 <- var(y[z==0]) # assuming var(Y | Z) = var(Y(Z))
-    VAR <- (VAR_Y1 + VAR_Y0)/n0
-  }
-  
-  
-  SD  <- sqrt(VAR)
-  
-  # get levels
-  quant.lower <- (1 - level) * 0.5
-  quant.upper <- 1 - quant.lower
-  
-  # calculate CI
-  LWR <- qnorm(quant.lower, mean = tau, sd = SD)
-  UPR <- qnorm(quant.upper, mean = tau, sd = SD)
-  
-  output <- list(
-    CI = c(LWR, UPR),
-    SD = SD
-  )
-  
-  return(output)
-  
-}
-
-

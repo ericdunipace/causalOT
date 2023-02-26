@@ -193,7 +193,7 @@ COT <- R6::R6Class(
 #' @param cost.online Should an online cost algorithm be used? One of "auto", "online", or "tensorized". "tensorized" is the offline option.
 #' @param diameter The diameter of the covariate space, if known. Default is NULL.
 #' @param balance.formula Formula for the balancing functions.
-#' @param quick.balance.selection TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE. 
+#' @param quick.balance.function TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE. 
 #' @param grid.length The number of penalty parameters to explore in a grid search if none are provided in arguments `lambda` or `delta`.
 #' @param torch.optimizer The torch optimizer to use for methods using debiased entropy penalized optimal transport. If `debiased` is FALSE or `opt.direction` is "primal", will default to [torch::optim_lbfgs()]. Otherwise [torch::optim_rmsprop()] is used.
 #' @param torch.scheduler The scheduler for the optimizer. Defaults to [torch::lr_multiplicative()].
@@ -212,7 +212,7 @@ COT <- R6::R6Class(
 #' \item `opt.direction` Whether to solve the primal or dual optimization problems
 #' \item `debias`TRUE or FALSE if debiased optimal transport distances are used
 #' \item `balance.formula` The formula giving how to generate the balancing functions.
-#' \item `quick.balance.selection` TRUE or FALSE whether quick balance functions will be run.
+#' \item `quick.balance.function` TRUE or FALSE whether quick balance functions will be run.
 #' \item `grid.length` The number of parameters to check in a grid search of best parameters
 #' \item `p` The power of the cost function
 #' \item `cost.online` Whether online costs are used
@@ -378,7 +378,7 @@ cotOptions <- function(lambda = NULL,
     output$torch.optimizer <- switch(output$opt.direction,
                                      "primal" = torch::optim_lbfgs,
                                      "dual" = torch::optim_rmsprop)
-    output$solver.options <- list(...)[...names() %in% formalArgs(output$torch.optimizer)]
+    output$solver.options <- list(...)[...names() %in% methods::formalArgs(output$torch.optimizer)]
     
     if(output$opt.direction == "dual" && is.null(output$solver.options$momentum) ) {
       output$solver.options$momentum <- 0.9
@@ -388,7 +388,7 @@ cotOptions <- function(lambda = NULL,
       stop("torch.optimizer must be a torch_optimizer_generator function or NULL")
     }
     output$torch.optimizer <- torch.optimizer
-    output$solver.options <- list(...)[...names() %in% formalArgs(output$torch.optimizer)]
+    output$solver.options <- list(...)[...names() %in% methods::formalArgs(output$torch.optimizer)]
   }
   
   if ( missing(torch.scheduler) && missing(torch.optimizer) ) {
@@ -407,7 +407,7 @@ cotOptions <- function(lambda = NULL,
       stop("torch.scheduler must be a lr_scheduler function or NULL")
     }
     output$torch.scheduler <- torch.scheduler
-    output$scheduler.options <- list(...)[...names() %in% formalArgs(torch.scheduler)]
+    output$scheduler.options <- list(...)[...names() %in% methods::formalArgs(torch.scheduler)]
   }
 
   if (arg_not_used (niter)) {
@@ -444,7 +444,7 @@ cotOptions <- function(lambda = NULL,
   #   stop("Must supply a 'torch_optimizer_generator' object in options argument 'torch.optimizer' when option debias is TRUE")
   # }
   
-  output$osqp.options <- list(...)[...names() %in% formalArgs(osqp::osqpSettings)]
+  output$osqp.options <- list(...)[...names() %in% methods::formalArgs(osqp::osqpSettings)]
   
   # if(output$debias && output$penalty.function == "L2") {
   #   warning("No debias options with L2 penalty. Defaulting to debias=FALSE")
@@ -461,7 +461,7 @@ cotOptions <- function(lambda = NULL,
   if(inherits(output$torch.optimizer, "optim_lbfgs") && output$opt.direction == "dual") {
     warning("LBFGS doesn't work with the dual optimization function. Switching to optim_rmsprop.")
     output$torch.optimizer <- torch::optim_rmsprop
-    output$solver.options <- list(...)[...names() %in% formalArgs(output$torch.optimizer)]
+    output$solver.options <- list(...)[...names() %in% methods::formalArgs(output$torch.optimizer)]
   }
   
   

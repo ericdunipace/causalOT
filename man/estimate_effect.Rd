@@ -31,8 +31,6 @@ estimate_effect(
 \item{normalize.weights}{Should the weights in the \code{causalWeights} argument be normalized to sum to one prior to effect estimation?}
 
 \item{...}{Pass additional arguments to the outcome modeling functions.}
-
-\item{sampleWeights}{An optional vector of the sample weights prior to any adjustment. By default, each observation is assumed to have the same sampling weights.}
 }
 \value{
 an object of class \link[=causalEffect-class]{causalEffect}

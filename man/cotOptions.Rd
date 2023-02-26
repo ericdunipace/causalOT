@@ -46,6 +46,8 @@ cotOptions(
 
 \item{balance.formula}{Formula for the balancing functions.}
 
+\item{quick.balance.function}{TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE.}
+
 \item{grid.length}{The number of penalty parameters to explore in a grid search if none are provided in arguments \code{lambda} or \code{delta}.}
 
 \item{torch.optimizer}{The torch optimizer to use for methods using debiased entropy penalized optimal transport. If \code{debiased} is FALSE or \code{opt.direction} is "primal", will default to \code{\link[torch:optim_lbfgs]{torch::optim_lbfgs()}}. Otherwise \code{\link[torch:optim_rmsprop]{torch::optim_rmsprop()}} is used.}
@@ -65,8 +67,6 @@ cotOptions(
 \item{dtype}{An object of class \code{torch_dtype} that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.}
 
 \item{...}{Arguments passed to the solvers. See details}
-
-\item{quick.balance.selection}{TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE.}
 }
 \value{
 A list of class \code{cotOptions} with the following slots
@@ -76,7 +76,7 @@ A list of class \code{cotOptions} with the following slots
 \item \code{opt.direction} Whether to solve the primal or dual optimization problems
 \item \code{debias}TRUE or FALSE if debiased optimal transport distances are used
 \item \code{balance.formula} The formula giving how to generate the balancing functions.
-\item \code{quick.balance.selection} TRUE or FALSE whether quick balance functions will be run.
+\item \code{quick.balance.function} TRUE or FALSE whether quick balance functions will be run.
 \item \code{grid.length} The number of parameters to check in a grid search of best parameters
 \item \code{p} The power of the cost function
 \item \code{cost.online} Whether online costs are used

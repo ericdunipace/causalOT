@@ -26,7 +26,7 @@
 #' \item `p` The power to which the cost matrix was raised if not using a user supplied cost function.
 #' \item `debias` Whether barycentric projections should be debiased.
 #' \item `tensorized` TRUE/FALSE denoting wether to use offline cost matrices.
-#' \item `data` An object of class [dataHolder][causalOT::dataHolder-class] with the data used to calculate the optimal transport distance.
+#' \item `data` An object of class [causalOT::dataHolder-class] with the data used to calculate the optimal transport distance.
 #' \item `y_a` The outcome vector in the first sample.
 #' \item `y_b` The outcome vector in the second sample.
 #' \item `x_a` The covariate matrix in the first sample.

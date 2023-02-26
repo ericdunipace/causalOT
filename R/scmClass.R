@@ -223,7 +223,7 @@ scmOptions <- function(
   }
   
   # if (output$penalty == "L2") {
-  output$solver.options <- list(...)[...names() %in% formalArgs(osqp::osqpSettings)]
+  output$solver.options <- list(...)[...names() %in% method::formalArgs(osqp::osqpSettings)]
   # }
   
   class(output) <- "scmOptions"

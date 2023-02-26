@@ -33,7 +33,8 @@ setOldClass("summary_causalWeights")
 #' s <- summary(weights)
 #' \dontrun{plot(s)}
 #' }
-summary.causalWeights <- function(object, r_eff = NULL, penalty, p = 2, cost = NULL, 
+summary.causalWeights <- function(object, r_eff = NULL, 
+                                  penalty, p = 2, cost = NULL, 
                                   debias = TRUE, online.cost = "auto", 
                                   diameter = NULL, niter = 1000, 
                                   tol = 1e-07, ...) {
@@ -69,6 +70,7 @@ summary.causalWeights <- function(object, r_eff = NULL, penalty, p = 2, cost = N
 
 
 #' @describeIn plot.summary_causalWeights 
+#' @param x an object of class "summary_causalWeights" returned by the function [summary.causalWeights()][summary.causalWeights()]
 #' @export
 #' @method print summary_causalWeights
 print.summary_causalWeights <- function(x,...) {
@@ -130,7 +132,7 @@ print.summary_causalWeights <- function(x,...) {
   }
 }
 
-setMethod("show", "summary_causalWeights", function(object){print(object)})
+setMethod("show", "summary_causalWeights", function(x){print(x)})
 
 #' @title Plotting and print methods for summary_causalWeights
 #'
@@ -144,7 +146,7 @@ plot.summary_causalWeights <- function(x, ...) {
   estimand <- object$estimand
   
   plot_ot <- function(object, ...) {
-    ot_dat <- if(object$estimand == "ATT") {
+    ot_dat <- if (object$estimand == "ATT") {
       data.frame(value = c(object$ot$pre, object$ot$post),
                  group = factor(rep("control",2), levels = c("control", "treated")),
                  period = factor(c("pre", "post"), levels = c("pre","post")))
@@ -160,7 +162,12 @@ plot.summary_causalWeights <- function(x, ...) {
     
     
     
-    p <- ggplot2::ggplot(ot_dat, ggplot2::aes(x = period, y = value, group = group, color = group)) +
+    p <- ggplot2::ggplot(ot_dat, 
+                         ggplot2::aes(x = .data$period, 
+                                      y = .data$value, 
+                                      group = .data$group, 
+                                      color = .data$group)
+                         ) +
       ggplot2::geom_line() + ggplot2::geom_point() + 
       ggplot2::scale_color_manual(values = c("black", "gray")) +
       ggplot2::ylab("Sinkhorn Distance") + ggplot2::xlab("") + 
@@ -188,7 +195,7 @@ plot.summary_causalWeights <- function(x, ...) {
                  group = factor(c("control", "treated"), levels = c("control", "treated")))
     }
     
-    p <- ggplot2::ggplot(pareto_k_dat, ggplot2::aes(x = group, y = value)) +
+    p <- ggplot2::ggplot(pareto_k_dat, ggplot2::aes(x = .data$group, y = .data$value)) +
       ggplot2::geom_point() + 
       ggplot2::geom_hline(yintercept = 0.5, linetype = 2) +
       ggplot2::geom_hline(yintercept = 1, linetype = 1, color = "red") + 
@@ -227,7 +234,7 @@ plot.summary_causalWeights <- function(x, ...) {
     }
     
     p <- ggplot2::ggplot(pareto_n_dat, 
-                         ggplot2::aes(x = group, y = value, fill = period,
+                         ggplot2::aes(x = .data$group, y = .data$value, fill = period,
                                       label = paste0("N_eff = ", round(value, digits = 1)))) +
       ggplot2::geom_col( position = 'dodge' ) +
       ggplot2::scale_fill_manual(values = c("black","gray")) + 
@@ -272,7 +279,7 @@ plot.summary_causalWeights <- function(x, ...) {
                   period = factor(rep(c("pre", "post"), each = 2*d), levels = c("pre","post")))
     }
     
-    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = period, y = value, group = interaction(covariate, group), color = group, size = group)) +
+    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = .data$period, y = .data$value, group = interaction(.data$covariate, .data$group), color = .data$group, size = .data$group)) +
       ggplot2::geom_hline(yintercept = 0.1, linetype = 2) +
       ggplot2::geom_hline(yintercept = 0.2, linetype = 1, color = "red") +
       ggplot2::geom_line(size = .5) + 
@@ -317,7 +324,7 @@ plot.causalWeights <- function(x,  r_eff = NULL, penalty, p = 2, cost = NULL,
                                tol = 1e-07, ...) {
   object   <- x
   mc <- match.call()
-  mc[[1]] <- quote(causalOT:::summary.causalWeights)
+  mc[[1]] <- quote(summary.causalWeights)
   summary.object <- eval(mc, envir = parent.frame())
   
   plot(summary.object, ...)

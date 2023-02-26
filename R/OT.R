@@ -704,7 +704,7 @@ sinkhorn_loss <- function(OT) {
     a_log <- log_weights(OT$a)
     b_log <- log_weights(OT$b)
     
-    K_xy <- (g_yx$view(c(1,m)) + f_xyx$view(c(n,1)) - C_xy$data +
+    K_xy <- (g_yx$view(c(1,m)) + f_xy$view(c(n,1)) - C_xy$data +
                a_log$view(c(n,1)) + b_log$view(c(1,m)))/eps
     exponential_terms <-  -eps * K_xy$view(-1)$logsumexp(1)
     if (OT$debias) {
@@ -1008,23 +1008,23 @@ inf_sinkhorn_online <- torch::autograd_function(
   }
 )
 
-semi_dual <- function(OT,pot,debias = FALSE) {
-  
-  a <- OT$a
-  a_log <- log(a)
-  eps <- OT$penalty
-  softmin <- OT$softmin
-  
-  if(debias) {
-    #softmin has neg sign already
-    loss <- pot$dot(a) + a$dot(softmin(eps, OT$C_xx, pot, a_log))
-  } else {
-    #softmin has neg sign already
-    b <- OT$b
-    loss <- pot$dot(a) + b$dot(softmin(eps, OT$C_yx, f, a_log))
-  }
-  return(loss)
-}
+# semi_dual <- function(OT,pot,debias = FALSE) {
+#   
+#   a <- OT$a
+#   a_log <- log(a)
+#   eps <- OT$penalty
+#   softmin <- OT$softmin
+#   
+#   if(debias) {
+#     #softmin has neg sign already
+#     loss <- pot$dot(a) + a$dot(softmin(eps, OT$C_xx, pot, a_log))
+#   } else {
+#     #softmin has neg sign already
+#     b <- OT$b
+#     loss <- pot$dot(a) + b$dot(softmin(eps, OT$C_yx, f, a_log))
+#   }
+#   return(loss)
+# }
 
 transportationMatrix <- function(x = NULL, z = NULL, weights = NULL, 
                                  lambda = NULL, p = 2, 
@@ -1244,7 +1244,7 @@ loss_select <- function(ot, niter, tol) {
 
 #' Optimal Transport Distance
 #'
-#' @param x1 Either an object of class \link[causalOT]{causalWeights} or a matrix of the covariates in the first sample
+#' @param x1 Either an object of class [causalOT::causalWeights-class] or a matrix of the covariates in the first sample
 #' @param x2 `NULL` or a matrix of the covariates in the second sample.
 #' @param a Empirical measure of the first sample. If NULL, assumes each observation gets equal mass. Ignored for objects of class causalWeights.
 #' @param b Empirical measure of the second sample. If NULL, assumes each observation gets equal mass. Ignored for objects of class causalWeights.
@@ -1254,8 +1254,8 @@ loss_select <- function(ot, niter, tol) {
 #' @param debias TRUE or FALSE. Should the debiased optimal transport distances be used.
 #' @param online.cost How to calculate the distance matrix. One of "auto", "tensorized", or "online".
 #' @param diameter The diameter of the metric space, if known. Default is NULL.
-#' @param niter 
-#' @param tol 
+#' @param niter The maximum number of iterations for the Sinkhorn updates
+#' @param tol The tolerance for convergence
 #'
 #' @return For objects of class matrix, numeric value giving the optimal transport distance. For objects of class causalWeights, results are returned as a list for before ('pre') and after adjustment ('post').
 #' @export
@@ -1265,8 +1265,11 @@ loss_select <- function(ot, niter, tol) {
 #' x <- matrix(stats::rnorm(10*5), 10, 5)
 #' z <- stats:rbinom(10, 1, 0.5)
 #' weights <- calc_weight(x = x, z = z, method = "Logistic", estimand = "ATT")
-#' ot1 <- ot_distance(x1 = weights, lambda = 100, p = 2, debiast = TRUE, tensorized = "auto", diameter = NULL)
-#' ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,], a= weights@w0, b = weights@w1,
+#' ot1 <- ot_distance(x1 = weights, lambda = 100, 
+#' p = 2, debiast = TRUE, tensorized = "auto", 
+#' diameter = NULL)
+#' ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,], 
+#' a= weights@w0, b = weights@w1,
 #'  lambda = 100, p = 2, debiast = TRUE, tensorized = "auto", diameter = NULL)
 #'
 #'  all.equal(ot1, ot2)

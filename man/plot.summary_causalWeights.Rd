@@ -10,6 +10,8 @@
 \method{plot}{summary_causalWeights}(x, ...)
 }
 \arguments{
+\item{x}{an object of class "summary_causalWeights" returned by the function \code{\link[=summary.causalWeights]{summary.causalWeights()}}}
+
 \item{...}{Not used}
 
 \item{object}{an object of class "summary_causalWeights" returned by the function \code{\link[=summary.causalWeights]{summary.causalWeights()}}}

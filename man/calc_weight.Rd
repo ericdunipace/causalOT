@@ -15,7 +15,7 @@ calc_weight(
 )
 }
 \arguments{
-\item{x}{A numeric matrix of covariates. You can also pass an object of class \link[=dataHolder-class]{dataHolder} or \link[=DataSim-class]{DataSim}, which will make argument \code{z} not necessary,}
+\item{x}{A numeric matrix of covariates. You can also pass an object of class \linkS4class{dataHolder} or \linkS4class{DataSim}, which will make argument \code{z} not necessary,}
 
 \item{z}{A binary treatment indicator.}
 

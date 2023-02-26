@@ -40,7 +40,7 @@ function(object1, object2, ...) {
     stop("estimand not found!")
   }
   
-  new("causalWeights",
+  methods::new("causalWeights",
       w0 = w0,
       w1 = w1,
       estimand = object1@estimand,
@@ -56,7 +56,7 @@ function(object1, object2, ...) {
   stopifnot(object1@estimand == "ATE.C")
   stopifnot(object2@estimand == "ATE.T")
   
-  new("causalWeights",
+  methods::new("causalWeights",
     w0 = object1@w0,
     w1 = object2@w1,
     estimand = "ATE",

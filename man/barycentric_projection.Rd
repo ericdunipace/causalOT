@@ -57,7 +57,7 @@ An object of class "bp" which is a list with slots:
 \item \code{p} The power to which the cost matrix was raised if not using a user supplied cost function.
 \item \code{debias} Whether barycentric projections should be debiased.
 \item \code{tensorized} TRUE/FALSE denoting wether to use offline cost matrices.
-\item \code{data} An object of class \link[=dataHolder-class]{dataHolder} with the data used to calculate the optimal transport distance.
+\item \code{data} An object of class \linkS4class{dataHolder} with the data used to calculate the optimal transport distance.
 \item \code{y_a} The outcome vector in the first sample.
 \item \code{y_b} The outcome vector in the second sample.
 \item \code{x_a} The covariate matrix in the first sample.

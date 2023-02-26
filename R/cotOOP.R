@@ -1768,7 +1768,7 @@ function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
   stopifnot("Argument `tol` must be >=0" = (tol >= 0))
   
   # collect osqp args
-  private$osqp_args <- osqp_args[names(osqp_args) %in% formalArgs(osqp::osqpSettings)] 
+  private$osqp_args <- osqp_args[names(osqp_args) %in% methods::formalArgs(osqp::osqpSettings)] 
   
   # check feasibility of deltas
   # can also do a quick, approximate selection of deltas

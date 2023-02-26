@@ -33,7 +33,7 @@ likelihoodMethods <- function(data, estimand, method, options = NULL) {
   if(is.null(options)) options <- list(NULL)
   if(!is.list(options)) stop("options must be a list")
   
-  prob <- new("likelihoodMethods",
+  prob <- methods::new("likelihoodMethods",
       data = data,
       estimand = estimand,
       method = method,
@@ -70,7 +70,7 @@ glm_optimizer <- function(object) {
                           data = data.frame(z = z, x),
                           weights = weights),
                           solver.options))
-  predicted_prob <- predict(mod, type = "response")
+  predicted_prob <- stats::predict(mod, type = "response")
 
   output <- list(w0 = NULL, w1 = NULL,
                  estimand = estimand, method = method
@@ -135,5 +135,5 @@ cbps_optimizer <- function(object) {
 
 setMethod("print", signature(x = "likelihoodMethods"), 
 function(x,...) {
-  str(x)
+  utils::str(x)
 })

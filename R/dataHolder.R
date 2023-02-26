@@ -195,7 +195,7 @@ setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = 
   }
   weights <- renormalize(as.numeric(weights))
   
-  dH <- new("dataHolder", x = x, z = z, y = y, n0 = n0, n1 = n1, weights = weights )
+  dH <- methods::new("dataHolder", x = x, z = z, y = y, n0 = n0, n1 = n1, weights = weights )
   return(dH)
 })
 
@@ -223,7 +223,7 @@ setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights =
   }
   weights <- renormalize(as.numeric(weights))
   
-  dH <- new("dataHolder", x = x_mat, z = z, y = y, n0 = n0, n1 = n1, weights = weights )
+  dH <- methods::new("dataHolder", x = x_mat, z = z, y = y, n0 = n0, n1 = n1, weights = weights )
   return(dH)
 })
 
@@ -301,9 +301,9 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
     z.name <- attr(mf.z,"names")[1]
     
     if(of) {
-      tf2 <- update(mt.z, paste0(". ~ . -", y.name))
-      of2 <- update(mt.y, paste0("z ~ . - ", z.name))
-      tf_new <- update(tf2, paste0(". ~. + ", as.character(of2[3])))
+      tf2 <- stats::update(mt.z, paste0(". ~ . -", y.name))
+      of2 <- stats::update(mt.y, paste0("z ~ . - ", z.name))
+      tf_new <- stats::update(tf2, paste0(". ~. + ", as.character(of2[3])))
       mf.z <- stats::model.frame(tf_new, data)
       
       mt.z <- attr(mf.z, "terms")
@@ -323,7 +323,7 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
     n <- n1 + n0
     weights <- rep(1.0/n, n)
   }
-  dH <- new("dataHolder", x = x, z = z, y = y, n0 = n0, n1 = n1, weights = weights)
+  dH <- methods::new("dataHolder", x = x, z = z, y = y, n0 = n0, n1 = n1, weights = weights)
   
   # setup terms objects in the attributes
   attr(mt.z, "tx_vals") <- vals.z
@@ -343,7 +343,7 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
 #' terms function for dataHolder object
 #'
 #' @param x dataHolder object constructed from a formula
-#' @param ... 
+#' @param ...  Not used at this time
 #'
 #' @return a list with the formula terms for treatment and, if present, outcome formulae.
 #' @method terms dataHolder
@@ -369,7 +369,7 @@ terms.dataHolder <- function(x, ...) {
 #' @method print dataHolder
 #' @export 
 print.dataHolder <- function(x, ...) {
-  str(x)
+  utils::str(x)
 }
 
 
@@ -377,7 +377,7 @@ print.dataHolder <- function(x, ...) {
 setMethod("show", signature(object = "dataHolder"),
       function(object) {
         attributes(object)$terms <- NULL
-        str(object)
+        utils::str(object)
       })
 
 

@@ -30,7 +30,7 @@ gridSearch <- function(data, estimand, method, options = NULL) {
   
   if (estimand == "ATE") {
    return(
-     new("ateClass",
+     methods::new("ateClass",
         control = gridSearch(data, estimand = "ATE.C",
                              method, options),
         treated = gridSearch(data, estimand = "ATE.T",
@@ -86,7 +86,7 @@ gridSearch <- function(data, estimand, method, options = NULL) {
     stop("estimand not found!")
   }
 
-  return(new("gridSearch",
+  return(methods::new("gridSearch",
       penalty_list = prob$gridInit(grid, grid.length),
       nboot = nboot,
       solver = prob,

@@ -9,7 +9,7 @@
 \arguments{
 \item{x}{dataHolder object constructed from a formula}
 
-\item{...}{}
+\item{...}{Not used at this time}
 }
 \value{
 a list with the formula terms for treatment and, if present, outcome formulae.
