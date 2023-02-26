@@ -637,6 +637,7 @@ tensorized_switch_generator <- function(tensorized) {
                             )
              
              reds <- online_red(sum_data)
+             print(y_source$device)
              ctx$save_for_backward(data = sum_data, kernel_op = online_red,
                                    dtype = y_source$dtype,
                                    device = y_source$device)

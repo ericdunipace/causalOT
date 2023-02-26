@@ -1,8 +1,8 @@
 converged <- function(new, old, tol) {
   diff = abs(old - new)
   error = diff / abs(old + .Machine$double.eps)
-  rel_conv <- as.logical(sum(error) < tol)
-  abs_conv <- as.logical(sum(diff) < tol * tol)
+  rel_conv <- as.logical(as_numeric(sum(error)) < tol)
+  abs_conv <- as.logical(as_numeric(sum(diff)) < tol * tol)
   conv_check = rel_conv || abs_conv
 
   return (conv_check)
