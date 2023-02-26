@@ -89,8 +89,12 @@ COT <- R6::R6Class(
       
       private$source <- Measure(x = source, weights = a, adapt = "weights",
                                 balance.functions = balance.functions,
-                                target.values = target.values)
-      private$target <- Measure(x = target, weights = b, adapt = "none")
+                                target.values = target.values,
+                                dtype = options$dtype,
+                                device = options$device)
+      private$target <- Measure(x = target, weights = b, adapt = "none",
+                                dtype = options$dtype,
+                                device = options$device)
       
       
       # select dual or primal optimization
@@ -197,6 +201,8 @@ COT <- R6::R6Class(
 #' @param nboot The number of iterations for the bootstrap to select the final penalty parameters.
 #' @param lambda.bootstrap The penalty parameter to use for the bootstrap hyperparameter selection of lambda.
 #' @param tol The tolerance for convergence
+#' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
+#' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
 #' @param ... Arguments passed to the solvers. See details
 #'
 #' @return A list of class `cotOptions` with the following slots
@@ -221,6 +227,8 @@ COT <- R6::R6Class(
 #' \item `nboot` The number of bootstrap samples
 #' \item `lambda.bootstrap` The penalty parameter to use for the bootstrap hyperparameter selection.
 #' \item `tol` The tolerance for convergence.
+#' \item `device` An object of class `torch_device`.
+#' \item `dtype` An object of class `torch_dtype`.
 #' }
 #' @export
 #' 
@@ -263,7 +271,10 @@ cotOptions <- function(lambda = NULL,
                        niter = 2e3,
                        nboot = 100L,
                        lambda.bootstrap = 0.05,
-                       tol = 1e-5, ...) { # dots are the solver and scheduler args
+                       tol = 1e-5, 
+                       device = NULL,
+                       dtype = NULL,
+                       ...) { # dots are the solver and scheduler args
   # setup_arguments function arguments
   # lambda, delta, 
   # grid.length = 7L,
@@ -424,6 +435,10 @@ cotOptions <- function(lambda = NULL,
     output$tol <- as.double(tol)
   }
   
+  
+  output$device <- cuda_device_check(device)
+  output$dtype  <- cuda_dtype_check(dtype, output$device)
+  
   # check combinations
   # if(output$debias && is.null(output$torch.optimizer)) {
   #   stop("Must supply a 'torch_optimizer_generator' object in options argument 'torch.optimizer' when option debias is TRUE")
@@ -448,6 +463,8 @@ cotOptions <- function(lambda = NULL,
     output$torch.optimizer <- torch::optim_rmsprop
     output$solver.options <- list(...)[...names() %in% formalArgs(output$torch.optimizer)]
   }
+  
+  
 
   class(output) <- "cotOptions"
   return(output)

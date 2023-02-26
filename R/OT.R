@@ -961,8 +961,8 @@ inf_sinkhorn_online <- torch::autograd_function(
                           device = dtype,
                           dtype = device)
     return(torch::torch_tensor(loss,
-                               dtype = a$dtype,
-                               device = a$device))
+                               dtype = dtype$a,
+                               device = device$a))
   },
   backward = function(ctx, grad_output) {
     grads <- list(x = NULL,

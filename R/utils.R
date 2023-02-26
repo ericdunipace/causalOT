@@ -433,9 +433,8 @@ cuda_device_check <- function(device) {
     } else {
       device <-  torch::torch_device("cpu")
     }
-  } else {
-    stopifnot("device argument must be NULL or an object of class 'torch_device'" = torch::is_torch_device(device))
-  }
+  } 
+  stopifnot("device argument must be NULL or an object of class 'torch_device'" = torch::is_torch_device(device))
   return(device)
 }
 

@@ -22,6 +22,8 @@ cotOptions(
   nboot = 100L,
   lambda.bootstrap = 0.05,
   tol = 1e-05,
+  device = NULL,
+  dtype = NULL,
   ...
 )
 }
@@ -58,6 +60,10 @@ cotOptions(
 
 \item{tol}{The tolerance for convergence}
 
+\item{device}{An object of class \code{torch_device} denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.}
+
+\item{dtype}{An object of class \code{torch_dtype} that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.}
+
 \item{...}{Arguments passed to the solvers. See details}
 
 \item{quick.balance.selection}{TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE.}
@@ -85,6 +91,8 @@ A list of class \code{cotOptions} with the following slots
 \item \code{nboot} The number of bootstrap samples
 \item \code{lambda.bootstrap} The penalty parameter to use for the bootstrap hyperparameter selection.
 \item \code{tol} The tolerance for convergence.
+\item \code{device} An object of class \code{torch_device}.
+\item \code{dtype} An object of class \code{torch_dtype}.
 }
 }
 \description{
