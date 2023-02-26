@@ -32,7 +32,7 @@ testthat::test_that("measure forms", {
   testthat::expect_error(m_w$weights <- error_weights)
   loss <- sum(m_w$weights*5)
   loss$backward()
-  testthat::expect_true(all(as.logical(m_w$.__enclos_env__$private$mass_$grad >0)))
+  testthat::expect_true(all(as.logical(m_w$.__enclos_env__$private$mass_$grad$to(device = "cpu") >0)))
   mcw <- m_w$clone(deep = TRUE)
   testthat::expect_true(rlang::obj_address(mcw) != rlang::obj_address(m_w))
   testthat::expect_true(rlang::obj_address(m_w$x) != rlang::obj_address(mcw$x))

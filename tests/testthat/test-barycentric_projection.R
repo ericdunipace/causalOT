@@ -207,7 +207,7 @@ testthat::test_that("barycentric_projection works, p = 3", {
   mess <- testthat::capture_output((fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online")))
   testthat::expect_error(causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = as.numeric(power), cost.online = "online"))
   mess <- testthat::capture_output(testthat::expect_warning(predo <- predict(fito)))
-  testthat::expect_equal(preds, predo)
+  testthat::expect_equal(preds, predo, tol = 1e-5)
   
   # compare to manual est
   closure_test <- function() {

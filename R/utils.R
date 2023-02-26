@@ -391,6 +391,12 @@ as_matrix <- function(x) {
                            x$to(device = "cpu"))))
 }
 
+as_logical <- function(x) {
+  return(as.logical(switch(is_torch_tensor(x) + 1L,
+                          x,
+                          x$to(device = "cpu"))))
+}
+
 get_device <- function(...) {
   args <- list(...)
   nargs <- ...length()

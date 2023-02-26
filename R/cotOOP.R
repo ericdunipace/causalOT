@@ -2233,16 +2233,18 @@ NNM <- R6::R6Class(
       C_xy <- private$C_xy
       if (!private$tensorized) { 
         
-        x = as.matrix(C_xy$data$x$to(device = "cpu"))
-        y = as.matrix(C_xy$data$y$to(device = "cpu"))
+        x = as_matrix(C_xy$data$x)
+        y = as_matrix(C_xy$data$y)
         d = ncol(x)
         
         # browser()
         use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
-        rkeops::compile4float64()
+        
         if (use_cuda) {
           rkeops::compile4gpu()
           rkeops::use_gpu()
+        } else {
+          rkeops::compile4float64()
         }
         argmin_op <- rkeops::keops_kernel(
           formula = paste0("ArgMin_Reduction(", C_xy$fun, ", 1)"),
@@ -2252,7 +2254,7 @@ NNM <- R6::R6Class(
         )
         mins = torch::torch_tensor(c(argmin_op(list(x,y))) + 1, 
                                    dtype = torch::torch_int64(),
-                                   device = C_xy$data$x$device)
+                                   device = private$b$device)
         
       } else {
         mins = C_xy$data$argmin(1)
