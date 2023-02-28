@@ -15,13 +15,13 @@ calc_weight(
 )
 }
 \arguments{
-\item{x}{A numeric matrix of covariates. You can also pass an object of class \linkS4class{dataHolder} or \linkS4class{DataSim}, which will make argument \code{z} not necessary,}
+\item{x}{A numeric matrix of covariates. You can also pass an object of class \link{dataHolder} or \link{DataSim}, which will make argument \code{z} not necessary,}
 
 \item{z}{A binary treatment indicator.}
 
 \item{estimand}{The estimand of interest. One of "ATT","ATC", or "ATE".}
 
-\item{method}{The method to estimate the causal weights. Must be one of the methods returned by \code{\link[=supported.methods]{supported.methods()}}.}
+\item{method}{The method to estimate the causal weights. Must be one of the methods returned by \code{\link[=supported_methods]{supported_methods()}}.}
 
 \item{options}{The options for the solver. Specific options depend on the solver you will be using and you can use the solver specific options functions as detailed below..}
 

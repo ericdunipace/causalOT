@@ -2,10 +2,18 @@
 % Please edit documentation in R/dataHolder.R
 \name{df2dataHolder}
 \alias{df2dataHolder}
+\alias{df2dataHolder,ANY,ANY,data.frame-method}
 \title{df2dataHolder}
 \usage{
 df2dataHolder(
   treatment.formula,
+  outcome.formula = NA_character_,
+  data,
+  weights = NA_real_
+)
+
+\S4method{df2dataHolder}{ANY,ANY,data.frame}(
+  treatment.formula = NA_character_,
   outcome.formula = NA_character_,
   data,
   weights = NA_real_
@@ -21,7 +29,7 @@ df2dataHolder(
 \item{weights}{optional vector of sampling weights for the data}
 }
 \value{
-an object of class dataHolder
+Returns an object of class \code{\link[=dataHolder]{dataHolder()}}
 }
 \description{
 df2dataHolder
@@ -48,3 +56,4 @@ dh <- df2dataHolder(
   data = df,
   weights = weights)
 }
+\keyword{internal}

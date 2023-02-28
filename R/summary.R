@@ -7,8 +7,8 @@ setOldClass("summary_causalWeights")
 #' @param penalty The penalty parameter to use 
 #' @param p The power of the Lp distance to use. Overridden by argument `cost.`
 #' @param cost A user supplied cost function. Should take arguments `x1`, `x2`, `p`.
-#' @param debias Should debiased optimal transport distances be used.
-#' @param online.cost Should the cost be calculated online? One of "auto","tensorized", "online".
+#' @param debias Should debiased optimal transport distances be used. TRUE or FALSE
+#' @param online.cost Should the cost be calculated online? One of "auto","tensorized", or "online".
 #' @param diameter the diameter of the covariate space. Default is NULL.
 #' @param niter the number of iterations to run the optimal transport distances
 #' @param tol the tolerance for convergence for the optimal transport distances
@@ -68,11 +68,13 @@ summary.causalWeights <- function(object, r_eff = NULL,
   return(res)
 }
 
-
-#' @describeIn plot.summary_causalWeights 
+#' print.summary_causalWeights
+#' 
 #' @param x an object of class "summary_causalWeights" returned by the function [summary.causalWeights()][summary.causalWeights()]
+#' @param ... Not used at this time.
 #' @export
 #' @method print summary_causalWeights
+#' @describeIn summary.causalWeights print method
 print.summary_causalWeights <- function(x,...) {
   
   object   <- x
@@ -132,15 +134,18 @@ print.summary_causalWeights <- function(x,...) {
   }
 }
 
-setMethod("show", "summary_causalWeights", function(x){print(x)})
+# no roxygen needed
+#' @keywords internal
+setMethod("show", "summary_causalWeights", function(object){print(object)})
 
-#' @title Plotting and print methods for summary_causalWeights
-#'
-#' @param object an object of class "summary_causalWeights" returned by the function [summary.causalWeights()][summary.causalWeights()]
+#' plot.summary_causalWeights
+#' 
+#' @param x an object of class "summary_causalWeights"
 #' @param ... Not used
 #'
 #' @export
 #' @method plot summary_causalWeights
+#' @describeIn summary.causalWeights plot method
 plot.summary_causalWeights <- function(x, ...) {
   object   <- x
   estimand <- object$estimand
@@ -163,10 +168,10 @@ plot.summary_causalWeights <- function(x, ...) {
     
     
     p <- ggplot2::ggplot(ot_dat, 
-                         ggplot2::aes(x = .data$period, 
-                                      y = .data$value, 
-                                      group = .data$group, 
-                                      color = .data$group)
+                         ggplot2::aes(x = rlang::.data$period, 
+                                      y = rlang::.data$value, 
+                                      group = rlang::.data$group, 
+                                      color = rlang::.data$group)
                          ) +
       ggplot2::geom_line() + ggplot2::geom_point() + 
       ggplot2::scale_color_manual(values = c("black", "gray")) +
@@ -195,7 +200,9 @@ plot.summary_causalWeights <- function(x, ...) {
                  group = factor(c("control", "treated"), levels = c("control", "treated")))
     }
     
-    p <- ggplot2::ggplot(pareto_k_dat, ggplot2::aes(x = .data$group, y = .data$value)) +
+    p <- ggplot2::ggplot(pareto_k_dat, 
+                         ggplot2::aes(x = rlang::.data$group, 
+                                      y = rlang::.data$value)) +
       ggplot2::geom_point() + 
       ggplot2::geom_hline(yintercept = 0.5, linetype = 2) +
       ggplot2::geom_hline(yintercept = 1, linetype = 1, color = "red") + 
@@ -234,8 +241,10 @@ plot.summary_causalWeights <- function(x, ...) {
     }
     
     p <- ggplot2::ggplot(pareto_n_dat, 
-                         ggplot2::aes(x = .data$group, y = .data$value, fill = period,
-                                      label = paste0("N_eff = ", round(value, digits = 1)))) +
+                         ggplot2::aes(x = rlang::.data$group, 
+                                      y = rlang::.data$value, 
+                                      fill = rlang::.data$period,
+                                      label = paste0("N_eff = ", round(rlang::.data$value, digits = 1)))) +
       ggplot2::geom_col( position = 'dodge' ) +
       ggplot2::scale_fill_manual(values = c("black","gray")) + 
       ggplot2::xlab("") + 
@@ -279,7 +288,7 @@ plot.summary_causalWeights <- function(x, ...) {
                   period = factor(rep(c("pre", "post"), each = 2*d), levels = c("pre","post")))
     }
     
-    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = .data$period, y = .data$value, group = interaction(.data$covariate, .data$group), color = .data$group, size = .data$group)) +
+    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = rlang::.data$period, y = rlang::.data$value, group = interaction(rlang::.data$covariate, rlang::.data$group), color = rlang::.data$group, size = rlang::.data$group)) +
       ggplot2::geom_hline(yintercept = 0.1, linetype = 2) +
       ggplot2::geom_hline(yintercept = 0.2, linetype = 1, color = "red") +
       ggplot2::geom_line(size = .5) + 
@@ -310,16 +319,28 @@ plot.summary_causalWeights <- function(x, ...) {
   }
 }
 
+#' plot.causalWeights
+#' 
+#' @param x A [causalOT::causalWeights-class] object
+#' @param r_eff The \eqn{r_\text{eff}} to use for the [causalOT::PSIS_diag()] function.
+#' @param penalty The penalty of the optimal transport distance to use. If missing or NULL, the function will try to guess a suitable value depending if debias is TRUE or FALSE.
+#' @param p \eqn{L_p} distance metric power
+#' @param cost Supply your own cost function. Should take arguments `x1`, `x2`, and `p`.
+#' @param debias TRUE or FALSE. Should the debiased optimal transport distances be used.
+#' @param online.cost How to calculate the distance matrix. One of "auto", "tensorized", or "online".
+#' @param diameter The diameter of the metric space, if known. Default is NULL.
+#' @param niter The maximum number of iterations for the Sinkhorn updates
+#' @param tol The tolerance for convergence
+#' @param ... Not used at this time
+#' 
 #' @details The plot method first calls summary.causalWeights on the causalWeights object. Then plots the diagnostics from that summary object.
 #' 
-#' @seealso [plot.summary_causalWeights()][plot.summary_causalWeights()]
+#' @seealso [causalOT::summary.causalWeights()]
 #'
 #' @return The plot method returns an invisible object of class summary_causalWeights.
 #' @export
 #' @method plot causalWeights
-#'
-#' @describeIn  summary.causalWeights
-plot.causalWeights <- function(x,  r_eff = NULL, penalty, p = 2, cost = NULL, 
+plot.causalWeights <- function(x, r_eff = NULL, penalty, p = 2, cost = NULL, 
                                debias = TRUE, online.cost = "auto", diameter = NULL, niter = 1000, 
                                tol = 1e-07, ...) {
   object   <- x

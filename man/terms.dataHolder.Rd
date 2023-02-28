@@ -17,3 +17,4 @@ a list with the formula terms for treatment and, if present, outcome formulae.
 \description{
 terms function for dataHolder object
 }
+\keyword{internal}

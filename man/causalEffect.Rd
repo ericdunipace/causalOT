@@ -57,3 +57,4 @@ The slot \code{fit} is a list with slots \code{control}, \code{treated}, and \co
 \item{\code{call}}{The call from the \link[=estimate_effect]{estimate_effect()} function.}
 }}
 
+\keyword{internal}

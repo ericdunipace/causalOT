@@ -1,6 +1,13 @@
 
+#' Supported Methods
+#'
+#' @return A character list with supported methods. Note "COT" is the same as "Wasserstein". We provide the second name for backwards compatibility.
+#' @export
+#'
+#' @examples
+#' supported_methods()
 supported_methods <- function() {
-  c("Wasserstein", likelihood_methods(), grid_search_methods())
+  sort(c("Wasserstein", likelihood_methods(), grid_search_methods()))
 }
 
 likelihood_methods <- function() {

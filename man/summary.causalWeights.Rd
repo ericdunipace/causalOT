@@ -2,7 +2,8 @@
 % Please edit documentation in R/summary.R
 \name{summary.causalWeights}
 \alias{summary.causalWeights}
-\alias{plot.causalWeights}
+\alias{print.summary_causalWeights}
+\alias{plot.summary_causalWeights}
 \title{Summary diagnostics for causalWeights}
 \usage{
 \method{summary}{causalWeights}(
@@ -19,19 +20,9 @@
   ...
 )
 
-\method{plot}{causalWeights}(
-  x,
-  r_eff = NULL,
-  penalty,
-  p = 2,
-  cost = NULL,
-  debias = TRUE,
-  online.cost = "auto",
-  diameter = NULL,
-  niter = 1000,
-  tol = 1e-07,
-  ...
-)
+\method{print}{summary_causalWeights}(x, ...)
+
+\method{plot}{summary_causalWeights}(x, ...)
 }
 \arguments{
 \item{object}{an object of class \link[=causalWeights-class]{causalWeights}}
@@ -44,9 +35,9 @@
 
 \item{cost}{A user supplied cost function. Should take arguments \code{x1}, \code{x2}, \code{p}.}
 
-\item{debias}{Should debiased optimal transport distances be used.}
+\item{debias}{Should debiased optimal transport distances be used. TRUE or FALSE}
 
-\item{online.cost}{Should the cost be calculated online? One of "auto","tensorized", "online".}
+\item{online.cost}{Should the cost be calculated online? One of "auto","tensorized", or "online".}
 
 \item{diameter}{the diameter of the covariate space. Default is NULL.}
 
@@ -54,22 +45,25 @@
 
 \item{tol}{the tolerance for convergence for the optimal transport distances}
 
-\item{...}{passed to \code{\link[=PSIS_diag]{PSIS_diag()}}}
+\item{...}{Not used}
+
+\item{x}{an object of class "summary_causalWeights"}
 }
 \value{
 The summary method returns an object of class "summary_causalWeights".
-
-The plot method returns an invisible object of class summary_causalWeights.
 }
 \description{
 Summary diagnostics for causalWeights
-}
-\details{
-The plot method first calls summary.causalWeights on the causalWeights object. Then plots the diagnostics from that summary object.
+
+print.summary_causalWeights
+
+plot.summary_causalWeights
 }
 \section{Functions}{
 \itemize{
-\item \code{plot(causalWeights)}: 
+\item \code{print(summary_causalWeights)}: print method
+
+\item \code{plot(summary_causalWeights)}: plot method
 
 }}
 \examples{
@@ -88,7 +82,4 @@ weights <- calc_weight(x = original, estimand = estimand, method = "Logistic")
 s <- summary(weights)
 \dontrun{plot(s)}
 }
-}
-\seealso{
-\code{\link[=plot.summary_causalWeights]{plot.summary_causalWeights()}}
 }

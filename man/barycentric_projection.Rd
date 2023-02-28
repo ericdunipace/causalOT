@@ -72,7 +72,7 @@ Barycentric Projection outcome estimation
 }
 \details{
 The barycentric projection uses the dual potentials from the optimal transport distance between the two samples to calculate projections from one sample into another. For example, in the sample of controls, we may wish to know their outcome had they been treated. In general, we then seek to minimize
-\deqn{argmin_eta \sum_{ij} cost(eta_i, y_j) \pi_{ij} }
+\deqn{\text{argmin}_{\eta} \sum_{ij} cost(\eta_i, y_j) \pi_{ij} }
 where \eqn{\pi_{ij}} is the primal solution from the optimal transport problem.
 
 These values can also be de-biased using the solutions from running an optimal transport problem of one sample against itself. Details are listed in Pooladian et al. (2022) \url{https://arxiv.org/abs/2202.08919}.

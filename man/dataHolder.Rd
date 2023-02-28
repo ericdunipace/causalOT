@@ -2,12 +2,24 @@
 % Please edit documentation in R/dataHolder.R
 \name{dataHolder}
 \alias{dataHolder}
+\alias{dataHolder,dataHolder-method}
+\alias{dataHolder,matrix-method}
+\alias{dataHolder,DataSim-method}
+\alias{dataHolder,ANY-method}
 \title{dataHolder}
 \usage{
 dataHolder(x, z, y = NA_real_, weights = NA_real_)
+
+\S4method{dataHolder}{dataHolder}(x, z = NA_integer_, y = NA_real_)
+
+\S4method{dataHolder}{matrix}(x, z, y = NA_real_, weights = NA_real_)
+
+\S4method{dataHolder}{DataSim}(x, z, y = NA_real_, weights = NA_real_)
+
+\S4method{dataHolder}{ANY}(x, z = NA_integer_, y = NA_real_)
 }
 \arguments{
-\item{x}{the covariate data}
+\item{x}{the covariate data. Can be a matrix, an object of class \code{dataHolder} or a \link{DataSim} object. The latter two object types won't need arguments \code{z} or \code{y}.}
 
 \item{z}{the treatment indicator}
 
@@ -16,10 +28,21 @@ dataHolder(x, z, y = NA_real_, weights = NA_real_)
 \item{weights}{the empirical distribution of the sample}
 }
 \value{
-an object of dataHolder class with slots "x", "z", "y", and "weights"
+Returns an object of class dataHolder with slots
+\itemize{
+\item \code{x} matrix. A matrix of confounders.
+\item \code{z} integer. The treatment indicator, \eqn{z_i \in \{0,1\}}.
+\item \code{y} numeric. The outcome data.
+\item \code{n0} integer. The number of observations where z==0
+\item \code{n1} integer. The number of observations where z==1
+\item \code{weights} numeric. The empirical distribution of the full sample.
+}
 }
 \description{
 dataHolder
+}
+\details{
+Creates an object used internally by the \code{causalOT} package for data management.
 }
 \examples{
 x <- matrix(0, 100, 10)
@@ -29,3 +52,4 @@ z <- stats::rbinom(100, 1, 0.5)
 # function will assume each observation gets equal mass
 dataHolder(x = x, z = z) 
 }
+\keyword{internal}

@@ -22,6 +22,7 @@
 ^src/deprecated/$
 ^vignettes/cache$
 ^vignettes/.*\.orig$
+^vignettes/figure$
 ^Meta$
 ^\.github$
 ^vignettes/.*cache.*

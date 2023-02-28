@@ -70,6 +70,15 @@ check_dataHolder <- function(object) {
   if(length(errors) == 0) TRUE else errors
 }
 
+#' dataHolder
+#'
+#' @slot x matrix. A matrix of confounders.
+#' @slot z integer. The treatment indicator, \eqn{z_i \in \{0,1\}}.
+#' @slot y numeric. The outcome data.
+#' @slot n0 integer. The number of observations where z==0
+#' @slot n1 integer. The number of observations where z==1
+#' @slot weights numeric. The empirical distribution of the full sample.
+#' @keywords internal
 setClass("dataHolder",
          slots = c(x = "matrix",
                    z = "integer",
@@ -153,14 +162,25 @@ setMethod("get_w1", signature(object = "dataHolder"),
           })
 
 # constructor function
+
 #' dataHolder
+#' 
+#' @details Creates an object used internally by the `causalOT` package for data management. 
 #'
-#' @param x the covariate data
+#' @param x the covariate data. Can be a matrix, an object of class `dataHolder` or a [causalOT::DataSim] object. The latter two object types won't need arguments `z` or `y`.
 #' @param z the treatment indicator
 #' @param y the outcome data
 #' @param weights the empirical distribution of the sample
 #'
-#' @return an object of dataHolder class with slots "x", "z", "y", and "weights"
+#' @return Returns an object of class dataHolder with slots
+#' \itemize{
+#' \item `x` matrix. A matrix of confounders.
+#' \item `z` integer. The treatment indicator, \eqn{z_i \in \{0,1\}}.
+#' \item `y` numeric. The outcome data.
+#' \item `n0` integer. The number of observations where z==0
+#' \item `n1` integer. The number of observations where z==1
+#' \item `weights` numeric. The empirical distribution of the full sample.
+#' }
 #' @export
 #'
 #' @examples
@@ -171,12 +191,17 @@ setMethod("get_w1", signature(object = "dataHolder"),
 #' # function will assume each observation gets equal mass
 #' dataHolder(x = x, z = z) 
 setGeneric("dataHolder", function(x,z,y = NA_real_,weights=NA_real_) standardGeneric("dataHolder"))
+
+#' @rdname dataHolder
+#' @keywords internal
 setMethod("dataHolder", signature(x = "dataHolder", z = "ANY", y = "ANY",weights = "ANY" ), function(x, z = NA_integer_, y = NA_real_) {
   return(x)
 })
 
 
 # x is matrix, z is numeric, no balance subset
+#' @rdname dataHolder
+#' @keywords internal
 setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = "ANY"), function(x, z, y = NA_real_, weights = NA_real_) {
   z <- as.integer(z)
   if(length(z) > 0  && max(z) > 1) {
@@ -202,6 +227,9 @@ setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = 
 # x is DataSim, z is numeric, no balance subset
 setOldClass(c("DataSim","R6"))
 setOldClass(c("Hainmueller", "DataSim","R6"))
+
+#' @rdname dataHolder
+#' @keywords internal
 setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights = "ANY"), function(x, z, y = NA_real_, weights = NA_real_) {
   
   ds <- x
@@ -227,6 +255,8 @@ setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights =
   return(dH)
 })
 
+#' @rdname dataHolder
+#' @keywords internal
 setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY",weights = "ANY" ), function(x, z = NA_integer_, y = NA_real_) {
   stop("must supply one of the following combinations: (x =matrix, z = integer), (x = result of df2matrix, z = ANY), (x = dataHolder, z = ANY), or (x = DataSim, z = ANY)")
 })
@@ -240,7 +270,7 @@ setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY",weights = "ANY
 #' @param data a data.frame with the data
 #' @param weights optional vector of sampling weights for the data
 #'
-#' @return an object of class dataHolder
+#' @return Returns an object of class [causalOT::dataHolder()]
 #' 
 #' @details This will take the formulas specified and transform that data.frame into a dataHolder object that is used internally by the causalOT package. Take care if you do not specify an outcome formula that you do not include the outcome in the data.frame. If you are not careful, the function may include the outcome as a covariate, which is not kosher in causal inference during the design phase. 
 #' 
@@ -265,6 +295,9 @@ setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY",weights = "ANY
 #'   data = df,
 #'   weights = weights)
 setGeneric("df2dataHolder", function(treatment.formula, outcome.formula = NA_character_, data, weights = NA_real_) standardGeneric("df2dataHolder"))
+
+#' @rdname df2dataHolder
+#' @keywords internal
 setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula = "ANY", data = "data.frame",weights = "ANY"), function(treatment.formula = NA_character_, outcome.formula = NA_character_, data, weights = NA_real_) {
   # browser()
   tf <- !missing(treatment.formula) && (inherits(treatment.formula, "formula") || !is.na(treatment.formula))
@@ -347,6 +380,7 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
 #'
 #' @return a list with the formula terms for treatment and, if present, outcome formulae.
 #' @method terms dataHolder
+#' @keywords internal
 terms.dataHolder <- function(x, ...) {
   attr(x, "terms")
 }
@@ -373,7 +407,7 @@ print.dataHolder <- function(x, ...) {
 }
 
 
-
+#' @keywords internal
 setMethod("show", signature(object = "dataHolder"),
       function(object) {
         attributes(object)$terms <- NULL

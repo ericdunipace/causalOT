@@ -7,7 +7,7 @@
 \method{coef}{causalEffect}(object, ...)
 }
 \arguments{
-\item{object}{An object of class \link[=causalEffect-class]{causalEffect}}
+\item{object}{An object of class \linkS4class{causalEffect}}
 
 \item{...}{Not used}
 }

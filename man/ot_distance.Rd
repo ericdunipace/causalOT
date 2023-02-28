@@ -2,9 +2,57 @@
 % Please edit documentation in R/OT.R
 \name{ot_distance}
 \alias{ot_distance}
+\alias{ot_distance,causalWeights-method}
+\alias{ot_distance,matrix-method}
+\alias{ot_distance,array-method}
 \title{Optimal Transport Distance}
 \usage{
 ot_distance(
+  x1,
+  x2 = NULL,
+  a = NULL,
+  b = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07
+)
+
+\S4method{ot_distance}{causalWeights}(
+  x1,
+  x2 = NULL,
+  a = NULL,
+  b = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07
+)
+
+\S4method{ot_distance}{matrix}(
+  x1,
+  x2 = NULL,
+  a = NULL,
+  b = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07
+)
+
+\S4method{ot_distance}{array}(
   x1,
   x2 = NULL,
   a = NULL,
@@ -65,3 +113,4 @@ a= weights@w0, b = weights@w1,
  all.equal(ot1, ot2)
 }
 }
+\keyword{internal}

@@ -1,9 +1,9 @@
 #' Estimate causal weights
 #'
-#' @param x A numeric matrix of covariates. You can also pass an object of class [causalOT::dataHolder-class] or [causalOT::DataSim-class], which will make argument `z` not necessary,
+#' @param x A numeric matrix of covariates. You can also pass an object of class [causalOT::dataHolder] or [causalOT::DataSim], which will make argument `z` not necessary,
 #' @param z A binary treatment indicator.
 #' @param estimand The estimand of interest. One of "ATT","ATC", or "ATE".
-#' @param method The method to estimate the causal weights. Must be one of the methods returned by [supported.methods()][supported.methods()].
+#' @param method The method to estimate the causal weights. Must be one of the methods returned by [supported_methods()][supported_methods()].
 #' @param options The options for the solver. Specific options depend on the solver you will be using and you can use the solver specific options functions as detailed below..
 #' @param weights The sample weights. Should be `NULL` or have a weight for each observation in the data. Normalized to sum to one.
 #' @param ... Not used at this time.
@@ -133,7 +133,7 @@ function(object) {
   
   fit <- object@solver(object)
   
-  cw <- new("causalWeights", 
+  cw <- methods::new("causalWeights", 
             w0 = fit$w0,
             w1 = fit$w1,
             estimand = fit$estimand,

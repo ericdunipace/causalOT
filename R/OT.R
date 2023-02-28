@@ -1282,6 +1282,9 @@ setGeneric("ot_distance", function(x1, x2 = NULL,
                                    diameter = NULL,
                                    niter = 1000, tol = 1e-7) standardGeneric("ot_distance"))
 
+
+#' @rdname ot_distance
+#' @keywords internal
 setMethod("ot_distance", signature(x1 = "causalWeights"),
 function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2, 
          cost = NULL, 
@@ -1398,6 +1401,11 @@ ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2,
   return(as.numeric(loss_select(ot, niter, tol)))
 }
 
+#' @rdname ot_distance
+#' @keywords internal
 setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)
+
+#' @rdname ot_distance
+#' @keywords internal
 setMethod("ot_distance", signature(x1 = "array"), ot_dist_default)
 

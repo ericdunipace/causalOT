@@ -119,6 +119,7 @@ setClass("causalEffect", slots = c(estimate = "numeric",
 #' @param call the call used to calculate the treatment effects
 #'
 #' @return  an object of class [causalEffect][causalOT::causalEffect-class]
+#' @keywords internal
 causalEffect <- function(data, causalWeights, model.outputs, augment.estimate, call) {
   
   # get outcome and data length (terms from dataHolder)
@@ -195,6 +196,16 @@ causalEffect <- function(data, causalWeights, model.outputs, augment.estimate, c
   
 }
 
+#' Function to estimate outcome models
+#'
+#' @param data A [causalOT::dataHolder()] object
+#' @param causalWeights A [causalOT::causalWeights-class] object
+#' @param model.function The model function passed by the user
+#' @param separate.estimation TRUE or FALSE, should models be estimated separately in each group?
+#' @param ... Extra agruments passed to the predict functions
+#'
+#' @return a list with slots `y_hat_0`, `y_hat_1`, and `fit`.
+#' @keywords internal
 estimate_model <- function(data, causalWeights, model.function,
                            separate.estimation, ...) {
   
@@ -233,7 +244,7 @@ estimate_model <- function(data, causalWeights, model.function,
     # save models
     fit   <- list(control = fit_0, treated = fit_1, overall_sample = NULL)
     
-    # save predicted mean outcomes
+    # save stats::predicted mean outcomes
     y_hat_0 <- stats::predict(object = fit_0, newdata = data.frame(x), ...)
     y_hat_1 <- stats::predict(object = fit_1, newdata = data.frame(x), ...)
     
@@ -259,10 +270,10 @@ estimate_model <- function(data, causalWeights, model.function,
     fit   <- list(control = NULL, treated = NULL, 
                   overall_sample = fit_overall)
     
-    # get predicted mean outcomes
-    y_hat_0 <- predict(object = fit_overall, data.frame(x, z = 0L, y = y),
+    # get stats::predicted mean outcomes
+    y_hat_0 <- stats::predict(object = fit_overall, data.frame(x, z = 0L, y = y),
                        source.sample = z, ...)
-    y_hat_1 <- predict(object = fit_overall, data.frame(x, z = 1L, y = y),
+    y_hat_1 <- stats::predict(object = fit_overall, data.frame(x, z = 1L, y = y),
                        source.sample = z, ...)
     
   }
@@ -277,7 +288,7 @@ estimate_model <- function(data, causalWeights, model.function,
 
 #' Extract treatment effect estimate
 #'
-#' @param object An object of class [causalEffect][causalOT::causalEffect-class]
+#' @param object An object of class [causalOT::causalEffect-class]
 #' @param ... Not used
 #'
 #' @return A number corresponding to the estimated treatment effect
@@ -363,7 +374,7 @@ semiparm_eff_var <- function(object, ...) {
     # weights targeted to ATC or ATT
     resid       <-   w * (y - y_hat_1) *      z  - # treated mean estimate
                      w * (y - y_hat_0) * (1 - z) + # control mean estimate
-                     delta_model - # predictions from model
+                     delta_model - # stats::predictions from model
                      tau # estimate of ATT or ATC
     
     # variance
@@ -375,7 +386,7 @@ semiparm_eff_var <- function(object, ...) {
   semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, w_init, tau, denom) {
     resid <- w * z * (y - yhat_1) - # treated model residual
              w * (1 - z) * (y - yhat_0) + # control model residual
-             (yhat_1 - yhat_0) - # model prediction for all data
+             (yhat_1 - yhat_0) - # model stats::prediction for all data
              tau # estimate of treatment effect
     
     # weighted variance
@@ -399,7 +410,7 @@ semiparm_eff_var <- function(object, ...) {
   # get causalWeights object
   cw   <- object@weights
   
-  # adjust predicted outcomes if not using a model
+  # adjust stats::predicted outcomes if not using a model
   if (all(is.na(y_hat_0))) y_hat_0 <- rep(0.0, n)
   if (all(is.na(y_hat_1))) y_hat_1 <- rep(0.0, n)
   
