@@ -144,6 +144,7 @@ setMethod("show", "summary_causalWeights", function(object){print(object)})
 #' @param ... Not used
 #'
 #' @export
+#' @importFrom rlang .data
 #' @method plot summary_causalWeights
 #' @describeIn summary.causalWeights plot method
 plot.summary_causalWeights <- function(x, ...) {
@@ -168,10 +169,10 @@ plot.summary_causalWeights <- function(x, ...) {
     
     
     p <- ggplot2::ggplot(ot_dat, 
-                         ggplot2::aes(x = rlang::.data$period, 
-                                      y = rlang::.data$value, 
-                                      group = rlang::.data$group, 
-                                      color = rlang::.data$group)
+                         ggplot2::aes(x = .data$period, 
+                                      y = .data$value, 
+                                      group = .data$group, 
+                                      color = .data$group)
                          ) +
       ggplot2::geom_line() + ggplot2::geom_point() + 
       ggplot2::scale_color_manual(values = c("black", "gray")) +
@@ -201,8 +202,8 @@ plot.summary_causalWeights <- function(x, ...) {
     }
     
     p <- ggplot2::ggplot(pareto_k_dat, 
-                         ggplot2::aes(x = rlang::.data$group, 
-                                      y = rlang::.data$value)) +
+                         ggplot2::aes(x = .data$group, 
+                                      y = .data$value)) +
       ggplot2::geom_point() + 
       ggplot2::geom_hline(yintercept = 0.5, linetype = 2) +
       ggplot2::geom_hline(yintercept = 1, linetype = 1, color = "red") + 
@@ -241,10 +242,10 @@ plot.summary_causalWeights <- function(x, ...) {
     }
     
     p <- ggplot2::ggplot(pareto_n_dat, 
-                         ggplot2::aes(x = rlang::.data$group, 
-                                      y = rlang::.data$value, 
-                                      fill = rlang::.data$period,
-                                      label = paste0("N_eff = ", round(rlang::.data$value, digits = 1)))) +
+                         ggplot2::aes(x = .data$group, 
+                                      y = .data$value, 
+                                      fill = .data$period,
+                                      label = paste0("N_eff = ", round(.data$value, digits = 1)))) +
       ggplot2::geom_col( position = 'dodge' ) +
       ggplot2::scale_fill_manual(values = c("black","gray")) + 
       ggplot2::xlab("") + 
@@ -288,7 +289,7 @@ plot.summary_causalWeights <- function(x, ...) {
                   period = factor(rep(c("pre", "post"), each = 2*d), levels = c("pre","post")))
     }
     
-    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = rlang::.data$period, y = rlang::.data$value, group = interaction(rlang::.data$covariate, rlang::.data$group), color = rlang::.data$group, size = rlang::.data$group)) +
+    p <- ggplot2::ggplot(mb_dat, ggplot2::aes(x = .data$period, y = .data$value, group = interaction(.data$covariate, .data$group), color = .data$group, size = .data$group)) +
       ggplot2::geom_hline(yintercept = 0.1, linetype = 2) +
       ggplot2::geom_hline(yintercept = 0.2, linetype = 1, color = "red") +
       ggplot2::geom_line(size = .5) + 
@@ -348,6 +349,6 @@ plot.causalWeights <- function(x, r_eff = NULL, penalty, p = 2, cost = NULL,
   mc[[1]] <- quote(summary.causalWeights)
   summary.object <- eval(mc, envir = parent.frame())
   
-  plot(summary.object, ...)
+  print(plot(summary.object, ...))
   return(invisible(summary.object))
 }
