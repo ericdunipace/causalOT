@@ -581,6 +581,7 @@ bp_general <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3
       y_s_old <- y_source$detach()$clone()
     }
   }
+  torch_cubic_reassign()
   return(as.numeric(y_source$to(device = "cpu")))
 }
 

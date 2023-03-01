@@ -18,11 +18,14 @@
 #' data$gen_data()
 #' 
 #' # calculate quantities
+#' if ( torch::torch_is_installed() ){
 #' weight <- calc_weight(data, method = "COT", options = list(lambda = 0))
-#' tx_eff <- estimate_effect(data = data, weights = weight)
+#' tx_eff <- estimate_effect(causalWeights = weight)
 #' 
 #' # get estimate
-#' print(tx_eff$estimate)
+#' print(tx_eff@estimate)
+#' all.equal(coef(tx_eff), c(estimate = tx_eff@estimate))
+#' }
 estimate_effect <- function(causalWeights,
                             x = NULL, y = NULL,  
                             model.function,

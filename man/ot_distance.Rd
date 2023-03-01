@@ -3,8 +3,6 @@
 \name{ot_distance}
 \alias{ot_distance}
 \alias{ot_distance,causalWeights-method}
-\alias{ot_distance,matrix-method}
-\alias{ot_distance,array-method}
 \title{Optimal Transport Distance}
 \usage{
 ot_distance(
@@ -23,36 +21,6 @@ ot_distance(
 )
 
 \S4method{ot_distance}{causalWeights}(
-  x1,
-  x2 = NULL,
-  a = NULL,
-  b = NULL,
-  penalty,
-  p = 2,
-  cost = NULL,
-  debias = TRUE,
-  online.cost = "auto",
-  diameter = NULL,
-  niter = 1000,
-  tol = 1e-07
-)
-
-\S4method{ot_distance}{matrix}(
-  x1,
-  x2 = NULL,
-  a = NULL,
-  b = NULL,
-  penalty,
-  p = 2,
-  cost = NULL,
-  debias = TRUE,
-  online.cost = "auto",
-  diameter = NULL,
-  niter = 1000,
-  tol = 1e-07
-)
-
-\S4method{ot_distance}{array}(
   x1,
   x2 = NULL,
   a = NULL,
@@ -101,14 +69,14 @@ Optimal Transport Distance
 \examples{
 if ( torch::torch_is_installed()) {
 x <- matrix(stats::rnorm(10*5), 10, 5)
-z <- stats:rbinom(10, 1, 0.5)
+z <- stats::rbinom(10, 1, 0.5)
 weights <- calc_weight(x = x, z = z, method = "Logistic", estimand = "ATT")
-ot1 <- ot_distance(x1 = weights, lambda = 100, 
-p = 2, debiast = TRUE, tensorized = "auto", 
+ot1 <- ot_distance(x1 = weights, penalty = 100, 
+p = 2, debias = TRUE, online.cost = "auto", 
 diameter = NULL)
 ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,], 
-a= weights@w0, b = weights@w1,
- lambda = 100, p = 2, debiast = TRUE, tensorized = "auto", diameter = NULL)
+a= weights@w0/sum(weights@w0), b = weights@w1,
+ penalty = 100, p = 2, debias = TRUE, online.cost = "auto", diameter = NULL)
 
  all.equal(ot1, ot2)
 }

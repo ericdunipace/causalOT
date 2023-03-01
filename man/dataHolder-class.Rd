@@ -3,9 +3,9 @@
 \docType{class}
 \name{dataHolder-class}
 \alias{dataHolder-class}
-\title{dataHolder}
+\title{dataHolder-class}
 \description{
-dataHolder
+dataHolder-class
 }
 \section{Slots}{
 

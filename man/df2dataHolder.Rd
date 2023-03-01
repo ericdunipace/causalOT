@@ -2,18 +2,10 @@
 % Please edit documentation in R/dataHolder.R
 \name{df2dataHolder}
 \alias{df2dataHolder}
-\alias{df2dataHolder,ANY,ANY,data.frame-method}
 \title{df2dataHolder}
 \usage{
 df2dataHolder(
   treatment.formula,
-  outcome.formula = NA_character_,
-  data,
-  weights = NA_real_
-)
-
-\S4method{df2dataHolder}{ANY,ANY,data.frame}(
-  treatment.formula = NA_character_,
   outcome.formula = NA_character_,
   data,
   weights = NA_real_
@@ -32,7 +24,7 @@ df2dataHolder(
 Returns an object of class \code{\link[=dataHolder]{dataHolder()}}
 }
 \description{
-df2dataHolder
+Function to turn a data.frame into a dataHolder object.
 }
 \details{
 This will take the formulas specified and transform that data.frame into a dataHolder object that is used internally by the causalOT package. Take care if you do not specify an outcome formula that you do not include the outcome in the data.frame. If you are not careful, the function may include the outcome as a covariate, which is not kosher in causal inference during the design phase.
@@ -45,6 +37,7 @@ If you are in the outcome phase of estimation, you can just provide a dummy form
 
 set.seed(20348)
 n <- 15
+d <- 3
 x <- matrix(stats::rnorm(n*d), n, d)
 z <- rbinom(n, 1, prob = 0.5)
 y <- rnorm(n)
@@ -56,4 +49,3 @@ dh <- df2dataHolder(
   data = df,
   weights = weights)
 }
-\keyword{internal}

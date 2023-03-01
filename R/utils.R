@@ -316,6 +316,8 @@ scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, a
   return(list(alpha = NULL, phi1 = phi_a1))
 }
 
+original_cubic <- get(".cubic_interpolate", envir = asNamespace("torch"))
+
 torch_lbfgs_check <- function(opt){
   if (inherits(opt, "optim_lbfgs")) {
     cb <- .cubic_interpolate
@@ -330,6 +332,10 @@ torch_lbfgs_check <- function(opt){
       warning(" Torch's LBFGS doesn't work well without 'strong_wolfe' line search on this problem. Specify it with line_search_fn = 'strong_wolfe' in the appropriate options argument.")
     }
   }
+}
+
+torch_cubic_reassign <- function() {
+  utils::assignInNamespace(".cubic_interpolate", original_cubic, "torch" )
 }
 
 lr_reduce = function(sched, loss) {

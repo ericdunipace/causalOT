@@ -39,7 +39,7 @@ Estimate causal weights
 We detail some of the particulars of the function arguments below.
 \subsection{Causal Optimal Transport (COT)}{
 
-This is the.main method of the package. This method relies on various solvers depending on the particular options chosen. Please see \link[=cotOptions]{cotOptions()}`for more details.
+This is the.main method of the package. This method relies on various solvers depending on the particular options chosen. Please see \link[=cotOptions]{cotOptions()} for more details.
 }
 
 \subsection{Energy Balancing Weights (EnergyBW)}{
@@ -54,12 +54,12 @@ This is equivalent to COT with a penalty parameter = 0, \code{options(lambda = 0
 
 \subsection{Synthetic Control Method (SCM)}{
 
-The SCM method is equivalent to an OT problem put from a different angle. See \code{\link[=scmOptions]{scmOptions()}}.
+The SCM method is equivalent to an OT problem from a different angle. See \code{\link[=scmOptions]{scmOptions()}}.
 }
 
 \subsection{Entropy Balancing Weights (EntropyBW)}{
 
-This method balances chosen functions of the covariates specified in the data argument, \code{x}.See \code{\link[=entBWOptions]{entBWOptions()}} for more details. Hainmueller (2012).
+This method balances chosen functions of the covariates specified in the data argument, \code{x}. See \code{\link[=entBWOptions]{entBWOptions()}} for more details. Hainmueller (2012).
 }
 
 \subsection{Stable Balancing Weights (SBW)}{
@@ -69,7 +69,7 @@ Entropy Balancing Weights with a different penalty parameter, proposed by Zuizar
 
 \subsection{Covariate Balancing Propensity Score (CBPS)}{
 
-The CBPS method of Imai and Ratkovic. Options based to the function \link[CBPS:CBPS]{CBPS()}.
+The CBPS method of Imai and Ratkovic. Options argument is passed to the function \link[CBPS:CBPS]{CBPS()}.
 }
 
 \subsection{Logistic Regression or Probit Regression}{
@@ -82,36 +82,26 @@ set.seed(23483)
 n <- 2^5
 p <- 6
 #### get data ####
-data <- causalOT::Hainmueller$new(n = n, p = p)
+data <- Hainmueller$new(n = n, p = p)
+data$gen_data()
 x <- data$get_x()
 z <- data$get_z()
 
+if (torch::torch_is_installed()) {
 # estimate weights
-weights <- causalOT::calc_weight(x = x,
+weights <- calc_weight(x = x,
                                  z = z, 
                                  estimand = "ATE",
                                  method = "COT",
                                  options = list(lambda = 0))
 #we can also use the dataSim object directly
-weightsDS <- causalOT::calc_weight(x = data,
+weightsDS <- calc_weight(x = data,
                                  z = NULL,
                                  estimand = "ATE",
                                  method = "COT",
                                  options = list(lambda = 0))
 all.equal(weights@w0, weightsDS@w0)
 all.equal(weights@w1, weightsDS@w1)
-
-\dontrun{
-# Needs Torch
-COTweights <- calc_weight(x = data,
-      z = NULL,
-      estimand = "ATE",
-      method = "COT",
-      options = list(p = 2,
-      torch.optimizer = torch::optim_lbfgs,
-      niter = 2 # only two iterations so it runs quickly
-      )
-      )
 }
 }
 \seealso{

@@ -7,7 +7,7 @@
 #' @examples
 #' supported_methods()
 supported_methods <- function() {
-  sort(c("Wasserstein", likelihood_methods(), grid_search_methods()))
+  c(sort(c("Wasserstein", grid_search_methods())), likelihood_methods())
 }
 
 likelihood_methods <- function() {

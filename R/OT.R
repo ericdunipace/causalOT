@@ -1263,14 +1263,14 @@ loss_select <- function(ot, niter, tol) {
 #' @examples
 #' if ( torch::torch_is_installed()) {
 #' x <- matrix(stats::rnorm(10*5), 10, 5)
-#' z <- stats:rbinom(10, 1, 0.5)
+#' z <- stats::rbinom(10, 1, 0.5)
 #' weights <- calc_weight(x = x, z = z, method = "Logistic", estimand = "ATT")
-#' ot1 <- ot_distance(x1 = weights, lambda = 100, 
-#' p = 2, debiast = TRUE, tensorized = "auto", 
+#' ot1 <- ot_distance(x1 = weights, penalty = 100, 
+#' p = 2, debias = TRUE, online.cost = "auto", 
 #' diameter = NULL)
 #' ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,], 
-#' a= weights@w0, b = weights@w1,
-#'  lambda = 100, p = 2, debiast = TRUE, tensorized = "auto", diameter = NULL)
+#' a= weights@w0/sum(weights@w0), b = weights@w1,
+#'  penalty = 100, p = 2, debias = TRUE, online.cost = "auto", diameter = NULL)
 #'
 #'  all.equal(ot1, ot2)
 #' }
@@ -1401,11 +1401,13 @@ ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2,
   return(as.numeric(loss_select(ot, niter, tol)))
 }
 
-#' @rdname ot_distance
+#' ot_distance-methods
+#' @rdname ot_distance-methods
 #' @keywords internal
 setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)
 
-#' @rdname ot_distance
+#' ot_distance-methods
+#' @rdname ot_distance-methods
 #' @keywords internal
 setMethod("ot_distance", signature(x1 = "array"), ot_dist_default)
 

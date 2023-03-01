@@ -1,3 +1,16 @@
+#### setup lalonde data ####
+devtools::install_github("jjchern/lalonde")
+
+library(lalonde)
+library(dplyr)
+
+lalonde_nsw <- lalonde::nsw_dw
+# usethis::use_data(lalonde_dat, overwrite = TRUE, internal = TRUE)
+
+lalonde_full <- lalonde_nsw %>% filter(treat == 1) %>% 
+  rbind(lalonde::cps_controls)
+
+
 #### clean and load CRASH-3 data ####
 
 crash <- readxl::read_xlsx("../datasets/crash3/CRASH-3_dataset_anonymised_for_Freebird.xlsx")
@@ -60,4 +73,7 @@ subset.form <- formula( death ~ siteId + sex + age + timeSinceInjury +
 
 crash3 <-  model.frame(subset.form, data = crash, subset = crash$eligible==1)
 
-usethis::use_data(crash3, overwrite = TRUE, internal = TRUE)
+
+
+#### Save all internal data ####
+usethis::use_data(lalonde_full, lalonde_nsw, crash3, overwrite = TRUE, internal = TRUE)

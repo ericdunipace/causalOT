@@ -12,28 +12,28 @@
 #' @details
 #' We detail some of the particulars of the function arguments below.
 #' 
-#' ## Causal Optimal Transport (COT)
-#' This is the.main method of the package. This method relies on various solvers depending on the particular options chosen. Please see [cotOptions()][cotOptions]`for more details.
+#' ### Causal Optimal Transport (COT)
+#' This is the.main method of the package. This method relies on various solvers depending on the particular options chosen. Please see [cotOptions()][cotOptions] for more details.
 #' 
-#' ## Energy Balancing Weights (EnergyBW)
+#' ### Energy Balancing Weights (EnergyBW)
 #' This is equivalent to COT with an infinite penalty parameter, `options(lambda = Inf)`. Uses the same solver and options as COT, [cotOptions()][cotOptions].
 #' 
-#' ## Nearest Neighbor Matching with replacement (NNM)
+#' ### Nearest Neighbor Matching with replacement (NNM)
 #' This is equivalent to COT with a penalty parameter = 0, `options(lambda = 0)`. Uses the same solver and options as COT, [cotOptions()][cotOptions].
 #' 
-#' ## Synthetic Control Method (SCM)
-#' The SCM method is equivalent to an OT problem put from a different angle. See [scmOptions()][scmOptions()].
+#' ### Synthetic Control Method (SCM)
+#' The SCM method is equivalent to an OT problem from a different angle. See [scmOptions()][scmOptions()].
 #' 
-#' ## Entropy Balancing Weights (EntropyBW)
-#' This method balances chosen functions of the covariates specified in the data argument, `x`.See [entBWOptions()][entBWOptions()] for more details. Hainmueller (2012).
+#' ### Entropy Balancing Weights (EntropyBW)
+#' This method balances chosen functions of the covariates specified in the data argument, `x`. See [entBWOptions()][entBWOptions()] for more details. Hainmueller (2012).
 #' 
-#' ## Stable Balancing Weights (SBW)
+#' ### Stable Balancing Weights (SBW)
 #' Entropy Balancing Weights with a different penalty parameter, proposed by Zuizarreta (2012). See [sbwOptions()][sbwOptions()] for more details
 #' 
-#' ## Covariate Balancing Propensity Score (CBPS)
-#' The CBPS method of Imai and Ratkovic. Options based to the function [CBPS()][CBPS::CBPS()].
+#' ### Covariate Balancing Propensity Score (CBPS)
+#' The CBPS method of Imai and Ratkovic. Options argument is passed to the function [CBPS()][CBPS::CBPS()].
 #' 
-#' ## Logistic Regression or Probit Regression
+#' ### Logistic Regression or Probit Regression
 #' The main methods historically for implementing inverse probability weights. Options are passed directly to the `glm` function from `R`.
 #'
 #' @seealso [estimate_effect()][estimate_effect()]
@@ -46,36 +46,26 @@
 #' n <- 2^5
 #' p <- 6
 #' #### get data ####
-#' data <- causalOT::Hainmueller$new(n = n, p = p)
+#' data <- Hainmueller$new(n = n, p = p)
+#' data$gen_data()
 #' x <- data$get_x()
 #' z <- data$get_z()
 #' 
+#' if (torch::torch_is_installed()) {
 #' # estimate weights
-#' weights <- causalOT::calc_weight(x = x,
+#' weights <- calc_weight(x = x,
 #'                                  z = z, 
 #'                                  estimand = "ATE",
 #'                                  method = "COT",
 #'                                  options = list(lambda = 0))
 #' #we can also use the dataSim object directly
-#' weightsDS <- causalOT::calc_weight(x = data,
+#' weightsDS <- calc_weight(x = data,
 #'                                  z = NULL,
 #'                                  estimand = "ATE",
 #'                                  method = "COT",
 #'                                  options = list(lambda = 0))
 #' all.equal(weights@w0, weightsDS@w0)
 #' all.equal(weights@w1, weightsDS@w1)
-#' 
-#' \dontrun{
-#' # Needs Torch
-#' COTweights <- calc_weight(x = data,
-#'       z = NULL,
-#'       estimand = "ATE",
-#'       method = "COT",
-#'       options = list(p = 2,
-#'       torch.optimizer = torch::optim_lbfgs,
-#'       niter = 2 # only two iterations so it runs quickly
-#'       )
-#'       )
 #' }
 calc_weight <- function(x, z,
                         estimand = c("ATC","ATT","ATE"),

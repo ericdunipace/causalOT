@@ -70,8 +70,8 @@ check_dataHolder <- function(object) {
   if(length(errors) == 0) TRUE else errors
 }
 
-#' dataHolder
-#'
+#' dataHolder-class
+#' 
 #' @slot x matrix. A matrix of confounders.
 #' @slot z integer. The treatment indicator, \eqn{z_i \in \{0,1\}}.
 #' @slot y numeric. The outcome data.
@@ -79,6 +79,7 @@ check_dataHolder <- function(object) {
 #' @slot n1 integer. The number of observations where z==1
 #' @slot weights numeric. The empirical distribution of the full sample.
 #' @keywords internal
+#' @rdname dataHolder-class
 setClass("dataHolder",
          slots = c(x = "matrix",
                    z = "integer",
@@ -192,7 +193,7 @@ setMethod("get_w1", signature(object = "dataHolder"),
 #' dataHolder(x = x, z = z) 
 setGeneric("dataHolder", function(x,z,y = NA_real_,weights=NA_real_) standardGeneric("dataHolder"))
 
-#' @rdname dataHolder
+#' @rdname dataHolder-methods
 #' @keywords internal
 setMethod("dataHolder", signature(x = "dataHolder", z = "ANY", y = "ANY",weights = "ANY" ), function(x, z = NA_integer_, y = NA_real_) {
   return(x)
@@ -200,7 +201,8 @@ setMethod("dataHolder", signature(x = "dataHolder", z = "ANY", y = "ANY",weights
 
 
 # x is matrix, z is numeric, no balance subset
-#' @rdname dataHolder
+#' dataHolder-methods
+#' @rdname dataHolder-methods
 #' @keywords internal
 setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = "ANY"), function(x, z, y = NA_real_, weights = NA_real_) {
   z <- as.integer(z)
@@ -228,7 +230,8 @@ setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = 
 setOldClass(c("DataSim","R6"))
 setOldClass(c("Hainmueller", "DataSim","R6"))
 
-#' @rdname dataHolder
+#' dataHolder-methods
+#' @rdname dataHolder-methods
 #' @keywords internal
 setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights = "ANY"), function(x, z, y = NA_real_, weights = NA_real_) {
   
@@ -255,15 +258,18 @@ setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights =
   return(dH)
 })
 
-#' @rdname dataHolder
+#' dataHolder-methods
+#' @rdname dataHolder-methods
 #' @keywords internal
 setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY",weights = "ANY" ), function(x, z = NA_integer_, y = NA_real_) {
-  stop("must supply one of the following combinations: (x =matrix, z = integer), (x = result of df2matrix, z = ANY), (x = dataHolder, z = ANY), or (x = DataSim, z = ANY)")
+  stop("must supply one of the following combinations: (x =matrix, z = integer), (x = result of df2dataHolder, z = ANY), (x = dataHolder, z = ANY), or (x = DataSim, z = ANY)")
 })
 
 
 # method to go from data.frame and a formula to a dataHolder object
 #' df2dataHolder
+#' 
+#' @description Function to turn a data.frame into a dataHolder object.
 #'
 #' @param treatment.formula a formula specifying the treatment indicator and covariates. Required.
 #' @param outcome.formula an optional formula specifying the outcome function.
@@ -284,6 +290,7 @@ setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY",weights = "ANY
 #' 
 #' set.seed(20348)
 #' n <- 15
+#' d <- 3
 #' x <- matrix(stats::rnorm(n*d), n, d)
 #' z <- rbinom(n, 1, prob = 0.5)
 #' y <- rnorm(n)
@@ -296,7 +303,8 @@ setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY",weights = "ANY
 #'   weights = weights)
 setGeneric("df2dataHolder", function(treatment.formula, outcome.formula = NA_character_, data, weights = NA_real_) standardGeneric("df2dataHolder"))
 
-#' @rdname df2dataHolder
+#' df2dataHolder-methods
+#' @rdname df2dataHolder-methods
 #' @keywords internal
 setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula = "ANY", data = "data.frame",weights = "ANY"), function(treatment.formula = NA_character_, outcome.formula = NA_character_, data, weights = NA_real_) {
   # browser()
@@ -373,7 +381,7 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
   return(dH)
 })
 
-#' terms function for dataHolder object
+#' dataHolder-methods
 #'
 #' @param x dataHolder object constructed from a formula
 #' @param ...  Not used at this time
@@ -381,6 +389,7 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
 #' @return a list with the formula terms for treatment and, if present, outcome formulae.
 #' @method terms dataHolder
 #' @keywords internal
+#' @rdname dataHolder-methods
 terms.dataHolder <- function(x, ...) {
   attr(x, "terms")
 }

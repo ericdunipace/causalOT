@@ -1819,7 +1819,7 @@ function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
   
   # optimize over lambda values
     private$iterate_over_lambda(niter, tol)
-  
+    torch_cubic_reassign()
 }               
 )
 

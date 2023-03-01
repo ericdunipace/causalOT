@@ -21,11 +21,11 @@ library(causalOT)
 ## Introduction
 `causalOT` was developed to reproduce the methods in [*Optimal transport methods for causal inference*](https://arxiv.org/abs/2109.01991). The functions in the package are built to construct weights to make distributions more same and estimate causal effects. We recommend using the Causal Optimal Transport methods since they are semi- to non-parametric. This document will describe some simple usages of the functions in the package and should be enough to get users started.
 
+## Setting up the data
+The main functions of the package, `calc_weight` and `estimate_effect`, take arguments `x`, a numeric `matrix` of covariates; `z`, a treatment indicator in `c(0,1)`; and `y`, a numeric vector with the outcome data.
 
-## Estimating weights
-The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
-
-``` {r wts, cache = TRUE}
+If easy to do, we can supply the necessary data directly.
+``` {r data, cache = TRUE}
 library(causalOT)
 set.seed(1111)
 
@@ -35,15 +35,46 @@ hainmueller$gen_data()
 x <- hainmueller$get_x()
 z <- hainmueller$get_z()
 y <- hainmueller$get_y()
+
+# NOT RUN
+# weights <- calc_weight(x = x, z = z, y = y)
+```
+Note that the calc_weight function will not use the outcome data `y` when calculating the weights but will pass it to the internal data constructor.
+
+However, sometimes we get data as a `data.frame` and users may not know how to turn these into the required objects. In this case, we've supplied the `df2dataHolder` function to create the required data object like so:
+``` {r df, cache = TRUE}
+df <- data.frame(y = y, z = z, x)
+
+df2dH <- df2dataHolder(treatment.formula = "z ~ .", 
+                       outcome.formula = "y ~ .",
+                       data = df)
+# NOT RUN
+# weights <- calc_weight(x = df2dH, z = NULL, y = NULL)
+```
+In this case, we can pass the `dataHolder` object directly to the `calc_weight` function inside the `x` argument and ignore the others; the `dataHolder` object already contains the `x`, `y`, and `z` data internally. Note that this function will need both outcome and treatment formulae since it needs to know which columns are actually confounders for the purposes of calculating the weights!
+
+Finally, if you so desire, you can create a dataHolder object directly.
+``` {r dh, cache = TRUE}
+dH <- dataHolder(x = x, z = z, y = y)
+
+# NOT RUN
+# weights <- calc_weight(x = dH, z = NULL, y = NULL)
+```
+This may be useful if you plan on reusing the data object.
+
+## Estimating weights
+The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
+
+``` {r wts, cache = TRUE}
 weights <- calc_weight(x = x, z = z, method = "COT",
-                       estimand = "ATE",
+                       estimand = "ATE", options = list(lambda.bootstrap = Inf))
                        # default is torch's lbfgs where line search is important
-                       options = list(line_search_fn = "strong_wolfe",
-                       history_size = 10L, tol = 1e-3,
-                       nboot = 1000L))
+                       #options = list(line_search_fn = "strong_wolfe",
+                       #history_size = 10L, tol = 1e-3,
+                       #nboot = 1000L))
 
 ```
-These weights will balance distributions, making estimates of treatment effects the same.
+These weights will balance distributions, making estimates of treatment effects unbiased.
 
 ## Estimating treatment effects
 We can then estimate effects with 
@@ -51,8 +82,9 @@ We can then estimate effects with
 tau_hat <- estimate_effect(causalWeights = weights,
                            y = y)
 ```
-The estimator generated here is a simple weighted difference in observed outcomes between treatment groups.
-This creates an object of class `causalEffect` which can be fed into the native `R` function `confint` to calculate asymptotic confidence intervals,
+The estimator generated here is a simple weighted difference in observed outcomes between treatment groups. Moreover, note we must supply the outcome information in argumnet `y` since we didn't provide it in the `calc_weight` function.
+
+The output of the `estimate_effect` function creates an object of class `causalEffect` which can be fed into the native `R` function `confint` to calculate asymptotic confidence intervals,
 ``` {r ci}
 ci_tau <- confint(object = tau_hat, level = 0.95)
 ```
@@ -62,7 +94,7 @@ var_tau <- vcov(object = tau_hat)
 ```
 This then gives the following treatment effect estimate, variance, and C.I.
 ``` {r print}
-print(tau_hat@estimate)
+print(coef(tau_hat))
 print(var_tau)
 print(ci_tau)
 ```

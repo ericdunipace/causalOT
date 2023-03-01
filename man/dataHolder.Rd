@@ -2,21 +2,9 @@
 % Please edit documentation in R/dataHolder.R
 \name{dataHolder}
 \alias{dataHolder}
-\alias{dataHolder,dataHolder-method}
-\alias{dataHolder,matrix-method}
-\alias{dataHolder,DataSim-method}
-\alias{dataHolder,ANY-method}
 \title{dataHolder}
 \usage{
 dataHolder(x, z, y = NA_real_, weights = NA_real_)
-
-\S4method{dataHolder}{dataHolder}(x, z = NA_integer_, y = NA_real_)
-
-\S4method{dataHolder}{matrix}(x, z, y = NA_real_, weights = NA_real_)
-
-\S4method{dataHolder}{DataSim}(x, z, y = NA_real_, weights = NA_real_)
-
-\S4method{dataHolder}{ANY}(x, z = NA_integer_, y = NA_real_)
 }
 \arguments{
 \item{x}{the covariate data. Can be a matrix, an object of class \code{dataHolder} or a \link{DataSim} object. The latter two object types won't need arguments \code{z} or \code{y}.}
@@ -52,4 +40,3 @@ z <- stats::rbinom(100, 1, 0.5)
 # function will assume each observation gets equal mass
 dataHolder(x = x, z = z) 
 }
-\keyword{internal}
