@@ -341,16 +341,7 @@ The function also accepts methods "EnergyBW", for Energy Balancing Weights of Ha
 ### Options?
 The argument `options` is a little vague. So we also have a function `cotOptions` which is avaible to help. The documentation provides more details. The other optimization methods "SBW", "EntropyBW", and "SCM" provide their own options function. The options for "Logistic" and "Probit" pass arguments to `glm` and "CBPS" will pass arguments to the `CBPS` function in the package of the same name.
 
-### Data
-I remember when I was first starting `R`, I had a hard time knowing how to turn data.frames into matrices in an easy way. Also, maybe you don't want to go through the effort of doing this transformation yourself. In response, I created the `df2dataHolder()` function to do the work for you. It then returns a `dataHolder` object used internally by `causalOT`. All you need to provide are formula for the treatment and outcome and any sample weights you have.
-
-``` {r dH}
-df <- data.frame(z = z, y = y, x)
-df2dataHolder(treatment.formula = "z ~ x", 
-     outcome.formula = "y ~ x + z",
-     data = df,
-     weights = NA_real_)
-```
-This can be passed to the `calc_weight` function directly via the argument `x`.
+## More complicated models via object-oriented functions
+The package also provides more flexible optimal transport weights and modeling via some object-oriented programming via the `R6` package. These functions don't have as many safeguards and everything is done by reference so that you have to be more careful about what you do. However, it also gives you more flexibility on the types of problems you can solve. To learn more, see the vignette on object-oriented solvers.
 
 

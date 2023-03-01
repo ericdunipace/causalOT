@@ -14,10 +14,10 @@ vignette: >
 ## Introduction
 `causalOT` was developed to reproduce the methods in [*Optimal transport methods for causal inference*](https://arxiv.org/abs/2109.01991). The functions in the package are built to construct weights to make distributions more same and estimate causal effects. We recommend using the Causal Optimal Transport methods since they are semi- to non-parametric. This document will describe some simple usages of the functions in the package and should be enough to get users started.
 
+## Setting up the data
+The main functions of the package, `calc_weight` and `estimate_effect`, take arguments `x`, a numeric `matrix` of covariates; `z`, a treatment indicator in `c(0,1)`; and `y`, a numeric vector with the outcome data.
 
-## Estimating weights
-The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
-
+If easy to do, we can supply the necessary data directly.
 
 ```r
 library(causalOT)
@@ -29,14 +29,48 @@ hainmueller$gen_data()
 x <- hainmueller$get_x()
 z <- hainmueller$get_z()
 y <- hainmueller$get_y()
-weights <- calc_weight(x = x, z = z, method = "COT",
-                       estimand = "ATE",
-                       # default is torch's lbfgs where line search is important
-                       options = list(line_search_fn = "strong_wolfe",
-                       history_size = 10L, tol = 1e-3,
-                       nboot = 1000L))
+
+# NOT RUN
+# weights <- calc_weight(x = x, z = z, y = y)
 ```
-These weights will balance distributions, making estimates of treatment effects the same.
+Note that the calc_weight function will not use the outcome data `y` when calculating the weights but will pass it to the internal data constructor.
+
+However, sometimes we get data as a `data.frame` and users may not know how to turn these into the required objects. In this case, we've supplied the `df2dataHolder` function to create the required data object like so:
+
+```r
+df <- data.frame(y = y, z = z, x)
+
+df2dH <- df2dataHolder(treatment.formula = "z ~ .", 
+                       outcome.formula = "y ~ .",
+                       data = df)
+# NOT RUN
+# weights <- calc_weight(x = df2dH, z = NULL, y = NULL)
+```
+In this case, we can pass the `dataHolder` object directly to the `calc_weight` function inside the `x` argument and ignore the others; the `dataHolder` object already contains the `x`, `y`, and `z` data internally. Note that this function will need both outcome and treatment formulae since it needs to know which columns are actually confounders for the purposes of calculating the weights!
+
+Finally, if you so desire, you can create a dataHolder object directly.
+
+```r
+dH <- dataHolder(x = x, z = z, y = y)
+
+# NOT RUN
+# weights <- calc_weight(x = dH, z = NULL, y = NULL)
+```
+This may be useful if you plan on reusing the data object.
+
+## Estimating weights
+The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
+
+
+```r
+weights <- calc_weight(x = x, z = z, method = "COT",
+                       estimand = "ATE", options = list(lambda.bootstrap = Inf))
+                       # default is torch's lbfgs where line search is important
+                       #options = list(line_search_fn = "strong_wolfe",
+                       #history_size = 10L, tol = 1e-3,
+                       #nboot = 1000L))
+```
+These weights will balance distributions, making estimates of treatment effects unbiased.
 
 ## Estimating treatment effects
 We can then estimate effects with 
@@ -45,8 +79,9 @@ We can then estimate effects with
 tau_hat <- estimate_effect(causalWeights = weights,
                            y = y)
 ```
-The estimator generated here is a simple weighted difference in observed outcomes between treatment groups.
-This creates an object of class `causalEffect` which can be fed into the native `R` function `confint` to calculate asymptotic confidence intervals,
+The estimator generated here is a simple weighted difference in observed outcomes between treatment groups. Moreover, note we must supply the outcome information in argumnet `y` since we didn't provide it in the `calc_weight` function.
+
+The output of the `estimate_effect` function creates an object of class `causalEffect` which can be fed into the native `R` function `confint` to calculate asymptotic confidence intervals,
 
 ```r
 ci_tau <- confint(object = tau_hat, level = 0.95)
@@ -59,14 +94,15 @@ var_tau <- vcov(object = tau_hat)
 This then gives the following treatment effect estimate, variance, and C.I.
 
 ```r
-print(tau_hat@estimate)
-#> [1] 0.09160276
+print(coef(tau_hat))
+#>    estimate 
+#> -0.09382684
 print(var_tau)
 #>           estimate
-#> estimate 0.1470094
+#> estimate 0.3981353
 print(ci_tau)
-#>               2.5 %    97.5 %
-#> estimate -0.6598827 0.8430882
+#>              2.5 %   97.5 %
+#> estimate -1.330524 1.142871
 ```
 ### Model based estimates
 The function `estimate_effect` can also use models to estimate the treatment effects. There are also several additional arguments that will be demonstrated below. These are:
@@ -153,7 +189,7 @@ preds   <- predict(object = bp,
                    newdata = newdf,
                    source.sample = df$z)
 head(preds)
-#> [1] -2.80749441  0.52369862  6.65723020 -1.55036673 -0.07091995  1.55753697
+#> [1] -2.8074944  0.5236986  5.8073131 -1.5503667  1.4414216 -2.4308861
 ```
 The argument `source.sample` should be a vector that denotes the original treatment group of the samples. This allows the function to use the appropriate dual potentials to calculate the expected outcome.
 
@@ -180,20 +216,20 @@ tau_hat_bp <- estimate_effect(causalWeights = weights,
                            line_search_fn = "strong_wolfe"
                            )
 print(tau_hat_bp@estimate)
-#> [1] -0.0003117836
+#> [1] -0.1793609
 ```
 This method currently doesn't have a variance estimator accounting for the weight uncertainty but we can use the asymptotic variance estimator of Hahn (1998):
 
 ```r
 vcov(tau_hat_bp)
 #>             estimate
-#> estimate 0.007548076
+#> estimate 0.008673172
 vcov(tau_hat_wols)
 #>            estimate
-#> estimate 0.01194476
+#> estimate 0.04267304
 vcov(tau_hat)
 #>           estimate
-#> estimate 0.1470094
+#> estimate 0.3981353
 ```
 
 #### Note
@@ -219,13 +255,14 @@ Typically, estimated samples sizes with weights are calculated as $\sum_i 1/w_i^
 ```r
 ESS(weights)
 #>  Control  Treated 
-#> 156.6527 153.5573
+#> 28.97985 84.32589
 ```
 
 Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, [Vehtari et al.](https://arxiv.org/abs/1507.02646) use Pareto smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
 
 ```r
 raw_psis <- PSIS(weights)
+#> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 ```
 This will also return the Pareto smoothed weights and log weights.
 
@@ -235,18 +272,18 @@ If we want to easily examine the PSIS diagnostics, we can pull those out too
 PSIS_diag(raw_psis)
 #> $w0
 #> $w0$pareto_k
-#> [1] 0.3522737
+#> [1] 0.7598376
 #> 
 #> $w0$n_eff
-#> [1] 158.041
+#> [1] 27.49105
 #> 
 #> 
 #> $w1
 #> $w1$pareto_k
-#> [1] 0.4149752
+#> [1] 0.2478191
 #> 
 #> $w1$n_eff
-#> [1] 158.3794
+#> [1] 82.99825
 ```
 We can see that all of the $k$ values are below the recommended 0.5, indicating finite variance and that the central limit theorem holds. Note the estimated sample sizes are a bit lower than the `ESS` method above.
 
@@ -268,7 +305,7 @@ and after weighting mean balance
 ```r
 mean_balance(x = hainmueller, weights = weights)
 #>          X1          X2          X3          X4          X5          X6 
-#> 0.010963842 0.023804742 0.027403037 0.005396086 0.015731870 0.155767759
+#> 0.024558231 0.028086483 0.032456111 0.011734582 0.006399137 0.012215878
 ```
 Pretty good!
 
@@ -299,12 +336,12 @@ But after weighting, it looks much better!
 ot_distance(x1 = hainmueller$get_x0(), x2 = hainmueller$get_x(),
               a = weights@w0, b = rep(1/512,512),
               p = 2, penalty = 1e3, debias = TRUE)
-#> [1] 0.003544579
+#> [1] 0.00187791
 # treated
 ot_distance(x1 = hainmueller$get_x1(), x2 = hainmueller$get_x(),
               a = weights@w1, b = rep(1/512,512),
               p = 2, penalty = 1e3, debias = TRUE)
-#> [1] 0.001587887
+#> [1] 0.002123788
 ```
 After Causal Optimal Transport, the distributions are *much* more similar.
 We can also simply feed the output of calc_weight directly into the `ot_distance` function:
@@ -317,7 +354,7 @@ ot_distance(x1 = weights, p = 2, penalty = 1e3, debias = TRUE)
 #> 
 #> $post
 #>     control     treated 
-#> 0.003544579 0.001587887
+#> 0.001877910 0.002123788
 ```
 and the S4 deployment takes care of the rest.
 
@@ -326,6 +363,7 @@ Finally, we can construct a summary of the optimal transport distances, Pareto k
 
 ```r
 summarized_cw <- summary(weights, penalty = 1000)
+#> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 ```
 We can then print the object to the screen:
 
@@ -333,27 +371,30 @@ We can then print the object to the screen:
 summarized_cw
 #> Diagnostics for causalWeights for estimand ATE
 #> Control group
-#>                                pre         post
-#> OT distance              0.5311378 3.544579e-03
-#> Pareto k                        NA 3.522737e-01
-#> N eff                  247.0000000 1.580410e+02
-#> Avg. std. mean balance   0.3067516 3.380779e-02
+#>                                pre        post
+#> OT distance              0.5311378  0.00187791
+#> Pareto k                        NA  0.75983757
+#> N eff                  247.0000000 27.49105164
+#> Avg. std. mean balance   0.3067516  0.01676450
 #> 
 #> Treated group
 #>                                pre         post
-#> OT distance              0.4612781 1.587887e-03
-#> Pareto k                        NA 4.149752e-01
-#> N eff                  265.0000000 1.583794e+02
-#> Avg. std. mean balance   0.2859156 1.753215e-02
+#> OT distance              0.4612781 2.123788e-03
+#> Pareto k                        NA 2.478191e-01
+#> N eff                  265.0000000 8.299825e+01
+#> Avg. std. mean balance   0.2859156 9.871006e-04
 ```
 or we can make some diagnostic plots too!
 
 ```r
 plot(summarized_cw)
 #> Plotting diagnostics for causalWeights for estimand ATE
+#> Error in `ggplot2::geom_line()` at ]8;line = 170:col = 4;file:///Users/eifer/GoogleDrive/Research/Jose Zubizarreta Research/causalOT/R/summary.RcausalOT/R/summary.R:170:4]8;;:
+#> ! Problem while computing aesthetics.
+#> ℹ Error occurred in the 1st layer.
+#> Caused by error:
+#> ! Can't subset `.data` outside of a data mask context.
 ```
-
-![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-1.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-2.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-3.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-4.png)
 
 ## Other methods
 The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancing weights (SBW), entropy balancing weights (EntropyBW), and the synthetic control method (SCM).
@@ -383,29 +424,7 @@ The function also accepts methods "EnergyBW", for Energy Balancing Weights of Ha
 ### Options?
 The argument `options` is a little vague. So we also have a function `cotOptions` which is avaible to help. The documentation provides more details. The other optimization methods "SBW", "EntropyBW", and "SCM" provide their own options function. The options for "Logistic" and "Probit" pass arguments to `glm` and "CBPS" will pass arguments to the `CBPS` function in the package of the same name.
 
-### Data
-I remember when I was first starting `R`, I had a hard time knowing how to turn data.frames into matrices in an easy way. Also, maybe you don't want to go through the effort of doing this transformation yourself. In response, I created the `df2dataHolder()` function to do the work for you. It then returns a `dataHolder` object used internally by `causalOT`. All you need to provide are formula for the treatment and outcome and any sample weights you have.
-
-
-```r
-df <- data.frame(z = z, y = y, x)
-df2dataHolder(treatment.formula = "z ~ x", 
-     outcome.formula = "y ~ x + z",
-     data = df,
-     weights = NA_real_)
-#> Formal class 'dataHolder' [package "causalOT"] with 6 slots
-#>   ..@ x      : num [1:512, 1:6] -0.122 1.87 0.905 1.661 0.164 ...
-#>   .. ..- attr(*, "dimnames")=List of 2
-#>   .. .. ..$ : chr [1:512] "1" "2" "3" "4" ...
-#>   .. .. ..$ : chr [1:6] "xX1" "xX2" "xX3" "xX4" ...
-#>   .. ..- attr(*, "assign")= int [1:6] 1 1 1 1 1 1
-#>   ..@ z      : int [1:512] 1 1 0 1 0 0 1 1 1 0 ...
-#>   ..@ y      : Named num [1:512] -2.8075 0.5237 6.194 -1.5504 0.0248 ...
-#>   .. ..- attr(*, "names")= chr [1:512] "1" "2" "3" "4" ...
-#>   ..@ n0     : int 247
-#>   ..@ n1     : int 265
-#>   ..@ weights: num [1:512] 0.00195 0.00195 0.00195 0.00195 0.00195 ...
-```
-This can be passed to the `calc_weight` function directly in the argument `x`.
+## More complicated models via object-oriented functions
+The package also provides more flexible optimal transport weights and modeling via some object-oriented programming via the `R6` package. These functions don't have as many safeguards and everything is done by reference so that you have to be more careful about what you do. However, it also gives you more flexibility on the types of problems you can solve. To learn more, see the vignette on object-oriented solvers.
 
 
