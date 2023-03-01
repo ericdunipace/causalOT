@@ -347,7 +347,9 @@ plot.causalWeights <- function(x, r_eff = NULL, penalty, p = 2, cost = NULL,
   object   <- x
   mc <- match.call()
   mc[[1]] <- quote(summary.causalWeights)
-  summary.object <- eval(mc, envir = parent.frame())
+  ml  <- as.list(mc)
+  names(ml)[which(names(ml) == "x")] <- "object"
+  summary.object <- eval(as.call(ml), envir = asNamespace("causalOT"))
   
   print(plot(summary.object, ...))
   return(invisible(summary.object))

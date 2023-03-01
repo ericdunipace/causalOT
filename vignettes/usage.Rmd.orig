@@ -26,9 +26,15 @@ The main functions of the package, `calc_weight` and `estimate_effect`, take arg
 
 If easy to do, we can supply the necessary data directly.
 ``` {r data, cache = TRUE}
+# packages
 library(causalOT)
-set.seed(1111)
+library(torch)
 
+# reproducible seeds
+set.seed(1111)
+torch_manual_seed(3249)
+
+# generated some data
 hainmueller <- Hainmueller$new(n = 512)
 hainmueller$gen_data()
 
@@ -66,12 +72,12 @@ This may be useful if you plan on reusing the data object.
 The weights can be estimated by using the `calc_weight` function in the package. We select optimal hyperparameters through our bootstrap-based algorithm and target the average treatment effect.
 
 ``` {r wts, cache = TRUE}
-weights <- calc_weight(x = x, z = z, method = "COT",
-                       estimand = "ATE", options = list(lambda.bootstrap = Inf))
-                       # default is torch's lbfgs where line search is important
-                       #options = list(line_search_fn = "strong_wolfe",
-                       #history_size = 10L, tol = 1e-3,
-                       #nboot = 1000L))
+weights <- calc_weight(x = x, z = z, 
+                       method = "COT",
+                       estimand = "ATE", 
+                       options = list(lambda.bootstrap = Inf,
+                                      nboot = 1000L)
+                       )
 
 ```
 These weights will balance distributions, making estimates of treatment effects unbiased.
@@ -151,7 +157,7 @@ An outcome model that is particular to this package is the function `barycentric
 
 To use this function outside of the main causalOT functions, we would do
 
-``` {r bp}
+``` {r bp, cache = TRUE}
 df <- data.frame(z = z, y = y, x)
 bp <- barycentric_projection(formula = "y ~ x + z", 
         data = df,
@@ -221,7 +227,7 @@ estimate_effect(causalWeights = weights,
                            x = x_new,
                            y = y)
 ```
-Note this data must have the same order as the previous data and must also be an object of class `matrix`.
+Note this data must have the same observation order as the previous data and must also be an object of class `matrix`.
   
 ## Diagnostics
 Diagnostics are also an important part of deciding whether the weights perform well. There are several areas that we will explore:
@@ -254,17 +260,15 @@ $$ \frac{|\overline{X}_c - \overline{X}_t| }{\sigma_{\text{pool}}},$$ where
 $\overline{X}_c$ is the mean in the controls, $\overline{X}_t$ is the mean in the treated, and $\sigma_{\text{pool}}$ is the pooled standard deviation.
 We offer such checks in `causalOT` as well.
 
-First, we consider pre-weighting mean balance
+First, we consider pre-weighting mean balance between treatment groups
 ``` {r}
 mean_balance(x = hainmueller)
 ```
-and after weighting mean balance
+and after weighting mean balance between treatment groups
 ``` {r}
 mean_balance(x = hainmueller, weights = weights)
 ```
-Pretty good!
-
-However, mean balance doesn't ensure distributional balance.
+Pretty good! However, mean balance doesn't ensure distributional balance.
 
 #### 3. Distributional balance
 Ultimately, distributional balance is what we care about in causal inference. Fortunately, we can also measure that too. We consider the 2-Sinkhorn divergence of [Genevay et al.](http://proceedings.mlr.press/v84/genevay18a/genevay18a.pdf) since it metrizes the convergence in distribution.

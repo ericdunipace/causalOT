@@ -20,9 +20,15 @@ The main functions of the package, `calc_weight` and `estimate_effect`, take arg
 If easy to do, we can supply the necessary data directly.
 
 ```r
+# packages
 library(causalOT)
-set.seed(1111)
+library(torch)
 
+# reproducible seeds
+set.seed(1111)
+torch_manual_seed(3249)
+
+# generated some data
 hainmueller <- Hainmueller$new(n = 512)
 hainmueller$gen_data()
 
@@ -63,12 +69,12 @@ The weights can be estimated by using the `calc_weight` function in the package.
 
 
 ```r
-weights <- calc_weight(x = x, z = z, method = "COT",
-                       estimand = "ATE", options = list(lambda.bootstrap = Inf))
-                       # default is torch's lbfgs where line search is important
-                       #options = list(line_search_fn = "strong_wolfe",
-                       #history_size = 10L, tol = 1e-3,
-                       #nboot = 1000L))
+weights <- calc_weight(x = x, z = z, 
+                       method = "COT",
+                       estimand = "ATE", 
+                       options = list(lambda.bootstrap = Inf,
+                                      nboot = 1000L)
+                       )
 ```
 These weights will balance distributions, making estimates of treatment effects unbiased.
 
@@ -96,13 +102,13 @@ This then gives the following treatment effect estimate, variance, and C.I.
 ```r
 print(coef(tau_hat))
 #>    estimate 
-#> -0.09382684
+#> 0.007949831
 print(var_tau)
-#>           estimate
-#> estimate 0.3981353
+#>          estimate
+#> estimate 0.272946
 print(ci_tau)
 #>              2.5 %   97.5 %
-#> estimate -1.330524 1.142871
+#> estimate -1.016018 1.031918
 ```
 ### Model based estimates
 The function `estimate_effect` can also use models to estimate the treatment effects. There are also several additional arguments that will be demonstrated below. These are:
@@ -189,7 +195,7 @@ preds   <- predict(object = bp,
                    newdata = newdf,
                    source.sample = df$z)
 head(preds)
-#> [1] -2.8074944  0.5236986  5.8073131 -1.5503667  1.4414216 -2.4308861
+#> [1] -2.80749441  0.52369862  5.79605734 -1.55036673  0.01254699  1.55753697
 ```
 The argument `source.sample` should be a vector that denotes the original treatment group of the samples. This allows the function to use the appropriate dual potentials to calculate the expected outcome.
 
@@ -216,20 +222,20 @@ tau_hat_bp <- estimate_effect(causalWeights = weights,
                            line_search_fn = "strong_wolfe"
                            )
 print(tau_hat_bp@estimate)
-#> [1] -0.1793609
+#> [1] -0.02549428
 ```
 This method currently doesn't have a variance estimator accounting for the weight uncertainty but we can use the asymptotic variance estimator of Hahn (1998):
 
 ```r
 vcov(tau_hat_bp)
 #>             estimate
-#> estimate 0.008673172
+#> estimate 0.008051722
 vcov(tau_hat_wols)
 #>            estimate
-#> estimate 0.04267304
+#> estimate 0.01705504
 vcov(tau_hat)
-#>           estimate
-#> estimate 0.3981353
+#>          estimate
+#> estimate 0.272946
 ```
 
 #### Note
@@ -240,7 +246,7 @@ estimate_effect(causalWeights = weights,
                            x = x_new,
                            y = y)
 ```
-Note this data must have the same order as the previous data and must also be an object of class `matrix`.
+Note this data must have the same observation order as the previous data and must also be an object of class `matrix`.
   
 ## Diagnostics
 Diagnostics are also an important part of deciding whether the weights perform well. There are several areas that we will explore:
@@ -254,15 +260,14 @@ Typically, estimated samples sizes with weights are calculated as $\sum_i 1/w_i^
 
 ```r
 ESS(weights)
-#>  Control  Treated 
-#> 28.97985 84.32589
+#>   Control   Treated 
+#> 116.66625  84.32589
 ```
 
 Of course, this measure has problems because it can fail to diagnose problems with variable weights. In response, [Vehtari et al.](https://arxiv.org/abs/1507.02646) use Pareto smoothed importance sampling. We offer some shell code to adapt the class `causalWeights` to the `loo` package:
 
 ```r
 raw_psis <- PSIS(weights)
-#> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 ```
 This will also return the Pareto smoothed weights and log weights.
 
@@ -272,10 +277,10 @@ If we want to easily examine the PSIS diagnostics, we can pull those out too
 PSIS_diag(raw_psis)
 #> $w0
 #> $w0$pareto_k
-#> [1] 0.7598376
+#> [1] -0.2320877
 #> 
 #> $w0$n_eff
-#> [1] 27.49105
+#> [1] 115.7568
 #> 
 #> 
 #> $w1
@@ -293,23 +298,21 @@ $$ \frac{|\overline{X}_c - \overline{X}_t| }{\sigma_{\text{pool}}},$$ where
 $\overline{X}_c$ is the mean in the controls, $\overline{X}_t$ is the mean in the treated, and $\sigma_{\text{pool}}$ is the pooled standard deviation.
 We offer such checks in `causalOT` as well.
 
-First, we consider pre-weighting mean balance
+First, we consider pre-weighting mean balance between treatment groups
 
 ```r
 mean_balance(x = hainmueller)
 #>        X1        X2        X3        X4        X5        X6 
 #> 1.0889178 0.9320099 0.9322327 0.3741322 0.2798986 0.2644929
 ```
-and after weighting mean balance
+and after weighting mean balance between treatment groups
 
 ```r
 mean_balance(x = hainmueller, weights = weights)
 #>          X1          X2          X3          X4          X5          X6 
-#> 0.024558231 0.028086483 0.032456111 0.011734582 0.006399137 0.012215878
+#> 0.036900048 0.006577199 0.003137536 0.003228830 0.002445118 0.060551316
 ```
-Pretty good!
-
-However, mean balance doesn't ensure distributional balance.
+Pretty good! However, mean balance doesn't ensure distributional balance.
 
 #### 3. Distributional balance
 Ultimately, distributional balance is what we care about in causal inference. Fortunately, we can also measure that too. We consider the 2-Sinkhorn divergence of [Genevay et al.](http://proceedings.mlr.press/v84/genevay18a/genevay18a.pdf) since it metrizes the convergence in distribution.
@@ -336,7 +339,7 @@ But after weighting, it looks much better!
 ot_distance(x1 = hainmueller$get_x0(), x2 = hainmueller$get_x(),
               a = weights@w0, b = rep(1/512,512),
               p = 2, penalty = 1e3, debias = TRUE)
-#> [1] 0.00187791
+#> [1] 0.003670398
 # treated
 ot_distance(x1 = hainmueller$get_x1(), x2 = hainmueller$get_x(),
               a = weights@w1, b = rep(1/512,512),
@@ -354,7 +357,7 @@ ot_distance(x1 = weights, p = 2, penalty = 1e3, debias = TRUE)
 #> 
 #> $post
 #>     control     treated 
-#> 0.001877910 0.002123788
+#> 0.003670398 0.002123788
 ```
 and the S4 deployment takes care of the rest.
 
@@ -363,7 +366,6 @@ Finally, we can construct a summary of the optimal transport distances, Pareto k
 
 ```r
 summarized_cw <- summary(weights, penalty = 1000)
-#> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 ```
 We can then print the object to the screen:
 
@@ -371,11 +373,11 @@ We can then print the object to the screen:
 summarized_cw
 #> Diagnostics for causalWeights for estimand ATE
 #> Control group
-#>                                pre        post
-#> OT distance              0.5311378  0.00187791
-#> Pareto k                        NA  0.75983757
-#> N eff                  247.0000000 27.49105164
-#> Avg. std. mean balance   0.3067516  0.01676450
+#>                                pre          post
+#> OT distance              0.5311378   0.003670398
+#> Pareto k                        NA  -0.232087710
+#> N eff                  247.0000000 115.756836449
+#> Avg. std. mean balance   0.3067516   0.017646355
 #> 
 #> Treated group
 #>                                pre         post
@@ -389,12 +391,9 @@ or we can make some diagnostic plots too!
 ```r
 plot(summarized_cw)
 #> Plotting diagnostics for causalWeights for estimand ATE
-#> Error in `ggplot2::geom_line()` at ]8;line = 170:col = 4;file:///Users/eifer/GoogleDrive/Research/Jose Zubizarreta Research/causalOT/R/summary.RcausalOT/R/summary.R:170:4]8;;:
-#> ! Problem while computing aesthetics.
-#> ℹ Error occurred in the 1st layer.
-#> Caused by error:
-#> ! Can't subset `.data` outside of a data mask context.
 ```
+
+![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-1.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-2.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-3.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-4.png)
 
 ## Other methods
 The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancing weights (SBW), entropy balancing weights (EntropyBW), and the synthetic control method (SCM).
