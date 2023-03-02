@@ -1673,7 +1673,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
 #' @export
 #'
 #' @examples
-#' if (torch::is_installed_torch()) {
+#' if (torch::torch_is_installed()) {
 #' # setup measures
 #' x <- matrix(1, 100, 10)
 #' m1 <- Measure(x = x)

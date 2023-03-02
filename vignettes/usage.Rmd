@@ -39,7 +39,7 @@ y <- hainmueller$get_y()
 # NOT RUN
 # weights <- calc_weight(x = x, z = z, y = y)
 ```
-Note that the calc_weight function will not use the outcome data `y` when calculating the weights but will pass it to the internal data constructor.
+Note that the calc_weight function will not use the outcome data `y` when calculating the weights and will **not** pass it to the internal data constructor. It must be passed to the `estimate_effect` function later.
 
 However, sometimes we get data as a `data.frame` and users may not know how to turn these into the required objects. In this case, we've supplied the `df2dataHolder` function to create the required data object like so:
 
@@ -85,7 +85,7 @@ We can then estimate effects with
 tau_hat <- estimate_effect(causalWeights = weights,
                            y = y)
 ```
-The estimator generated here is a simple weighted difference in observed outcomes between treatment groups. Moreover, note we must supply the outcome information in argumnet `y` since we didn't provide it in the `calc_weight` function.
+The estimator generated here is a simple weighted difference in observed outcomes between treatment groups. Moreover, note we must supply the outcome information in argumnet `y` since the `calc_weight` function does not store it when we pass data matrices.
 
 The output of the `estimate_effect` function creates an object of class `causalEffect` which can be fed into the native `R` function `confint` to calculate asymptotic confidence intervals,
 
