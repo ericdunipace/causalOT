@@ -593,9 +593,9 @@ Measure <- function(x,
 oop_loss_select <- function(ot) {
   lambda <- ot$penalty
   if (is.finite(lambda)) {
-    return(sinkhorn_dist(ot)$to(device = self$device))
+    return(sinkhorn_dist(ot))
   } else if ( is.infinite(lambda) ) {
-    return(inf_sinkhorn_dist(ot)$to(device = self$device))
+    return(inf_sinkhorn_dist(ot))
   }
 }
 
@@ -755,7 +755,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
  ),
  active = list(
    dist = function() {
-     return(eval(self$loss))
+     return(eval(self$loss)$to(device = self$device))
    }
  ),
  private = {list(
