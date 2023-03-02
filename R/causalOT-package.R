@@ -42,7 +42,7 @@ NULL
 #'   \item sitecode. Which site is the individual from? (1 = Cairo, Egypt,  2 = Turkey,        3 = Hocmon, Vietnam,  4 = Cuchi, Vietnam, and 5 Burkina Faso).
 #' }
 #' 
-#' @seealso Data from the following Harvard Dataverse: 
+#' @source Data from the following Harvard Dataverse: 
 #' \itemize{
 #' \item Winikoff, Beverly, 2019, "Two randomized controlled trials of misoprostol for the treatment of postpartum hemorrhage", https://doi.org/10.7910/DVN/ETHH4N, Harvard Dataverse, V1. 
 #' }

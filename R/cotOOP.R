@@ -1,20 +1,39 @@
 # COT general form using object oriented code and R6 classes
 
-Measure_ <- R6::R6Class("Measure",
+#' @keywords internal
+Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
  public = list(
    # data
+   
+   #' @field balance_functions the functions of the data that 
+   #' we want to adjust towards the targets
    balance_functions = "torch_tensor",
+   
+   #' @field balance_target the values the balance_functions are targeting
    balance_target = "vector",
    
    # values
+   #' @field adapt What aspect of the data will be adapted. One of "none","weights", or "x".
    adapt  = "character",
+   
+   #' @field device the [torch::torch_device()] of the data.
    device = "torch_device",
+   
+   #' @field dtype the [torch::torch_dtype] of the data.
    dtype  = "torch_dtype",
+   
+   #' @field n the rows of the covariates, x.
    n      = "integer",
+   
+   #' @field d the columns of the covariates, x.
    d      = "integer",
+   
+   #' @field probability_measure is the measure a probability measure?
    probability_measure = "logical",
    
    # functions
+   #' @description 
+   #' generates a deep clone of the object without gradients.
    detach = function() { #removes gradient calculation in copy
      orig_adapt <- self$adapt
      
@@ -38,10 +57,22 @@ Measure_ <- R6::R6Class("Measure",
      }
      return(temp_obj)
    },
+   
+   #' @description 
+   #' pulls out the weights parameters.
    extract_mass = function() {
      private$mass_
    },
    
+   #' @description Constructor function
+   #' @param x The data points
+   #' @param weights The empirical measure. If NULL, assigns equal weight to each observation
+   #' @param probability.measure Is the empirical measure a probability measure? Default is TRUE.
+   #' @param adapt Should we try to adapt the data ("x"), the weights ("weights"), or neither ("none"). Default is "none".
+   #' @param balance.functions A matrix of functions of the covariates to target for mean balance. If NULL and `target.values` are provided, will use the data in `x`.
+   #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
+   #' @param dtype The torch_tensor dtype or NULL.
+   #' @param device The device to have the data on. Should be result of [torch_device()](torch::torch_device) or NULL.
    initialize = function(x, weights = NULL, 
                          probability.measure = TRUE, 
                          adapt = c("none","weights", "x"), 
@@ -152,6 +183,7 @@ Measure_ <- R6::R6Class("Measure",
          # torch::autograd_set_grad_mode(enabled = FALSE)
          torch::with_no_grad({
          private$mass_$copy_(private$inv_transform_(value)$to(device = self$device))
+         if(! torch::is_undefined_tensor(private$mass_$grad) ) private$mass_$grad$copy_(0.0)
          })
          # torch::autograd_set_grad_mode(enabled = TRUE)
        }
@@ -203,6 +235,18 @@ Measure_ <- R6::R6Class("Measure",
    } 
  ),
  active = list(
+   #' @field grad gets or sets gradient
+   #' @examples
+   #' m <- Measure(matrix(0, 10, 2), adapt = "none")
+   #' m$grad # NULL
+   #' m <- Measure(matrix(0, 10, 2), adapt = "weights")
+   #' loss <- sum(m$weights * 1:10)
+   #' loss$backward()
+   #' m$grad
+   #' # note the weights gradient is on the log softmax scale
+   #' #and the first parameter is fixed for identifiability
+   #' m$grad <- rep(1,9)  
+   #' m$grad
    grad = function(value) {
      
      # return grad values as appropriate
@@ -243,12 +287,25 @@ Measure_ <- R6::R6Class("Measure",
      }
      })
    },
+   
+   #' @field init_weights returns the initial value of the weights
    init_weights = function() {
      return(private$init_weights_)
    },
+   
+   #' @field init_data returns the initial value of the data
    init_data = function() {
      return(private$init_data_)
    },
+   
+   #' @field requires_grad checks or turns on/off gradient
+   #' @examples 
+   #' m <- Measure(x = matrix(0, 10, 2), adapt = "weights")
+   #' m$requires_grad # TRUE
+   #' m$requires_grad <- "none" # turns off
+   #' m$requires_grad # FALSE
+   #' m$requires_grad <- "x"
+   #' m$requires_grad # TRUE
    requires_grad = function(value) {
      if (missing(value)) {
        rg <- switch(self$adapt,
@@ -256,7 +313,7 @@ Measure_ <- R6::R6Class("Measure",
               TRUE)
        return(rg)
      }
-     value <- match.args(value, c("none","weights","x"))
+     value <- match.arg(value, c("none","weights","x"))
      if (value == "none") {
        if(self$adapt == "weights") {
          private$mass_$requires_grad <- FALSE
@@ -321,6 +378,13 @@ Measure_ <- R6::R6Class("Measure",
        self$adapt <- "weights"
      }
    },
+   
+   #' @field weights gets or sets weights
+   #' @examples 
+   #' m <- Measure(matrix(0, 10, 2), adapt = "none")
+   #' m$weights
+   #' m$weights <- 1:10/sum(1:10)
+   #' m$weights
    weights = function(value) {
      if(missing(value)) {
        return(private$get_mass_())
@@ -347,6 +411,13 @@ Measure_ <- R6::R6Class("Measure",
      private$assign_mass_(value)
      
    },
+   
+   #' @field x Gets or sets the data
+   #' @examples
+   #' m <- Measure(matrix(0, 10, 2), adapt = "none")
+   #' m$x
+   #' m$x <- matrix(1,10,2) # must have same dimensions
+   #' m$x
    x = function(value) {
      
      # return data tensor if no value provided
@@ -415,11 +486,10 @@ Measure_ <- R6::R6Class("Measure",
    transform_ = "function" # needs log_softmax
    
  )
- 
-                        
-                        )
+)
 
-#' Set-up a measure
+#' @name Measure
+#' @title An R6 Class for setting up measures
 #'
 #' @param x The data points
 #' @param weights The empirical measure. If NULL, assigns equal weight to each observation
@@ -427,28 +497,123 @@ Measure_ <- R6::R6Class("Measure",
 #' @param adapt Should we try to adapt the data ("x"), the weights ("weights"), or neither ("none"). Default is "none".
 #' @param balance.functions A matrix of functions of the covariates to target for mean balance. If NULL and `target.values` are provided, will use the data in `x`.
 #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
-#' @param dtype The torch_tensor dtype.
-#' @param device The device to have the data on. Should be result of [torch_device()](torch::torch_device)
-#'
-#' @return An R6 object of class "Measure"
+#' @param dtype The torch_tensor dtype or NULL.
+#' @param device The device to have the data on. Should be result of [torch_device()](torch::torch_device) or NULL.
+#' @return Returns a Measure object
+#' 
+#' @details # Public fields
+#'   \if{html}{\out{<div class="r6-fields">}}
+#'   \describe{
+#'     \item{\code{balance_functions}}{the functions of the data that
+#'       we want to adjust towards the targets}
+#'     \item{\code{balance_target}}{the values the balance_functions are targeting}
+#'     \item{\code{adapt}}{What aspect of the data will be adapted. One of "none","weights", or "x".}
+#'     \item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
+#'     \item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
+#'     \item{\code{n}}{the rows of the covariates, x.}
+#'     \item{\code{d}}{the columns of the covariates, x.}
+#'     \item{\code{probability_measure}}{is the measure a probability measure?}
+#'   }
+#'   \if{html}{\out{</div>}}
+#' @details # Active bindings
+#'   \if{html}{\out{<div class="r6-active-bindings">}}
+#'   \describe{
+#'     \item{\code{grad}}{gets or sets gradient}
+#'     \item{\code{init_weights}}{returns the initial value of the weights}
+#'     \item{\code{init_data}}{returns the initial value of the data}
+#'     \item{\code{requires_grad}}{checks or turns on/off gradient}
+#'     \item{\code{weights}}{gets or sets weights}
+#'     \item{\code{x}}{Gets or sets the data}
+#'   }
+#'   \if{html}{\out{</div>}}
+#' @details # Methods
+#' \subsection{Public methods}{
+#' \itemize{
+#' \item \href{#method-Measure-detach}{\code{Measure$detach()}}
+#' \item \href{#method-Measure-extract_mass}{\code{Measure$extract_mass()}}
+#' \item \href{#method-Measure-clone}{\code{Measure$clone()}}
+#' }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-Measure-detach"></a>}}
+#' \if{latex}{\out{\hypertarget{method-Measure-detach}{}}}
+#' \subsection{Method \code{detach()}}{
+#' generates a deep clone of the object without gradients.
+#' \subsection{Usage}{
+#' \if{html}{\out{<div class="r">}}\preformatted{Measure$detach()}\if{html}{\out{</div>}}
+#' }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-Measure-extract_mass"></a>}}
+#' \if{latex}{\out{\hypertarget{method-Measure-extract_mass}{}}}
+#' \subsection{Method \code{extract_mass()}}{
+#' pulls out the weights parameters.
+#' \subsection{Usage}{
+#' \if{html}{\out{<div class="r">}}\preformatted{Measure$extract_mass()}\if{html}{\out{</div>}}
+#' }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-Measure-clone"></a>}}
+#' \if{latex}{\out{\hypertarget{method-Measure-clone}{}}}
+#' \subsection{Method \code{clone()}}{
+#' The objects of this class are cloneable with this method.
+#' \subsection{Usage}{
+#' \if{html}{\out{<div class="r">}}\preformatted{Measure$clone(deep = FALSE)}\if{html}{\out{</div>}}
+#' }
+#' \subsection{Arguments}{
+#' \if{html}{\out{<div class="arguments">}}
+#' \describe{
+#'   \item{\code{deep}}{Whether to make a deep clone.}
+#' }
+#' \if{html}{\out{</div>}}
+#' }
+#' }
+#' @examples 
+#' if(torch::torch_is_installed()) {
+#' m <- Measure(x = matrix(0, 10, 2), adapt = "none")
+#' m$x
+#' m$x <- matrix(1,10,2) # must have same dimensions
+#' m$x
+#' m$weights
+#' m$weights <- 1:10/sum(1:10)
+#' m$weights
+#' 
+#' # with gradients
+#' m <- Measure(x = matrix(0, 10, 2), adapt = "weights")
+#' m$requires_grad # TRUE
+#' m$requires_grad <- "none" # turns off
+#' m$requires_grad # FALSE
+#' m$requires_grad <- "x"
+#' m$requires_grad # TRUE
+#' m <- Measure(matrix(0, 10, 2), adapt = "none")
+#' m$grad # NULL
+#' m <- Measure(matrix(0, 10, 2), adapt = "weights")
+#' loss <- sum(m$weights * 1:10)
+#' loss$backward()
+#' m$grad
+#' # note the weights gradient is on the log softmax scale
+#' #and the first parameter is fixed for identifiability
+#' m$grad <- rep(1,9)  
+#' m$grad
+#' }
 #' @export
-#'
-#' @examples
-#' x <- matrix(0, 100, 10)
-#' m <- Measure(x = x)
-Measure <- function(x, weights = NULL, 
+Measure <- function(x, 
+                    weights = NULL, 
                     probability.measure = TRUE, 
                     adapt = c("none","weights", "x"), 
                     balance.functions = NA_real_,
                     target.values = NA_real_,
-                    dtype = NULL, device = NULL) {
+                    dtype = NULL, 
+                    device = NULL) {
   
-  return(Measure_$new(x = x, weights = weights,
+  return(Measure_$new(x = x, 
+                      weights = weights,
                       probability.measure = probability.measure,
                       adapt = adapt,
                       balance.functions = balance.functions,
                       target.values = target.values,
-                      dtype = dtype, device = device))
+                      dtype = dtype, 
+                      device = device))
   
 }
 
@@ -620,7 +785,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      return(eval(self$loss))
    }
  ),
- private = list(
+ private = {list(
    # objects
    args_set = "logical",
    final_loss = "list",
@@ -1521,7 +1686,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        torch::with_no_grad( p$grad$copy_(0.0) )
      }
    }
- )
+ )}
                            
 )
 
@@ -1535,12 +1700,24 @@ OTProblem_ <- R6::R6Class("OTProblem",
 #' @export
 #'
 #' @examples
-#' x <- matrix(0, 100, 10)
+#' # setup measures
+#' x <- matrix(1, 100, 10)
 #' m1 <- Measure(x = x)
 #' 
-#' y <- matrix(0, 100, 10)
-#' m2 <- Measure(x = y)
-#' ot <- OTProblem(m1, m2)
+#' y <- matrix(2, 100, 10)
+#' m2 <- Measure(x = y, adapt = "weights")
+#'
+#' z <- matrix(3,102, 10)
+#' m3 <- Measure(x = z)
+#'
+#' # setup OT problems
+#' ot1 <- OTProblem(m1, m2)
+#' ot2 <- OTProblem(m3, m2)
+#' ot_master <- 0.5 * ot1 + 0.5 * ot2
+#' 
+#' # solve for weights
+#' ot_master$setup_arguments(lambda = 100)
+#' ot_master$solve(niter = 1, torch_optim = torch::optim_rmsprop)
 OTProblem <- function(measure_1, measure_2,...) {
   
   OTProblem_$new(measure_1 = measure_1, 

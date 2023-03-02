@@ -25,5 +25,11 @@ m1 <- Measure(x = x)
 
 y <- matrix(0, 100, 10)
 m2 <- Measure(x = y)
-ot <- OTProblem(m1, m2)
+
+z <- matrix(0,102, 10)
+m3 <- Measure(x = z)
+
+ot1 <- OTProblem(m1, m2)
+ot2 <- OTProblem(m3, m2)
+ot_master <- 0.5 * ot1 + 0.5 * ot2
 }

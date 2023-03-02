@@ -199,7 +199,7 @@ head(preds)
 ```
 The argument `source.sample` should be a vector that denotes the original treatment group of the samples. This allows the function to use the appropriate dual potentials to calculate the expected outcome.
 
-In the context of the estimate_effect function, we need to supply some extra arguments in `...`.
+In the context of the estimate_effect function, we need to supply some extra arguments in the `...` argument.
 
 
 ```r
