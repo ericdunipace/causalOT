@@ -19,7 +19,7 @@ testthat::test_that("measure forms", {
   testthat::expect_equal(as_matrix(m$x), as_matrix(mc$x))
   testthat::expect_equal(as_matrix(m$weights), as_matrix(mc$weights))
   
-  m_w <- Measure(x = x, adapt = "weights")
+  m_w <- Measure(x = x, adapt = "weights", dtype = torch::torch_double())
   testthat::expect_true(isTRUE(as.logical(m_w$weights$requires_grad)))
   testthat::expect_true( is.na(m_w$balance_functions) )
   testthat::expect_true( is.na(m_w$balance_target) )
@@ -36,8 +36,8 @@ testthat::test_that("measure forms", {
   mcw <- m_w$clone(deep = TRUE)
   testthat::expect_true(rlang::obj_address(mcw) != rlang::obj_address(m_w))
   testthat::expect_true(rlang::obj_address(m_w$x) != rlang::obj_address(mcw$x))
-  testthat::expect_equal(as.matrix(m_w$x), as.matrix(mcw$x))
-  testthat::expect_equal(as.matrix(m_w$weights), as.matrix(mcw$weights))
+  testthat::expect_equal(as_matrix(m_w$x), as_matrix(mcw$x))
+  testthat::expect_equal(as_matrix(m_w$weights), as_matrix(mcw$weights))
   testthat::expect_true(m_w$requires_grad)
   testthat::expect_true(mcw$requires_grad)
   

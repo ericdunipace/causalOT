@@ -593,9 +593,9 @@ Measure <- function(x,
 oop_loss_select <- function(ot) {
   lambda <- ot$penalty
   if (is.finite(lambda)) {
-    return(sinkhorn_dist(ot))
+    return(sinkhorn_dist(ot)$to(device = self$device))
   } else if ( is.infinite(lambda) ) {
-    return(inf_sinkhorn_dist(ot))
+    return(inf_sinkhorn_dist(ot)$to(device = self$device))
   }
 }
 
