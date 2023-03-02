@@ -393,7 +393,7 @@ plot(summarized_cw)
 #> Plotting diagnostics for causalWeights for estimand ATE
 ```
 
-![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-1.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-2.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-3.png)![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-4.png)
+![plot of chunk cw-sum](usage-cw-sum-1.png)![plot of chunk cw-sum](usage-cw-sum-2.png)![plot of chunk cw-sum](usage-cw-sum-3.png)![plot of chunk cw-sum](usage-cw-sum-4.png)
 
 ## Other methods
 The calc weight function can also handle other methods. We have implemented methods for logistic or probit regression, the covariate balancing propensity score (CBPS), stable balancing weights (SBW), entropy balancing weights (EntropyBW), and the synthetic control method (SCM).

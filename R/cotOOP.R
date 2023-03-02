@@ -1,5 +1,6 @@
 # COT general form using object oriented code and R6 classes
 
+#' @name Measure_
 #' @keywords internal
 Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
  public = list(
@@ -236,17 +237,6 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
  ),
  active = list(
    #' @field grad gets or sets gradient
-   #' @examples
-   #' m <- Measure(matrix(0, 10, 2), adapt = "none")
-   #' m$grad # NULL
-   #' m <- Measure(matrix(0, 10, 2), adapt = "weights")
-   #' loss <- sum(m$weights * 1:10)
-   #' loss$backward()
-   #' m$grad
-   #' # note the weights gradient is on the log softmax scale
-   #' #and the first parameter is fixed for identifiability
-   #' m$grad <- rep(1,9)  
-   #' m$grad
    grad = function(value) {
      
      # return grad values as appropriate
@@ -299,13 +289,6 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    },
    
    #' @field requires_grad checks or turns on/off gradient
-   #' @examples 
-   #' m <- Measure(x = matrix(0, 10, 2), adapt = "weights")
-   #' m$requires_grad # TRUE
-   #' m$requires_grad <- "none" # turns off
-   #' m$requires_grad # FALSE
-   #' m$requires_grad <- "x"
-   #' m$requires_grad # TRUE
    requires_grad = function(value) {
      if (missing(value)) {
        rg <- switch(self$adapt,
@@ -380,11 +363,6 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    },
    
    #' @field weights gets or sets weights
-   #' @examples 
-   #' m <- Measure(matrix(0, 10, 2), adapt = "none")
-   #' m$weights
-   #' m$weights <- 1:10/sum(1:10)
-   #' m$weights
    weights = function(value) {
      if(missing(value)) {
        return(private$get_mass_())
@@ -413,11 +391,6 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    },
    
    #' @field x Gets or sets the data
-   #' @examples
-   #' m <- Measure(matrix(0, 10, 2), adapt = "none")
-   #' m$x
-   #' m$x <- matrix(1,10,2) # must have same dimensions
-   #' m$x
    x = function(value) {
      
      # return data tensor if no value provided
@@ -1700,6 +1673,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
 #' @export
 #'
 #' @examples
+#' if (torch::is_installed_torch()) {
 #' # setup measures
 #' x <- matrix(1, 100, 10)
 #' m1 <- Measure(x = x)
@@ -1718,6 +1692,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
 #' # solve for weights
 #' ot_master$setup_arguments(lambda = 100)
 #' ot_master$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+#' }
 OTProblem <- function(measure_1, measure_2,...) {
   
   OTProblem_$new(measure_1 = measure_1, 

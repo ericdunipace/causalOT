@@ -314,7 +314,7 @@ We can then print the object to the screen:
 summarized_cw
 ```
 or we can make some diagnostic plots too!
-```{r}
+```{r cw-sum, fig.path = "usage-"}
 plot(summarized_cw)
 ```
 

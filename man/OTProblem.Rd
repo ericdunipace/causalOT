@@ -20,16 +20,24 @@ An R6 object of class "OTProblem"
 Object Oriented OT Problem
 }
 \examples{
-x <- matrix(0, 100, 10)
+if (torch::is_installed_torch()) {
+# setup measures
+x <- matrix(1, 100, 10)
 m1 <- Measure(x = x)
 
-y <- matrix(0, 100, 10)
-m2 <- Measure(x = y)
+y <- matrix(2, 100, 10)
+m2 <- Measure(x = y, adapt = "weights")
 
-z <- matrix(0,102, 10)
+z <- matrix(3,102, 10)
 m3 <- Measure(x = z)
 
+# setup OT problems
 ot1 <- OTProblem(m1, m2)
 ot2 <- OTProblem(m3, m2)
 ot_master <- 0.5 * ot1 + 0.5 * ot2
+
+# solve for weights
+ot_master$setup_arguments(lambda = 100)
+ot_master$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+}
 }
