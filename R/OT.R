@@ -822,11 +822,14 @@ energy_dist <- function(OT) {
 
 energy_dist_online <- torch::autograd_function(
   forward = function(ctx, x, y, a, b, formula) {
-    x <- as.matrix(x)
-    y <- as.matrix(y)
+    xmat <- as_matrix(x)
+    ymat <- as_matrix(y)
     d <- ncol(x)
-    a <- as.numeric(a)
-    b <- as.numeric(b)
+    a_vec <- as_numeric(a)
+    b_vec <- as_numeric(b)
+    
+    device <- get_device(x,y,a,b)
+    dtype <- get_dtype(x,y,a,b)
     
     use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
     # rkeops::compile4float64()
@@ -843,21 +846,23 @@ energy_dist_online <- torch::autograd_function(
         paste0("Y = Vj(",d,")"),
         "B = Vj(1)")
     )
-    a_cross_deriv <- sumred(list(x,y, b))
+    a_cross_deriv <- sumred(list(xmat,ymat, b_vec))
     # b_cross_deriv <- sumred(list(y,x, a))
-    a_self_deriv <- sumred(list(x,x, a))
-    b_self_deriv <- sumred(list(y,y, b))
+    a_self_deriv <- sumred(list(xmat,xmat, a_vec))
+    b_self_deriv <- sumred(list(ymat,ymat, b_vec))
     loss <- sum(a * a_cross_deriv) - 
       0.5 * sum(a * a_self_deriv) -
       0.5 * sum(b * b_self_deriv)
     
     ctx$save_for_backward(a_deriv = c(a_cross_deriv - a_self_deriv),
                           b_deriv = c(b_self_deriv),
-                          a = a,
-                          x = x,
-                          b = b,
-                          y = y,
-                          forward_op = sumred)
+                          a = a_vec,
+                          x = xmat,
+                          b = b_vec,
+                          y = ymat,
+                          forward_op = sumred,
+                          dtype = dtype,
+                          device = device)
     return(loss)
   },
   backward = function(ctx, grad_output) {
@@ -868,22 +873,19 @@ energy_dist_online <- torch::autograd_function(
     sv    <- ctx$saved_variables
     
     if (ctx$needs_input_grad$a) {
-      grads$a <- grad_output * sv$a_deriv
+      grads$a <- torch::torch_tensor(grad_output * sv$a_deriv,
+      device = sv$device$a,
+      dtype = sv$dtype$a)
     }
     
     if (ctx$needs_input_grad$b) {
-      grads$b <- grad_output * (sv$sumred(list(sv$y,sv$x, sv$a)) - sv$b_deriv)
+      grads$b <- torch::torch_tensor(grad_output * 
+                          c(sv$sumred(list(sv$y,sv$x, sv$a)) - sv$b_deriv),
+                                     device = sv$device$b,
+                                     dtype = sv$dtype$b)
     }
     
     if (ctx$needs_input_grad$x) {
-      use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
-      
-      if (use_cuda) {
-        rkeops::compile4gpu()
-        rkeops::use_gpu()
-      } else {
-        rkeops::compile4float64()
-      }
       
       cost_grad_xy <- rkeops::keops_grad(op = sv$forward_op,
                                            var = "X")
@@ -895,20 +897,15 @@ energy_dist_online <- torch::autograd_function(
       cost_grad_xx <- rkeops::keops_grad(op = sv$forward_op,
                                          var = "X")
       
-      grads$x <- c(grads$x - cost_grad_xx(list(X = sv$x,
+      grads$x <- torch::torch_tensor(c(grads$x - cost_grad_xx(list(X = sv$x,
                                              Y = sv$x,
                                              B = sv$a,
-                                             eta = matrix(sv$a))))
+                                             eta = matrix(sv$a)))),
+      device = sv$device$x,
+      dtype = sv$dtype$x)
     }
     if (ctx$needs_input_grad$y) {
-      use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
       
-      if (use_cuda) {
-        rkeops::compile4gpu()
-        rkeops::use_gpu()
-      } else {
-        rkeops::compile4float64()
-      }
       cost_grad <- rkeops::keops_grad(op = sv$forward_op,
                                       var = "X")
       grads$y <- grad_output * cost_grad(list(X = sv$y,
@@ -917,10 +914,12 @@ energy_dist_online <- torch::autograd_function(
                                               eta = matrix(sv$b)))
       cost_grad_yy <- rkeops::keops_grad(op = sv$forward_op,
                                       var = "X")
-      grads$y <- c(grads$y - cost_grad_yy(list(X = sv$y,
+      grads$y <- torch::torch_tensor(c(grads$y - cost_grad_yy(list(X = sv$y,
                                                    Y = sv$y,
                                                    B = sv$b,
-                                                   eta = matrix(sv$b))))
+                                                   eta = matrix(sv$b)))),
+      device = sv$device$y,
+      dtype = sv$dtype$y)
     }
     return(grads)
   }
@@ -983,11 +982,11 @@ inf_sinkhorn_online <- torch::autograd_function(
         "B = Vj(1)")
     )
     a_deriv <- sumred(list(x,y, b))
-    b_deriv <- sumred(list(y,x, a))
+    # b_deriv <- sumred(list(y,x, a))
     loss <- sum(a * a_deriv)
     
     ctx$save_for_backward(a_deriv = c(a_deriv),
-                          b_deriv = c(b_deriv),
+                          # b_deriv = c(b_deriv),
                           a = a,
                           b = b,
                           x = x,
@@ -1013,7 +1012,9 @@ inf_sinkhorn_online <- torch::autograd_function(
     }
     if (ctx$needs_input_grad$b) {
       grads$b <- grad_output * 
-        torch::torch_tensor(saved_var$b_deriv, 
+        torch::torch_tensor(saved_var$forwar_op(list(saved_var$y,
+                                                     saved_var$x, 
+                                                     saved_var$a)), 
                             dtype = saved_var$dtype$b,
                             device = saved_var$device$b)
     }
