@@ -825,8 +825,8 @@ energy_dist_online <- torch::autograd_function(
     a_vec <- as_numeric(a)
     b_vec <- as_numeric(b)
     
-    device <- get_device(x,y,a,b)
-    dtype <- get_dtype(x,y,a,b)
+    device <- get_device(x = x, y = y, a = a, b = b)
+    dtype <- get_dtype(x = x, y = y, a = a, b = b)
     
     use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
     # rkeops::compile4float64()
@@ -949,8 +949,8 @@ inf_sinkhorn_dist <- function(OT) {
 inf_sinkhorn_online <- torch::autograd_function(
   forward = function(ctx, x, y, a, b, formula) {
     
-    device <- get_device(x,y,a,b)
-    dtype <- get_dtype(x,y,a,b)
+    device <- get_device(x = x, y = y, a = a, b = b)
+    dtype <- get_dtype(x = x, y = y, a = a, b = b)
     
     x_mat <- as_matrix(x)
     y_mat <- as_matrix(y)
