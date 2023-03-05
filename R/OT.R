@@ -935,11 +935,11 @@ inf_sinkhorn_dist <- function(OT) {
       a$dot(OT$C_xy$data$matmul(b))
     }
   } else {
-    loss <- inf_sinkhorn_online(OT$C_xy$data$x,
-                               OT$C_xy$data$y,
-                               OT$a,
-                               OT$b,
-                               OT$C_xy$fun)
+    loss <- inf_sinkhorn_online(x = OT$C_xy$data$x,
+                                y = OT$C_xy$data$y,
+                                a = OT$a,
+                                b = OT$b,
+                                formula = OT$C_xy$fun)
     
   }
   
@@ -952,11 +952,12 @@ inf_sinkhorn_online <- torch::autograd_function(
     device <- get_device(x,y,a,b)
     dtype <- get_dtype(x,y,a,b)
     
-    x <- as_matrix(x)
-    y <- as_matrix(y)
-    d <- ncol(x)
-    a <- as_numeric(a)
-    b <- as_numeric(b)
+    x_mat <- as_matrix(x)
+    y_mat <- as_matrix(y)
+    a_vec <- as_numeric(a)
+    b_vec <- as_numeric(b)
+    
+    d <- ncol(x_mat)
     
     
     use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
@@ -978,16 +979,16 @@ inf_sinkhorn_online <- torch::autograd_function(
         paste0("Y = Vj(",d,")"),
         "B = Vj(1)")
     )
-    a_deriv <- sumred(list(x,y, b))
+    a_deriv <- sumred(list(x_mat,y_mat, b_vec))
     # b_deriv <- sumred(list(y,x, a))
-    loss <- sum(a * a_deriv)
+    loss <- sum(a_vec * a_deriv)
     
     ctx$save_for_backward(a_deriv = c(a_deriv),
                           # b_deriv = c(b_deriv),
-                          a = a,
-                          b = b,
-                          x = x,
-                          y = y,
+                          a = a_vec,
+                          b = b_vec,
+                          x = x_mat,
+                          y = y_mat,
                           forward_op = sumred,
                           device = dtype,
                           dtype = device)
