@@ -161,7 +161,7 @@ testthat::test_that("ent debiased works, online", {
   
   osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
   
-  testthat::expect_true(as.numeric(max(abs(cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target))) < 1.5)
+  testthat::expect_true(as_numeric(max(abs(cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target))) < 1.5)
   
   testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(debias = FALSE,

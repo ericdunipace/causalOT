@@ -821,9 +821,10 @@ energy_dist_online <- torch::autograd_function(
   forward = function(ctx, x, y, a, b, formula) {
     xmat <- as_matrix(x)
     ymat <- as_matrix(y)
-    d <- ncol(x)
     a_vec <- as_numeric(a)
     b_vec <- as_numeric(b)
+    
+    d <- ncol(xmat)
     
     device <- get_device(x = x, y = y, a = a, b = b)
     dtype <- get_dtype(x = x, y = y, a = a, b = b)
@@ -860,7 +861,8 @@ energy_dist_online <- torch::autograd_function(
                           forward_op = sumred,
                           dtype = dtype,
                           device = device)
-    return(loss)
+    return(torch::torch_tensor(loss, dtype = dtype$a,
+                               device = device$a))
   },
   backward = function(ctx, grad_output) {
     grads <- list(x = NULL,
