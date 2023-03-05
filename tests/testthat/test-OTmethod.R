@@ -545,3 +545,40 @@ testthat::test_that("sinkhorn_loop gradient", {
   
 })
 
+testthat::test_that("OT infinite penalty distances online", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed(pkg="rkeops")
+  testthat::skip_on_ci()
+  causalOT:::torch_check()
+  
+  set.seed(1231)
+  n <- 15
+  m <- 13
+  d <- 3
+  penalty <- Inf
+  x <- matrix(stats::rnorm(n*d), n, d)
+  y <- matrix(stats::rnorm(m*d), m, d)
+  a <- rep(1/n, n)
+  b <- rep(1/m, m)
+  
+  # giving masses
+  ot1 <- causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+                           cost = NULL, p = 2, debias = TRUE, tensorized = "online",
+                           diameter=NULL)
+  
+  testthat::expect_silent(loss1 <- causalOT:::energy_dist(ot1))
+  testthat::expect_silent(loss2 <- causalOT:::inf_sinkhorn_dist(ot1))
+  testthat::expect_equal(loss1,loss2)
+  
+  ot2 <- causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+                           cost = NULL, p = 2, debias = FALSE, tensorized = "online",
+                           diameter=NULL)
+  
+  testthat::expect_silent(loss3 <- causalOT:::inf_sinkhorn_dist(ot2))
+  testthat::expect_true(ot2$a$dtype == loss3$dtype)
+  
+  # debugonce(causalOT:::inf_sinkhorn_dist)
+  ot2$a <- torch::torch_tensor(ot2$a, requires_grad = TRUE)
+  loss <- causalOT:::inf_sinkhorn_dist(ot2)
+  testthat::expect_silent(loss$backward())
+})

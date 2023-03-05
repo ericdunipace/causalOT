@@ -990,8 +990,8 @@ inf_sinkhorn_online <- torch::autograd_function(
                           x = x_mat,
                           y = y_mat,
                           forward_op = sumred,
-                          device = dtype,
-                          dtype = device)
+                          device = device,
+                          dtype = dtype)
     return(torch::torch_tensor(loss,
                                dtype = dtype$a,
                                device = device$a))
