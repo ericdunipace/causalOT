@@ -71,7 +71,7 @@ we want to adjust towards the targets}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-Measure-detach}{\code{Measure$detach()}}
-\item \href{#method-Measure-extract_mass}{\code{Measure$extract_mass()}}
+\item \href{#method-Measure-get_weight_parameters}{\code{Measure$get_weight_parameters()}}
 \item \href{#method-Measure-clone}{\code{Measure$clone()}}
 }
 }
@@ -85,12 +85,12 @@ generates a deep clone of the object without gradients.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Measure-extract_mass"></a>}}
-\if{latex}{\out{\hypertarget{method-Measure-extract_mass}{}}}
-\subsection{Method \code{extract_mass()}}{
-pulls out the weights parameters.
+\if{html}{\out{<a id="method-Measure-get_weight_parameters"></a>}}
+\if{latex}{\out{\hypertarget{method-Measure-get_weight_parameters}{}}}
+\subsection{Method \code{get_weight_parameters()}}{
+Makes a copy of the weights parameters.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$extract_mass()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Measure$get_weight_parameters()}\if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -114,6 +114,7 @@ The objects of this class are cloneable with this method.
 \examples{
 if(torch::torch_is_installed()) {
 m <- Measure(x = matrix(0, 10, 2), adapt = "none")
+print(m)
 m$x
 m$x <- matrix(1,10,2) # must have same dimensions
 m$x

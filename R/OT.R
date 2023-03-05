@@ -1,7 +1,4 @@
-# TODO the online version isn't sending gradients back to GPU because of
-# optimizations I've done about keeping data on CPU (since keops needs R data on CPU)
-# OT class
-# TODO softmin_online also needs gradients!!!!
+
 setOldClass("torch_tensor")
 setOldClass(c("OT","R6"))
 OT <- R6::R6Class("OT",

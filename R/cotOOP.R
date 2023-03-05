@@ -1,9 +1,12 @@
 # COT general form using object oriented code and R6 classes
 
 #' @name Measure_
+#' @title An R6 object for measures
+#' @rdname Measure_-class
+#' @description Internal R6 class object for Measure objects
 #' @keywords internal
 Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
- public = list(
+ public = {list(
    # data
    
    #' @field balance_functions the functions of the data that 
@@ -60,9 +63,47 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    },
    
    #' @description 
-   #' pulls out the weights parameters.
-   extract_mass = function() {
-     private$mass_
+   #' Makes a copy of the weights parameters.
+   get_weight_parameters = function() {
+     private$mass_$clone()
+   },
+   
+   #' @description prints the measure object
+   #' @param ... Not used
+   print = function(...) {
+     cat("Measure: ",  rlang::obj_address(self), "\n", sep = "")
+     cat("  x      : a ", self$n, "x", self$d, " matrix \n", sep = "")
+     if(self$d > 5) {
+     cat("           " , paste(round(as_matrix(private$data_[1,1:5]), digits = 2), collapse = ", "), ", \u2026", "\n", sep = "")
+       if(self$n > 1) cat("           " , paste(round(as_matrix(private$data_[2,1:5]), digits = 2), collapse = ", "), ", \u2026", "\n", sep = "")
+       if(self$n > 2) cat("           " , paste(round(as_matrix(private$data_[3,1:5]), digits = 2), collapse = ", "), ", \u2026", "\n", sep = "") 
+       if(self$n > 3) cat("           " , paste(round(as_matrix(private$data_[4,1:5]), digits = 2), collapse = ", "), ", \u2026", "\n", sep = "")   
+       if(self$n > 4) cat("           " , paste(round(as_matrix(private$data_[5,1:5]), digits = 2), collapse = ", "), ", \u2026", "\n", sep = "")   
+     } else {
+     cat("           " , paste(round(as_matrix(private$data_[1,1:5]), digits = 2), collapse = ", "), "\n", sep = "")
+       if(self$n > 1) cat("           " , paste(round(as_matrix(private$data_[2,1:5]), digits = 2), collapse = ", "),  "\n", sep = "")
+       if(self$n > 2) cat("           " , paste(round(as_matrix(private$data_[3,1:5]), digits = 2), collapse = ", "),  "\n", sep = "") 
+       if(self$n > 3) cat("           " , paste(round(as_matrix(private$data_[4,1:5]), digits = 2), collapse = ", "),  "\n", sep = "")   
+       if(self$n > 4) cat("           " , paste(round(as_matrix(private$data_[5,1:5]), digits = 2), collapse = ", "),  "\n", sep = "")  
+     }
+     if(self$n > 5) {
+     cat("           \u22EE \n")
+     # cat("           .\n")
+     # cat("           .\n")
+     }
+     if(self$n > 5) { 
+     cat("  weights: ", paste(round(t(as_numeric(self$weights[1:5])), digits = 2), collapse = ", "), ", \u2026", "\n", sep = "")
+     } else {
+     cat("  weights: ", paste(round(t(as_numeric(self$weights[1:5])), digits = 2), collapse = ", "), "\n", sep = "")
+     }
+     if(all(as_logical(!is.na(self$balance_target)))) {
+     cat("  balance: ", "\n", sep = "")
+     cat("   funct.: ",  paste(round(as_matrix(self$balance_functions[1,1:5]), digits = 2), collapse = ", "), "\n", sep = "")
+     cat("   target: ",  paste(round(t(as_numeric(self$balance_target[1:5])), digits = 2), collapse = ", "), " \u2026", "\n", sep = "")
+     }
+     cat("  adapt  : ", self$adapt, "\n", sep = "")
+     cat("  dtype  : ", capture.output(self$dtype), "\n", sep = "")
+     cat("  device : ", capture.output(self$device), "\n", sep = "")
    },
    
    #' @description Constructor function
@@ -234,8 +275,8 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
      if (torch::cuda_is_available()) torch::cuda_empty_cache()
      return(invisible(self))
    } 
- ),
- active = list(
+ )},
+ active = {list(
    #' @field grad gets or sets gradient
    grad = function(value) {
      
@@ -390,7 +431,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
      
    },
    
-   #' @field x Gets or sets the data
+   #' @field x Gets or sets the data.
    x = function(value) {
      
      # return data tensor if no value provided
@@ -436,9 +477,8 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
      }
      
    }
- ),
- 
- private = list(
+ )},
+ private = {list(
    # values
    data_ = "torch_tensor",
    init_data_ = "torch_tensor",
@@ -458,7 +498,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    inv_transform_ = "function", # needs inv log_softmax for prob measure
    transform_ = "function" # needs log_softmax
    
- )
+ )}
 )
 
 #' @name Measure
@@ -503,7 +543,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
 #' \subsection{Public methods}{
 #' \itemize{
 #' \item \href{#method-Measure-detach}{\code{Measure$detach()}}
-#' \item \href{#method-Measure-extract_mass}{\code{Measure$extract_mass()}}
+#' \item \href{#method-Measure-get_weight_parameters}{\code{Measure$get_weight_parameters()}}
 #' \item \href{#method-Measure-clone}{\code{Measure$clone()}}
 #' }
 #' }
@@ -517,12 +557,12 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
 #' }
 #' }
 #' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-Measure-extract_mass"></a>}}
-#' \if{latex}{\out{\hypertarget{method-Measure-extract_mass}{}}}
-#' \subsection{Method \code{extract_mass()}}{
-#' pulls out the weights parameters.
+#' \if{html}{\out{<a id="method-Measure-get_weight_parameters"></a>}}
+#' \if{latex}{\out{\hypertarget{method-Measure-get_weight_parameters}{}}}
+#' \subsection{Method \code{get_weight_parameters()}}{
+#' Makes a copy of the weights parameters.
 #' \subsection{Usage}{
-#' \if{html}{\out{<div class="r">}}\preformatted{Measure$extract_mass()}\if{html}{\out{</div>}}
+#' \if{html}{\out{<div class="r">}}\preformatted{Measure$get_weight_parameters()}\if{html}{\out{</div>}}
 #' }
 #' }
 #' \if{html}{\out{<hr>}}
@@ -544,6 +584,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
 #' @examples 
 #' if(torch::torch_is_installed()) {
 #' m <- Measure(x = matrix(0, 10, 2), adapt = "none")
+#' print(m)
 #' m$x
 #' m$x <- matrix(1,10,2) # must have same dimensions
 #' m$x
@@ -590,6 +631,13 @@ Measure <- function(x,
   
 }
 
+#' Internal function to select appropriate loss function
+#'
+#' @description Selects sinkhorn or energy distance losses depending on value
+#' of penalty parameter
+#' 
+#' @param ot an OT object
+#' @keywords internal
 oop_loss_select <- function(ot) {
   lambda <- ot$penalty
   if (is.finite(lambda)) {
@@ -599,70 +647,563 @@ oop_loss_select <- function(ot) {
   }
 }
 
+#' @name OTProblem_-class
+#' @title An R6 class to construct OTProblems
+#' @rdname OTProblem_-class
+#' @description OTProblem R6 class
+#' @keywords internal
 OTProblem_ <- R6::R6Class("OTProblem",
- public = list(
+ public = {list(
    # objects
-   loss = "rlang",
-   measures = "env", # environment of measure objects, named by address
-   ot_objects = "env", # environment with ot R6 classes
-   penalty = "list", # list of penalties to try
-   problems = "env", # character vector of object addresses crossed
-   target_objects = "env", # balance target objects
-   selected_delta = "numeric", # final delta
-   selected_lambda = "numeric", # final lambda
-   weights_list = "list", # list of estimated weights for each penalty
    
-   # values
+   #' @field device the [torch::torch_device()] of the data.
    device = "torch_device",
-   dtype = "torch_dtype",
-   ot_niter = "integer",
-   ot_tol = "numeric",
    
+   #' @field dtype the [torch::torch_dtype] of the data.
+   dtype  = "torch_dtype",
+   
+   #' @field selected_delta the delta value selected after `choose_hyperparameters`
+   selected_delta = "numeric", # final delta
+   
+   #' @field selected_lambda the lambda value selected after `choose_hyperparameters`
+   selected_lambda = "numeric", # final lambda
+
    # functions
+   
+   #' @param o2 A number or object of class OTProblem
+   #' @description adds `o2` to the OTProblem
    add = function(o2) {
-     if(! is_ot_problem(o2)) {
-       self$loss <- rlang::expr(!!self$loss + !!o2)
-     } else {
-       stopifnot(self$device == o2$device)
-       stopifnot(self$dtype == o2$dtype)
-       private$append(o2, "measures")
-       private$append(o2, "problems")
-       self$loss <- rlang::expr(!!self$loss + !!o2$loss)
-     }
+     private$unaryop(o2, "+")
    },
+   
+   #' @param o2 A number or object of class OTProblem
+   #' @description subtracts `o2` from OTProblem
    subtract = function(o2) {
-     if(! is_ot_problem(o2)) {
-       self$loss <- rlang::expr(!!self$loss - !!o2)
-     } else {
-       stopifnot(self$device == o2$device)
-       stopifnot(self$dtype == o2$dtype)
-       private$append(o2, "measures")
-       private$append(o2, "problems")
-       self$loss <- rlang::expr(!!self$loss - !!o2$loss)
-     }
+     private$unaryop(o2, "-")
    },
+   
+   #' @param o2 A number or object of class OTProblem
+   #' @description multiplies OTProblem by `o2`
    multiply = function(o2) {
-     if(! is_ot_problem(o2)) {
-       self$loss <- rlang::expr(!!self$loss * !!o2)
-     } else {
-       stopifnot(self$device == o2$device)
-       stopifnot(self$dtype == o2$dtype)
-       private$append(o2, "measures")
-       private$append(o2, "problems")
-       self$loss <- rlang::expr(!!self$loss * !!o2$loss)
-     }
+     private$unaryop(o2, "*")
    },
+   
+#' @param o2 A number or object of class OTProblem
+#' @description divides OTProblem by `o2`
    divide = function(o2) {
-     if(! is_ot_problem(o2)) {
-       self$loss <- rlang::expr(!!self$loss / !!o2)
-     } else {
-       stopifnot(self$device == o2$device)
-       stopifnot(self$dtype == o2$dtype)
-       private$append(o2, "measures")
-       private$append(o2, "problems")
-       self$loss <- rlang::expr(!!self$loss / !!o2$loss)
-     }
+     private$unaryop(o2, "/")
    },
+
+#' @description prints the OT problem object
+#' @param ... Not used
+print = function(...) {
+  obj <- rlang::expr_text(private$objective)
+  obj <- gsub("oop_loss_select", "OT", obj)
+  obj <- gsub('private$ot_objects[[\"', "", obj, fixed = TRUE)
+  obj <- gsub('\"]]', "", obj, fixed = TRUE)
+  obj <- gsub("\n    ", "", obj)
+  obj <- gsub("+ ", "+\n  ", obj, fixed = TRUE)
+  obj <- gsub("- ", "-\n  ", obj, fixed = TRUE)
+  cat("OT Problem: \n")
+  cat("  ", obj, "\n", sep = "")
+},
+
+#' @description Constructor method
+#' @param measure_1 An object of class [Measure]
+#' @param measure_2 An object of class [Measure]
+#' @param ... Not used at this time 
+#'
+#' @return An R6 object of class "OTProblem"
+#' @examples 
+#' if (torch::torch_is_installed()) {
+#' # setup measures
+#' x <- matrix(1, 100, 10)
+#' m1 <- Measure(x = x)
+#' 
+#' y <- matrix(2, 100, 10)
+#' m2 <- Measure(x = y, adapt = "weights")
+#'
+#' z <- matrix(3,102, 10)
+#' m3 <- Measure(x = z)
+#'
+#' # setup OT problems
+#' ot1 <- OTProblem(m1, m2)
+#' ot2 <- OTProblem(m3, m2)
+#' ot <- 0.5 * ot1 + 0.5 * ot2
+#' }
+initialize = function(measure_1, measure_2) {
+  # browser()
+  add_1 <- rlang::obj_address(measure_1)
+  add_2 <- rlang::obj_address(measure_2)
+  addresses <- c(add_1, add_2)
+  address_names <- paste0(addresses, collapse = ", ")
+  
+  stopifnot("argument 'measure_1' must be of class 'Measure'" = inherits(measure_1, "Measure"))
+  stopifnot("argument 'measure_2' must be of class 'Measure'" = inherits(measure_2, "Measure"))
+  
+  dtype <- measure_1$dtype
+  device <- measure_1$device
+  
+  if(isFALSE(measure_2$dtype == dtype) ) {
+    stop(sprintf("Measures must have same data type! measure_1 is of type %s, while measure_2 is of type %s.", dtype, measure_2$dtype))
+  }
+  if (!(measure_2$device == device) ) { # can't use != with torch device
+    stop(sprintf("Measures should be on same device! measure_1 is is on device %s, while measure_2 is on device %s.", device, measure_2$device) )
+  }
+  if (measure_1$d != measure_2$d) {
+    stop(sprintf("Measures should have the same number of columns! measure_1 has %s columns, while measure_2 has %s columns.", measure_1$d, measure_2$d))
+  }
+  
+  self$dtype <- dtype
+  self$device <- device
+  
+  #environment with names as obj_add, and measures as elements of environment
+  private$measures <- rlang::env(!!add_1 := measure_1, !!add_2 := measure_2)
+  
+  # env with names as obj_add1, obj_add2 (sorted),
+  #contains vector with c(obj_add1, obj_add2)
+  private$problems <- rlang::env(!!address_names := addresses)
+  
+  # envionrment with names as obj_add1, obj_add2 (sorted), then a list with f, g duals
+  # self$duals <- rlang::env(!!address_names := list(!!addresses[1] := torch::torch_zeros(private$measures[[addresses[1] ]]$n, device = device, dtype = dtype)),
+  #                          !!addresses[2] := torch::torch_zeros(private$measures[[addresses[2] ]]$n, device = device, dtype = dtype) )
+  
+  # ot_objects
+  # envionrment with names as obj_add1, obj_add2 (sorted), with OT class objects
+  private$ot_objects <- rlang::env()
+  
+  # target_objects
+  # envionrment with names as obj_add1, obj_add2 (sorted), with list of balance.functions, means and delta values
+  private$target_objects <- rlang::env()
+  
+  #penalty list
+  private$penalty_list <- list(lambda = NA_real_, delta = NA_real_)
+  
+  # parameter list initialize
+  private$parameters <- list()
+  
+  
+  private$objective <- rlang::expr(
+    oop_loss_select(private$ot_objects[[!!address_names]])
+  )
+  
+  private$args_set <- FALSE
+  private$opt <- private$sched <- NULL
+  
+  return(invisible(self))
+},
+
+#' @param lambda The penalty parameters to try for the OT problems. If not provided, function will select some
+#' @param delta The constraint paramters to try for the balance function problems, if any
+#' @param grid.length The number of hyperparameters to try if not provided
+#' @param cost.function The cost function for the data. Can be any function that takes arguments `x1`, `x2`, `p`. Defaults to the Euclidean distance
+#' @param p The power to raise the cost matrix by. Default is 2
+#' @param cost.online Should online costs be used? Default is "auto" but "tensorized" stores the cost matrix in memory while "online" will calculate it on the fly.
+#' @param debias Should debiased OT problems be used? Defaults to TRUE
+#' @param diameter Diameter of the cost function.
+#' @param ot_niter Number of iterations to run the OT problems
+#' @param ot_tol The tolerance for convergence of the OT problems
+#'
+#' @return NULL
+#' @examples
+#' ot$setup_arguments(lambda = c(1000,10))
+setup_arguments = function(lambda, delta, 
+                           grid.length = 7L,
+                           cost.function = NULL, 
+                           p = 2,
+                           cost.online = "auto",
+                           debias = TRUE,
+                           diameter = NULL, ot_niter = 1000L,
+                           ot_tol = 1e-3) {
+  
+  prob_names <- ls(private$problems)
+  if(private$args_set) warning("OT problems already set up. This function will erase previous objects")
+  problem_1 <- problem_2 <- measure_1 <- measure_2 <- NULL
+  device_vector <- NULL
+  not_warned <- FALSE
+  
+  for(v in prob_names) {
+    problem_1 <- private$problems[[v]][[1]]
+    problem_2 <- private$problems[[v]][[2]]
+    measure_1 <- private$measures[[problem_1]]
+    measure_2 <- private$measures[[problem_2]]
+    private$ot_objects[[v]] <- OT$new(x = measure_1$x$detach(),
+                                      y = measure_2$x$detach(),
+                                      a = measure_1$weights$detach(),
+                                      b = measure_2$weights$detach(),
+                                      penalty = 10.0, 
+                                      cost_function = cost.function, 
+                                      p = p, 
+                                      debias = debias, 
+                                      tensorized = cost.online,
+                                      diameter = diameter,
+                                      device = self$device,
+                                      dtype = self$dtype)
+    if(not_warned && isTRUE(!(device_vector == measure_1$device)) ){
+      warning("All measures not on same device. This could slow things down.")
+      not_warned <- FALSE
+    } else {
+      device_vector <- measure_1$device
+    }
+    
+    
+  }
+  
+  
+  # ot opt param
+  private$ot_niter <- as.integer(ot_niter)
+  private$ot_tol <- as.numeric(ot_tol)
+  
+  # targets
+  measure_addresses <- ls(private$measures)
+  delta_set <- NA_real_
+  not_na_bt <- not_na_bf <- FALSE
+  meas <- NULL
+  for (v in measure_addresses) {
+    meas <- private$measures[[v]]
+    not_na_bt <- !all(is.na(meas$balance_target) )
+    not_na_bf <- !all(is.na(meas$balance_functions) )
+    if (not_na_bt && not_na_bf) {
+      if(meas$adapt != "none") {
+        if (meas$balance_functions$requires_grad) {
+          delta_set <- 0.0
+        } else {
+          delta_set <- NA_real_
+        }
+        private$target_objects[[v]] <- list(
+          bf = meas$balance_functions,
+          bt = meas$balance_target,
+          delta = delta_set)
+      }
+      
+    }
+  }
+  
+  # parameters
+  measure_addresses <- ls(private$measures)
+  adapt <- NULL
+  meas <- NULL
+  for (v in measure_addresses) {
+    meas <- private$measures[[v]]
+    adapt <- meas$adapt
+    if(adapt != "none") {
+      private$parameters[[v]] <-
+        switch(adapt,
+               "x" = meas$.__enclos_env__$private$data_,
+               "weights" = meas$.__enclos_env__$private$mass_)
+    }
+  }
+  
+  # make sure ot_args ok
+  stopifnot("'ot_niter' must be > 0" = private$ot_niter > 0)
+  stopifnot("'ot_tol' must be > 0" = private$ot_tol > 0)
+  
+  # ot penalty
+  
+  diameters <- length(private$ot_objects)
+  names_ot <- ls(private$ot_objects)
+  v <- NULL
+  for(i in seq_along(private$ot_objects)) {
+    v <- names_ot[i]
+    diameters[i] <- private$ot_objects[[v]]$diameter
+  }
+  max_diameter <- max(diameters)
+  if ( missing(lambda) || is.null(lambda) || all(is.na(lambda)) ) {
+    lambda <- c(
+      exp(seq(log(max_diameter * 1e-6), log(max_diameter * 1e4), length.out = grid.length)),
+      Inf)
+  } 
+  private$penalty_list$lambda <- sort(lambda, decreasing = TRUE)
+  private$penalty_list$lambda[lambda == 0] <- max_diameter / 1e9
+  
+  if ( length(private$target_objects) != 0) {
+    
+    if ( missing(delta) || is.null(delta) || all(is.na(delta)) ) {
+      
+      diffs    <- numeric(length(private$target_objects))
+      names_TO <- ls(private$target_objects)
+      measure <- NULL
+      for(i in seq_along(private$target_objects)) {
+        v <- names_TO[i]
+        measure <- private$measures[[v]]
+        if(measure$adapt == "weights") {
+          diffs[i] <- ((private$target_objects[[v]]$bf * measure$weights$detach()$view(c(measure$n,1)))$sum(1) - private$target_objects[[v]]$bt)$abs()$max()$item()
+        }
+        
+      }
+      max_diffs <- max(diffs)
+      
+      delta <- c(seq(1e-4, max_diffs, length.out = grid.length))
+      
+    }
+    
+    
+    private$penalty_list$delta <- sort(as.numeric(delta), decreasing = TRUE)
+    
+    stopifnot("'delta' values must be >=0."=all(private$penalty_list$delta >= 0))
+    
+  }
+  
+  # flag to warn about overwrite next time function called
+  private$args_set <- TRUE
+  
+  return(invisible(self))
+},
+
+#' @description Solve the OTProblem at each parameter value. Must run setup_arguments first.
+#' @param niter The nubmer of iterations to run solver at each combination of hyperparameter values 
+#' @param tol The tolerance for convergence
+#' @param optimizer The optimizer to use. One of "torch" or "frank-wolfe"
+#' @param torch_optim The `torch_optimizer` to use. Default is [torch::optim_lbfgs]
+#' @param torch_scheduler The [torch::lr_scheduler] to use. Default is [torch::lr_reduce_on_plateau]
+#' @param torch_args Arguments passed to the torch optimizer and scheduler
+#' @param osqp_args Arguments passed to [osqp::osqpSettings()] if appropriate
+#' @param quick.balance.function Should [osqp::osqp()] be used to select balance function constraints (delta) or not. Default true.
+#'
+#' @examples
+#' ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+  solve = function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
+                   torch_optim = torch::optim_lbfgs,
+                   torch_scheduler = torch::lr_reduce_on_plateau,
+                   torch_args = NULL,
+                   osqp_args = NULL,
+                   quick.balance.function = TRUE) {
+    
+    # check that everything setup already
+    stopifnot("arguments not set! Run '$setup_arguments' first." = private$args_set)
+    # check that niter and tol arguments provided
+    # stopifnot("`niter` argument must be provided" = !missing(niter))
+    stopifnot("Argument `niter` must be > 0" = (niter > 0))
+    # stopifnot("Argument `tol` must be provided" = !missing(tol))
+    stopifnot("Argument `tol` must be >=0" = (tol >= 0))
+    
+    # collect osqp args
+    private$osqp_args <- osqp_args[names(osqp_args) %in% methods::formalArgs(osqp::osqpSettings)] 
+    
+    # check feasibility of deltas
+    # can also do a quick, approximate selection of deltas
+    private$delta_values_setup(run.quick = quick.balance.function, osqp_args = private$osqp_args)
+    
+    # setup optimizer
+    optimizer <- match.arg(optimizer)
+    stopifnot("Optimizer must be one of 'torch' or 'frank-wolfe'." = (optimizer %in% c("torch", "frank-wolfe") ))
+    opt_call <- opt <- scheduler_call <- opt_sched <- NULL
+    
+    # assign optimizer to `private$optimization_step` holder
+    if (optimizer == "torch") {
+      
+      private$torch_optim_setup(torch_optim,
+                                torch_scheduler,
+                                torch_args)
+      
+    } else if (optimizer == "frank-wolfe") {
+      private$frankwolfe_setup()
+      private$optimization_step <- private$frankwolfe_step
+    } else {
+      stop("Optimizer must be one of 'torch' or 'frank-wolfe'.")
+    }
+    
+    # strategy for this function
+    # outer loop iterates over lambda
+    # inner loop iterates over delta
+    # for mirror descent ONLY
+    # add BF violations
+    # calculate loss
+    # torch_optim step
+    # for frank-wolfe
+    # run ot opt
+    # get results from LP
+    # step (armijo line search)
+    
+    # setup holder for weights
+    private$weights_list <- vector("list", length(private$penalty_list$lambda))
+    names(private$weights_list) <- as.character(private$penalty_list$lambda)
+    
+    # setup diagnostic collection of variables
+    private$iterations_run <- vector("list", length(private$penalty_list$lambda)) |>
+      setNames(as.character(private$penalty_list$lambda))
+    
+    private$final_loss <- vector("list", length(private$penalty_list$lambda)) |>
+      setNames(as.character(private$penalty_list$lambda))
+    
+    
+    # optimize over lambda values
+    private$iterate_over_lambda(niter, tol)
+    torch_cubic_reassign()
+    return(invisible(self))
+  },
+
+  #' @param n_boot_lambda The number of bootstrap iterations to run when selecting lambda
+  #' @param n_boot_delta The number of bootstrap iterations to run when selecting delta
+  #' @param lambda_bootstrap The penalty parameter to use when selecting lambda. Higher numbers run faster.
+  #'
+  #' @description Selects the hyperparameter values through a bootstrap algorithm
+  #' @examples 
+  #' ot$choose_hyperparameters(n_boot_lambda = 10, n_boot_delta = 10, lambda_bootstrap = Inf)
+  choose_hyperparameters =  function(n_boot_lambda = 100L, n_boot_delta = 1000L, lambda_bootstrap = Inf) {
+      
+      # check arguments
+      stopifnot("n_boot_lambda must be >= 0"= n_boot_lambda>=0)
+      stopifnot("n_boot_delta must be >= 0"= n_boot_delta>=0)
+      stopifnot("lambda_bootstrap must be > 0"=lambda_bootstrap>0)
+      
+      # alter lists if needed for inherited classes
+      res <- private$setup_choose_hyperparameters()
+      
+      # pull out current delta and lambda values
+      delta_values <- res$delta
+      lambda_values <- res$lambda
+      
+      # vector parameters for temporary holders
+      n_delta <- length(delta_values)
+      n_lambda<- length(lambda_values)
+      
+      # current weights list
+      weights_list  <- res$weights_list
+      
+      # setup final metrics list
+      private$weights_metrics <- list(delta = vector("list", n_lambda),
+                                      lambda= vector("list", n_lambda))
+      
+      # check if function already ran before
+      if(is.numeric(self$selected_lambda)) {
+        warning(sprintf("Lambda value of %s previously selected. This function will erase previous bootstrap selection", self$selected_lambda))
+      }
+      
+      if (n_delta > 1) { # begin delta select
+        # setup temporary vector to hold delta evaluations
+        delta_temp_metric <- vector("numeric", n_delta) 
+        class(delta_temp_metric) <- c("weightEnv", class(delta_temp_metric))
+        
+        lambda_temp_metric <- vector("list", n_lambda)
+        
+        for (l in seq_along(lambda_values)) {
+          lambda_temp_metric[[l]] <- vector("numeric", n_delta)
+        }
+        
+        self$selected_delta <- vector("numeric", n_lambda) 
+        
+        # boot measure holder
+        boot_measure <- NULL
+        
+        # running delta evaluations
+        for ( i in 1:n_boot_delta ) {
+          boot_measure <- private$draw_boot_measure()
+          for ( l in seq_along(lambda_values) ) {
+            delta_temp_metric <- vapply(weights_list[[l]],
+                                        FUN = private$eval_delta,
+                                        FUN.VALUE = 0.0,
+                                        boot = boot_measure
+            )
+            lambda_temp_metric[[l]] <- lambda_temp_metric[[l]] + delta_temp_metric/n_boot_delta
+          }
+        }
+        
+        
+        # assign metrics back to final location
+        private$weights_metrics$delta <- lambda_temp_metric
+        
+        # select final deltas
+        delta_eval_holder <- vector("numeric", n_delta)
+        d_idx <- NULL
+        targ_names <- ls(private$target_objects)
+        param_names<- ls(private$parameters)
+        
+        # run through the parameter list and assign all to temp_wt
+        # for (address in param_names ) {
+        #   for(l in l_names) {
+        #     # only look at delta eval if has target
+        #     if (address %in% targ_names) {
+        #       for (d in d_names) {
+        #         delta_eval_holder[[d]] <- private$weights_metrics$delta[[l]][[d]][[address]]
+        #       }
+        #       d_idx <- which.min(delta_eval_holder)
+        #     } else {
+        #       d_idx <- 1L
+        #     }
+        #     
+        #     # assign final selected weights
+        #     temp_wt[[l]][[t_address]] <- private$weights_list[[l]][[d_idx]][[address]]
+        #   }
+        # }
+        min_d_idx <- NULL
+        for(l in seq_along(lambda_values)) {
+          min_d_idx <- which.min(lambda_temp_metric[[l]])[1]
+          weights_list[[l]] <-  weights_list[[l]][[min_d_idx]]
+          self$selected_delta[[l]] <- delta_values[[min_d_idx]]
+        }
+        
+      } else {
+        new_weights_list <- vector("list", length(weights_list))
+        for (l in seq_along(lambda_values)) {
+          new_weights_list[[l]] <- weights_list[[l]][[1L]]
+        }
+        weights_list <- new_weights_list
+        
+        if(length(private$target_objects) > 0) {
+          self$selected_delta <- list(rep(NA_real_, length(private$target_objects)))
+          names_target <- ls(private$target_objects)
+          for (v in seq_along(private$target_objects) ) {
+            self$selected_delta[[1L]][[v]] <- private$target_objects[[names_target[v] ]]$delta
+          }
+          names(self$selected_delta[[1L]]) <- names_target
+        }
+      }# end of delta selection
+      
+      if (n_lambda > 1) {
+        
+        # use Energy Dist
+        private$set_lambda(lambda_bootstrap)
+        
+        # setup holder
+        lambda_metrics <- rep(0.0, n_lambda)
+        boot_measure <- NULL
+        
+        for (i in 1:n_boot_lambda ) {
+          boot_measure <- private$draw_boot_measure()
+          lambda_metrics <- vapply(X = weights_list,
+                                   FUN = private$eval_lambda,
+                                   FUN.VALUE = 0.0,
+                                   boot = boot_measure)/n_boot_lambda +
+            lambda_metrics
+        }
+        # choose final lambda value
+        idx_lambda <- which.min(lambda_metrics)
+        selected_lambda <- as.numeric(lambda_values)[idx_lambda]
+        
+        # set metrics
+        private$weights_metrics$lambda <- lambda_metrics
+        
+        # pull out final wts
+        weights_list <- weights_list[[idx_lambda]]
+        
+        # save selected lambda
+        self$selected_lambda <- selected_lambda
+        private$set_lambda(selected_lambda)
+        
+        if(length(self$selected_delta) > 1) self$selected_delta <- self$selected_delta[[idx_lambda]]
+      } else {
+        weights_list <- weights_list[[1L]]
+      }
+      
+      # set weights back to the measures
+      private$parameters_get_set(value = weights_list)
+      
+      
+      # private$ot_update(only_params = FALSE, get_weights = TRUE, use_grad = FALSE)
+      
+    },
+
+#' @description Provides diagnostics after solve and choose_hyperparameter methods have been run.
+#'
+#' @return a list with slots
+#' \itemize{
+#' \item `loss` the final loss values
+#' \item `iterations` The number of iterations run for each combination of parameters
+#' \item `balance.function.differences` The final differences in the balance functions
+#' \item `hyperparam.metrics` A list of the bootstrap evalustion for delta and lambda values}
+#' @examples 
+#' ot$info()
    info = function(){
      losses <- do.call("rbind", private$final_loss)
      
@@ -683,81 +1224,20 @@ OTProblem_ <- R6::R6Class("OTProblem",
                  iterations = iter,
                  balance.function.differences = bal,
                  hyperparam.metrics = metrics))
+   }
+   
+ )},
+ active = {list(
+#' @field loss prints the current value of the objective. Only availble after the solve method has been run
+   loss = function() {
+     return(eval(private$objective)$to(device = self$device))
    },
-   initialize = function(measure_1, measure_2) {
-     # browser()
-     add_1 <- rlang::obj_address(measure_1)
-     add_2 <- rlang::obj_address(measure_2)
-     addresses <- c(add_1, add_2)
-     address_names <- paste0(addresses, collapse = ", ")
-     
-     stopifnot("argument 'measure_1' must be of class 'Measure'" = inherits(measure_1, "Measure"))
-     stopifnot("argument 'measure_2' must be of class 'Measure'" = inherits(measure_2, "Measure"))
-     
-     dtype <- measure_1$x$dtype
-     device <- measure_1$x$device
-     
-     if(isFALSE(measure_2$x$dtype == dtype) ) {
-       stop(sprintf("Measures must have same data type! measure_1 is of type %s, while measure_2 is of type %s.", dtype, measure_2$x$dtype))
-     }
-     if (!(measure_2$x$device == device) ) { # can't use != with torch device
-       stop(sprintf("Measures should be on same device! measure_1 is is on device %s, while measure_2 is on device %s.", device, measure_2$x$device) )
-     }
-     if (measure_1$d != measure_2$d) {
-       stop(sprintf("Measures should have the same number of columns! measure_1 has %s columns, while measure_2 has %s columns.", measure_1$d, measure_2$d))
-     }
-    
-     self$dtype <- dtype
-     self$device <- device
-     
-     #environment with names as obj_add, and measures as elements of environment
-     self$measures <- rlang::env(!!add_1 := measure_1, !!add_2 := measure_2)
-     
-     # env with names as obj_add1, obj_add2 (sorted),
-     #contains vector with c(obj_add1, obj_add2)
-     self$problems <- rlang::env(!!address_names := addresses)
-     
-     # envionrment with names as obj_add1, obj_add2 (sorted), then a list with f, g duals
-     # self$duals <- rlang::env(!!address_names := list(!!addresses[1] := torch::torch_zeros(self$measures[[addresses[1] ]]$n, device = device, dtype = dtype)),
-     #                          !!addresses[2] := torch::torch_zeros(self$measures[[addresses[2] ]]$n, device = device, dtype = dtype) )
-     
-     # ot_objects
-     # envionrment with names as obj_add1, obj_add2 (sorted), with OT class objects
-     self$ot_objects <- rlang::env()
-     
-     # target_objects
-     # envionrment with names as obj_add1, obj_add2 (sorted), with list of balance.functions, means and delta values
-     self$target_objects <- rlang::env()
-     
-     #penalty list
-     self$penalty <- list(lambda = NA_real_, delta = NA_real_)
-     
-     # parameter list initialize
-     private$parameters <- list()
-     
-     # self$loss <- rlang::expr(
-     #   sum(self$measures[[!!addresses[[1]]   ]]$weights * 
-     #       self$duals[[!!address_names ]][[!!addresses[[1]] ]] ) + 
-     #   sum(self$measures[[!!addresses[[2]] ]]$weights *
-     #       self$duals[[!!address_names ]][[!!addresses[[2]]]])
-     #  
-     # )
-     
-     self$loss <- rlang::expr(
-       oop_loss_select(self$ot_objects[[!!address_names]])
-     )
-     
-     private$args_set <- FALSE
-     private$opt <- private$sched <- NULL
-     
-     return(invisible(self))
+   
+   #' @field penalty Returns a list of the lambda and delta penalities that will be iterated through. To set these values, use the `setup_arguments` function.
+   penalty = function() {
+     return(private$penalty_list)
    }
- ),
- active = list(
-   dist = function() {
-     return(eval(self$loss)$to(device = self$device))
-   }
- ),
+ )},
  private = {list(
    # objects
    args_set = "logical",
@@ -765,32 +1245,45 @@ OTProblem_ <- R6::R6Class("OTProblem",
    iterations_run = "list",
    lbfgs_reset = 0L,
    lbfgs_count = 0L,
+   # @field measures An an environment of measure objects named by address
+   measures = "env", # environment of measure objects, named by address
+   # @field objective An [rlang::expr()] giving the objective function
+   objective = "rlang",
    opt_calls = "list", #saves arguments for the optimizers to reset
    opt = "R6", # store optimizer so easier to reset for LBFGS
    osqp_args = "list",
+   ot_niter = "integer",
+   ot_objects = "env", # environment with ot R6 classes
+   ot_tol = "numeric",
    parameters = "list", # list of the parameters of model
+   # @field problems An environment giving the object addresses for each measure in the OT problems
+   problems = "env", # character vector of object addresses crossed
+   penalty_list = "list", # list of penalties to try
    sched = "R6", # store scheduler
+   target_objects = "env", # balance target objects
    weights_metrics = "list", # list of bootstrap metric for each penalty
    weights = "weightEnv", # holder of transformed parameters that are weights
+   weights_list = "list", # list of estimated weights for each penalty
    
    # functions
    # adds new element to specified environment
    append = function(o, env_name) {
-     listE1 = ls(self[[env_name]])
-     listE2 = ls(o[[env_name]])
+     listE1 = ls(private[[env_name]])
+     listE2 = ls(o$.__enclos_env__$private[[env_name]])
      for(v in listE2) {
        if(v %in% listE1) {
          next
        } else {
-         self[[env_name]][[v]] <- o[[env_name]][[v]]
+         private[[env_name]][[v]] <- o$.__enclos_env__$private[[env_name]][[v]]
        }
      }
    },
+   
    # update balance constraint parameters
    bal_param_update = function(osqp_args = NULL, tol = 1e-7) {
      # update balance constraint parameters and then returns
      # the langrangian terms to add to the loss
-     l_to <- length(self$target_objects)
+     l_to <- length(private$target_objects)
      
      loss <- torch::torch_tensor(0.0, dtype = self$dtype, device = self$device)
      # calc_deriv <- FALSE
@@ -807,7 +1300,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        
        
        # addresses of objects
-       target_addresses <- ls(self$target_objects)
+       target_addresses <- ls(private$target_objects)
       
        # don't print everything by default
        # if(missing(osqp_args) || is.null(osqp_args)) osqp_args <- list(verbose = FALSE)
@@ -815,7 +1308,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        # run through target means
        for (adds in target_addresses) {
          # get objects
-         v   <- self$target_objects[[adds]]
+         v   <- private$target_objects[[adds]]
          w   <- private$weights[[adds]]
          
          # setup values
@@ -878,7 +1371,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
    
    # check balance constraints
    balance_check = function() {
-     l_to <- length(self$target_objects)
+     l_to <- length(private$target_objects)
      
      ret <- NULL
      
@@ -887,7 +1380,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        
        
        # addresses of objects
-       target_addresses <- ls(self$target_objects)
+       target_addresses <- ls(private$target_objects)
        ret <- rlang::env()
        
        # don't print everything by default
@@ -896,8 +1389,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
        # run through target means
        for (adds in target_addresses) {
          # get objects
-         v   <- self$target_objects[[adds]]
-         w   <- self$measures[[adds]]$weights
+         v   <- private$target_objects[[adds]]
+         w   <- private$measures[[adds]]$weights
          
          # setup values
          delta <- v$delta
@@ -926,10 +1419,10 @@ OTProblem_ <- R6::R6Class("OTProblem",
    delta_values_setup = function(run.quick = TRUE, osqp_args = NULL) {
      
      # check if any target_objects
-     n_tf    <- length(self$target_objects)
+     n_tf    <- length(private$target_objects)
      
      # check if ndelta>1
-     n_delta <- length(self$penalty$delta)
+     n_delta <- length(private$penalty_list$delta)
      
      # default to not verbose
      if (is.null(osqp_args)) {
@@ -943,16 +1436,16 @@ OTProblem_ <- R6::R6Class("OTProblem",
        
        # if check all deltas for all lambdas
        if (isFALSE(run.quick)) {
-         names_d  <- as.character(self$penalty$delta)
+         names_d  <- as.character(private$penalty_list$delta)
          d <- bf <- w <- v <- m <- NULL
          
-         target_addresses <- ls(self$target_objects)
+         target_addresses <- ls(private$target_objects)
          successful.deltas <- NULL
          
          for (addy in  target_addresses) {
            
-           v  <- self$target_objects[[addy]]
-           m  <- self$measures[[addy]]
+           v  <- private$target_objects[[addy]]
+           m  <- private$measures[[addy]]
            
            if(v$bf$requires_grad) next
            
@@ -976,17 +1469,17 @@ OTProblem_ <- R6::R6Class("OTProblem",
          }
          
          # set feasible deltas
-         self$penalty$delta <- successful.deltas
+         private$penalty_list$delta <- successful.deltas
          
        } else { # quick run
          
          # selects best delta for each target
-         names_d  <- as.character(self$penalty$delta)
+         names_d  <- as.character(private$penalty_list$delta)
          d <- bf <- w <- v <- m <- NULL
          means <- NULL
          w_star <- a_star <- means <- NULL
          
-         target_addresses <- ls(self$target_objects)
+         target_addresses <- ls(private$target_objects)
          
          nboot <- 1000L
          
@@ -995,8 +1488,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
            w        <- vector("list", n_delta)
            names(w) <- names_d
            
-           v  <- self$target_objects[[addy]]
-           m  <- self$measures[[addy]]
+           v  <- private$target_objects[[addy]]
+           m  <- private$measures[[addy]]
            
            if(v$bf$requires_grad) next
            
@@ -1029,13 +1522,13 @@ OTProblem_ <- R6::R6Class("OTProblem",
            #   means  <- means + vapply(w_star, bf$evalBoot, FUN.VALUE = 0.0)/1000.0
            # }
            
-           self$target_objects[[addy]]$delta <- as.numeric(names(w)[which.min(means)[1L]])
+           private$target_objects[[addy]]$delta <- as.numeric(names(w)[which.min(means)[1L]])
            
          }
          
          
          # set global delta to NA, which will keep the individualized ones
-         self$penalty$delta <- NA_real_ 
+         private$penalty_list$delta <- NA_real_ 
        }
      }
    },
@@ -1047,7 +1540,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      meas <- NULL
      
      for (a in addresses) {
-       meas <- self$measures[[a]]
+       meas <- private$measures[[a]]
        if (meas$adapt == "x") stop("Our Frank-Wolfe algorithm can't handle barycenters. Depending on your problem, you can optimize the barycenter and then optimize the weights with Frank-Wolfe. Alternatively, you can use the torch optimizers directly.")
      }
      
@@ -1081,7 +1574,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      }
      
      # get addresses
-     bf_address    <- ls(self$target_objects) # measures with balance functions
+     bf_address    <- ls(private$target_objects) # measures with balance functions
      param_address <- ls(private$parameters) # all parameters/ meas with grads
      
      # setup holders
@@ -1099,7 +1592,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      # eval loss and get gradients
      weight_setup()
      private$ot_update()
-     init_loss          <- self$dist
+     init_loss          <- self$loss
      init_loss$backward()
      
      # setup osqp args
@@ -1111,7 +1604,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      
      # get solutions most correlated with the gradients
      for (addy in param_address) {
-       meas <- self$measures[[addy]]
+       meas <- private$measures[[addy]]
        n <- meas$n
        prob.measure <- meas$probability_measure
        sums <- switch(1L + prob.measure,
@@ -1121,7 +1614,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
                             c(0, Inf),
                             c(1, 1))
        if (addy %in% bf_address) {
-         cur_env <- self$target_objects[[addy ]]
+         cur_env <- private$target_objects[[addy ]]
          bt_cpu <- as.numeric(cur_env$bt$to(device = "cpu"))
          osqp_opt <- osqp::osqp(q = as.numeric(private$weights[[addy]]$grad$to(device = "cpu")), 
                                 A = rbind(
@@ -1171,7 +1664,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        private$ot_update()
        
        # evaluate loss
-       loss <- self$dist$detach()
+       loss <- self$loss$detach()
        
        # return value
        return(loss)
@@ -1209,13 +1702,14 @@ OTProblem_ <- R6::R6Class("OTProblem",
      out <- rlang::env()
      class(out) <- c("weightEnv", class(out))
      
-     addresses <- ls(self$measures)
+     addresses <- ls(private$measures)
      for (v in addresses) {
        out[[v]] <- 
-         self$measures[[v]]$weights
+         private$measures[[v]]$weights
      }
      return(out)
    },
+   
    # returns curent gradient value for parameters
    grad = function() {
      param_address <- ls(private$parameters)
@@ -1229,8 +1723,8 @@ OTProblem_ <- R6::R6Class("OTProblem",
    iterate_over_delta = function(niter, tol) {
      
      # counter for delta
-     n_delta <- length(self$penalty$delta)
-     names_delta <- as.character(self$penalty$delta)
+     n_delta <- length(private$penalty_list$delta)
+     names_delta <- as.character(private$penalty_list$delta)
      
      # set weights_delta holder
      weights_delta <- vector("list", n_delta)
@@ -1240,7 +1734,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
      losses_delta <- vector("numeric", n_delta) |> setNames(names_delta)
      
      # run loop over delta values
-     for (d in self$penalty$delta) {
+     for (d in private$penalty_list$delta) {
        # set bf constraint if needed
        private$set_delta(d)
        
@@ -1263,7 +1757,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
    },
    
    iterate_over_lambda = function(niter, tol) {
-     for (l in self$penalty$lambda) {  
+     for (l in private$penalty_list$lambda) {  
        # set penalty for OT problems
        private$set_lambda(l)
        
@@ -1274,7 +1768,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        res <- private$iterate_over_delta(niter, tol) # calls main workhorse functions
        
        # assign weights_delta to weights_list permanent object
-       self$weights_list[[as.character(l)]] <- res$weights
+       private$weights_list[[as.character(l)]] <- res$weights
        
        # save diagnostic values
          # save iterations run
@@ -1351,7 +1845,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
    # optimization inner loop
    optimization_loop = function(niter, tol) {
      # set initial loss
-     loss_old <- self$dist$detach()$item()
+     loss_old <- self$loss$detach()$item()
      
      # check convergence variable initialization  
      check <- TRUE
@@ -1383,7 +1877,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
    
    #update ot problems
    ot_update = function(only_params = TRUE, get_weights = FALSE, use_grad = TRUE) {
-     ot_adds    <- ls(self$ot_objects)
+     ot_adds    <- ls(private$ot_objects)
      param_adds <- ls(private$parameters)
      
      # set weights
@@ -1397,14 +1891,14 @@ OTProblem_ <- R6::R6Class("OTProblem",
      measure_1 <- measure_2 <- NULL
      
      cost_forward <- function(add_1, add_2, ot) {
-       measure_1 <- self$measures[[add_1]]
-       measure_2 <- self$measures[[add_2]]
+       measure_1 <- private$measures[[add_1]]
+       measure_2 <- private$measures[[add_2]]
        a_1 <- measure_1$adapt
        a_2 <- measure_2$adapt
        
        if(a_1 == "x" || a_2 == "x") {
-         x <- measure_1$x
-         y <- measure_2$x
+         x <- measure_1$.__enclos_env__$private$data_
+         y <- measure_2$.__enclos_env__$private$data_
          
          if(x$requires_grad) {
            update_cost(ot$C_xy, x, y$detach())
@@ -1425,11 +1919,11 @@ OTProblem_ <- R6::R6Class("OTProblem",
      weights_forward <- function(add_1, add_2, ot) {
        
        has_grad <- FALSE
-       if(self$measures[[add_1]]$adapt == "weights") {
+       if(private$measures[[add_1]]$adapt == "weights") {
          ot$a <- private$weights[[add_1]]
          has_grad <- TRUE
        }
-       if(self$measures[[add_2]]$adapt == "weights") {
+       if(private$measures[[add_2]]$adapt == "weights") {
          ot$b <-  private$weights[[add_2]]
          has_grad <- TRUE
        }
@@ -1440,10 +1934,10 @@ OTProblem_ <- R6::R6Class("OTProblem",
      cur_ot <- NULL
      torch::autograd_set_grad_mode(enabled = use_grad)
      for (addy in ot_adds) {
-       cur_ot <- self$ot_objects[[addy]]
+       cur_ot <- private$ot_objects[[addy]]
        
        # need to update weights used
-         problem_addy <- self$problems[[addy]]
+         problem_addy <- private$problems[[addy]]
          
          # update cost if needed
          cost_grad <- cost_forward(problem_addy[[1L]],
@@ -1459,7 +1953,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
          
        # run sinkhorn if needed
          if ( is.finite(cur_ot$penalty) && (has_grad || !only_params) ) {
-           cur_ot$sinkhorn_opt(niter = self$ot_niter, tol = self$ot_tol)
+           cur_ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
          }
      }
      torch::autograd_set_grad_mode(enabled = TRUE)
@@ -1475,16 +1969,16 @@ OTProblem_ <- R6::R6Class("OTProblem",
        param_addresses <- ls(private$parameters)
        for (v in param_addresses) {
          out[[v]] <- if (isTRUE(clone)) {
-           if(self$measures[[v]]$adapt == "weights") {
-             self$measures[[v]]$weights$detach()$clone()
-           } else if (self$measures[[v]]$adapt == "x") {
-             self$measures[[v]]$x$detach()$clone()
+           if(private$measures[[v]]$adapt == "weights") {
+             private$measures[[v]]$weights$detach()$clone()
+           } else if (private$measures[[v]]$adapt == "x") {
+             private$measures[[v]]$x$detach()$clone()
            }
          } else {
-           if(self$measures[[v]]$adapt == "weights") {
-             self$measures[[v]]$weights
-           } else if (self$measures[[v]]$adapt == "x") {
-             self$measures[[v]]$x
+           if(private$measures[[v]]$adapt == "weights") {
+             private$measures[[v]]$weights
+           } else if (private$measures[[v]]$adapt == "x") {
+             private$measures[[v]]$x
            }
          }
        }
@@ -1507,10 +2001,10 @@ OTProblem_ <- R6::R6Class("OTProblem",
          for (i in seq_along(param_addresses)) {
            v <- param_addresses[[i]]
            u <- value_addresses[[i]]
-           if(self$measures[[v]]$adapt == "weights") {
-             self$measures[[v]]$weights <- value[[u]]
-           } else if (self$measures[[v]]$adapt == "x") {
-             self$measures[[v]]$x <- value[[u]]
+           if(private$measures[[v]]$adapt == "weights") {
+             private$measures[[v]]$weights <- value[[u]]
+           } else if (private$measures[[v]]$adapt == "x") {
+             private$measures[[v]]$x <- value[[u]]
            } else {
              stop("Error in assignment. Tried to assign to a measure without any gradients.")
            }
@@ -1531,7 +2025,7 @@ OTProblem_ <- R6::R6Class("OTProblem",
        # only run ot if no bal constraint violations
        # if (loss$item() == 0) {
          private$ot_update()
-         loss <- self$dist + loss
+         loss <- self$loss + loss
        # }
        
        loss$backward()
@@ -1619,17 +2113,17 @@ OTProblem_ <- R6::R6Class("OTProblem",
    },
    set_lambda = function(lambda) {
      stopifnot("lambda value must be >= 0" = (lambda >= 0))
-     ot_prob_names <- ls(self$ot_objects)
+     ot_prob_names <- ls(private$ot_objects)
      for (v in ot_prob_names) {
-       self$ot_objects[[v]]$penalty <- lambda
+       private$ot_objects[[v]]$penalty <- lambda
      }
    },
    set_delta = function(delta) {
-     if(length(self$target_objects) > 0 && !is.na(delta)) {
+     if(length(private$target_objects) > 0 && !is.na(delta)) {
        stopifnot("delta value must be >= 0" = (delta >= 0))
-       target_names <- ls(self$target_objects)
+       target_names <- ls(private$target_objects)
        for (v in target_names) {
-         if(!self$target_objects[[v]]$bf$requires_grad) self$target_objects[[v]]$delta <- delta
+         if(!private$target_objects[[v]]$bf$requires_grad) private$target_objects[[v]]$delta <- delta
        }
      }
    },
@@ -1644,11 +2138,30 @@ OTProblem_ <- R6::R6Class("OTProblem",
    },
    setup_choose_hyperparameters = function() {
      return(
-       list(delta = self$penalty$delta,
-            lambda = self$penalty$lambda,
-            weights_list = self$weights_list)
+       list(delta = private$penalty_list$delta,
+            lambda = private$penalty_list$lambda,
+            weights_list = private$weights_list)
             )
    },
+   
+   unaryop = function(o, fun) {
+     if(! is_ot_problem(o)) {
+       private$objective <- rlang::parse_expr(
+         paste(rlang::expr_text(private$objective), fun, o)
+         )
+     } else {
+       stopifnot(self$device == o$device)
+       stopifnot(self$dtype == o$dtype)
+       private$append(o, "measures")
+       private$append(o, "problems")
+       private$objective <- rlang::parse_expr(paste(
+        rlang::expr_text(private$objective),
+        fun,
+        rlang::expr_text(o$.__enclos_env__$private$objective)
+       ))
+     }
+   },
+  
    zero_grad = function() {
      for ( p in private$parameters ) {
        if(torch::is_undefined_tensor(p$grad)) next
@@ -1660,7 +2173,6 @@ OTProblem_ <- R6::R6Class("OTProblem",
      }
    }
  )}
-                           
 )
 
 #' Object Oriented OT Problem
@@ -1670,29 +2182,300 @@ OTProblem_ <- R6::R6Class("OTProblem",
 #' @param ... Not used at this time 
 #'
 #' @return An R6 object of class "OTProblem"
-#' @export
-#'
-#' @examples
-#' if (torch::torch_is_installed()) {
-#' # setup measures
-#' x <- matrix(1, 100, 10)
-#' m1 <- Measure(x = x)
-#' 
-#' y <- matrix(2, 100, 10)
-#' m2 <- Measure(x = y, adapt = "weights")
-#'
-#' z <- matrix(3,102, 10)
-#' m3 <- Measure(x = z)
-#'
-#' # setup OT problems
-#' ot1 <- OTProblem(m1, m2)
-#' ot2 <- OTProblem(m3, m2)
-#' ot_master <- 0.5 * ot1 + 0.5 * ot2
-#' 
-#' # solve for weights
-#' ot_master$setup_arguments(lambda = 100)
-#' ot_master$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+#' @details # Public fields
+#'   \if{html}{\out{<div class="r6-fields">}}
+#'   \describe{
+#'     \item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
+#'     \item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
+#'     \item{\code{selected_delta}}{the delta value selected after \code{choose_hyperparameters}}
+#'     \item{\code{selected_lambda}}{the lambda value selected after \code{choose_hyperparameters}}
+#'   }
+#'   \if{html}{\out{</div>}}
+#' @details # Active bindings
+#'   \if{html}{\out{<div class="r6-active-bindings">}}
+#'   \describe{
+#'     \item{\code{loss}}{prints the current value of the objective. Only availble after the \href{#method-OTProblem-solve}{\code{OTProblem$solve()}} method has been run}
+#'     \item{\code{penalty}}{Returns a list of the lambda and delta penalities that will be iterated through. To set these values, use the \href{#method-OTProblem-setup_arguments}{\code{OTProblem$setup_arguments()}} function.}
+#'   }
+#'   \if{html}{\out{</div>}}
+#' @details # Methods
+#'   \subsection{Public methods}{
+#'     \itemize{
+#'     \item \href{#method-OTProblem-add}{\code{OTProblem$add()}}
+#'     \item \href{#method-OTProblem-subtract}{\code{OTProblem$subtract()}}
+#'     \item \href{#method-OTProblem-multiply}{\code{OTProblem$multiply()}}
+#'     \item \href{#method-OTProblem-divide}{\code{OTProblem$divide()}}
+#'     \item \href{#method-OTProblem-setup_arguments}{\code{OTProblem$setup_arguments()}}
+#'     \item \href{#method-OTProblem-solve}{\code{OTProblem$solve()}}
+#'     \item \href{#method-OTProblem-choose_hyperparameters}{\code{OTProblem$choose_hyperparameters()}}
+#'     \item \href{#method-OTProblem-info}{\code{OTProblem$info()}}
+#'     \item \href{#method-OTProblem-clone}{\code{OTProblem$clone()}}
+#'     }
+#'     }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-add"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-add}{}}}
+#' \subsection{Method \code{add()}}{
+#'   adds \code{o2} to the OTProblem
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$add(o2)}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{o2}}{A number or object of class OTProblem}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
 #' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-subtract"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-subtract}{}}}
+#' \subsection{Method \code{subtract()}}{
+#'   subtracts \code{o2} from OTProblem
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$subtract(o2)}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{o2}}{A number or object of class OTProblem}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-multiply"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-multiply}{}}}
+#' \subsection{Method \code{multiply()}}{
+#'   multiplies OTProblem by \code{o2}
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$multiply(o2)}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{o2}}{A number or an object of class OTProblem}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-divide"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-divide}{}}}
+#' \subsection{Method \code{divide()}}{
+#'   divides OTProblem by \code{o2}
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$divide(o2)}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{o2}}{A number or object of class OTProblem}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-setup_arguments"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-setup_arguments}{}}}
+#' \subsection{Method \code{setup_arguments()}}{
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$setup_arguments(
+#'       lambda,
+#'       delta,
+#'       grid.length = 7L,
+#'       cost.function = NULL,
+#'       p = 2,
+#'       cost.online = "auto",
+#'       debias = TRUE,
+#'       diameter = NULL,
+#'       ot_niter = 1000L,
+#'       ot_tol = 0.001
+#'     )}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{lambda}}{The penalty parameters to try for the OT problems. If not provided, function will select some}
+#'       \item{\code{delta}}{The constraint paramters to try for the balance function problems, if any}
+#'       \item{\code{grid.length}}{The number of hyperparameters to try if not provided}
+#'       \item{\code{cost.function}}{The cost function for the data. Can be any function that takes arguments \code{x1}, \code{x2}, \code{p}. Defaults to the Euclidean distance}
+#'       \item{\code{p}}{The power to raise the cost matrix by. Default is 2}
+#'       \item{\code{cost.online}}{Should online costs be used? Default is "auto" but "tensorized" stores the cost matrix in memory while "online" will calculate it on the fly.}
+#'       \item{\code{debias}}{Should debiased OT problems be used? Defaults to TRUE}
+#'       \item{\code{diameter}}{Diameter of the cost function.}
+#'       \item{\code{ot_niter}}{Number of iterations to run the OT problems}
+#'       \item{\code{ot_tol}}{The tolerance for convergence of the OT problems}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Returns}{
+#'     NULL
+#'   }
+#'   \subsection{Examples}{
+#'     \if{html}{\out{<div class="r example copy">}}
+#'     \preformatted{ ot$setup_arguments(lambda = c(1000,10))
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-solve"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-solve}{}}}
+#' \subsection{Method \code{solve()}}{
+#'   Solve the OTProblem at each parameter value. Must run setup_arguments first.
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$solve(
+#'       niter = 1000L,
+#'       tol = 1e-05,
+#'       optimizer = c("torch", "frank-wolfe"),
+#'       torch_optim = torch::optim_lbfgs,
+#'       torch_scheduler = torch::lr_reduce_on_plateau,
+#'       torch_args = NULL,
+#'       osqp_args = NULL,
+#'       quick.balance.function = TRUE
+#'     )}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{niter}}{The nubmer of iterations to run solver at each combination of hyperparameter values}
+#'       \item{\code{tol}}{The tolerance for convergence}
+#'       \item{\code{optimizer}}{The optimizer to use. One of "torch" or "frank-wolfe"}
+#'       \item{\code{torch_optim}}{The \code{torch_optimizer} to use. Default is \link[torch:optim_lbfgs]{torch::optim_lbfgs}}
+#'       \item{\code{torch_scheduler}}{The \link[torch:lr_scheduler]{torch::lr_scheduler} to use. Default is \link[torch:lr_reduce_on_plateau]{torch::lr_reduce_on_plateau}}
+#'       \item{\code{torch_args}}{Arguments passed to the torch optimizer and scheduler}
+#'       \item{\code{osqp_args}}{Arguments passed to \code{\link[osqp:osqpSettings]{osqp::osqpSettings()}} if appropriate}
+#'       \item{\code{quick.balance.function}}{Should \code{\link[osqp:osqp]{osqp::osqp()}} be used to select balance function constraints (delta) or not. Default true.}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Examples}{
+#'     \if{html}{\out{<div class="r example copy">}}
+#'     \preformatted{ ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-choose_hyperparameters"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-choose_hyperparameters}{}}}
+#' \subsection{Method \code{choose_hyperparameters()}}{
+#'   Selects the hyperparameter values through a bootstrap algorithm
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$choose_hyperparameters(
+#'       n_boot_lambda = 100L,
+#'       n_boot_delta = 1000L,
+#'       lambda_bootstrap = Inf
+#'     )}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{n_boot_lambda}}{The number of bootstrap iterations to run when selecting lambda}
+#'       \item{\code{n_boot_delta}}{The number of bootstrap iterations to run when selecting delta}
+#'       \item{\code{lambda_bootstrap}}{The penalty parameter to use when selecting lambda. Higher numbers run faster.}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Examples}{
+#'     \if{html}{\out{<div class="r example copy">}}
+#'     \preformatted{ ot$choose_hyperparameters(n_boot_lambda = 10, 
+#'                                              n_boot_delta = 10, 
+#'                                              lambda_bootstrap = Inf)
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-info"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-info}{}}}
+#' \subsection{Method \code{info()}}{
+#'   Provides diagnostics after solve and choose_hyperparameter methods have been run.
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$info()}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Returns}{
+#'     a list with slots
+#'     \itemize{
+#'       \item \code{loss} the final loss values
+#'       \item \code{iterations} The number of iterations run for each combination of parameters
+#'       \item \code{balance.function.differences} The final differences in the balance functions
+#'       \item \code{hyperparam.metrics} A list of the bootstrap evalustion for delta and lambda values}
+#'   }
+#'   \subsection{Examples}{
+#'     \if{html}{\out{<div class="r example copy">}}
+#'     \preformatted{ ot$info()
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' \if{html}{\out{<hr>}}
+#' \if{html}{\out{<a id="method-OTProblem-clone"></a>}}
+#' \if{latex}{\out{\hypertarget{method-OTProblem-clone}{}}}
+#' \subsection{Method \code{clone()}}{
+#'   The objects of this class are cloneable with this method.
+#'   \subsection{Usage}{
+#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$clone(deep = FALSE)}\if{html}{\out{</div>}}
+#'   }
+#'   \subsection{Arguments}{
+#'     \if{html}{\out{<div class="arguments">}}
+#'     \describe{
+#'       \item{\code{deep}}{Whether to make a deep clone.}
+#'     }
+#'     \if{html}{\out{</div>}}
+#'   }
+#' }
+#' @examples
+#' ## ------------------------------------------------
+#' ## Method `OTProblem(measure_1, measure_2)`
+#' ## ------------------------------------------------
+#'
+#' if (torch::torch_is_installed()) {
+#'   # setup measures
+#'   x <- matrix(1, 100, 10)
+#'   m1 <- Measure(x = x)
+#'   
+#'   y <- matrix(2, 100, 10)
+#'   m2 <- Measure(x = y, adapt = "weights")
+#'   
+#'   z <- matrix(3,102, 10)
+#'   m3 <- Measure(x = z)
+#'   
+#'   # setup OT problems
+#'   ot1 <- OTProblem(m1, m2)
+#'   ot2 <- OTProblem(m3, m2)
+#'   ot <- 0.5 * ot1 + 0.5 * ot2
+#'   print(ot)
+#'
+#' ## ------------------------------------------------
+#' ## Method `OTProblem$setup_arguments`
+#' ## ------------------------------------------------
+#'
+#'   ot$setup_arguments(lambda = c(1000,10))
+#'
+#' ## ------------------------------------------------
+#' ## Method `OTProblem$solve`
+#' ## ------------------------------------------------
+#'
+#'   ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+#'
+#' ## ------------------------------------------------
+#' ## Method `OTProblem$choose_hyperparameters`
+#' ## ------------------------------------------------
+#'
+#'   ot$choose_hyperparameters(n_boot_lambda = 10,
+#'                             n_boot_delta = 10, 
+#'                             lambda_bootstrap = Inf)
+#'
+#' ## ------------------------------------------------
+#' ## Method `OTProblem$info`
+#' ## ------------------------------------------------
+#'
+#' ot$info()
+#' }
+#' @export
 OTProblem <- function(measure_1, measure_2,...) {
   
   OTProblem_$new(measure_1 = measure_1, 
@@ -1758,383 +2541,11 @@ binaryop.OTProblem <- function(e1, e2, fun) {
   
 }
 
-OTProblem_$set("public", "setup_arguments",
- function(lambda, delta, 
-          grid.length = 7L,
-          cost.function = NULL, 
-          p = 2,
-          cost.online = "auto",
-          debias = TRUE,
-          diameter = NULL, niter = 1000L,
-          tol = 1e-3) {
-   
-   prob_names <- ls(self$problems)
-   if(private$args_set) warning("OT problems already set up. This function will erase previous objects")
-   problem_1 <- problem_2 <- measure_1 <- measure_2 <- NULL
-   device_vector <- NULL
-   not_warned <- FALSE
-   
-   for(v in prob_names) {
-     problem_1 <- self$problems[[v]][[1]]
-     problem_2 <- self$problems[[v]][[2]]
-     measure_1 <- self$measures[[problem_1]]
-     measure_2 <- self$measures[[problem_2]]
-     self$ot_objects[[v]] <- OT$new(x = measure_1$x,
-                                     y = measure_2$x,
-                                     a = measure_1$weights,
-                                     b = measure_2$weights,
-                                     penalty = 10.0, 
-                                     cost_function = cost.function, 
-                                     p = p, 
-                                     debias = debias, 
-                                     tensorized = cost.online,
-                                     diameter = diameter,
-                                    device = self$device,
-                                    dtype = self$dtype)
-     if(not_warned && isTRUE(!(device_vector == measure_1$device)) ){
-       warning("All measures not on same device. This could slow things down.")
-       not_warned <- FALSE
-     } else {
-       device_vector <- measure_1$device
-     }
-     
-                                                        
-   }
-   
-   
-   # ot opt param
-   self$ot_niter <- as.integer(niter)
-   self$ot_tol <- as.numeric(tol)
-   
-   # targets
-   measure_addresses <- ls(self$measures)
-   delta_set <- NA_real_
-   not_na_bt <- not_na_bf <- FALSE
-   meas <- NULL
-   for (v in measure_addresses) {
-     meas <- self$measures[[v]]
-     not_na_bt <- !all(is.na(meas$balance_target) )
-     not_na_bf <- !all(is.na(meas$balance_functions) )
-     if (not_na_bt && not_na_bf) {
-       if(meas$adapt != "none") {
-         if (meas$balance_functions$requires_grad) {
-           delta_set <- 0.0
-         } else {
-           delta_set <- NA_real_
-         }
-         self$target_objects[[v]] <- list(
-           bf = meas$balance_functions,
-           bt = meas$balance_target,
-           delta = delta_set)
-       }
-       
-     }
-   }
-   
-   # parameters
-   measure_addresses <- ls(self$measures)
-   adapt <- NULL
-   meas <- NULL
-   for (v in measure_addresses) {
-     meas <- self$measures[[v]]
-     adapt <- meas$adapt
-     if(adapt != "none") {
-       private$parameters[[v]] <-
-         switch(adapt,
-                "x" = meas$x,
-                "weights" = meas$extract_mass())
-     }
-   }
-   
-   # make sure ot_args ok
-   stopifnot("'niter' must be > 0" = self$ot_niter > 0)
-   stopifnot("'tol' must be > 0" = self$tol > 0)
-   
-   # ot penalty
-   
-   diameters <- length(self$ot_objects)
-   names_ot <- ls(self$ot_objects)
-   v <- NULL
-   for(i in seq_along(self$ot_objects)) {
-     v <- names_ot[i]
-     diameters[i] <- self$ot_objects[[v]]$diameter
-   }
-   max_diameter <- max(diameters)
-   if ( missing(lambda) || is.null(lambda) || all(is.na(lambda)) ) {
-     lambda <- c(
-                 exp(seq(log(max_diameter * 1e-6), log(max_diameter * 1e4), length.out = grid.length)),
-                 Inf)
-   } 
-   self$penalty$lambda <- sort(lambda, decreasing = TRUE)
-   self$penalty$lambda[lambda == 0] <- max_diameter / 1e9
-   
-   if ( length(self$target_objects) != 0) {
-     
-     if ( missing(delta) || is.null(delta) || all(is.na(delta)) ) {
-       
-       diffs    <- numeric(length(self$target_objects))
-       names_TO <- ls(self$target_objects)
-       measure <- NULL
-       for(i in seq_along(self$target_objects)) {
-         v <- names_TO[i]
-         measure <- self$measures[[v]]
-         if(measure$adapt == "weights") {
-           diffs[i] <- ((self$target_objects[[v]]$bf * measure$weights$detach()$view(c(measure$n,1)))$sum(1) - self$target_objects[[v]]$bt)$abs()$max()$item()
-         }
-         
-       }
-       max_diffs <- max(diffs)
-       
-       delta <- c(seq(1e-4, max_diffs, length.out = grid.length))
-       
-     }
-     
-     
-     self$penalty$delta <- sort(as.numeric(delta), decreasing = TRUE)
-     
-     stopifnot("'delta' values must be >=0."=all(self$penalty$delta >= 0))
-     
-   }
-   
-   # flag to warn about overwrite next time function called
-   private$args_set <- TRUE
-   
-   return(invisible(self))
- }
-)
 
-OTProblem_$set("public", "solve",
-function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
-         torch_optim = torch::optim_lbfgs,
-         torch_scheduler = torch::lr_reduce_on_plateau,
-         torch_args = NULL,
-         osqp_args = NULL,
-         quick.balance.function = TRUE) {
-  
-  # check that everything setup already
-    stopifnot("arguments not set! Run '$setup_arguments' first." = private$args_set)
-  # check that niter and tol arguments provided
-  # stopifnot("`niter` argument must be provided" = !missing(niter))
-  stopifnot("Argument `niter` must be > 0" = (niter > 0))
-  # stopifnot("Argument `tol` must be provided" = !missing(tol))
-  stopifnot("Argument `tol` must be >=0" = (tol >= 0))
-  
-  # collect osqp args
-  private$osqp_args <- osqp_args[names(osqp_args) %in% methods::formalArgs(osqp::osqpSettings)] 
-  
-  # check feasibility of deltas
-  # can also do a quick, approximate selection of deltas
-    private$delta_values_setup(run.quick = quick.balance.function, osqp_args = private$osqp_args)
-  
-  # setup optimizer
-  optimizer <- match.arg(optimizer)
-  stopifnot("Optimizer must be one of 'torch' or 'frank-wolfe'." = (optimizer %in% c("torch", "frank-wolfe") ))
-  opt_call <- opt <- scheduler_call <- opt_sched <- NULL
-  
-  # assign optimizer to `private$optimization_step` holder
-  if (optimizer == "torch") {
-    
-    private$torch_optim_setup(torch_optim,
-                              torch_scheduler,
-                              torch_args)
-    
-  } else if (optimizer == "frank-wolfe") {
-    private$frankwolfe_setup()
-    private$optimization_step <- private$frankwolfe_step
-  } else {
-    stop("Optimizer must be one of 'torch' or 'frank-wolfe'.")
-  }
-  
-  # strategy for this function
-  # outer loop iterates over lambda
-  # inner loop iterates over delta
-  # for mirror descent ONLY
-    # add BF violations
-    # calculate loss
-    # torch_optim step
-  # for frank-wolfe
-    # run ot opt
-    # get results from LP
-    # step (armijo line search)
-  
-  # setup holder for weights
-    self$weights_list <- vector("list", length(self$penalty$lambda))
-    names(self$weights_list) <- as.character(self$penalty$lambda)
-    
-  # setup diagnostic collection of variables
-    private$iterations_run <- vector("list", length(self$penalty$lambda)) |>
-      setNames(as.character(self$penalty$lambda))
-    
-    private$final_loss <- vector("list", length(self$penalty$lambda)) |>
-      setNames(as.character(self$penalty$lambda))
-    
-  
-  # optimize over lambda values
-    private$iterate_over_lambda(niter, tol)
-    torch_cubic_reassign()
-}               
-)
-
-OTProblem_$set("public", "choose_hyperparameters",
-function(n_boot_lambda = 100L, n_boot_delta = 1000L, lambda_bootstrap = Inf) {
-  
-  # check arguments
-  stopifnot("n_boot_lambda must be >= 0"= n_boot_lambda>=0)
-  stopifnot("n_boot_delta must be >= 0"= n_boot_delta>=0)
-  stopifnot("lambda_bootstrap must be > 0"=lambda_bootstrap>0)
-  
-  # alter lists if needed for inherited classes
-  res <- private$setup_choose_hyperparameters()
-  
-  # pull out current delta and lambda values
-  delta_values <- res$delta
-  lambda_values <- res$lambda
-  
-  # vector parameters for temporary holders
-  n_delta <- length(delta_values)
-  n_lambda<- length(lambda_values)
-  
-  # current weights list
-  weights_list  <- res$weights_list
-  
-  # setup final metrics list
-  private$weights_metrics <- list(delta = vector("list", n_lambda),
-                               lambda= vector("list", n_lambda))
-  
-  # check if function already ran before
-  if(is.numeric(self$selected_lambda)) {
-    warning(sprintf("Lambda value of %s previously selected. This function will erase previous bootstrap selection", self$selected_lambda))
-  }
-  
-  if (n_delta > 1) { # begin delta select
-    # setup temporary vector to hold delta evaluations
-    delta_temp_metric <- vector("numeric", n_delta) 
-    class(delta_temp_metric) <- c("weightEnv", class(delta_temp_metric))
-    
-    lambda_temp_metric <- vector("list", n_lambda)
-    
-    for (l in seq_along(lambda_values)) {
-      lambda_temp_metric[[l]] <- vector("numeric", n_delta)
-    }
-    
-    self$selected_delta <- vector("numeric", n_lambda) 
-    
-    # boot measure holder
-    boot_measure <- NULL
-    
-    # running delta evaluations
-    for ( i in 1:n_boot_delta ) {
-      boot_measure <- private$draw_boot_measure()
-      for ( l in seq_along(lambda_values) ) {
-        delta_temp_metric <- vapply(weights_list[[l]],
-                                    FUN = private$eval_delta,
-                                    FUN.VALUE = 0.0,
-                                    boot = boot_measure
-                                    )
-        lambda_temp_metric[[l]] <- lambda_temp_metric[[l]] + delta_temp_metric/n_boot_delta
-      }
-    }
-    
-    
-    # assign metrics back to final location
-    private$weights_metrics$delta <- lambda_temp_metric
-    
-    # select final deltas
-    delta_eval_holder <- vector("numeric", n_delta)
-    d_idx <- NULL
-    targ_names <- ls(self$target_objects)
-    param_names<- ls(private$parameters)
-    
-    # run through the parameter list and assign all to temp_wt
-    # for (address in param_names ) {
-    #   for(l in l_names) {
-    #     # only look at delta eval if has target
-    #     if (address %in% targ_names) {
-    #       for (d in d_names) {
-    #         delta_eval_holder[[d]] <- private$weights_metrics$delta[[l]][[d]][[address]]
-    #       }
-    #       d_idx <- which.min(delta_eval_holder)
-    #     } else {
-    #       d_idx <- 1L
-    #     }
-    #     
-    #     # assign final selected weights
-    #     temp_wt[[l]][[t_address]] <- self$weights_list[[l]][[d_idx]][[address]]
-    #   }
-    # }
-    min_d_idx <- NULL
-    for(l in seq_along(lambda_values)) {
-      min_d_idx <- which.min(lambda_temp_metric[[l]])[1]
-      weights_list[[l]] <-  weights_list[[l]][[min_d_idx]]
-      self$selected_delta[[l]] <- delta_values[[min_d_idx]]
-    }
-    
-  } else {
-    new_weights_list <- vector("list", length(weights_list))
-    for (l in seq_along(lambda_values)) {
-      new_weights_list[[l]] <- weights_list[[l]][[1L]]
-    }
-    weights_list <- new_weights_list
-    
-    if(length(self$target_objects) > 0) {
-      self$selected_delta <- list(rep(NA_real_, length(self$target_objects)))
-      names_target <- ls(self$target_objects)
-      for (v in seq_along(self$target_objects) ) {
-        self$selected_delta[[1L]][[v]] <- self$target_objects[[names_target[v] ]]$delta
-      }
-      names(self$selected_delta[[1L]]) <- names_target
-    }
-  }# end of delta selection
-  
-  if (n_lambda > 1) {
-    
-    # use Energy Dist
-    private$set_lambda(lambda_bootstrap)
-    
-    # setup holder
-    lambda_metrics <- rep(0.0, n_lambda)
-    boot_measure <- NULL
-    
-    for (i in 1:n_boot_lambda ) {
-      boot_measure <- private$draw_boot_measure()
-      lambda_metrics <- vapply(X = weights_list,
-                               FUN = private$eval_lambda,
-                               FUN.VALUE = 0.0,
-                               boot = boot_measure)/n_boot_lambda +
-        lambda_metrics
-    }
-    # choose final lambda value
-    idx_lambda <- which.min(lambda_metrics)
-    selected_lambda <- as.numeric(lambda_values)[idx_lambda]
-    
-    # set metrics
-    private$weights_metrics$lambda <- lambda_metrics
-    
-    # pull out final wts
-    weights_list <- weights_list[[idx_lambda]]
-    
-    # save selected lambda
-    self$selected_lambda <- selected_lambda
-    private$set_lambda(selected_lambda)
-    
-    if(length(self$selected_delta) > 1) self$selected_delta <- self$selected_delta[[idx_lambda]]
-  } else {
-    weights_list <- weights_list[[1L]]
-  }
-  
-  # set weights back to the measures
-  private$parameters_get_set(value = weights_list)
-  
-  
-  # private$ot_update(only_params = FALSE, get_weights = TRUE, use_grad = FALSE)
-  
-}               
-
-)
-
-OTProblem_$set("private", "draw_boot_measure",
+OTProblem_$set("private", 
+               "draw_boot_measure",
 function() {
-  addresses <- ls(self$measures)
+  addresses <- ls(private$measures)
   
   out <- rlang::env()
   n <- NULL
@@ -2142,7 +2553,7 @@ function() {
   meas <- NULL
   
   for (add in addresses) {
-    meas <- self$measures[[add]]
+    meas <- private$measures[[add]]
     n <- meas$n
     prob <- meas$init_weights
     out[[add]] <- prob$multinomial(n,replacement = TRUE)$add(1L)$bincount(minlength=n)
@@ -2152,9 +2563,10 @@ function() {
 }               
 )
 
-OTProblem_$set("private", "eval_delta",
+OTProblem_$set("private", 
+               "eval_delta",
 function (wts, boot) {
-  addresses <- ls(self$target_objects)
+  addresses <- ls(private$target_objects)
   means     <- rep(0.0, length(addresses)) |> setNames(addresses)
   ns        <- rep(0.0, length(addresses)) |> setNames(addresses)
   n <- NULL
@@ -2166,14 +2578,14 @@ function (wts, boot) {
   target_obj<- NULL
   
   for (add in addresses) {
-    if (self$measures[[add]]$adapt == "weights") {
+    if (private$measures[[add]]$adapt == "weights") {
       w <- wts[[add]]
     } else {
       w <- self$measure[[add]]$init_weights 
     }
     b <- boot[[add]]
     
-    target_obj <- self$target_objects[[add]]
+    target_obj <- private$target_objects[[add]]
     n <- nrow(target_obj$bf)
     
     w_star <- w * b
@@ -2197,8 +2609,8 @@ function (wts, boot) {
 
 OTProblem_$set("private", "eval_lambda",
 function (wts, boot) {
-  addresses <- ls(self$measures)
-  prob_adds <- ls(self$ot_objects)
+  addresses <- ls(private$measures)
+  prob_adds <- ls(private$ot_objects)
   wt_adds   <- ls(wts)
   sel_probs <- NULL
   prob_hold <- NULL
@@ -2214,7 +2626,7 @@ function (wts, boot) {
   
   for (add in addresses) {
    b <- boot[[add]]
-   meas <- self$measures[[add]]
+   meas <- private$measures[[add]]
    
    w <- if(add %in% wt_adds) {
      wts[[add]]$detach()
@@ -2232,18 +2644,22 @@ function (wts, boot) {
    
    sel_probs <- prob_adds[grep(add, prob_adds)]
    for (i in sel_probs) {
-     prob_hold <- self$problems[[i]]
+     prob_hold <- private$problems[[i]]
      p1_add <- prob_hold[[1]]
      p2_add <- prob_hold[[2]]
      if (p1_add == add){
-       self$ot_objects[[i]]$a <- w_star
+       private$ot_objects[[i]]$a <- w_star
        if (meas$adapt == "x") {
-         update_cost(self$ot_objects[[i]]$C_xy, w, self$measures[[p2_add]]$x$detach())
+         update_cost(private$ot_objects[[i]]$C_xy, 
+                     w$detach(), #w should be the data values in this case, not weights
+                     private$measures[[p2_add]]$x$detach())
        }
      } else if (p2_add == add) {
-       self$ot_objects[[i]]$b <- w_star
+       private$ot_objects[[i]]$b <- w_star
        if (meas$adapt == "x") {
-         update_cost(self$ot_objects[[i]]$C_yx, w, self$measures[[p1_add]]$x$detach())
+         update_cost(private$ot_objects[[i]]$C_yx, 
+                     w$detach(), #w should be the data values in this case, not weights
+                     private$measures[[p1_add]]$x$detach())
        }
      } else {
        stop("Problem address not found. You found a bug!")
@@ -2251,12 +2667,12 @@ function (wts, boot) {
    }
    
   }
-  if(is.finite(self$ot_objects[[i]]$penalty ))  {
-    for(o in ls(self$ot_objects)) {
-      self$ot_objects[[o]]$sinkhorn_opt(20, 1e-3)
+  if(is.finite(private$ot_objects[[i]]$penalty ))  {
+    for(o in ls(private$ot_objects)) {
+      private$ot_objects[[o]]$sinkhorn_opt(20, 1e-3)
     }
   }
-  dists <- self$dist$detach()$item()
+  dists <- self$loss$detach()$item()
   return(dists)
 }               
                
@@ -2364,8 +2780,8 @@ NNM <- R6::R6Class(
                                p = 2,
                                cost.online = "auto",
                                debias = TRUE,
-                               diameter = NULL, niter = 1000L,
-                               tol = 1e-5) {
+                               diameter = NULL, ot_niter = 1000L,
+                               ot_tol = 1e-5) {
       super$setup_arguments(lambda = 0, delta = NULL,
                             grid.length = 1,
                             cost.function = cost.function,
@@ -2373,9 +2789,9 @@ NNM <- R6::R6Class(
                             cost.online = cost.online,
                             debias = FALSE,
                             diameter = diameter,
-                            niter = niter,
-                            tol = tol)
-      ot <- self$ot_objects[[ls(self$ot_objects)[[1]] ]]
+                            ot_niter = ot_niter,
+                            ot_tol = ot_tol)
+      ot <- private$ot_objects[[ls(private$ot_objects)[[1]] ]]
       private$C_xy <- ot$C_xy
       private$tensorized <- ot$tensorized
       private$b <- ot$b
@@ -2413,8 +2829,8 @@ NNM <- R6::R6Class(
       }
       w_nnm = torch::torch_bincount(self = mins, weights = private$b, minlength = private$n)
       
-      for (m in ls(self$measures) ) {
-        if(self$measures[[m]]$adapt == "weights") self$measures[[m]]$weights <- w_nnm
+      for (m in ls(private$measures) ) {
+        if(private$measures[[m]]$adapt == "weights") private$measures[[m]]$weights <- w_nnm
       } 
       
       # return(w_nnm)
@@ -2726,30 +3142,30 @@ cotDualTrain <- R6::R6Class(
                                p = 2,
                                cost.online = "auto",
                                debias = TRUE,
-                               diameter = NULL, niter = 1000L,
-                               tol = 1e-5) {
+                               diameter = NULL, ot_niter = 1000L,
+                               ot_tol = 1e-5) {
       super$setup_arguments(lambda, delta, 
                             grid.length,
                             cost.function, 
                             p,
                             cost.online ,
                             debias,
-                            diameter , niter,
-                            tol)
+                            diameter , ot_niter,
+                            ot_tol)
       
-      m_add   <- ls(self$measures)
-      p_add   <- ls(self$problems)
+      m_add   <- ls(private$measures)
+      p_add   <- ls(private$problems)
       
-      self$ot <- self$ot_objects[[p_add[1] ]]
+      self$ot <- private$ot_objects[[p_add[1] ]]
       
       private$C_xy <- self$ot$C_xy
       private$C_xx <- self$ot$C_xx
       private$b_log <- log_weights(self$ot$b)
       
-      runbf <-  length(self$target_objects) >= 1
+      runbf <-  length(private$target_objects) >= 1
       if (runbf) {
-        t_add <- ls(self$target_objects)
-        targ  <- self$target_objects[[ t_add[1] ]]
+        t_add <- ls(private$target_objects)
+        targ  <- private$target_objects[[ t_add[1] ]]
         
         private$bf <- targ$bf
         private$bt <- targ$bt
@@ -2767,18 +3183,18 @@ cotDualTrain <- R6::R6Class(
       )
       private$nn_holder  <- nn_fun$new(n = self$ot$n, 
                                        d = length(private$bt),
-                                       device = self$measures[[m_add[1L]]]$device,
-                                       dtype = self$measures[[m_add[1L]]]$dtype)
+                                       device = private$measures[[m_add[1L]]]$device,
+                                       dtype = private$measures[[m_add[1L]]]$dtype)
       private$parameters <- private$nn_holder$parameters
       
-      self$penalty$lambda[ is.infinite(self$penalty$lambda) ] <- self$ot$diameter * 1e5
-      self$penalty$lambda[self$penalty$lambda == 0] <- self$ot$diameter / 1e9
-      self$penalty$lambda <- sort(self$penalty$lambda, decreasing = TRUE)
+      private$penalty_list$lambda[ is.infinite(private$penalty_list$lambda) ] <- self$ot$diameter * 1e5
+      private$penalty_list$lambda[private$penalty_list$lambda == 0] <- self$ot$diameter / 1e9
+      private$penalty_list$lambda <- sort(private$penalty_list$lambda, decreasing = TRUE)
       
-      private$lambda <- self$penalty$lambda[1L]
+      private$lambda <- private$penalty_list$lambda[1L]
       
-      private$niter <- self$ot_niter
-      private$tol <- self$tol
+      # private$niter <- private$ot_niter
+      # private$tol <- private$ot_tol
       private$prev_lambda <- private$lambda
       return(invisible(self))
       
@@ -2807,8 +3223,8 @@ cotDualTrain <- R6::R6Class(
   )},
   private = {list(
     eval_lambda = function (wts, boot) {
-      addresses <- ls(self$measures)
-      prob_adds <- ls(self$ot_objects)
+      addresses <- ls(private$measures)
+      prob_adds <- ls(private$ot_objects)
       wt_adds   <- ls(wts)
       sel_probs <- NULL
       prob_hold <- NULL
@@ -2824,7 +3240,7 @@ cotDualTrain <- R6::R6Class(
       
       for (add in addresses) {
         b    <- boot[[add]]
-        meas <- self$measures[[add]]
+        meas <- private$measures[[add]]
         
         w <- if(add %in% wt_adds) {
           wts[[add]]$detach()
@@ -2842,18 +3258,18 @@ cotDualTrain <- R6::R6Class(
         
         sel_probs <- prob_adds[grep(add, prob_adds)]
         for (i in sel_probs) {
-          prob_hold <- self$problems[[i]]
+          prob_hold <- private$problems[[i]]
           p1_add <- prob_hold[[1]]
           p2_add <- prob_hold[[2]]
           if (p1_add == add){
-            self$ot_objects[[i]]$a <- w_star
+            private$ot_objects[[i]]$a <- w_star
             if (meas$adapt == "x") {
-              update_cost(self$ot_objects[[i]]$C_xy, w, self$measures[[p2_add]]$x$detach())
+              update_cost(private$ot_objects[[i]]$C_xy, w, private$measures[[p2_add]]$x$detach())
             }
           } else if (p2_add == add) {
-            self$ot_objects[[i]]$b <- w_star
+            private$ot_objects[[i]]$b <- w_star
             if (meas$adapt == "x") {
-              update_cost(self$ot_objects[[i]]$C_yx, w, self$measures[[p1_add]]$x$detach())
+              update_cost(private$ot_objects[[i]]$C_yx, w, private$measures[[p1_add]]$x$detach())
             }
           } else {
             stop("OT Problem address not found. You found a bug!")
@@ -2862,12 +3278,12 @@ cotDualTrain <- R6::R6Class(
         
       }
       # browser()
-      # self$ot_objects[[i]]$penalty <- private$boot_lambda #0.05 #self$ot_objects[[i]]$diameter
-      if(is.finite(self$ot_objects[[i]]$penalty ))  self$ot_objects[[i]]$sinkhorn_opt(20, 1e-3)
-      dists <- self$dist$detach()$item()
+      # private$ot_objects[[i]]$penalty <- private$boot_lambda #0.05 #private$ot_objects[[i]]$diameter
+      if(is.finite(private$ot_objects[[i]]$penalty ))  private$ot_objects[[i]]$sinkhorn_opt(20, 1e-3)
+      dists <- self$loss$detach()$item()
       return(dists)
-    }      ,
-    set_lambda = function(l) {
+    },
+    set_lambda = function (l) {
       stopifnot(l >= 0.0)
       stopifnot(l <= Inf)
       if(l == 0.0) l <- self$ot$diameter / 1e9
@@ -2876,18 +3292,18 @@ cotDualTrain <- R6::R6Class(
      
       private$lambda <- torch::jit_scalar(l)
     },
-    set_delta = function(d) {
+    set_delta = function (d) {
       stopifnot(d >= 0.0 || is.na(d))
       private$delta <- if(!is.na(d)) {
         torch::jit_scalar(d)
-      } else if(length(self$target_objects) >= 1L) {
-         self$target_objects[[ls(self$target_objects)]]$delta
+      } else if(length(private$target_objects) >= 1L) {
+         private$target_objects[[ls(private$target_objects)]]$delta
       } else {
         NA_real_
       }
       
     },
-    set_penalties = function(value) {
+    set_penalties = function (value) {
       if (is.list(value)) {
         if (!all(names(value) %in% c("lambda", "delta")) ) {
           stop("If penalties are provided as a list, must be with names in c('lamba', 'delta')")
@@ -2912,7 +3328,7 @@ cotDualTrain <- R6::R6Class(
       private$set_lambda(lambda)
       private$set_delta(delta)
     },
-    optimization_loop = function(niter, tol) {
+    optimization_loop = function (niter, tol) {
       
       #reset torch optimizer if present
       private$torch_optim_reset()
@@ -2953,7 +3369,7 @@ cotDualTrain <- R6::R6Class(
                   iter = i))
       
     }, # overwrite super function
-    parameters_get_set = function(value, clone = FALSE) {
+    parameters_get_set = function (value, clone = FALSE) {
       
       ifthenfun <- function(v) {
         if (is.list(private$parameters[[v]]) ) {
@@ -2968,14 +3384,14 @@ cotDualTrain <- R6::R6Class(
         out <- rlang::env()
         class(out) <- c("weightEnv", class(out))
         
-        param_addresses <- ls(self$measures)
+        param_addresses <- ls(private$measures)
         for (v in param_addresses) {
           # out[[v]] <- if (isTRUE(clone)) {
           #   ifthenfun(v)$detach()$clone()
           # } else {
           #   ifthenfun(v)
           # }
-          if(self$measures[[v]]$adapt == "weights") {
+          if(private$measures[[v]]$adapt == "weights") {
             out[[v]] <- self$weights
           }
          
@@ -2984,7 +3400,7 @@ cotDualTrain <- R6::R6Class(
       }
       
       # set weights
-      param_addresses <- ls(self$measures)
+      param_addresses <- ls(private$measures)
       
       if(!rlang::is_environment(value)){
         stopifnot("value must be a list or environment" = is.list(value))
@@ -3000,8 +3416,8 @@ cotDualTrain <- R6::R6Class(
           for ( i in seq_along(param_addresses) ) {
             v <- param_addresses[[i]]
             u <- value_addresses[[1L]]
-            if (self$measures[[v]]$adapt == "weights")  {
-              self$measures[[v]]$weights <- value[[u]]
+            if (private$measures[[v]]$adapt == "weights")  {
+              private$measures[[v]]$weights <- value[[u]]
             }
           }
         )
@@ -3009,41 +3425,7 @@ cotDualTrain <- R6::R6Class(
         stop("Input must have same number of groups as do the parameters.")
       }
     }, #overwrite super
-    # setup_choose_hyperparameters = function() {
-    #   
-    #   #delta values
-    #   delta_values <- self$penalty$delta
-    #   # if ( !is.na(delta_values) ) {
-    #   #   delta_values <- rep(delta_values, 3)
-    #   # }
-    #   n_d <- length(self$penalty$delta)
-    #   
-    #   # lambda values
-    #   lambda_values <- rep(self$penalty$lambda, 3)
-    #   n_l <- length(self$penalty$lambda)
-    #   
-    #   # setup temp weights list
-    #   n_w <- length(self$weights_list)
-    #   weights_list <- vector("list",  n_w * 3L)
-    #   add <- NULL
-    #   
-    #   # separate original weights values for a1 = OT(a,b), a2 = OT(a,a), and a3 = a1/2 + a2/2
-    #   for (l in seq_along(self$penalty$lambda)) {
-    #     weights_list[[l]] <- weights_list[[l + n_l]] <- weights_list[[l+ 2 * n_l]] <- vector("list", n_d)
-    #     for (d in seq_along(self$penalty$delta)) {
-    #       add <- ls(self$weights_list[[l]][[d]])
-    #       weights_list[[l]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[1L]]
-    #       weights_list[[l + n_l]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[2L]]
-    #       weights_list[[l + n_l*2L]][[d]][[add]] <- self$weights_list[[l]][[d]][[add]][[3L]]
-    #     }
-    #   }
-    #   
-    #   return(list(delta = delta_values,
-    #               lambda = lambda_values,
-    #               weights_list = weights_list))
-    #   
-    # }, #overwrite super
-    torch_optim_setup = function(torch_optim, 
+    torch_optim_setup = function (torch_optim, 
                                  torch_scheduler,
                                  torch_args) {
       
@@ -3110,7 +3492,7 @@ cotDualTrain <- R6::R6Class(
       #             sched = opt_sched, sched_call = scheduler_call))
       
     },
-    torch_optim_reset = function(lr = NULL) {
+    torch_optim_reset = function (lr = NULL) {
       if(!is.null(private$opt)) {
         default_lr <- private$opt$defaults$lr
         if( is.null(lr)) lr <- default_lr
@@ -3141,12 +3523,12 @@ cotDualTrain <- R6::R6Class(
       }
       
     },
-    ot_update = function(...) {NULL},
+    ot_update = function (...) {NULL},
     lambda = "numeric",
     delta = "numeric",
-    tol = "numeric",
+    # tol = "numeric",
     nn_holder = "dualCotOpt",
-    niter = "integer",
+    # niter = "integer",
     optim = "optim",
     prev_lambda = "numeric",
     sched = "scheduler",

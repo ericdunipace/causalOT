@@ -142,13 +142,13 @@ testthat::test_that("OTProblem tests",{
   )
   
   testthat::expect_equal(
-    sort(ls(ot$measures)), 
+    sort(ls(ot$.__enclos_env__$private$measures)), 
     sort(addresses),
     label = "Check object addresses same original object"
   )
   
   testthat::expect_equal(
-    sort(ls(ot$problems)),
+    sort(ls(ot$.__enclos_env__$private$problems)),
     sort(c(paste0(addresses[1], ", ", addresses[2]))),
     label = "Check problem addresses same as original object"
   )
@@ -163,11 +163,11 @@ testthat::test_that("OTProblem tests",{
   testthat::expect_true(rlang::obj_address(mult_check) != rlang::obj_address(ot_x), label = "Check that multiplication creates new object")
   
   testthat::expect_equal(
-    ls(mult_check$measures),
-    ls(ot_x$measures)
+    ls(mult_check$.__enclos_env__$private$measures),
+    ls(ot_x$.__enclos_env__$private$measures)
   )
   testthat::expect_equal(
-    ls(mult_check$measures),
+    ls(mult_check$.__enclos_env__$private$measures),
     rlang::obj_address(m1)
   )
   
@@ -178,18 +178,18 @@ testthat::test_that("OTProblem tests",{
   testthat::expect_true(rlang::obj_address(ot_final) != orig_final_address)
   
   testthat::expect_equal(
-    sort(ls(ot$measures)), 
+    sort(ls(ot$.__enclos_env__$private$measures)), 
     sort(addresses),
     label = "Check object addresses same after final object"
   )
   
   testthat::expect_equal(
-    sort(ls(ot$problems)),
+    sort(ls(ot$.__enclos_env__$private$problems)),
     sort(c(paste0(addresses[1], ", ", addresses[2]))),
     label = "Check problem addresses same as original object")
   
   testthat::expect_equal(
-    sort(ls(ot_final$problems)),
+    sort(ls(ot_final$.__enclos_env__$private$problems)),
     sort(c(paste0(addresses[1], ", ", addresses[2]), 
            paste0(addresses[1], ", ", addresses[1]),
            paste0(addresses[2], ", ", addresses[2]))),
@@ -197,8 +197,8 @@ testthat::test_that("OTProblem tests",{
   )
   
   testthat::expect_equal(
-    sort(ls(ot_final$measures)),
-    sort(ls(ot$measures)),
+    sort(ls(ot_final$.__enclos_env__$private$measures)),
+    sort(ls(ot$.__enclos_env__$private$measures)),
     label = "Check final measures same as original"
   )
 
@@ -289,9 +289,9 @@ testthat::test_that("weights adapatiation", {
   old_delta <- ot$penalty$delta
   
   ot$.__enclos_env__$private$set_delta(5)
-  adds <- ls(ot$target_objects)
-  testthat::expect_equal(ot$target_objects[[adds[1]]]$delta, 5)
-  testthat::expect_equal(ot$target_objects[[adds[2]]]$delta, 5)
+  adds <- ls(ot$.__enclos_env__$private$target_objects)
+  testthat::expect_equal(ot$.__enclos_env__$private$target_objects[[adds[1]]]$delta, 5)
+  testthat::expect_equal(ot$.__enclos_env__$private$target_objects[[adds[2]]]$delta, 5)
   
   # debugonce(ot$.__enclos_env__$private$balance_function_check)
   ot$.__enclos_env__$private$delta_values_setup(run.quick=FALSE, osqp_args = NULL)
@@ -299,10 +299,10 @@ testthat::test_that("weights adapatiation", {
   
   # debugonce(ot$.__enclos_env__$private$balance_function_check)
   ot$.__enclos_env__$private$delta_values_setup(run.quick=TRUE, osqp_args = NULL)
-  to_names <- ls(ot$target_objects)
-  testthat::expect_equal(ot$target_objects[[to_names[[1L]]]]$delta, 1e-04)
-  testthat::expect_equal(ot$target_objects[[to_names[[2L]]]]$delta, 1e-04)
-  testthat::expect_true(is.na(ot$penalty$delta))
+  to_names <- ls(ot$.__enclos_env__$private$target_objects)
+  testthat::expect_equal(ot$.__enclos_env__$private$target_objects[[to_names[[1L]]]]$delta, 1e-04)
+  testthat::expect_equal(ot$.__enclos_env__$private$target_objects[[to_names[[2L]]]]$delta, 1e-04)
+  testthat::expect_true(is.na(ot$.__enclos_env__$private$penalty_list$delta))
  
   # debugonce(ot$solve)
   # Rprof(tmp<-tempfile())

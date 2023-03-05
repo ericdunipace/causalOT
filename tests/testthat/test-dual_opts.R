@@ -450,7 +450,7 @@ testthat::test_that("training function works for dual optimizer",{
   # testthat::expect_equal(as.numeric(ws[[1]]), as.numeric(w2[[1]]))
   testthat::expect_equal(as.numeric(ws$to(device = "cpu")), as.numeric(w2$to(device = "cpu")))
   
-  ms <- cot$measures
+  ms <- cot$.__enclos_env__$private$measures
   m  <- NULL
   for (i in ls(ms)) {
     if(ms[[i]]$adapt == "weights") {

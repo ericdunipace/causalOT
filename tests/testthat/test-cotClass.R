@@ -83,7 +83,7 @@ testthat::test_that("ent works", {
                                                     options = list(debias = FALSE, 
                                                                    niter = 4,
                                                                    opt.direction = "primal")))
-  ot <- cot$.__enclos_env__$private$optimizer$ot_objects
+  ot <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$ot_objects
   testthat::expect_true(inherits(ot[[ls(ot)]]$C_xy, "costTensor"))
   testthat::expect_true(
     inherits(cot$.__enclos_env__$private$torch_optim, "optim_lbfgs")
@@ -242,7 +242,7 @@ testthat::test_that("NNM works",{
     inherits(cot$.__enclos_env__$private$optimizer, "NNM")
   )
   
-  ot <- cot$.__enclos_env__$private$optimizer$ot_objects
+  ot <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$ot_objects
   testthat::expect_true(inherits(ot[[ls(ot)]]$C_xy, "costTensor"))
   testthat::expect_true(
     inherits(cot$.__enclos_env__$private$torch_optim, "optim_lbfgs")
@@ -254,7 +254,7 @@ testthat::test_that("NNM works",{
   
   cot <- causalOT:::COT$new(source = x, target = y,
                             options = list(debias = TRUE, lambda = 0))
-  ot <- cot$.__enclos_env__$private$optimizer$ot_objects
+  ot <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$ot_objects
   testthat::expect_true(isFALSE(ot[[ls(ot)]]$debias))
   
   cot <- causalOT:::COT$new(source = x, target = y,
@@ -284,7 +284,7 @@ testthat::test_that("NNM works",{
     inherits(cot$.__enclos_env__$private$optimizer, "NNM")
   )
   
-  ot <- cot$.__enclos_env__$private$optimizer$ot_objects
+  ot <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$ot_objects
   testthat::expect_true(inherits(ot[[ls(ot)]]$C_xy, "costOnline"))
   testthat::expect_true(
     inherits(cot$.__enclos_env__$private$torch_optim, "optim_lbfgs")
@@ -297,7 +297,7 @@ testthat::test_that("NNM works",{
   cot <- causalOT:::COT$new(source = x, target = y,
                             options = list(debias = TRUE, 
                                            cost.online = "online",lambda = 0))
-  ot <- cot$.__enclos_env__$private$optimizer$ot_objects
+  ot <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$ot_objects
   testthat::expect_true(isFALSE(ot[[ls(ot)]]$debias))
   
   cot <- causalOT:::COT$new(source = x, target = y,
