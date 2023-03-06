@@ -888,7 +888,7 @@ energy_dist_online <- torch::autograd_function(
       
       cost_grad_xy <- rkeops::keops_grad(op = sv$forward_op,
                                            var = "X")
-      grads$x <- go * cost_grad_xy(list(X = sv$x,
+      grads$x <- cost_grad_xy(list(X = sv$x,
                                               Y = sv$y,
                                               B = sv$b,
                                               eta = matrix(sv$a)))
@@ -896,7 +896,7 @@ energy_dist_online <- torch::autograd_function(
       cost_grad_xx <- rkeops::keops_grad(op = sv$forward_op,
                                          var = "X")
       
-      grads$x <- torch::torch_tensor(c(grads$x - cost_grad_xx(list(X = sv$x,
+      grads$x <- torch::torch_tensor(go * c(grads$x - cost_grad_xx(list(X = sv$x,
                                              Y = sv$x,
                                              B = sv$a,
                                              eta = matrix(sv$a)))),
@@ -907,13 +907,13 @@ energy_dist_online <- torch::autograd_function(
       
       cost_grad <- rkeops::keops_grad(op = sv$forward_op,
                                       var = "X")
-      grads$y <- go * cost_grad(list(X = sv$y,
+      grads$y <-  cost_grad(list(X = sv$y,
                                               Y = sv$x,
                                               B = sv$a,
                                               eta = matrix(sv$b)))
       cost_grad_yy <- rkeops::keops_grad(op = sv$forward_op,
                                       var = "X")
-      grads$y <- torch::torch_tensor(c(grads$y - cost_grad_yy(list(X = sv$y,
+      grads$y <- torch::torch_tensor(go *c(grads$y - cost_grad_yy(list(X = sv$y,
                                                    Y = sv$y,
                                                    B = sv$b,
                                                    eta = matrix(sv$b)))),
@@ -1006,14 +1006,14 @@ inf_sinkhorn_online <- torch::autograd_function(
     saved_var <- ctx$saved_variables
     go <- as_numeric(grad_output)
     if (ctx$needs_input_grad$a) {
-      grads$a <- go *
-        torch::torch_tensor(saved_var$a_deriv, 
+      grads$a <- 
+        torch::torch_tensor(go *saved_var$a_deriv, 
                              dtype = saved_var$dtype$a,
                              device = saved_var$device$a)
     }
     if (ctx$needs_input_grad$b) {
-      grads$b <- go * 
-        torch::torch_tensor(saved_var$forwar_op(list(saved_var$y,
+      grads$b <- 
+        torch::torch_tensor(go * saved_var$forwar_op(list(saved_var$y,
                                                      saved_var$x, 
                                                      saved_var$a)), 
                             dtype = saved_var$dtype$b,
@@ -1022,8 +1022,8 @@ inf_sinkhorn_online <- torch::autograd_function(
     if (ctx$needs_input_grad$x) {
       cost_grad <- rkeops::keops_grad(op = saved_var$forward_op,
                                       var = "X")
-      grads$x <- go * 
-        torch::torch_tensor(cost_grad(list(X = saved_var$x,
+      grads$x <- 
+        torch::torch_tensor(go * cost_grad(list(X = saved_var$x,
                   Y = saved_var$y,
                   B = saved_var$b,
                   eta = matrix(saved_var$a))), 
@@ -1033,8 +1033,8 @@ inf_sinkhorn_online <- torch::autograd_function(
     if (ctx$needs_input_grad$y) {
       cost_grad <- rkeops::keops_grad(op = saved_var$forward_op,
                                       var = "X")
-      grads$x <- go * 
-        torch::torch_tensor(cost_grad(list(X = saved_var$y,
+      grads$x <- 
+        torch::torch_tensor(go * cost_grad(list(X = saved_var$y,
                           Y = saved_var$x,
                           B = saved_var$a,
                           eta = matrix(saved_var$b))),
