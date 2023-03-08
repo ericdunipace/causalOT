@@ -20,7 +20,7 @@ testthat::test_that("COT objects form", {
   testthat::expect_silent(cot$weights <- c(1, rep(0,n-1)))
   testthat::expect_true(length(cot$.__enclos_env__$private$optimizer$penalty$lambda) == 8)
   testthat::expect_true(is.na(cot$.__enclos_env__$private$optimizer$penalty$delta))
-  testthat::expect_equal(as.numeric(cot$weights), c(1, rep(0,n-1)))
+  testthat::expect_equal(as_numeric(cot$weights), c(1, rep(0,n-1)))
   testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(balance.formula = "~X1+X2")))
   testthat::expect_true(inherits(cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$nn_holder, "cotDualBfOpt"))
@@ -110,7 +110,7 @@ testthat::test_that("ent works", {
                                                     options = list(debias = FALSE,
                                                                    balance.formula = "~X1+X2", niter = 1, verbose = FALSE, delta = 0.1)))
   osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve() ))
-  testthat::expect_true(as.numeric((cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target)$abs()$max()$item()) < 0.9)
+  testthat::expect_true(as_numeric((cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target)$abs()$max()$item()) < 0.9)
   
 })
 
@@ -168,7 +168,7 @@ testthat::test_that("ent debiased works, online", {
                                                                    balance.formula = "~X1+X2", niter = 1, verbose = FALSE, delta = 0.1,
                                                                    cost.online = "online")))
   osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve() ))
-  testthat::expect_true(as.numeric(max(abs(cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target))) < 0.9)
+  testthat::expect_true(as_numeric(max(abs(cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target))) < 0.9)
   
   
   testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
@@ -179,7 +179,7 @@ testthat::test_that("ent debiased works, online", {
   osqpout <- testthat::capture_output(
     cot$solve() )
 
-  testthat::expect_true(as.numeric(max(abs(cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target))) < 0.9)
+  testthat::expect_true(as_numeric(max(abs(cot$.__enclos_env__$private$source$balance_functions$transpose(2,1)$matmul(cot$.__enclos_env__$private$source$weights) - cot$.__enclos_env__$private$source$balance_target))) < 0.9)
   
 })
 
