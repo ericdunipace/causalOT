@@ -848,9 +848,9 @@ energy_dist_online <- torch::autograd_function(
     # b_cross_deriv <- sumred(list(y,x, a))
     a_self_deriv <- sumred(list(xmat,xmat, a_vec))
     b_self_deriv <- sumred(list(ymat,ymat, b_vec))
-    loss <- sum(a * a_cross_deriv) - 
-      0.5 * sum(a * a_self_deriv) -
-      0.5 * sum(b * b_self_deriv)
+    loss <- sum(a_vec * a_cross_deriv) - 
+      0.5 * sum(a_vec * a_self_deriv) -
+      0.5 * sum(b_vec * b_self_deriv)
     
     ctx$save_for_backward(a_deriv = c(a_cross_deriv - a_self_deriv),
                           b_deriv = c(b_self_deriv),
@@ -962,7 +962,7 @@ inf_sinkhorn_online <- torch::autograd_function(
     d <- ncol(x_mat)
     
     
-    use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+    use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
     
     if (use_cuda) {
       rkeops::compile4gpu()
