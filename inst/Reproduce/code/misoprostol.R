@@ -117,7 +117,7 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                                               nboot = 100L,
                                               grid.length = 10L,
                                               # lambda = 1e-4,
-                                              tol = 1e-5
+                                              tol = 1e-4
                                               )
                                )
     

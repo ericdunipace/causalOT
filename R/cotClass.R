@@ -271,7 +271,7 @@ cotOptions <- function(lambda = NULL,
                        niter = 2e3,
                        nboot = 100L,
                        lambda.bootstrap = 0.05,
-                       tol = 1e-5, 
+                       tol = 1e-4, 
                        device = NULL,
                        dtype = NULL,
                        ...) { # dots are the solver and scheduler args
