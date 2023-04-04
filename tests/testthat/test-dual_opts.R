@@ -19,53 +19,54 @@ testthat::test_that("test forward functions", {
   C_xy <- ot_tens$C_xy$data
   C_xx <- ot_tens$C_xx$data
   
+  a_log<- causalOT:::log_weights(ot_tens$a)
   b_log<- causalOT:::log_weights(ot_tens$b)
   lambda <- ot_tens$penalty
   delta <- 0.01
   
   dual_forwards <- torch::jit_compile(causalOT:::dual_forward_code_tensorized)
   
-  a1_script <- dual_forwards$calc_a1(gamma$detach(), C_xy, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
+  a1_script <- dual_forwards$calc_w1(gamma$detach(), C_xy, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
   
-  a2_script <- dual_forwards$calc_a2(gamma$detach(), C_xx, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
+  a2_script <- dual_forwards$calc_w2(gamma$detach(), C_xx, a_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
   
-  g    <- lambda * b_log - lambda * ((gamma$detach()$view(c(n,1))-C_xy)/lambda)$logsumexp(1)
-  K    <- (gamma$detach()$view(c(n,1)) + g - C_xy)/lambda
+  g    <- b_log -  ((gamma$detach() + a_log)$detach()$view(c(n,1))-C_xy/lambda)$logsumexp(1)
+  K    <- (gamma$detach() + a_log)$view(c(n,1)) + g - C_xy/lambda
   a1   <- (K )$logsumexp(2)$exp()$detach()
   a1   <- as.numeric((a1/a1$sum())$to(device = "cpu"))
   
-  testthat::expect_equal(a1, as.numeric(a1_script$to(device = "cpu")), label = "calc_a1")
+  testthat::expect_equal(a1, as.numeric(a1_script$to(device = "cpu")), label = "calc_w1")
   
-  f_star <- gamma$detach()
-  K2   <- ((f_star$view(c(n,1)) + f_star -C_xx)/lambda)
+  f_star <- gamma$detach() + a_log
+  K2   <- (f_star$view(c(n,1)) + f_star -C_xx/lambda)
   norm  <-  K2$view(c(n*n,1))$logsumexp(1)
   a2     <- as.numeric((K2 - norm)$logsumexp(1)$exp()$detach()$to(device = "cpu"))
   
-  testthat::expect_equal(a2, as.numeric(a2_script$to(device = "cpu")), label = "calc_a2")
+  testthat::expect_equal(a2, as.numeric(a2_script$to(device = "cpu")), label = "calc_w2")
   
   testthat::expect_equal(gamma$dot(a1_script-a2_script)$item() * - 1,
-                         dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))$loss$item(), label = "loss calc")
+                         dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))$loss$item(), label = "loss calc")
   
   beta1 <- torch::torch_tensor(stats::rnorm(2), 
                                device = gamma$device,
                                dtype = gamma$dtype)
   
-  f_prime <- gamma$detach() #- m1$balance_functions$matmul(beta1_det)
+  f_prime <- gamma$detach() + a_log #- m1$balance_functions$matmul(beta1_det)
   beta1_det <- beta1$detach()
-  g    <- lambda * b_log - lambda * (f_prime$view(c(n,1))/lambda-C_xy/lambda)$logsumexp(1)
-  K    <- (f_prime$view(c(n,1)) + g - C_xy)/lambda
+  g    <- b_log -  (f_prime$view(c(n,1))-C_xy/lambda)$logsumexp(1)
+  K    <- (f_prime$view(c(n,1)) + g - C_xy/lambda)
   a1   <- (K )$logsumexp(2)$exp()$detach()
-  a1   <- as.numeric((a1/a1$sum())$to(device = "cpu"))
+  a1   <- as.numeric((a1)$to(device = "cpu"))
 
-  f_star <- gamma$detach() #- m1$balance_functions$matmul(beta2_det)
-  K2   <- ((f_star$view(c(n,1)) + f_star -C_xx)/lambda)
+  f_star <- gamma$detach() + a_log#- m1$balance_functions$matmul(beta2_det)
+  K2   <- (f_star$view(c(n,1)) + f_star -C_xx/lambda)
   norm  <-  K2$view(c(n*n,1))$logsumexp(1)
-  a2     <- as.numeric((K2 - norm)$logsumexp(1)$exp()$detach()$to(device = "cpu"))
+  a2     <- as.numeric((K2 - norm)$logsumexp(1)$log_softmax(1)$exp()$detach()$to(device = "cpu"))
   
-  testthat::expect_equal(a1, as.numeric(a1_script$to(device = "cpu")), label = "calc_a1")
-  testthat::expect_equal(a2, as.numeric(a2_script$to(device = "cpu")), label = "calc_a2")
+  testthat::expect_equal(a1, as.numeric(a1_script$to(device = "cpu")), label = "calc_w1")
+  testthat::expect_equal(a2, as.numeric(a2_script$to(device = "cpu")), label = "calc_w2")
   
-  res <- dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
+  res <- dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
 
   loss_gamma <- gamma$dot(a1_script-a2_script)$item()
   
@@ -93,7 +94,8 @@ testthat::test_that("test forward functions", {
   loss$multiply_(-1.0) #to make min
   
   
-  res2 <- dual_forwards$cot_bf_dual(gamma, C_xy, C_xx, b_log,
+  res2 <- dual_forwards$cot_bf_dual(gamma, C_xy, C_xx, a_log,
+                                    b_log,
                                    torch::jit_scalar(lambda),
                                    torch::jit_scalar(as.integer(n)),
                                    beta1, m1$balance_functions,
@@ -115,15 +117,15 @@ testthat::test_that("test forward functions", {
   
   keops_fun <- causalOT:::dual_forwards_keops
   
-  a1_script <- keops_fun$calc_a1(gamma$detach(), C_xy, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
+  a1_script <- keops_fun$calc_w1(gamma$detach(), C_xy, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
   
-  a2_script <- keops_fun$calc_a2(gamma$detach(), C_xx, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
+  a2_script <- keops_fun$calc_w2(gamma$detach(), C_xx, a_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
   
   res_keops <- keops_fun$cot_dual(
-    gamma, C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n))
+    gamma, C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n))
   )
   res_keops_2 <- keops_fun$cot_bf_dual(
-    gamma, C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
+    gamma, C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
     beta1, m1$balance_functions,
     m1$balance_target,
     torch::jit_scalar(delta)
@@ -170,15 +172,16 @@ testthat::test_that("dual nn modules work as expected",{
   C_xy <- ot_tens$C_xy
   C_xx <- ot_tens$C_xx
   
+  a_log<- causalOT:::log_weights(ot_tens$a)
   b_log<- causalOT:::log_weights(ot_tens$b)
   lambda <- ot_tens$penalty
   delta <- 0.01
   
   dual_forwards <- torch::jit_compile(causalOT:::dual_forward_code_tensorized)
   
-  res <- dual_forwards$cot_dual(gamma$detach(), C_xy$data, C_xx$data, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
+  res <- dual_forwards$cot_dual(gamma$detach(), C_xy$data, C_xx$data, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
   
-  res_mod <- opt$forward(C_xy, C_xx, b_log, lambda)
+  res_mod <- opt$forward(C_xy, C_xx, a_log, b_log, lambda)
   
   tests <- function(res, res_mod, opt, gamma) {
     testthat::expect_equal(res, res_mod)
@@ -203,7 +206,7 @@ testthat::test_that("dual nn modules work as expected",{
                           
     testthat::expect_true(opt$converged(res_mod,
                                         1e-5, 1e-6, param,
-                                        tol = 100, lambda, delta)
+                                        tol = 300, lambda, delta)
                                                 
                           )
                           
@@ -222,13 +225,13 @@ testthat::test_that("dual nn modules work as expected",{
   beta1 <- optbf$beta$detach()$clone()
   res <- dual_forwards$cot_bf_dual(
     gamma$detach() - m1$balance_functions$matmul(beta1), 
-                                   C_xy$data, C_xx$data, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
+                                   C_xy$data, C_xx$data, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
                                    beta1, m1$balance_functions,
                                    m1$balance_target,
                                    torch::jit_scalar(delta)
                                    )
   
-  res_mod <- optbf$forward(C_xy, C_xx, b_log, lambda,
+  res_mod <- optbf$forward(C_xy, C_xx, a_log, b_log, lambda,
                            m1$balance_functions,
                            m1$balance_target,
                            torch::jit_scalar(delta))
@@ -249,9 +252,9 @@ testthat::test_that("dual nn modules work as expected",{
   
   keops_fun <- causalOT:::dual_forwards_keops
   
-  res <- keops_fun$cot_dual(gamma$detach(), C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
+  res <- keops_fun$cot_dual(gamma$detach(), C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
   
-  res_mod <- opt$forward(C_xy, C_xx, b_log, lambda)
+  res_mod <- opt$forward(C_xy, C_xx, a_log, b_log, lambda)
   tests(res, res_mod, opt, gamma)
   
   
@@ -263,13 +266,13 @@ testthat::test_that("dual nn modules work as expected",{
   
   res <- keops_fun$cot_bf_dual(
     gamma$detach() - m1$balance_functions$matmul(beta1), 
-    C_xy, C_xx, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
+    C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)),
     beta1, m1$balance_functions,
     m1$balance_target,
     torch::jit_scalar(delta)
   )
   
-  res_mod <- optbf$forward(C_xy, C_xx, b_log, lambda,
+  res_mod <- optbf$forward(C_xy, C_xx, a_log, b_log, lambda,
                            m1$balance_functions,
                            m1$balance_target,
                            torch::jit_scalar(delta))
@@ -321,10 +324,10 @@ testthat::test_that("training function works for dual optimizer",{
   #### test weights function ###
   nnh <- cot$.__enclos_env__$private$nn_holder
   priv <- cot$.__enclos_env__$private
-  a1 <- nnh$calc_a1(nnh$gamma, priv$C_xy$data, 
+  a1 <- nnh$calc_w1(nnh$gamma, priv$C_xy$data, priv$a_log,
               priv$b_log, torch::jit_scalar(priv$lambda),
               torch::jit_scalar(as.integer(n)))
-  a2 <- nnh$calc_a2(nnh$gamma, priv$C_xx$data, 
+  a2 <- nnh$calc_w2(nnh$gamma, priv$C_xx$data, priv$a_log,
                      torch::jit_scalar(priv$lambda),
                     torch::jit_scalar(as.integer(n)))
   # debugonce(cot$.__enclos_env__$.__active__$weights)
@@ -401,7 +404,7 @@ testthat::test_that("training function works for dual optimizer",{
                          as.numeric(cot$.__enclos_env__$private$parameters$gamma$params$to(device = "cpu")),
                          tol = 1e-5)
   
-  testthat::expect_equal(priv$lambda/100,
+  testthat::expect_equal(1e-2, #priv$lambda/100,
                          cot$.__enclos_env__$private$parameters$gamma$lr)
   
   
@@ -416,7 +419,7 @@ testthat::test_that("training function works for dual optimizer",{
   priv <- cot$.__enclos_env__$private
   old_add <- rlang::obj_address(priv$opt)
   priv$torch_optim_reset(0.44)
-  testthat::expect_equal(priv$lambda/100,
+  testthat::expect_equal(0.44, #priv$lambda/100,
                          cot$.__enclos_env__$private$parameters$gamma$lr)
   testthat::expect_equal(0.44,
                          cot$.__enclos_env__$private$parameters$beta$lr)

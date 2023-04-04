@@ -320,13 +320,15 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    },
    
    #' @field init_weights returns the initial value of the weights
-   init_weights = function() {
-     return(private$init_weights_)
+   init_weights = function(value) {
+     if(!missing(value)) stop("Can't change the initial weights. Try setting the weights by using the `$weights` operator.")
+     return(private$init_weights_$clone())
    },
    
    #' @field init_data returns the initial value of the data
-   init_data = function() {
-     return(private$init_data_)
+   init_data = function(value) {
+     if(!missing(value)) stop("Can't change the initial values. Try setting the data by using the `$x` operator.")
+     return(private$init_data_$clone())
    },
    
    #' @field requires_grad checks or turns on/off gradient
@@ -2857,35 +2859,39 @@ NNM <- R6::R6Class(
 # forward functions in torchscript
 dual_forward_code_tensorized <- "
 
- def calc_a1(f: Tensor, C_xy: Tensor, b_log: Tensor, lambda: float, n: int):
-   g  = lambda * b_log - lambda * ( (f.view([n,1]) - C_xy)/lambda).logsumexp(0)
-   a1 = ( (f.view([n,1]) + g - C_xy)/lambda).logsumexp(1).log_softmax(0).exp()
-   return a1
+ def calc_w1(f: Tensor, C_xy: Tensor, a_log: Tensor, b_log: Tensor, lambda: float, n: int):
+   f_minus_C_lambda = f.view([n,1]) + a_log.view([n,1]) - C_xy/lambda #  f/lambda - C/lambda + a_log
+   g_lambda = b_log -(f_minus_C_lambda).logsumexp(0) # = g/lambda + b_log
+   w1 = (f_minus_C_lambda + g_lambda).logsumexp(1).exp()
+   return w1
    
- def calc_a2(f: Tensor, C_xx: Tensor, lambda: float, n: int):
-   a2 = ( (f.view([n,1]) + f  - C_xx ) / lambda).logsumexp(1).log_softmax(0).exp()
-   return a2
+ def calc_w2(f: Tensor, C_xx: Tensor, a_log: Tensor, lambda: float, n: int):
+   f_lambda = f + a_log
+   w2 = ( f_lambda.view([n,1]) + f_lambda  - C_xx / lambda).logsumexp(1).log_softmax(0).exp()
+   return w2
    
- def cot_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, b_log: Tensor, lambda: float, n: int):
+ def cot_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, a_log: Tensor, b_log: Tensor, lambda: float, n: int):
     
    f_star = gamma.detach()
    
-   a1 = calc_a1(f_star, C_xy, b_log, lambda, n)
-   a2 = calc_a2(f_star, C_xx, lambda, n)
+   w1 = calc_w1(f_star, C_xy, a_log, b_log, lambda, n)
+   w2 = calc_w2(f_star, C_xx, a_log,        lambda, n)
    
-   measure_diff = (a1-a2).detach()
-   loss = -1.0 * gamma.dot(measure_diff) # mult by neg 1 because is a maximization
+   measure_diff = (w1-w2).detach()
+   loss =  -1.0 * gamma.dot(measure_diff) 
+   # mult by -1 because is a maximization and are turning into minimization
+   # print(-loss.item())
    return {'loss' : loss, 'avg_diff' : measure_diff.detach().norm(), 'bf_diff' : torch.zeros(1,dtype=loss.dtype)}
    
- def cot_bf_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, b_log: Tensor, lambda: float, n: int, beta: Tensor, bf: Tensor, bt: Tensor, delta: float):
+ def cot_bf_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, a_log: Tensor, b_log: Tensor, lambda: float, n: int, beta: Tensor, bf: Tensor, bt: Tensor, delta: float):
    
-   a1 = calc_a1(gamma.detach(), C_xy, b_log, lambda, n)
-   a2 = calc_a2(gamma.detach(), C_xx,        lambda, n)
+   w1 = calc_w1(gamma.detach(), C_xy, a_log, b_log, lambda, n)
+   w2 = calc_w2(gamma.detach(), C_xx, a_log,        lambda, n)
    
-   measure_diff = (a1-a2).detach()
+   measure_diff = (w1-w2).detach()
    loss_gamma = gamma.dot(measure_diff) 
    
-   bf_diff = bf.transpose(0,1).matmul(a1) - bt
+   bf_diff = bf.transpose(0,1).matmul(w1) - bt
    
    beta_check = bf_diff * beta.detach() - delta * beta.detach().abs()
    
@@ -2899,23 +2905,25 @@ dual_forward_code_tensorized <- "
 
 # rkeops forward functions
 dual_forwards_keops <- list(
-  calc_a1 = function(f, C_xy, b_log, lambda, n) {
+  calc_w1 = function(f, C_xy, a_log, b_log, lambda, n) {
     xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     ymat <- as.matrix(C_xy$data$y$to(device = "cpu"))
-    f_lambda <- f/lambda
+    f_lambda <- f + a_log
+    # f_lambda <- f
     exp_sums_g <- C_xy$reduction( list(ymat, xmat,  
                                        as.numeric(f_lambda$to(device = "cpu")),
                                        1.0 / lambda) )
     
-    g <- lambda * as.numeric(b_log$to(device = "cpu")) - lambda * (log(exp_sums_g[,2]) + exp_sums_g[,1])
+    g_lambda <- - (log(exp_sums_g[,2]) + exp_sums_g[,1]) + as_numeric(b_log)
     exp_sums_a1 <- C_xy$reduction( list(xmat, ymat, 
-                                        g / lambda,
+                                        g_lambda,
                                         1.0 / lambda) )
     a1_log <-  torch::torch_tensor(log(exp_sums_a1[,2]) + exp_sums_a1[,1], dtype = f$dtype, device = f$device) + f_lambda
     return(a1_log$log_softmax(1)$exp())
   },
-  calc_a2 = function(f, C_xy, lambda, n) {
-    f_lambda <- f/lambda
+  calc_w2 = function(f, C_xy, a_log, lambda, n) {
+    f_lambda <- f + a_log
+    # f_lambda <- f
     xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     # ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     
@@ -2925,13 +2933,13 @@ dual_forwards_keops <- list(
     a2_log <-  torch::torch_tensor(log(exp_sums_a2[,2]) + exp_sums_a2[,1], dtype = f$dtype, device = f$device) + f_lambda
     return(a2_log$log_softmax(1)$exp())
   },
-  cot_dual = function(gamma, C_xy, C_xx, b_log, lambda, n) {
-    f_star = gamma$detach()
+  cot_dual = function(gamma, C_xy, C_xx, a_log, b_log, lambda, n) {
+    f_star = gamma$detach() #+ a_log
     
-    a1 = dual_forwards_keops$calc_a1(f_star, C_xy, b_log, lambda, n)$detach()$to(device = gamma$device)
-    a2 = dual_forwards_keops$calc_a2(f_star, C_xx, lambda, n)$detach()$to(device = gamma$device)
+    w1 = dual_forwards_keops$calc_w1(f_star, C_xy, a_log, b_log, lambda, n)$detach()$to(device = gamma$device)
+    w2 = dual_forwards_keops$calc_w2(f_star, C_xx, a_log, lambda, n)$detach()$to(device = gamma$device)
     
-    measure_diff = a1-a2
+    measure_diff = w1-w2
     loss = -1.0 * gamma$dot(measure_diff) # mult by neg 1 because is a maximization
     
     return(list(
@@ -2940,19 +2948,19 @@ dual_forwards_keops <- list(
       bf_diff = torch::torch_zeros(1, dtype = loss$dtype)
     ))
   },
-  cot_bf_dual = function(gamma, C_xy, C_xx, b_log, lambda, n,
+  cot_bf_dual = function(gamma, C_xy, C_xx, a_log, b_log, lambda, n,
                          beta, bf, bt, delta) {
-    f_star = gamma$detach()
+    f_star = gamma$detach() #+ a_log
     beta_d = beta$detach()
     # f_star1 = f_star2 - bf$matmul(beta$detach()) 
     
-    a1 = dual_forwards_keops$calc_a1(f_star, C_xy, b_log, lambda, n)$detach()$to(device = gamma$device)
-    a2 = dual_forwards_keops$calc_a2(f_star, C_xx, lambda, n)$detach()$to(device = gamma$device)
+    w1 = dual_forwards_keops$calc_w1(f_star, C_xy, a_log, b_log, lambda, n)$detach()$to(device = gamma$device)
+    w2 = dual_forwards_keops$calc_w2(f_star, C_xx, a_log, lambda, n)$detach()$to(device = gamma$device)
     
-    measure_diff = a1-a2
+    measure_diff = w1-w2
     loss_gamma = gamma$dot(measure_diff) # mult by neg 1 because is a maximization
     
-    bf_diff = bf$transpose(1,2)$matmul(a1) - bt
+    bf_diff = bf$transpose(1,2)$matmul(w1) - bt
     
     beta_check = bf_diff * beta_d - delta * beta_d$abs()
     
@@ -2988,8 +2996,8 @@ cotDualOpt <- torch::nn_module(
       requires_grad = TRUE)
     private$set_forward(bf = FALSE)
   },
-  forward = function(C_xy, C_xx, b_log, lambda, bf=NULL, bt=NULL, delta = NULL) {
-    private$ts_forward(self$gamma, C_xy$data, C_xx$data, b_log, torch::jit_scalar(lambda), self$n)
+  forward = function(C_xy, C_xx, a_log, b_log, lambda, bf=NULL, bt=NULL, delta = NULL) {
+    private$ts_forward(self$gamma, C_xy$data, C_xx$data, a_log, b_log, torch::jit_scalar(lambda), self$n)
   },
   backward = function(res) {
     res$loss$backward()
@@ -3046,8 +3054,8 @@ cotDualOpt <- torch::nn_module(
     
     return ( must_pass && (rel_checks || abs_checks ) )
   },
-  calc_a1 =  "torch_jit",
-  calc_a2 =  "torch_jit",
+  calc_w1 =  "torch_jit",
+  calc_w2 =  "torch_jit",
   dtype = "torch_dtype",
   device = "torch_dtype",
   private = list(
@@ -3057,8 +3065,8 @@ cotDualOpt <- torch::nn_module(
       private$ts_forward = switch(bf +1L,
                                   dual_forwards$cot_dual,
                                   dual_forwards$cot_bf_dual)
-      self$calc_a1 =  dual_forwards$calc_a1
-      self$calc_a2 =  dual_forwards$calc_a2
+      self$calc_w1 =  dual_forwards$calc_w1
+      self$calc_w2 =  dual_forwards$calc_w2
     },
     dual_forwards = function() {
       torch::jit_compile(dual_forward_code_tensorized)
@@ -3069,14 +3077,14 @@ cotDualOpt <- torch::nn_module(
 cotDualOpt_keops <- torch::nn_module(
   classname = "cotDualOpt_keops",
   inherit = cotDualOpt,
-  forward = function(C_xy, C_xx, b_log, lambda, bf, bt, delta) {
-    private$ts_forward(self$gamma, C_xy, C_xx, b_log, torch::jit_scalar(lambda), self$n)
+  forward = function(C_xy, C_xx, a_log, b_log, lambda, bf, bt, delta) {
+    private$ts_forward(self$gamma, C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), self$n)
   },
   private = list(
     set_forward = function(...) {
       private$ts_forward = dual_forwards_keops$cot_dual
-      self$calc_a1 = dual_forwards_keops$calc_a1
-      self$calc_a2 = dual_forwards_keops$calc_a2
+      self$calc_w1 = dual_forwards_keops$calc_w1
+      self$calc_w2 = dual_forwards_keops$calc_w2
     }
   )
 )
@@ -3101,9 +3109,9 @@ cotDualBfOpt <- torch::nn_module(
                          device = self$device), requires_grad = TRUE)
     private$set_forward(bf = TRUE)
   },
-  forward = function(C_xy, C_xx, b_log, lambda, bf, bt, delta) {
+  forward = function(C_xy, C_xx, a_log, b_log, lambda, bf, bt, delta) {
     torch::with_no_grad(self$gamma$sub_(bf$matmul(self$beta)))
-    res <- private$ts_forward(self$gamma, C_xy$data, C_xx$data, b_log, torch::jit_scalar(lambda), self$n,
+    res <- private$ts_forward(self$gamma, C_xy$data, C_xx$data, a_log, b_log, torch::jit_scalar(lambda), self$n,
                        self$beta, bf, bt, torch::jit_scalar(delta))
     return(res)
   },
@@ -3116,17 +3124,17 @@ cotDualBfOpt <- torch::nn_module(
 cotDualBfOpt_keops <- torch::nn_module(
   classname = "cotDualBfOpt_keops",
   inherit = cotDualBfOpt,
-  forward = function(C_xy, C_xx, b_log, lambda, bf, bt, delta) {
+  forward = function(C_xy, C_xx, a_log, b_log, lambda, bf, bt, delta) {
     torch::with_no_grad(self$gamma$sub_(bf$matmul(self$beta)))
-    res <- private$ts_forward(self$gamma, C_xy, C_xx, b_log, torch::jit_scalar(lambda), self$n,
+    res <- private$ts_forward(self$gamma, C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), self$n,
                        self$beta, bf, bt, torch::jit_scalar(delta))
     return(res)
   },
   private = list(
     set_forward = function(...) {
       private$ts_forward = dual_forwards_keops$cot_bf_dual
-      self$calc_a1 = dual_forwards_keops$calc_a1
-      self$calc_a2 = dual_forwards_keops$calc_a2
+      self$calc_w1 = dual_forwards_keops$calc_w1
+      self$calc_w2 = dual_forwards_keops$calc_w2
     }
   )
 )
@@ -3160,7 +3168,8 @@ cotDualTrain <- R6::R6Class(
       
       private$C_xy <- self$ot$C_xy
       private$C_xx <- self$ot$C_xx
-      private$b_log <- log_weights(self$ot$b)
+      private$a_log <- log_weights(self$ot$a$detach())
+      private$b_log <- log_weights(self$ot$b$detach())
       
       runbf <-  length(private$target_objects) >= 1
       if (runbf) {
@@ -3189,7 +3198,8 @@ cotDualTrain <- R6::R6Class(
       
       private$penalty_list$lambda[ is.infinite(private$penalty_list$lambda) ] <- self$ot$diameter * 1e5
       private$penalty_list$lambda[private$penalty_list$lambda == 0] <- self$ot$diameter / 1e9
-      private$penalty_list$lambda <- sort(private$penalty_list$lambda, decreasing = TRUE)
+      # runs faster and more accurately when reversed (small -> large)
+      private$penalty_list$lambda <- sort(private$penalty_list$lambda, decreasing = FALSE)
       
       private$lambda <- private$penalty_list$lambda[1L]
       
@@ -3202,7 +3212,7 @@ cotDualTrain <- R6::R6Class(
   )},
   active = {list(
     weights = function(value) {
-      f1 <- private$nn_holder$gamma$detach()$clone()
+      f1 <- private$nn_holder$gamma$detach()$clone() #+ private$a_log
       # f2 <- private$nn_holder$gamma$detach()
       if (!is.null(private$bf)) {
         f1$sub_(private$bf$matmul(private$nn_holder$beta$detach()))
@@ -3214,11 +3224,11 @@ cotDualTrain <- R6::R6Class(
         C_xy <- private$C_xy
         C_xx <- private$C_xx
       }
-      a1 <- private$nn_holder$calc_a1(f1, C_xy, private$b_log, torch::jit_scalar(private$lambda), torch::jit_scalar(private$nn_holder$n))
-      a2 <- private$nn_holder$calc_a2(f1, C_xx, torch::jit_scalar(private$lambda), torch::jit_scalar(private$nn_holder$n))
-      a  <- (a1 + a2) * 0.5
+      w1 <- private$nn_holder$calc_w1(f1, C_xy, private$a_log, private$b_log, torch::jit_scalar(private$lambda), torch::jit_scalar(private$nn_holder$n))
+      w2 <- private$nn_holder$calc_w2(f1, C_xx, private$a_log, torch::jit_scalar(private$lambda), torch::jit_scalar(private$nn_holder$n))
+      w  <- (w1 + w2) * 0.5
       # return(list(a = a, a1 = a1, a2 = a2))
-      return(a)
+      return(w)
     }
   )},
   private = {list(
@@ -3335,7 +3345,7 @@ cotDualTrain <- R6::R6Class(
       
       # reset the parameters to 0, speeds up estimation for lower lambdas
       # torch::with_no_grad(private$nn_holder$gamma$mul_(private$lambda/private$prev_lambda))
-      torch::with_no_grad(private$nn_holder$gamma$copy_(0.0))
+      # torch::with_no_grad(private$nn_holder$gamma$copy_(0.0))
       if(!is.null( private$nn_holder$beta) ) torch::with_no_grad(private$nn_holder$beta$copy_(0.0))
       
       avg_diff_old <- loss_old <- 10.0
@@ -3344,6 +3354,7 @@ cotDualTrain <- R6::R6Class(
       for (i in 1:niter) {
         private$opt$zero_grad()
         res <- private$nn_holder$forward(private$C_xy, private$C_xx, 
+                                         private$a_log, 
                                          private$b_log, 
                                          private$lambda, private$bf, private$bt, private$delta)
         # print(res$loss$detach()$item())
@@ -3434,10 +3445,15 @@ cotDualTrain <- R6::R6Class(
       opt_args <- torch_args[match(optim_args_names,
                                    names_args, nomatch = 0L)]
       param <- private$parameters
+      gamma_lr <- if(!is.null(opt_args$lr)) {
+        opt_args$lr
+        } else {
+          1e-2 #private$lambda/100
+        }
       param$gamma <- if(!is.list(param$gamma) ) {
-        list(params = param$gamma, lr = private$lambda/100)
+        list(params = param$gamma, lr = gamma_lr)
       } else {
-        list(params = param$gamma$params, lr = private$lambda/100)
+        list(params = param$gamma$params, lr = gamma_lr)
       }
       if(!is.null(param$beta)) {
         param$beta <- if(!is.list(param$beta)) {
@@ -3493,10 +3509,23 @@ cotDualTrain <- R6::R6Class(
       
     },
     torch_optim_reset = function (lr = NULL) {
+      # browser()
       if(!is.null(private$opt)) {
         default_lr <- private$opt$defaults$lr
+        opt_call <- private$opt_calls$opt
+        
+        if (!is.null(lr)) {
+          private$parameters$gamma$lr <- lr
+        # } else if(is.null(opt_call$lr)) {
+        #   private$parameters$gamma$lr <- private$lambda/100
+        } else if (!is.null(opt_call$lr)) {
+          private$parameters$gamma$lr <- opt_call$lr
+        } else {
+          private$parameters$gamma$lr <- default_lr
+        }
+          
         if( is.null(lr)) lr <- default_lr
-        private$parameters$gamma$lr <- private$lambda/100
+        
         if(!is.null(private$parameters$beta)) {
           if(!is.na(private$delta)) {
             lr_new <- min(private$delta, lr)
@@ -3505,7 +3534,7 @@ cotDualTrain <- R6::R6Class(
           }
           private$parameters$beta$lr <- lr_new
         }
-        opt_call <- private$opt_calls$opt
+        
         if(is.null(lr)) {
           private$opt <- eval(rlang::call_modify(opt_call, params = private$parameters))
         } else {
@@ -3534,6 +3563,7 @@ cotDualTrain <- R6::R6Class(
     sched = "scheduler",
     C_xy = "torch_tensor",
     C_xx = "torch_tensor",
+    a_log = "torch_tensor",
     b_log = "torch_tensor",
     bf = "torch_tensor",
     bt = "torch_tensor"

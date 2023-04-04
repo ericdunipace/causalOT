@@ -297,10 +297,10 @@ setGeneric("log_weights", function(a) standardGeneric("log_weights"))
 setMethod("log_weights", signature(a = "torch_tensor"),
 function(a) {
   min_val <- as.double(-1e5)
-  a_log <- torch::torch_log(a)
-  torch::autograd_set_grad_mode(enabled = FALSE)
-  a_log[a_log < min_val] <- min_val
-  torch::autograd_set_grad_mode(enabled = TRUE)
+  torch::with_no_grad({
+    a_log <- torch::torch_log(a)
+    a_log[a_log < min_val] <- min_val
+  })
   return(a_log)
 }
 ) 
@@ -1447,4 +1447,9 @@ setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)
 #' @rdname ot_distance-methods
 #' @keywords internal
 setMethod("ot_distance", signature(x1 = "array"), ot_dist_default)
+
+#' ot_distance-methods
+#' @rdname ot_distance-methods
+#' @keywords internal
+setMethod("ot_distance", signature(x1 = "torch_tensor"), ot_dist_default)
 

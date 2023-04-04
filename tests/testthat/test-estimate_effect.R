@@ -662,3 +662,182 @@ testthat::test_that("estimate effect works lm, ATE", {
                          ee2@estimate)
   
 })
+
+
+testthat::test_that("ATT give proper var",{
+  causalOT:::torch_check()
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  estimand <- "ATT"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM")
+  
+  # non-augmented, separate
+  ee <- estimate_effect(weights)
+  v <- vcov(ee)
+  
+  w0 <- weights@w0
+  w1 <- weights@w1
+  n1 <- length(w1)
+  n0 <- length(w0)
+  
+  y <- weights@data@y
+  z <- weights@data@z
+  
+  mu1 <- sum(y[z==1] * w1)
+  mu0 <- sum(y[z==0] * w0)
+  testthat::expect_equal(coef(ee), c(estimate = mu1-mu0))
+  
+  v1 <- sum((w1 * n1 * (y[z==1] - mu1))^2)/(n1-1)
+  v0 <- sum((w0 * n1 * (y[z==0] - mu0))^2)/(n1-1)
+  testthat::expect_equal(v1, 
+  var(y[z==1]) )
+  testthat::expect_equal(v0/n1 + v1/n1, as.numeric(v))
+})
+
+testthat::test_that("ATT give proper var lm",{
+  causalOT:::torch_check()
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  estimand <- "ATT"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM")
+  
+  # non-augmented, separate
+  ee <- estimate_effect(weights, model.function = lm, augment = TRUE)
+  v <- vcov(ee)
+  
+  w0 <- weights@w0
+  w1 <- weights@w1
+  n1 <- length(w1)
+  n0 <- length(w0)
+  
+  y <- weights@data@y
+  z <- weights@data@z
+  
+  mu1 <- ee@augmentedData$y_hat_1
+  mu0 <- ee@augmentedData$y_hat_0
+  tau <- sum(w1 * (y - mu1)[z==1]) - sum(w0 * (y - mu0)[z==0]) +
+    sum(w1 * (mu1 - mu0)[z==1])
+  testthat::expect_equal(coef(ee), c(estimate = tau))
+  
+  v1 <- sum((w1 * n1 * (y - mu1)[z==1])^2)/(n1-1)
+  v0 <- sum((w0 * n1 * (y - mu0)[z==0])^2)/(n1-1)
+  vm <- sum(((mu1 - mu0 - coef(ee)) * z)^2)/(n1-1)
+  testthat::expect_equal(v0/n1 + v1/n1 + vm/n1, as.numeric(v))
+})
+
+testthat::test_that("ATC give proper var",{
+  causalOT:::torch_check()
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  estimand <- "ATC"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM")
+  
+  # non-augmented, separate
+  ee <- estimate_effect(weights)
+  v <- vcov(ee)
+  
+  w0 <- weights@w0
+  w1 <- weights@w1
+  n1 <- length(w1)
+  n0 <- length(w0)
+  
+  y <- weights@data@y
+  z <- weights@data@z
+  
+  mu1 <- sum(y[z==1] * w1)
+  mu0 <- sum(y[z==0] * w0)
+  testthat::expect_equal(coef(ee), c(estimate = mu1-mu0))
+  
+  v1 <- sum((w1 * n0 * (y[z==1] - mu1))^2)/(n0-1)
+  v0 <- sum((w0 * n0 * (y[z==0] - mu0))^2)/(n0-1)
+  testthat::expect_equal(v0, 
+                         var(y[z==0]) )
+  testthat::expect_equal(v0/n0 + v1/n0, as.numeric(v))
+})
+
+testthat::test_that("ATC give proper var lm",{
+  causalOT:::torch_check()
+  set.seed(9867)
+  
+  #### Load Packages ####
+  library(causalOT)
+  
+  #### Sim param ####
+  n <- 2^6
+  p <- 6
+  nsims <- 1
+  overlap <- "high"
+  design <- "A"
+  estimand <- "ATC"
+  
+  #### get simulation functions ####
+  original <- Hainmueller$new(n = n, p = p, 
+                              design = design, overlap = overlap)
+  original$gen_data()
+  weights <- calc_weight(original, estimand = estimand, method = "NNM")
+  
+  # non-augmented, separate
+  ee <- estimate_effect(weights, model.function = lm, augment = TRUE)
+  v <- vcov(ee)
+  
+  w0 <- weights@w0
+  w1 <- weights@w1
+  n1 <- length(w1)
+  n0 <- length(w0)
+  
+  y <- weights@data@y
+  z <- weights@data@z
+  
+  mu1 <- ee@augmentedData$y_hat_1
+  mu0 <- ee@augmentedData$y_hat_0
+  tau <- sum(w1 * (y - mu1)[z==1]) - sum(w0 * (y - mu0)[z==0]) +
+    sum(w0 * (mu1 - mu0)[z==0])
+  testthat::expect_equal(coef(ee), c(estimate = tau))
+  
+  v1 <- sum((w1 * n0 * (y - mu1)[z==1])^2)/(n0-1)
+  v0 <- sum((w0 * n0 * (y - mu0)[z==0])^2)/(n0-1)
+  vm <- sum(((mu1 - mu0 - coef(ee)) * (1-z))^2)/(n0-1)
+  testthat::expect_equal(v0/n0 + v1/n0 + vm/n0, as.numeric(v))
+})

@@ -113,16 +113,16 @@ The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w)
 
 \section{Function balancing}{
 There may be certain functions of the covariates that we wish to balance within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
-\deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing. This is currently only available for \eqn{L_2} penalized distances and Sinkhorn Distances.
+\deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing.
 }
 
 \section{Cost functions}{
-The cost function specifies pairwise distances. If argument \code{cost.function} is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument \code{p}.So for \code{p = 2}, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
-If \code{cost.function} is provided, it should be a function that takes arguments \code{x1}, \code{x2}, and \code{p}.
+The cost function specifies pairwise distances. If argument \code{cost.function} is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument \code{p}. So for \code{p = 2}, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
+If \code{cost.function} is provided, it should be a function that takes arguments \code{x1}, \code{x2}, and \code{p}: \code{function(x1, x2, p){...}}.
 }
 
 \examples{
-opts <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_lbfgs)
-opts <- cotOptions(lambda = NULL)
-opts <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
+opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_lbfgs)
+opts2 <- cotOptions(lambda = NULL)
+opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
 }

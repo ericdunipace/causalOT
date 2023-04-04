@@ -244,17 +244,17 @@ COT <- R6::R6Class(
 #' 
 #' # Function balancing
 #' There may be certain functions of the covariates that we wish to balance within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
-#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing. This is currently only available for \eqn{L_2} penalized distances and Sinkhorn Distances.
+#' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing.
 #' 
 #' # Cost functions
-#' The cost function specifies pairwise distances. If argument `cost.function` is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument `p`.So for `p = 2`, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
-#' If `cost.function` is provided, it should be a function that takes arguments `x1`, `x2`, and `p`.
+#' The cost function specifies pairwise distances. If argument `cost.function` is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument `p`. So for `p = 2`, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
+#' If `cost.function` is provided, it should be a function that takes arguments `x1`, `x2`, and `p`: `function(x1, x2, p){...}`.
 #' 
 #'
 #' @examples
-#' opts <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_lbfgs)
-#' opts <- cotOptions(lambda = NULL)
-#' opts <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
+#' opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_lbfgs)
+#' opts2 <- cotOptions(lambda = NULL)
+#' opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
 cotOptions <- function(lambda = NULL,
                        delta = NULL,
                        opt.direction = c("dual", "primal"),

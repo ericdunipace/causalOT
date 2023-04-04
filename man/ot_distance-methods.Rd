@@ -3,6 +3,7 @@
 \name{ot_distance,matrix-method}
 \alias{ot_distance,matrix-method}
 \alias{ot_distance,array-method}
+\alias{ot_distance,torch_tensor-method}
 \title{ot_distance-methods}
 \usage{
 \S4method{ot_distance}{matrix}(
@@ -34,8 +35,25 @@
   niter = 1000,
   tol = 1e-07
 )
+
+\S4method{ot_distance}{torch_tensor}(
+  x1,
+  x2 = NULL,
+  a = NULL,
+  b = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07
+)
 }
 \description{
+ot_distance-methods
+
 ot_distance-methods
 
 ot_distance-methods

@@ -161,13 +161,18 @@ causalEffect <- function(data, causalWeights, model.outputs, augment.estimate, c
     }
     
   } else {
-    tau <- sum( w1 * y_1_obs ) - sum( w0 * y_0_obs ) # these weights auto-target the estimand
+    # these weights auto-target the estimand
+    mu_0 <- sum( w0 * y_0_obs )
+    mu_1 <- sum( w1 * y_1_obs )
+    
+    # tx effect
+    tau <- mu_1 - mu_0 
     if (!is.list(model.outputs)) model.outputs <- list(model.outputs)
     
     model.outputs$fit <- list(NULL)
     
-    y_hat_0<- rep(NA_real_, n)
-    y_hat_1<- rep(NA_real_, n)
+    y_hat_0<- rep(mu_0, n)
+    y_hat_1<- rep(mu_1, n)
   }
   
   # fill out the "science"
@@ -367,18 +372,17 @@ semiparm_eff_var <- function(object, ...) {
   }
   
   semipar_var_ATT_ATC <- function(y, z, yhat_0, yhat_1, w, tau, denom, estimand) {
-    delta       <- w * (y_hat_1 - y_hat_0)
+    delta       <- w * (y_hat_1 - y_hat_0 )
     
     delta_model <- switch(estimand,
-                          "ATT" = sum(delta[z == 1]),
-                          "ATC" = sum(delta[z == 0]))
+                          "ATT" = (delta - tau) * z,
+                          "ATC" = (delta - tau) * (1-z))
     
     
     # weights targeted to ATC or ATT
     resid       <-   w * (y - y_hat_1) *      z  - # treated mean estimate
                      w * (y - y_hat_0) * (1 - z) + # control mean estimate
-                     delta_model - # stats::predictions from model
-                     tau # estimate of ATT or ATC
+                     delta_model
     
     # variance
     return( sum( resid^2 ) / (denom - 1) )
@@ -399,7 +403,7 @@ semiparm_eff_var <- function(object, ...) {
   # pull out relevant terms from augmentedData
   data    <- object@augmentedData
   z       <- data$z
-  w       <- data$weights
+  w       <- data$weights #adjusted weights
   y       <- data$y_obs
   y_hat_0 <- data$y_hat_0
   y_hat_1 <- data$y_hat_1
@@ -425,13 +429,16 @@ semiparm_eff_var <- function(object, ...) {
                   "ATT" = n1,
                   "ATC" = n0)
   
-  # rescale weight vectors to frequency weights
-  w_init <- cw@data@weights
+  # rescale weight vector to frequency weights
   w      <- w * denom
-  w_init <- w_init * denom
   
   # get sample variance estimates
   if (estimand == "ATE" ) {
+    
+    # rescale weight vectors to frequency weights
+    w_init <- cw@data@weights
+    w_init <- w_init * denom
+    
     VAR_sample    <- semipar_var_ate(y, z = z, yhat_1 = y_hat_1,
                               yhat_0 = y_hat_0, w = w, 
                               w_init = w_init,
