@@ -21,7 +21,7 @@ cotOptions(
   niter = 2000,
   nboot = 100L,
   lambda.bootstrap = 0.05,
-  tol = 1e-05,
+  tol = 1e-04,
   device = NULL,
   dtype = NULL,
   ...
