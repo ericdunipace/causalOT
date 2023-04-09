@@ -115,9 +115,7 @@ miso_estimate <- function(pph, continuous.covar, binary.covar, outcome, tx.ind, 
                                estimand = estimand, method = "COT",
                                options = list(niter = 1e4,
                                               nboot = 100L,
-                                              grid.length = 10L,
-                                              # lambda = 1e-4,
-                                              tol = 1e-4
+                                              grid.length = 10L
                                               )
                                )
     
