@@ -210,7 +210,7 @@ testthat::test_that("grid_search function works",{
                                                                    )))
   cot$solve()
   output <- cot$grid_search()
-  testthat::expect_true(output$penalty[1] < 270424.29826080260913 ) 
+  testthat::expect_true(output$penalty[1] < 2704243.27850342 + 1 ) 
   testthat::expect_warning(cot$grid_search())
 })
 

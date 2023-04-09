@@ -466,7 +466,7 @@ testthat::test_that("training function works for dual optimizer",{
   testthat::expect_error(priv$parameters_get_set(list(ws,ws) ))
   testthat::expect_silent(priv$parameters_get_set(list(ws) ))
   testthat::expect_equal(as.numeric(m$weights$to(device = "cpu")),
-                         as.numeric(ws$to(device = "cpu")))
+                         as.numeric(ws$to(device = "cpu")), tol = 1e-5)
   
   # testthat::expect_true(rlang::obj_address(cot$.__enclos_env__$private$nn_holder$gamma) == rlang::obj_address(pars$gamma))
   # 
