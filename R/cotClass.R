@@ -347,7 +347,7 @@ cotOptions <- function(lambda = NULL,
   if (missing(p) || arg_not_used(p) ) {
     output[["p"]] <- 2.0
   } else {
-    p <- as.numeric(p)
+    stopifnot(is.numeric(p)) 
     stopifnot(p >= 1.0)
     output[["p"]] <- p
   }
