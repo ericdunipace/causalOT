@@ -261,7 +261,8 @@ OT <- R6::R6Class("OT",
       if(tensorized == "auto") {
         n <- nrow(x)
         m <- nrow(y)
-        if (n*m >= 5000^2) {
+        cutoff <- log(n) + log(m) >= 17.03439
+        if ( is.na(cutoff) || isTRUE(cutoff) ) {
           tensorized <- FALSE
         } else {
           tensorized <- TRUE
