@@ -1382,10 +1382,10 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
                   tensorized = online.cost,
                   diameter = diameter)
     
-    return(list(pre = c(control = as.numeric(loss_select(ot0_init, niter, tol)),
-                           treated = as.numeric(loss_select(ot1_init, niter, tol))),
-                post =  c(control = as.numeric(loss_select(ot0, niter, tol)),
-                           treated = as.numeric(loss_select(ot1, niter, tol)))
+    return(list(pre = c(control = as_numeric(loss_select(ot0_init, niter, tol)),
+                           treated = as_numeric(loss_select(ot1_init, niter, tol))),
+                post =  c(control = as_numeric(loss_select(ot0, niter, tol)),
+                           treated = as_numeric(loss_select(ot1, niter, tol)))
                 ))
     
    
@@ -1415,8 +1415,8 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
                diameter = diameter)
   
   
-  return(list(pre = as.numeric(loss_select(ot_init, niter, tol)),
-              post = as.numeric(loss_select(ot_final, niter, tol))))
+  return(list(pre = as_numeric(loss_select(ot_init, niter, tol)),
+              post = as_numeric(loss_select(ot_final, niter, tol))))
   
 }
           
@@ -1435,7 +1435,7 @@ ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2,
                tensorized = online.cost,
                diameter = diameter)
   
-  return(as.numeric(loss_select(ot, niter, tol)))
+  return(as_numeric(loss_select(ot, niter, tol)))
 }
 
 #' ot_distance-methods
