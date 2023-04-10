@@ -119,10 +119,12 @@ SBW <- R6::R6Class("SBW",
       
       # browser()
       
-      if(!is.list(options)) {
-        options <- as.list(options)
+      if(!inherits(options, "sbwOptions")) {
+        if(!is.list(options)) {
+          options <- as.list(options)
+        }
+        options <- do.call("sbwOptions", options)
       }
-      options <- do.call("sbwOptions", options)
       delta <- options$delta
       super$initialize(source,target, a, b, delta)
       
@@ -159,7 +161,7 @@ SBW <- R6::R6Class("SBW",
       
       private$osqp_args <- list(P = P, q = q, A = A, l = l, u = u,
                                 pars = options$solver.options)
-      
+      # browser()
       private$solver <- do.call(osqp::osqp, private$osqp_args)
       self$delta <- delta[1]
       self$solve <- function(penalty, w = NULL) {
@@ -220,7 +222,6 @@ sbwOptions <- function(
                    nboot = 1000L,
                    # verbose = FALSE,
                    ...) {
-  if(inherits(options, "sbwOptions")) return(options)
   output <- list()
   # browser()
   if(arg_not_used(delta)) {
@@ -271,10 +272,13 @@ EntropyBW <- R6::R6Class("EntropyBW",
    solver.options = "list",
    initialize = function(source, target, a = NULL, b = NULL, options = list()) {
      # browser()
-     if(!is.list(options)) {
-       options <- as.list(options)
+     
+     if(!inherits(options, "entBWOptions")) {
+       if(!is.list(options)) {
+         options <- as.list(options)
+       }
+       options <- do.call("entBWOptions", options)
      }
-     options <- do.call("entBWOptions", options)
      delta <- options$delta
      self$solver.options <- options$solver.options
      
@@ -335,7 +339,6 @@ entBWOptions <- function(
     grid.length = 20L,
     nboot = 1000L,
     ...) {
-  if(inherits(options, "entBWOptions")) return(options)
   output <- list()
   
   if(arg_not_used(delta)) {

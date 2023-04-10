@@ -910,10 +910,11 @@ setup_arguments = function(lambda, delta,
     diameters[i] <- private$ot_objects[[v]]$diameter
   }
   max_diameter <- max(diameters)
+  stopifnot("The maximum diameter of the OT problem is not finite!" = is.finite(max_diameter))
   l_md <-log(max_diameter)
-  stopifnot("The maximum diameter of the OT problem is not finite!" = is.finite(l_md))
+  stopifnot("The log of the maximum diameter of the OT problem is not finite!" = is.finite(l_md))
   if ( missing(lambda) || is.null(lambda) || all(is.na(lambda)) ) {
-    lambda <- c(
+    lambda <- c( #log(max_diam * 1e-6) to log(max_diam * 1e4), about
       exp(seq(l_md - 13.82, l_md + 9.21, length.out = grid.length)),
       Inf)
   } 
