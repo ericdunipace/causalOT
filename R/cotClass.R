@@ -123,7 +123,8 @@ COT <- R6::R6Class(
                         "dual" = cotDualTrain,
                         "nnm" = NNM)
       
-      private$optimizer <- opt_fun$new(private$source, private$target)
+      private$optimizer <- opt_fun$new(private$source, private$target) 
+      # the order is important, first measure must be the one to be adapted
       
       # 
       private$quick.balance.function <- isTRUE(options$quick.balance.function)

@@ -1189,6 +1189,8 @@ setup_arguments = function(lambda, delta,
         if(length(self$selected_delta) > 1) self$selected_delta <- self$selected_delta[[idx_lambda]]
       } else {
         weights_list <- weights_list[[1L]]
+        self$selected_lambda <- as.numeric(lambda_values)[1L]
+        private$set_lambda(self$selected_lambda)
       }
       
       # set weights back to the measures
@@ -2797,6 +2799,7 @@ NNM <- R6::R6Class(
                             ot_niter = ot_niter,
                             ot_tol = ot_tol)
       ot <- private$ot_objects[[ls(private$ot_objects)[[1]] ]]
+      # private$device <- ot$device
       private$C_xy <- ot$C_xy
       private$tensorized <- ot$tensorized
       private$b <- ot$b
@@ -2811,7 +2814,8 @@ NNM <- R6::R6Class(
         d = ncol(x)
         
         # browser()
-        use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>1
+        attempt_cuda <- grepl("cuda",  capture.output(print(private$b$device)))
+        use_cuda <- attempt_cuda && torch::cuda_device_count()>=1
         
         if (use_cuda) {
           rkeops::compile4gpu()
@@ -2847,6 +2851,7 @@ NNM <- R6::R6Class(
   private = list(
     b = "tensor",
     C_xy = "cost",
+    device = "torch_device",
     n = "integer",
     tensorized = "logical"
   ),
@@ -3166,13 +3171,19 @@ cotDualTrain <- R6::R6Class(
       
       m_add   <- ls(private$measures)
       p_add   <- ls(private$problems)
+      adapt_m <- private$problems[[ p_add[[1]] ]][1]
+      targ_m  <- private$problems[[ p_add[[1]] ]][2]
       
-      self$ot <- private$ot_objects[[p_add[1] ]]
+      self$ot <- private$ot_objects[[ p_add[1] ]]
       
       private$C_xy <- self$ot$C_xy
       private$C_xx <- self$ot$C_xx
-      private$a_log <- log_weights(self$ot$a$detach())
-      private$b_log <- log_weights(self$ot$b$detach())
+      # private$a_log <- log_weights(self$ot$a$detach())
+      # private$b_log <- log_weights(self$ot$b$detach())
+      # makes sure the non- changing weights are used...
+      stopifnot("Wrong measure is being fed for adapatation. Report this bug please!" = private$measures[[ adapt_m ]]$requires_grad)
+      private$a_log <- log_weights(private$measures[[ adapt_m ]]$init_weights$detach())
+      private$b_log <- log_weights(private$measures[[ targ_m  ]]$init_weights$detach())
       
       runbf <-  length(private$target_objects) >= 1
       if (runbf) {
