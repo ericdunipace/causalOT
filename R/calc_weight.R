@@ -129,6 +129,7 @@ function(object) {
             estimand = fit$estimand,
             method = fit$method,
             penalty = list(NULL),
+            info = list(NULL),
             data = object@data,
             call = call("calc_weight")
             )
@@ -145,7 +146,7 @@ setMethod("cot_solve", signature(object = "gridSearch"),
             if (inherits(object@solver, "COT") ) {
               object@solver$solve()
               res <- object@solver$grid_search()
-              cw <- causalWeights(object, res$weight, res$penalty)
+              cw <- causalWeights(object, res$weight, res)
               
               return(cw)
             }
@@ -164,13 +165,14 @@ setMethod("cot_solve", signature(object = "gridSearch"),
             
             # boot strap to find optimal penalty parameters
             grid_info <- grid_select(object, w)
-            
+            grid_info$penalty.grid <- object@penalty_list
+              
             # store final weight and selected penalty parameters
             w_final <- grid_info$weight
             pen_final <- object@penalty_list[grid_info$idx]
             
             # create causalWeights object
-            cw <- causalWeights(object, w_final, pen_final)
+            cw <- causalWeights(object, w_final, grid_info)
             
             return(cw)
           }

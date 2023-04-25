@@ -19,6 +19,7 @@ setClass("causalWeights", slots = c(w0 = "numeric", w1 = "numeric",
                                     estimand = "character",
                                     method = "character", 
                                     penalty = "list",
+                                    info = "list",
                                     data = "dataHolder",
                                     call = "call"))
 
@@ -44,8 +45,13 @@ function(object1, object2, ...) {
       w0 = w0,
       w1 = w1,
       estimand = object1@estimand,
-      method = object1@method,
-      penalty = list(penalty),
+      method  = object1@method,
+      penalty = penalty$penalty,
+      info    = list(metric = penalty$metric,
+                     penalty.grid = penalty$penalty.grid,
+                     gradients = NULL,
+                     hessian = NULL
+                     ),
       data = dataHolder(x = matrix(0,0,0), z = numeric(0)),
       call = call("calc_weight"))
 }
@@ -63,6 +69,8 @@ function(object1, object2, ...) {
     method = object1@method,
     penalty = list(w0 = object1@penalty[[1]],
                    w1 = object2@penalty[[1]]),
+    info = list(w0 = object1@info,
+                w1 = object2@info),
     data = object1@data,
     call = object1@call
   )

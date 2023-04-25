@@ -2814,15 +2814,15 @@ NNM <- R6::R6Class(
         d = ncol(x)
         
         # browser()
-        attempt_cuda <- grepl("cuda",  capture.output(print(private$b$device)))
-        use_cuda <- attempt_cuda && torch::cuda_device_count()>=1
-        
-        if (use_cuda) {
-          rkeops::compile4gpu()
-          rkeops::use_gpu()
-        } else {
-          rkeops::compile4float64()
-        }
+        # attempt_cuda <- grepl("cuda",  capture.output(print(private$b$device)))
+        # use_cuda <- attempt_cuda && torch::cuda_device_count()>=1
+        # 
+        # if (use_cuda) {
+        #   rkeops::compile4gpu()
+        #   rkeops::use_gpu()
+        # } else {
+        #   rkeops::compile4float64()
+        # }
         argmin_op <- rkeops::keops_kernel(
           formula = paste0("ArgMin_Reduction(", C_xy$fun, ", 1)"),
           args = c(

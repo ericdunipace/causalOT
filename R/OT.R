@@ -37,17 +37,17 @@ OT <- R6::R6Class("OT",
         use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
         if (use_cuda) {
           self$device <-  torch::torch_device("cuda")
-          if (!tensorized) {
-            # rkeops::compile4float64()
-            rkeops::compile4gpu()
-            rkeops::use_gpu()
-          }
+          # if (!tensorized) {
+          #   # rkeops::compile4float64()
+          #   # rkeops::compile4gpu()
+          #   # rkeops::use_gpu()
+          # }
         } else {
           self$device <-  torch::torch_device("cpu")
-          if (!tensorized) {
+          # if (!tensorized) {
             # rkeops::compile4float64()
-            rkeops::use_cpu()
-          }
+            # rkeops::use_cpu()
+          # }
         }
       } else {
         self$device <- device
@@ -55,10 +55,10 @@ OT <- R6::R6Class("OT",
         use_cuda <- attempt_cuda && torch::cuda_device_count()>=1
         if (!tensorized ) {
           # rkeops::compile4float64()
-          if (use_cuda) {
-            rkeops::compile4gpu()
-            rkeops::use_gpu()
-          } 
+          # if (use_cuda) {
+          #   rkeops::compile4gpu()
+          #   rkeops::use_gpu()
+          # } 
         }
         if(attempt_cuda && !use_cuda) {
           warning("CUDA not available even though you tried. Switching to CPU") 
@@ -78,6 +78,14 @@ OT <- R6::R6Class("OT",
         )
       } else {
         self$dtype <- dtype
+      }
+      
+      if(self$dtype == torch::torch_double()) {
+        if(packageVersion("rkeops") >= "2.0") {
+          rkeops::rkeops_use_float64()
+        } else {
+          rkeops::compile4float64()
+        }
       }
       
       # setup data
@@ -830,14 +838,14 @@ energy_dist_online <- torch::autograd_function(
     device <- get_device(x = x, y = y, a = a, b = b)
     dtype <- get_dtype(x = x, y = y, a = a, b = b)
     
-    use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
-    # rkeops::compile4float64()
-    if (use_cuda) {
-      rkeops::compile4gpu()
-      rkeops::use_gpu()
-    } else {
-      rkeops::compile4float64()
-    }
+    # use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
+    # # rkeops::compile4float64()
+    # if (use_cuda) {
+    #   rkeops::compile4gpu()
+    #   rkeops::use_gpu()
+    # } else {
+    #   rkeops::compile4float64()
+    # }
     sumred <- rkeops::keops_kernel(
       formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
       args = c(
@@ -963,18 +971,18 @@ inf_sinkhorn_online <- torch::autograd_function(
     d <- ncol(x_mat)
     
     
-    use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
-    
-    if (use_cuda) {
-      rkeops::compile4gpu()
-      rkeops::use_gpu()
-      # dtype <- torch::torch_float()
-      # device <- torch::torch_device("cuda")
-    } else {
-      rkeops::compile4float64()
-      # dtype <- torch::torch_double()
-      # device <- torch::torch_device("cpu")
-    }
+    # use_cuda <- torch::cuda_is_available() && torch::cuda_device_count()>=1
+    # 
+    # if (use_cuda) {
+    #   rkeops::compile4gpu()
+    #   rkeops::use_gpu()
+    #   # dtype <- torch::torch_float()
+    #   # device <- torch::torch_device("cuda")
+    # } else {
+    #   rkeops::compile4float64()
+    #   # dtype <- torch::torch_double()
+    #   # device <- torch::torch_device("cpu")
+    # }
     sumred <- rkeops::keops_kernel(
       formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
       args = c(

@@ -30,11 +30,14 @@ COT <- R6::R6Class(
       } else {
         delta <- NULL
       }
+      # browser()
       return(
         list(
           weight = self$weights,
           penalty = c(lambda = lambda,
-                      delta  = delta) 
+                      delta  = delta),
+          metric  = private$optimizer$info()$hyperparam.metrics,
+          penalty.grid = private$optimizer$penalty
         )
       )
     },

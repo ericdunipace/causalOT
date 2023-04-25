@@ -189,8 +189,10 @@ function(object,w) {
   min.idx <- which.min(metric)
   
   # return values
-  return(list(weight = w[[min.idx]], #selected weight
-              idx = min.idx # selected index
+  return(list(weight = w[[min.idx]] #selected weight
+              , idx = min.idx # selected index,
+              , metric = metric
+              , penalty.grid = NULL
               ))
 }
 )
