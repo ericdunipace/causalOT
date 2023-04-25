@@ -250,7 +250,7 @@ testthat::test_that("NNM works",{
   testthat::expect_true(isFALSE(ot[[ls(ot)]]$debias))
   testthat::expect_invisible(cot$solve())
   res <- cot$grid_search()
-  testthat::expect_true(all(names(res) %in% c("weight", "penalty")))
+  testthat::expect_true(all(names(res) %in% c("weight", "penalty", "metric","penalty.grid")))
   
   cot <- causalOT:::COT$new(source = x, target = y,
                             options = list(debias = TRUE, lambda = 0))
@@ -292,7 +292,7 @@ testthat::test_that("NNM works",{
   testthat::expect_true(isFALSE(ot[[ls(ot)]]$debias))
   testthat::expect_invisible(cot$solve())
   res <- cot$grid_search()
-  testthat::expect_true(all(names(res) %in% c("weight", "penalty")))
+  testthat::expect_true(all(names(res) %in% c("weight", "penalty", "metric","penalty.grid")))
   
   cot <- causalOT:::COT$new(source = x, target = y,
                             options = list(debias = TRUE, 

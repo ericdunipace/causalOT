@@ -75,6 +75,7 @@ calc_weight <- function(x, z,
   mc     <- match.call()
   
   # make sure method and estimand are supported
+  stopifnot("Estimand must be supplied in `estimand` argument."=!missing(estimand))
   method <- match.arg(method, supported_methods())
   if (method == "Wasserstein") method <- "COT"
   estimand <- match.arg(estimand)

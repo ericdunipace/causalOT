@@ -2920,11 +2920,20 @@ dual_forwards_keops <- list(
                                        as.numeric(f_lambda$to(device = "cpu")),
                                        1.0 / lambda) )
     
-    g_lambda <- - (log(exp_sums_g[,2]) + exp_sums_g[,1]) + as_numeric(b_log)
+    g_lambda <- if (packageVersion("rkeops") >= 2.0) {
+       - c(exp_sums_g) + as_numeric(b_log)
+    } else {
+       - (log(exp_sums_g[,2]) + exp_sums_g[,1]) + as_numeric(b_log)
+    }
+    
     exp_sums_a1 <- C_xy$reduction( list(xmat, ymat, 
                                         g_lambda,
                                         1.0 / lambda) )
-    a1_log <-  torch::torch_tensor(log(exp_sums_a1[,2]) + exp_sums_a1[,1], dtype = f$dtype, device = f$device) + f_lambda
+    a1_log <- if (packageVersion("rkeops") >= 2.0) {
+        torch::torch_tensor(c(exp_sums_a1), dtype = f$dtype, device = f$device) + f_lambda
+      } else {
+        torch::torch_tensor(log(exp_sums_a1[,2]) + exp_sums_a1[,1], dtype = f$dtype, device = f$device) + f_lambda
+      }
     return(a1_log$log_softmax(1)$exp())
   },
   calc_w2 = function(f, C_xy, a_log, lambda, n) {
@@ -2933,10 +2942,18 @@ dual_forwards_keops <- list(
     xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     # ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     
-    exp_sums_a2 <- C_xy$reduction( list(xmat, xmat,
+    if (packageVersion("rkeops") >= 2.0) {
+      log_exp_sums_a2 <- C_xy$reduction( list(xmat, xmat,
+                                          as.numeric(f_lambda$to(device = "cpu")),
+                                          1.0 / lambda) )
+      a2_log <-  torch::torch_tensor(log_exp_sums_a2, dtype = f$dtype, device = f$device) + f_lambda
+    } else {
+        exp_sums_a2 <- C_xy$reduction( list(xmat, xmat,
                                         as.numeric(f_lambda$to(device = "cpu")),
                                         1.0 / lambda) )
-    a2_log <-  torch::torch_tensor(log(exp_sums_a2[,2]) + exp_sums_a2[,1], dtype = f$dtype, device = f$device) + f_lambda
+        a2_log <-  torch::torch_tensor(log(exp_sums_a2[,2]) + exp_sums_a2[,1], dtype = f$dtype, device = f$device) + f_lambda
+      }
+    
     return(a2_log$log_softmax(1)$exp())
   },
   cot_dual = function(gamma, C_xy, C_xx, a_log, b_log, lambda, n) {

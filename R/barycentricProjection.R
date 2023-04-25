@@ -453,39 +453,52 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
       y_targ <- y_target
     }
     
-    wt_red <- rkeops::keops_kernel(
-      formula = paste0("Max_SumShiftExp_Reduction(G - P *", C_yx$fun,", 0)"),
-      args = c(
-        paste0("X = Vi(",d,")"),
-        paste0("Y = Vj(",d,")"),
-        "G = Vj(1)",
-        "P = Pm(1)")
-    )
-    
-    online_red <- rkeops::keops_kernel(
-      formula = paste0("Sum_Reduction(Outcome * Exp(G - P *", C_yx$fun," - Norm), 0)"),
-      args = c(
-        paste0("X = Vi(",d,")"),
-        paste0("Y = Vj(",d,")"),
-        paste0("Outcome = Vj(",1,")"),
-        "G = Vj(1)",
-        "P = Pm(1)",
-        "Norm = Vi(1)")
-    )
-    
-    wt_norm <- wt_red(list(X = as.matrix(x),
-                           Y = as.matrix(y),
-                           G = as.numeric(G),
-                           P = as.numeric(1/eps)))
-    
     sum_data <- list(X = as.matrix(x),
                      Y = as.matrix(y),
                      Outcome = as.numeric(y_targ),
                      G = as.numeric(G),
-                     P = as.numeric(1/eps),
-                     Norm = log(wt_norm[,2]) + wt_norm[,1]
-                    )
+                     P = as.numeric(1/eps)
+                     
+    )
     
+    if (packageVersion("rkeops") >= 2.0) {
+      online_red <- rkeops::keops_kernel(
+        formula = paste0("SumSoftMaxWeight_Reduction(G - P *", C_yx$fun,", Outcome, 0)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          paste0("Outcome = Vj(",1,")"),
+          "G = Vj(1)",
+          "P = Pm(1)")
+      )
+    } else {
+      wt_red <- rkeops::keops_kernel(
+        formula = paste0("Max_SumShiftExp_Reduction(G - P *", C_yx$fun,", 0)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          "G = Vj(1)",
+          "P = Pm(1)")
+      )
+      
+      online_red <- rkeops::keops_kernel(
+        formula = paste0("Sum_Reduction(Outcome * Exp(G - P *", C_yx$fun," - Norm), 0)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          paste0("Outcome = Vj(",1,")"),
+          "G = Vj(1)",
+          "P = Pm(1)",
+          "Norm = Vi(1)")
+      )
+      
+      wt_norm <- wt_red(list(X = as.matrix(x),
+                             Y = as.matrix(y),
+                             G = as.numeric(G),
+                             P = as.numeric(1/eps)))
+      
+      sum_data$Norm <- log(wt_norm[,2]) + wt_norm[,1]
+    }
     y_source <- online_red(sum_data)
   }
   

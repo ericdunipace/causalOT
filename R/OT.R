@@ -121,19 +121,31 @@ OT <- R6::R6Class("OT",
           }
           
         }
-        Max_SumShiftExp <- rkeops::keops_kernel(
-          formula = paste0("Max_SumShiftExp_Reduction( G - P *", C_xy$fun, ", 0)"),
-          args = c(
-            paste0("X = Vi(",d,")"),
-            paste0("Y = Vj(",d,")"),
-            "G = Vj(1)",
-            "P = Pm(1)")
-        )
-        C_xy$reduction <- Max_SumShiftExp
-        C_yx$reduction <- Max_SumShiftExp
+        if (packageVersion("rkeops") >= 2.0) {
+          reduction <- rkeops::keops_kernel(
+            formula = paste0("LogSumExp_Reduction( G - P *", C_xy$fun, ", 0)"),
+            args = c(
+              paste0("X = Vi(",d,")"),
+              paste0("Y = Vj(",d,")"),
+              "G = Vj(1)",
+              "P = Pm(1)")
+          )
+        } else {
+          reduction <- rkeops::keops_kernel(
+            formula = paste0("Max_SumShiftExp_Reduction( G - P *", C_xy$fun, ", 0)"),
+            args = c(
+              paste0("X = Vi(",d,")"),
+              paste0("Y = Vj(",d,")"),
+              "G = Vj(1)",
+              "P = Pm(1)")
+          )
+        }
+        
+        C_xy$reduction <- reduction
+        C_yx$reduction <- reduction
         if (debias) {
-          C_xx$reduction <- Max_SumShiftExp
-          C_yy$reduction <- Max_SumShiftExp
+          C_xx$reduction <- reduction
+          C_yy$reduction <- reduction
         }
         softmin <- softmin_online
       }
@@ -346,14 +358,19 @@ softmin_keops <- torch::autograd_function(
     ymat <- as_matrix(y)
     G <- as_numeric(b_log + y_potential / eps)
     one_over_eps <- as_numeric(1.0 / eps)
-    exp_sums <- reduction( input = list(X = xmat,  
+    sums <- reduction( input = list(X = xmat,  
                                         Y = ymat,
                                         G = G,
                                         P = one_over_eps) 
     )
+    if (packageVersion("rkeops") >= 2.0) {
+      out <- torch::torch_tensor(-eps * sums, 
+                                 dtype = b_log$dtype, device = b_log$device)
+    } else {
+      out <- torch::torch_tensor(-eps * (log(sums[,2]) + sums[,1]), 
+                                 dtype = b_log$dtype, device = b_log$device)
+    }
     
-    out <- torch::torch_tensor(-eps * (log(exp_sums[,2]) + exp_sums[,1]), 
-                               dtype = b_log$dtype, device = b_log$device)
     
     ctx$save_for_backward(x = xmat,
                           y = ymat,

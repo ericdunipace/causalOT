@@ -17,7 +17,7 @@ testthat::test_that("calc_weight works", {
         method = "NNM")
   
   testthat::expect_equal(weights@penalty,
-                         list(w0 = c(lambda = 0), w1 = c(lambda = 0)))
+                         list(w0 = c(0), w1 = c(0)))
   testthat::expect_equal(weights@call, 
                          as.call(str2lang("calc_weight(x = data, z = NULL, estimand = estimate, method = 'NNM')")))
   testthat::expect_s4_class(weights, "causalWeights")
