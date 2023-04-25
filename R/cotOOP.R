@@ -1212,7 +1212,11 @@ setup_arguments = function(lambda, delta,
 #' @examples 
 #' ot$info()
    info = function(){
-     losses <- do.call("rbind", private$final_loss)
+     losses <- if (is.list(private$final_loss)) {
+       do.call("rbind", private$final_loss)
+     } else {
+       NULL
+     }
      
      metrics <- private$weights_metrics
      if(!is.character(metrics)) {
@@ -1225,7 +1229,11 @@ setup_arguments = function(lambda, delta,
      
      bal <- as.list(private$balance_check())
      
-     iter <- do.call("rbind", private$iterations_run)
+     iter <- if(is.list(private$iterations_run)) {
+       do.call("rbind", private$iterations_run)
+     } else {
+       NULL
+     }
      
      return(list(loss = losses,
                  iterations = iter,
@@ -2813,16 +2821,6 @@ NNM <- R6::R6Class(
         y = as_matrix(C_xy$data$y)
         d = ncol(x)
         
-        # browser()
-        # attempt_cuda <- grepl("cuda",  capture.output(print(private$b$device)))
-        # use_cuda <- attempt_cuda && torch::cuda_device_count()>=1
-        # 
-        # if (use_cuda) {
-        #   rkeops::compile4gpu()
-        #   rkeops::use_gpu()
-        # } else {
-        #   rkeops::compile4float64()
-        # }
         argmin_op <- rkeops::keops_kernel(
           formula = paste0("ArgMin_Reduction(", C_xy$fun, ", 1)"),
           args = c(

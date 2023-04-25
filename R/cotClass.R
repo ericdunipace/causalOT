@@ -30,6 +30,7 @@ COT <- R6::R6Class(
       } else {
         delta <- NULL
       }
+      # private$weights_metrics
       # browser()
       return(
         list(

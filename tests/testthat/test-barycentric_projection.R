@@ -35,7 +35,11 @@ testthat::test_that("barycentric_projection works, p = 2 tensor", {
   testthat::expect_equal(preds, predict(fit)) # make sure S3 registered
   
   # compare to online formulation
-  rkeops::compile4float64()
+  if(packageVersion("rkeops") >= "2.0" ) {
+    rkeops::rkeops_use_float64()
+  } else {
+    rkeops::compile4float64()
+  }
   mess <- testthat::capture_output(fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online"))
   mess <- testthat::capture_output(predo <- predict(fito))
   testthat::expect_equal(preds, predo, tol = 1e-5)

@@ -40,6 +40,7 @@ function(object1, object2, ...) {
   } else {
     stop("estimand not found!")
   }
+  if(!is.list(penalty$penalty)) penalty$penalty <- as.list(penalty$penalty)
   
   methods::new("causalWeights",
       w0 = w0,

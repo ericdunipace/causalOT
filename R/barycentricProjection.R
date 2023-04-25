@@ -437,7 +437,6 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
     y_source <- torch::torch_matmul((G - C_yx$data/eps)$log_softmax(2)$exp(), y_targ)$to(device = "cpu")
     
   } else {
-    # rkeops::compile4float64()
     G <- f/eps + a_log
     if(inherits(C_yx$data$x, "torch_tensor")) {
       x <- as.matrix(C_yx$data$x$to(device = "cpu"))
