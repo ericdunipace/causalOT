@@ -364,7 +364,7 @@ softmin_keops <- torch::autograd_function(
                                         P = one_over_eps) 
     )
     if (packageVersion("rkeops") >= 2.0) {
-      out <- torch::torch_tensor(-eps * sums, 
+      out <- torch::torch_tensor(-eps * c(sums), 
                                  dtype = b_log$dtype, device = b_log$device)
     } else {
       out <- torch::torch_tensor(-eps * (log(sums[,2]) + sums[,1]), 
