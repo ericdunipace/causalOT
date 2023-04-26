@@ -502,7 +502,7 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
     y_source <- online_red(sum_data)
   }
   
-  return(as.numeric(y_source))
+  return(as_numeric(y_source))
 }
 
 bp_pow1 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, tol = 1e-7, dots) {
@@ -614,45 +614,61 @@ tensorized_switch_generator <- function(tensorized) {
              ys<- as_numeric(y_source)
              yt<- as_numeric(y_target)
              
-             wt_red <- rkeops::keops_kernel(
-               formula = paste0("Max_SumShiftExp_Reduction(G - P *", x_form,", 0)"),
-               args = c(
-                 paste0("X = Vi(",d,")"),
-                 paste0("Y = Vj(",d,")"),
-                 "G = Vj(1)",
-                 "P = Pm(1)")
-             )
-             
-             online_red <- rkeops::keops_kernel(
-               formula = paste0("Sum_Reduction(", y_form,"*  Exp(G - P *", x_form,"- Norm), 0)"),
-               args = c(
-                 paste0("X = Vi(",d,")"),
-                 paste0("Y = Vj(",d,")"),
-                 paste0("S = Vi(",1,")"),
-                 paste0("T = Vj(",1,")"),
-                 "G = Vj(1)",
-                 "P = Pm(1)",
-                 "Norm = Vi(1)")
-             )
-             
-             wt_norm <- wt_red(list(X = as.matrix(x),
-                                    Y = as.matrix(y),
-                                    G = as.numeric(G),
-                                    P = as.numeric(1/eps)))
-             
              sum_data <- list(X = as.matrix(x),
                               Y = as.matrix(y),
                               S = as.numeric(ys),
                               T = as.numeric(yt),
                               G = as.numeric(G),
-                              P = as.numeric(1.0/eps),
-                              Norm = log(wt_norm[,2]) + wt_norm[,1]
-                            )
+                              P = as.numeric(1.0/eps)
+             )
+             
+             if (packageVersion("rkeops") >= 2.0) {
+               online_red <- rkeops::keops_kernel(
+                 formula = paste0("SumSoftMaxWeight_Reduction(  G - P *", x_form,",", y_form,", 0)"),
+                 args = c(
+                   paste0("X = Vi(",d,")"),
+                   paste0("Y = Vj(",d,")"),
+                   paste0("S = Vi(",1,")"),
+                   paste0("T = Vj(",1,")"),
+                   "G = Vj(1)",
+                   "P = Pm(1)")
+               )
+             } else {
+               wt_red <- rkeops::keops_kernel(
+                 formula = paste0("Max_SumShiftExp_Reduction(G - P *", x_form,", 0)"),
+                 args = c(
+                   paste0("X = Vi(",d,")"),
+                   paste0("Y = Vj(",d,")"),
+                   "G = Vj(1)",
+                   "P = Pm(1)")
+               )
+               
+               online_red <- rkeops::keops_kernel(
+                 formula = paste0("Sum_Reduction(", y_form,"*  Exp(G - P *", x_form,"- Norm), 0)"),
+                 args = c(
+                   paste0("X = Vi(",d,")"),
+                   paste0("Y = Vj(",d,")"),
+                   paste0("S = Vi(",1,")"),
+                   paste0("T = Vj(",1,")"),
+                   "G = Vj(1)",
+                   "P = Pm(1)",
+                   "Norm = Vi(1)")
+               )
+               
+               wt_norm <- wt_red(list(X = as.matrix(x),
+                                      Y = as.matrix(y),
+                                      G = as.numeric(G),
+                                      P = as.numeric(1/eps)))
+               
+               
+               sum_data$Norm <- log(wt_norm[,2]) + wt_norm[,1]
+             }
              
              reds <- online_red(sum_data)
              # print(y_source$device)
              # print(y_source$dtype)
-             ctx$save_for_backward(data = sum_data, kernel_op = online_red,
+             ctx$save_for_backward(data = sum_data, 
+                                   kernel_op = online_red,
                                    dtype = y_source$dtype,
                                    device = y_source$device)
              loss <- sum(reds)

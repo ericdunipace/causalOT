@@ -111,9 +111,12 @@ testthat::test_that("sinkhorn_loop runs, online", {
   tol <- 1e-8
   
   # giving masses
-  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
-                                         cost = NULL, p = 2, debias = TRUE, tensorized = "online",
-                                         diameter=NULL)
+  ot <- causalOT:::OT$new(x = x, y = y, 
+                          a = a, b = b, 
+                          penalty = penalty,
+                          cost = NULL, p = 2, 
+                          debias = TRUE, tensorized = "online",
+                          diameter=NULL)
   output <- ot$.__enclos_env__$private$sinkhorn_loop(niter, tol)
   
   ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 

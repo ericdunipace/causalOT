@@ -123,7 +123,7 @@ OT <- R6::R6Class("OT",
         }
         if (packageVersion("rkeops") >= 2.0) {
           reduction <- rkeops::keops_kernel(
-            formula = paste0("LogSumExp_Reduction( G - P *", C_xy$fun, ", 0)"),
+            formula = paste0("LogSumExp_Reduction( G - P *", C_xy$fun, ", 1)"),
             args = c(
               paste0("X = Vi(",d,")"),
               paste0("Y = Vj(",d,")"),
