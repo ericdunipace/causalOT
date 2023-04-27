@@ -2820,9 +2820,14 @@ NNM <- R6::R6Class(
         x = as_matrix(C_xy$data$x)
         y = as_matrix(C_xy$data$y)
         d = ncol(x)
-        
+        dim.red <- if(packageVersion("rkeops") >= 2.0) {
+          "0"
+        } else {
+          "1"
+        }
         argmin_op <- rkeops::keops_kernel(
-          formula = paste0("ArgMin_Reduction(", C_xy$fun, ", 1)"),
+          formula = paste0("ArgMin_Reduction(", C_xy$fun, ", 
+                           ,",dim.red,")"),
           args = c(
             paste0("X = Vi(",d,")"),
             paste0("Y = Vj(",d,")"))
