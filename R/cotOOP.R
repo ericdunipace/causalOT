@@ -2938,7 +2938,7 @@ dual_forwards_keops <- list(
       } else {
         torch::torch_tensor(log(exp_sums_a1[,2]) + exp_sums_a1[,1], dtype = f$dtype, device = f$device) + f_lambda
       }
-    return(a1_log$log_softmax(1)$exp())
+    return(a1_log$log_softmax(1)$exp()$view(-1))
   },
   calc_w2 = function(f, C_xy, a_log, lambda, n) {
     f_lambda <- f + a_log
@@ -2958,7 +2958,7 @@ dual_forwards_keops <- list(
         a2_log <-  torch::torch_tensor(log(exp_sums_a2[,2]) + exp_sums_a2[,1], dtype = f$dtype, device = f$device) + f_lambda
       }
     
-    return(a2_log$log_softmax(1)$exp())
+    return(a2_log$log_softmax(1)$exp()$view(-1))
   },
   cot_dual = function(gamma, C_xy, C_xx, a_log, b_log, lambda, n) {
     f_star = gamma$detach() #+ a_log
