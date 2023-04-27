@@ -2950,7 +2950,7 @@ dual_forwards_keops <- list(
       log_exp_sums_a2 <- C_xy$reduction( list(xmat, xmat,
                                           as.numeric(f_lambda$to(device = "cpu")),
                                           1.0 / lambda) )
-      a2_log <-  torch::torch_tensor(log_exp_sums_a2, dtype = f$dtype, device = f$device) + f_lambda
+      a2_log <-  torch::torch_tensor(c(log_exp_sums_a2), dtype = f$dtype, device = f$device) + f_lambda
     } else {
         exp_sums_a2 <- C_xy$reduction( list(xmat, xmat,
                                         as.numeric(f_lambda$to(device = "cpu")),
