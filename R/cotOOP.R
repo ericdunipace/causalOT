@@ -2826,8 +2826,7 @@ NNM <- R6::R6Class(
           "1"
         }
         argmin_op <- rkeops::keops_kernel(
-          formula = paste0("ArgMin_Reduction(", C_xy$fun, ", 
-                           ,",dim.red,")"),
+          formula = paste0("ArgMin_Reduction(", C_xy$fun, ",",dim.red,")"),
           args = c(
             paste0("X = Vi(",d,")"),
             paste0("Y = Vj(",d,")"))
