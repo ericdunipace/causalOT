@@ -122,7 +122,11 @@ testthat::test_that("barycentric_projection works, p = 1", {
   testthat::expect_equal(preds, predict(fit)) # make sure S3 registered
   
   # give error for the p = 1 online
-  rkeops::compile4float64()
+  if(packageVersion("rkeops") >= "2.0" ) {
+    rkeops::rkeops_use_float64()
+  } else {
+    rkeops::compile4float64()
+  }
   testthat::expect_warning(fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online"))
   testthat::expect_error(predo <- predict(fito))
   fun <- function(x1, x2, p) {
@@ -207,7 +211,11 @@ testthat::test_that("barycentric_projection works, p = 3", {
   testthat::expect_warning(preds2 <- predict(fit))
   testthat::expect_equal(preds, preds2) # make sure S3 registered
   
-  rkeops::compile4float64()
+  if(packageVersion("rkeops") >= "2.0" ) {
+    rkeops::rkeops_use_float64()
+  } else {
+    rkeops::compile4float64()
+  }
   mess <- testthat::capture_output((fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online")))
   testthat::expect_error(causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = as.numeric(power), cost.online = "online"))
   mess <- testthat::capture_output(testthat::expect_warning(predo <- predict(fito)))

@@ -462,15 +462,41 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
     )
     
     if (packageVersion("rkeops") >= 2.0) {
+      # online_red <- rkeops::keops_kernel(
+      #   formula = paste0("SumSoftMaxWeight_Reduction(G - P *", C_yx$fun,", Outcome, 1)"),
+      #   args = c(
+      #     paste0("X = Vi(",d,")"),
+      #     paste0("Y = Vj(",d,")"),
+      #     paste0("Outcome = Vj(",1,")"),
+      #     "G = Vj(1)",
+      #     "P = Pm(1)")
+      # )
+      wt_red <- rkeops::keops_kernel(
+        formula = paste0("LogSumExp_Reduction(G - P *", C_yx$fun,", 1)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          "G = Vj(1)",
+          "P = Pm(1)")
+      )
+      
       online_red <- rkeops::keops_kernel(
-        formula = paste0("SumSoftMaxWeight_Reduction(G - P *", C_yx$fun,", Outcome, 0)"),
+        formula = paste0("Sum_Reduction(Outcome * Exp(G - P *", C_yx$fun," - Norm), 1)"),
         args = c(
           paste0("X = Vi(",d,")"),
           paste0("Y = Vj(",d,")"),
           paste0("Outcome = Vj(",1,")"),
           "G = Vj(1)",
-          "P = Pm(1)")
+          "P = Pm(1)",
+          "Norm = Vi(1)")
       )
+      
+      wt_norm <- wt_red(list(X = as.matrix(x),
+                             Y = as.matrix(y),
+                             G = as.numeric(G),
+                             P = as.numeric(1/eps)))
+      
+      sum_data$Norm <- wt_norm
     } else {
       wt_red <- rkeops::keops_kernel(
         formula = paste0("Max_SumShiftExp_Reduction(G - P *", C_yx$fun,", 0)"),
@@ -623,16 +649,44 @@ tensorized_switch_generator <- function(tensorized) {
              )
              
              if (packageVersion("rkeops") >= 2.0) {
+               # online_red <- rkeops::keops_kernel(
+               #   formula = paste0("SumSoftMaxWeight_Reduction(  G - P *", x_form,",", y_form,", 1)"),
+               #   args = c(
+               #     paste0("X = Vi(",d,")"),
+               #     paste0("Y = Vj(",d,")"),
+               #     paste0("S = Vi(",1,")"),
+               #     paste0("T = Vj(",1,")"),
+               #     "G = Vj(1)",
+               #     "P = Pm(1)")
+               # )
+               wt_red <- rkeops::keops_kernel(
+                 formula = paste0("LogSumExp_Reduction(G - P *", x_form,", 1)"),
+                 args = c(
+                   paste0("X = Vi(",d,")"),
+                   paste0("Y = Vj(",d,")"),
+                   "G = Vj(1)",
+                   "P = Pm(1)")
+               )
+               
                online_red <- rkeops::keops_kernel(
-                 formula = paste0("SumSoftMaxWeight_Reduction(  G - P *", x_form,",", y_form,", 0)"),
+                 formula = paste0("Sum_Reduction(", y_form,"*  Exp(G - P *", x_form,"- Norm), 1)"),
                  args = c(
                    paste0("X = Vi(",d,")"),
                    paste0("Y = Vj(",d,")"),
                    paste0("S = Vi(",1,")"),
                    paste0("T = Vj(",1,")"),
                    "G = Vj(1)",
-                   "P = Pm(1)")
+                   "P = Pm(1)",
+                   "Norm = Vi(1)")
                )
+               
+               wt_norm <- wt_red(list(X = as.matrix(x),
+                                      Y = as.matrix(y),
+                                      G = as.numeric(G),
+                                      P = as.numeric(1/eps)))
+               
+               
+               sum_data$Norm <- wt_norm
              } else {
                wt_red <- rkeops::keops_kernel(
                  formula = paste0("Max_SumShiftExp_Reduction(G - P *", x_form,", 0)"),
@@ -675,11 +729,18 @@ tensorized_switch_generator <- function(tensorized) {
              return(loss)
            },
            backward = function(ctx, grad_output) {
+             # browser()
              s <- ctx$saved_variables
              s_grad <- rkeops::keops_grad(s$kernel_op, var="S")
              # browser()
              eta <- as.matrix(rep(as_numeric(grad_output), length(s$data$Norm)))
-             cpu_grad <- as_numeric(s_grad(c(s$data, list(eta = eta))))
+             grad_data <- if(packageVersion("rkeops") >= 2.0) {
+               c(s$data, list(varReNPP = eta))
+             } else {
+               c(s$data, list(eta = eta))
+             }
+             grad_data <- unname(grad_data)
+             cpu_grad <- as_numeric(s_grad(grad_data))
              grad <- list(y_source = torch::torch_tensor(cpu_grad,
                                                          device = s$device,
                                                          dtype = s$dtype))

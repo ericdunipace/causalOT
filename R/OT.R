@@ -65,7 +65,7 @@ OT <- R6::R6Class("OT",
       }
       
       if(self$dtype == torch::torch_double()) {
-        if(packageVersion("rkeops") >= "2.0") {
+        if(packageVersion("rkeops") >= 2.0) {
           rkeops::rkeops_use_float64()
         } else {
           rkeops::compile4float64()
@@ -108,13 +108,13 @@ OT <- R6::R6Class("OT",
         softmin <- softmin_tensorized
       } else {
         if(capture.output(self$dtype) == "torch_Double") {
-          if(packageVersion("rkeops") >= "2.0") {
+          if(packageVersion("rkeops") >= 2.0) {
             rkeops::rkeops_use_float64()
           } else {
             rkeops::compile4float64()
           }
         } else {
-          if(packageVersion("rkeops") >= "2.0") {
+          if(packageVersion("rkeops") >= 2.0) {
             rkeops::rkeops_use_float32()
           } else {
             rkeops::compile4float32()
@@ -847,14 +847,24 @@ energy_dist_online <- torch::autograd_function(
     
     device <- get_device(x = x, y = y, a = a, b = b)
     dtype <- get_dtype(x = x, y = y, a = a, b = b)
+    if (packageVersion("rkeops") >= 2.0) {
+      sumred <- rkeops::keops_kernel(
+        formula = paste0("Sum_Reduction( B* ", formula, ", 1)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          "B = Vj(1)")
+      )
+    } else {
+      sumred <- rkeops::keops_kernel(
+        formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          "B = Vj(1)")
+      )
+    }
     
-    sumred <- rkeops::keops_kernel(
-      formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
-      args = c(
-        paste0("X = Vi(",d,")"),
-        paste0("Y = Vj(",d,")"),
-        "B = Vj(1)")
-    )
     a_cross_deriv <- sumred(list(xmat,ymat, b_vec))
     # b_cross_deriv <- sumred(list(y,x, a))
     a_self_deriv <- sumred(list(xmat,xmat, a_vec))
@@ -899,18 +909,27 @@ energy_dist_online <- torch::autograd_function(
       
       cost_grad_xy <- rkeops::keops_grad(op = sv$forward_op,
                                            var = "X")
-      grads$x <- cost_grad_xy(list(X = sv$x,
-                                              Y = sv$y,
-                                              B = sv$b,
-                                              eta = matrix(sv$a)))
+      
+      
+      grad_data <- list(X = sv$x,
+                        Y = sv$y,
+                        B = sv$b,
+                        eta = matrix(sv$a))
+      grad_data2 <- list(X = sv$x,
+                         Y = sv$x,
+                         B = sv$a,
+                         eta = matrix(sv$a))
+      if(packageVersion("rkeops") >= 2.0) {
+        grad_data <- unname(grad_data)
+        grad_data2 <- unname(grad_data2)
+      } 
+      grads$x <- cost_grad_xy(grad_data)
       
       cost_grad_xx <- rkeops::keops_grad(op = sv$forward_op,
                                          var = "X")
       
-      grads$x <- torch::torch_tensor(go * c(grads$x - cost_grad_xx(list(X = sv$x,
-                                             Y = sv$x,
-                                             B = sv$a,
-                                             eta = matrix(sv$a)))),
+      
+      grads$x <- torch::torch_tensor(go * c(grads$x - cost_grad_xx(grad_data2)),
       device = sv$device$x,
       dtype = sv$dtype$x)
     }
@@ -918,16 +937,27 @@ energy_dist_online <- torch::autograd_function(
       
       cost_grad <- rkeops::keops_grad(op = sv$forward_op,
                                       var = "X")
-      grads$y <-  cost_grad(list(X = sv$y,
-                                              Y = sv$x,
-                                              B = sv$a,
-                                              eta = matrix(sv$b)))
+      
+      grad_data <- list(X = sv$y,
+                        Y = sv$x,
+                        B = sv$a,
+                        eta = matrix(sv$b))
+      
+      grad_data2 <- list(X = sv$y,
+                        Y = sv$y,
+                        B = sv$b,
+                        eta = matrix(sv$b))
+      
+      if(packageVersion("rkeops") >= 2.0) {
+        grad_data <- unname(grad_data)
+        grad_data2 <- unname(grad_data2)
+      } 
+      
+      grads$y <-  cost_grad(grad_data)
+      
       cost_grad_yy <- rkeops::keops_grad(op = sv$forward_op,
                                       var = "X")
-      grads$y <- torch::torch_tensor(go *c(grads$y - cost_grad_yy(list(X = sv$y,
-                                                   Y = sv$y,
-                                                   B = sv$b,
-                                                   eta = matrix(sv$b)))),
+      grads$y <- torch::torch_tensor(go *c(grads$y - cost_grad_yy(grad_data2)),
       device = sv$device$y,
       dtype = sv$dtype$y)
     }
@@ -972,14 +1002,24 @@ inf_sinkhorn_online <- torch::autograd_function(
     
     d <- ncol(x_mat)
     
+    if(packageVersion("rkeops") >= 2.0) {
+      sumred <- rkeops::keops_kernel(
+        formula = paste0("Sum_Reduction( B* ", formula, ", 1)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          "B = Vj(1)")
+      )
+    } else {
+      sumred <- rkeops::keops_kernel(
+        formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
+        args = c(
+          paste0("X = Vi(",d,")"),
+          paste0("Y = Vj(",d,")"),
+          "B = Vj(1)")
+      )
+    }
     
-    sumred <- rkeops::keops_kernel(
-      formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
-      args = c(
-        paste0("X = Vi(",d,")"),
-        paste0("Y = Vj(",d,")"),
-        "B = Vj(1)")
-    )
     a_deriv <- sumred(list(x_mat,y_mat, b_vec))
     # b_deriv <- sumred(list(y,x, a))
     loss <- sum(a_vec * a_deriv)
@@ -1021,22 +1061,32 @@ inf_sinkhorn_online <- torch::autograd_function(
     if (ctx$needs_input_grad$x) {
       cost_grad <- rkeops::keops_grad(op = saved_var$forward_op,
                                       var = "X")
+      grad_data <- list(X = saved_var$x,
+                        Y = saved_var$y,
+                        B = saved_var$b,
+                        eta = matrix(saved_var$a))
+      if(packageVersion("rkeops") >= 2.0) {
+        grad_data <- unname(grad_data)
+      } 
       grads$x <- 
-        torch::torch_tensor(go * cost_grad(list(X = saved_var$x,
-                  Y = saved_var$y,
-                  B = saved_var$b,
-                  eta = matrix(saved_var$a))), 
+        torch::torch_tensor(go * cost_grad(grad_data), 
                   dtype = saved_var$dtype$x,
                   device = saved_var$device$x)
     }
     if (ctx$needs_input_grad$y) {
       cost_grad <- rkeops::keops_grad(op = saved_var$forward_op,
                                       var = "X")
+      grad_data <- list(X = saved_var$y,
+                        Y = saved_var$x,
+                        B = saved_var$a,
+                        eta =  matrix(saved_var$b))
+      
+      if(packageVersion("rkeops") >= 2.0) {
+        grad_data <- unname(grad_data)
+      } 
+      
       grads$x <- 
-        torch::torch_tensor(go * cost_grad(list(X = saved_var$y,
-                          Y = saved_var$x,
-                          B = saved_var$a,
-                          eta = matrix(saved_var$b))),
+        torch::torch_tensor(go * cost_grad(grad_data),
             dtype = saved_var$dtype$y,
             device = saved_var$device$y)
     }
