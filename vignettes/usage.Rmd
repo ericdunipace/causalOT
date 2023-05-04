@@ -1,5 +1,6 @@
 ---
 title: "Using causalOT"
+author: Eric Dunipace
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Using causalOT}
@@ -104,11 +105,11 @@ print(coef(tau_hat))
 #>    estimate 
 #> 0.007949831
 print(var_tau)
-#>          estimate
-#> estimate 0.272946
+#>           estimate
+#> estimate 0.1887772
 print(ci_tau)
-#>              2.5 %   97.5 %
-#> estimate -1.016018 1.031918
+#>               2.5 %    97.5 %
+#> estimate -0.8436251 0.8595248
 ```
 ### Model based estimates
 The function `estimate_effect` can also use models to estimate the treatment effects. There are also several additional arguments that will be demonstrated below. These are:
@@ -195,7 +196,8 @@ preds   <- predict(object = bp,
                    newdata = newdf,
                    source.sample = df$z)
 head(preds)
-#> [1] -2.80749441  0.52369862  5.79605734 -1.55036673  0.01254699  1.55753697
+#> [1] -2.80749441  0.52369862  5.79605734 -1.55036673  0.01254699
+#> [6]  1.55753697
 ```
 The argument `source.sample` should be a vector that denotes the original treatment group of the samples. This allows the function to use the appropriate dual potentials to calculate the expected outcome.
 
@@ -234,8 +236,8 @@ vcov(tau_hat_wols)
 #>            estimate
 #> estimate 0.01705504
 vcov(tau_hat)
-#>          estimate
-#> estimate 0.272946
+#>           estimate
+#> estimate 0.1887772
 ```
 
 #### Note

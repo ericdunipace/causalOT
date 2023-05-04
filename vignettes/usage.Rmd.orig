@@ -1,5 +1,6 @@
 ---
 title: "Using causalOT"
+author: Eric Dunipace
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Using causalOT}

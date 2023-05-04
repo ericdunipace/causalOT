@@ -300,11 +300,11 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
        l_v <- length(value)
        dim_v <- dim(value)
        
-       if(l_v != self$d || l_v != self$d * self$n) {
+       if(any(dim_v != c(self$n,self$d)) && l_v != self$d && l_v != self$d * self$n) {
          stop(sprintf("Length of input for the `x` gradients must be of length %s or %s. Alternatively, better to supply a matrix of dimension %s by %s directly.", self$d, self$d*self$n, self$n, self$d))
        }
        
-       private$data_$grad$copy_(value)
+       private$data_$grad <- value
        
      } else if (self$adapt == "weights") {
        
@@ -314,7 +314,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
          stop(sprintf("Input value must be of length %s for the weight gradients. The first value is fixed to make the vector identifiable and thus does not have a gradient.", self$n - 1))
        }
        
-       private$mass_$grad$copy_(value)
+       private$mass_$grad <- value
      }
      })
    },
@@ -1245,6 +1245,7 @@ setup_arguments = function(lambda, delta,
  active = {list(
 #' @field loss prints the current value of the objective. Only availble after the solve method has been run
    loss = function() {
+     private$ot_update()
      return(eval(private$objective)$to(device = self$device))
    },
    
@@ -1298,6 +1299,10 @@ setup_arguments = function(lambda, delta,
    bal_param_update = function(osqp_args = NULL, tol = 1e-7) {
      # update balance constraint parameters and then returns
      # the langrangian terms to add to the loss
+     
+     # save weights incase not already done
+     private$weights <- private$get_weights()
+     
      l_to <- length(private$target_objects)
      
      loss <- torch::torch_tensor(0.0, dtype = self$dtype, device = self$device)
@@ -1606,7 +1611,7 @@ setup_arguments = function(lambda, delta,
      
      # eval loss and get gradients
      weight_setup()
-     private$ot_update()
+     # private$ot_update() # now in loss fun
      init_loss          <- self$loss
      init_loss$backward()
      
@@ -1676,9 +1681,9 @@ setup_arguments = function(lambda, delta,
        private$weights <- x + dx * alpha
        
        # update OT problems
-       private$ot_update()
+       # private$ot_update()
        
-       # evaluate loss
+       # evaluate loss (which updates ot problems)
        loss <- self$loss$detach()
        
        # return value
@@ -1891,12 +1896,12 @@ setup_arguments = function(lambda, delta,
    },
    
    #update ot problems
-   ot_update = function(only_params = TRUE, get_weights = FALSE, use_grad = TRUE) {
+   ot_update = function(only_params = TRUE, get_weights = TRUE, use_grad = TRUE) {
      ot_adds    <- ls(private$ot_objects)
      param_adds <- ls(private$parameters)
      
      # set weights
-     if(isTRUE(get_weights)) {
+     if (isTRUE(get_weights)) {
        private$weights <- private$get_weights()
      }
      
@@ -1946,12 +1951,12 @@ setup_arguments = function(lambda, delta,
      }
      
      # loop over OT problems
-     cur_ot <- NULL
-     torch::autograd_set_grad_mode(enabled = use_grad)
-     for (addy in ot_adds) {
-       cur_ot <- private$ot_objects[[addy]]
-       
-       # need to update weights used
+     ot_prob_loop <- function() {
+       cur_ot <- NULL
+       for (addy in ot_adds) {
+         cur_ot <- private$ot_objects[[addy]]
+         
+         # need to update weights used
          problem_addy <- private$problems[[addy]]
          
          # update cost if needed
@@ -1961,17 +1966,24 @@ setup_arguments = function(lambda, delta,
          
          # update weights if needed
          wt_grad <- weights_forward(problem_addy[[1L]],
-                                   problem_addy[[2L]],
-                                   cur_ot)
+                                    problem_addy[[2L]],
+                                    cur_ot)
          
          has_grad <- (cost_grad || wt_grad)
          
-       # run sinkhorn if needed
+         # run sinkhorn if needed
          if ( is.finite(cur_ot$penalty) && (has_grad || !only_params) ) {
            cur_ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
          }
+       }
      }
-     torch::autograd_set_grad_mode(enabled = TRUE)
+     # differential run with/without grad
+     if (use_grad) {
+       ot_prob_loop() # grad, if needed
+     } else {
+       torch::with_no_grad(ot_prob_loop) # no grad
+     }
+     
    },
    # return or set parameter weights
    parameters_get_set = function(value, clone = FALSE) {
@@ -2034,13 +2046,14 @@ setup_arguments = function(lambda, delta,
      
      closure <- function() {
        opt$zero_grad()
-       private$weights <- private$get_weights() 
-       loss <- private$bal_param_update(osqp_args = osqp_args, tol)
+       # self$forward()
+       loss <- private$bal_param_update(osqp_args = osqp_args, tol) +
+         self$loss  
        
        # only run ot if no bal constraint violations
        # if (loss$item() == 0) {
-         private$ot_update()
-         loss <- self$loss + loss
+         # private$ot_update()
+         # loss <- self$loss + loss
        # }
        
        loss$backward()
