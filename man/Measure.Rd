@@ -30,7 +30,7 @@ Measure(
 
 \item{dtype}{The torch_tensor dtype or NULL.}
 
-\item{device}{The device to have the data on. Should be result of \href{torch::torch_device}{torch_device()} or NULL.}
+\item{device}{The device to have the data on. Should be result of \code{\link[torch:torch_device]{torch::torch_device()}} or NULL.}
 }
 \value{
 Returns a Measure object
@@ -45,7 +45,7 @@ An R6 Class for setting up measures
 we want to adjust towards the targets}
 \item{\code{balance_target}}{the values the balance_functions are targeting}
 \item{\code{adapt}}{What aspect of the data will be adapted. One of "none","weights", or "x".}
-\item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
+\item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device}} of the data.}
 \item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
 \item{\code{n}}{the rows of the covariates, x.}
 \item{\code{d}}{the columns of the covariates, x.}

@@ -24,7 +24,7 @@ data <- Hainmueller$new()
 data$gen_data()
 
 # calculate quantities
-weight <- calc_weight(data, method = "Logistic")
+weight <- calc_weight(data, method = "NNM", estimand = "ATE")
 tx_eff <- estimate_effect(causalWeights = weight)
 
 all.equal(coef(tx_eff), c(estimate = tx_eff@estimate))

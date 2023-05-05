@@ -1,9 +1,12 @@
 ---
 title: "Object Oriented COT Objects"
 author: "Eric Dunipace"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{Using causalOT}
+  %\VignetteIndexEntry{Object Oriented COT Objects}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -27,6 +30,7 @@ For most users, the vanilla function `calc_weight` should be sufficient for most
 One **very** important thing to note is that these objects are mutable; in other words, they are always passed by reference so changes to the base objects will effect all other objects they are reliant on. Thus, changes will propagate forward and backward. For these reasons, these objects will be more dangerous in terms of side-effects and should be used carefully.
 
 Finally, these data structures are heavy reliant on the ``torch`` package in ``R``. This allows relatively easy use of GPUs and also has other advantages such as passing by reference and various optimization methods available by default.
+
 
 ## Base functions for OOP
 
@@ -132,6 +136,8 @@ or the Sinkhorn divergence:
 \[ S_\lambda(a,b) - 0.5 S_\lambda(a,a) - 0.5 S_\lambda(b,b). \]
 The linear constraint on the problem bounds the balance functions within some distance $\delta$ of their original standard deviation, $\sigma$.
 
+With this detail, we then need to specify which optimal transport problem we're using, the various penalty parameters, etc. to do this, we use the `setup_arguments` function below:
+
 ``` {r options, warning = FALSE}
 otp$setup_arguments(
   lambda = NULL, # penalty values of the optimal transport (OT) distances to try
@@ -152,7 +158,7 @@ otp$setup_arguments(
 The last two arguments may be confusing at first but understanding how the `OTProblem` objects adapt the measure may help to add some clarity. The `OTProblem` first has to solve an optimal transport problem between the two measures (with runtime parameters specified in the `setup_arguments` function). Then the object will take a step of updating the weights, which is done by the next function.
 
 Once we have set up the arguments, we can solve this `OTProblem`:
-``` {r solve}
+``` {r solve, cache = TRUE}
 otp$solve(
   niter = 1000L, # maximum number of iterations
   tol = 1e-5, # tolerance for convergence
@@ -166,15 +172,15 @@ otp$solve(
 ```
 
 Since the objects are passed by reference, the weights of the measure object that was adapted are now different.
-```{r, echo = FALSE}
+```{r, cache = TRUE, echo = FALSE}
 cbind(adapted = as.numeric(m_source$weights), 
       original = w)
 ```
 
-*Note:* the dual optimization method currently available for the `COT` method is not implemented for `OTProblem` objects. Thus, these optimization problems will possibly take longer to solve.
+*Note:* the dual optimization method currently available for the `COT` method in the `calc_weight` function is not implemented for `OTProblem` objects. Thus, these optimization problems will possibly take longer to solve.
 
 We have run the function with a variety of `lambda` parameters chosen by the `OTProblem` object. We should select one to move forward with.
-``` {r hyper}
+``` {r hyper, cache = TRUE}
 otp$choose_hyperparameters(
   n_boot_lambda = 100L, #Number of bootstrap iterations to choose lambda
   n_boot_delta = 1000L, #Number of bootstrap iterations to choose delta
@@ -182,11 +188,11 @@ otp$choose_hyperparameters(
 )
 ```
 The `delta` parameter wasn't used so we only select the values of `lambda`. This gives us a final value of lambda of 
-```{r}
+```{r, cache = TRUE}
 otp$selected_lambda
 ```
 and final weights of 
-``` {r}
+``` {r, cache = TRUE}
 as.numeric(m_source$weights)
 ```
 We can also see the final value of the optimal transport problem with the chosen value of `lambda` and weights.
@@ -291,7 +297,7 @@ d_t <- Measure(x = a$x, adapt = "weights",
 all.target.measures <- list(a_t, b_t, c_t, d_t)
 ```
 Then we can optimize the weights targeting the moments in a bit of a hacky way.
-``` {r,warning=FALSE}
+``` {r,warning=FALSE, cache = TRUE}
 ot_targ <- NULL
 for(meas in all.target.measures) {
   ot_targ <- OTProblem(meas, meas)
@@ -301,7 +307,7 @@ for(meas in all.target.measures) {
 }
 ```
 And we can check the final balance
-``` {r}
+``` {r, cache = TRUE}
 final.bal <- as.numeric(a_t$x$mT()$matmul(a_t$weights$detach()))
 original  <- as.numeric(a_t$x$mean(1))
 rbind(original,
@@ -477,7 +483,7 @@ otd$solve(torch_optim = torch::optim_rmsprop)
 
 ```
 Looking at the pseudo data in group B we can see that the pseudo-data is a much better approximation to B after optimization.
-``` {r,echo = FALSE, fig.show='hold', fig.path = "oop-"}
+``` {r,echo = FALSE, fig.show='hold', fig.path = "oop-", cache = TRUE}
 otb$solve(torch_optim = torch::optim_rmsprop)
 plot(as.matrix(b$x),xlim = c(-3,3), ylim = c(-3,3),
      xlab = expression(X[1]),
@@ -570,7 +576,7 @@ m_2 <- Measure(x = x_2, adapt = "weights",
 ot_binary <- OTProblem(m_1, m_2)
 ```
 In this case, we'd like the treatment groups to have the same distributions but have the same first and second moments from our target site.
-```{r}
+```{r, cache = TRUE}
 ot_binary$setup_arguments() 
 
 ot_binary$solve(torch_optim = torch::optim_lbfgs,
@@ -590,7 +596,7 @@ We can also see how the balance functions are doing in terms of targeting the mo
 info$balance.function.differences
 ```
 It appears that all of our balance functions are less than the desired tolerance. Finally, the optimal transport distance between treatments 1 and 2 is also improved:
-``` {r}
+``` {r, cache = TRUE}
 c(initial = ot_distance(m_1$x, m_2$x, 
             a = m_1$init_weights, b = m_2$init_weights, penalty = 1),
 final = ot_distance(m_1$x, m_2$x, 

@@ -45,7 +45,9 @@ data$gen_data()
 
 # calculate quantities
 if ( torch::torch_is_installed() ){
-weight <- calc_weight(data, method = "COT", options = list(lambda = 0))
+weight <- calc_weight(data, method = "COT", 
+                      estimand = "ATT",
+                      options = list(lambda = 0))
 tx_eff <- estimate_effect(causalWeights = weight)
 
 # get estimate

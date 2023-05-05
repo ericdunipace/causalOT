@@ -1,8 +1,17 @@
 # causalOT 1.0
 
+## Breaking changes
+* Simplified the arguments to the main `calc_weight()` function
+* Removed direct Python dependency
+* Changed estimation function `estimate_effect()` arguments
+
+## New features
+* Added a new object-oriented set of functions for advanced users. Described in the new vignette, "Object Oriented COT Objects."
+* Added `torch` based data structures allowing GPU support
+* Added quadratic programming based on the `osqp` package where relevant
+* Added internal optimal transport optimization removing reliance on `approxOT` package
+* Added `vcov`, `confint`, and `coef` methods for the output of `estimate_effect()`
+* Added a barycentric projection outcome estimation method via the function `barycentric_projection()` and a corresponding predict method.
+
+## Minor improvements and fixes
 * Added a `NEWS.md` file to track changes to the package.
-* Updated the package in a backwards compatability breaking way with several major changes:
-  * Package no longer relies on Python directly
-  * Now supports the R `torch` package
-  * Added an object-oriented approach for more complicated problems
-  * Simplified the function arguments in the main functions

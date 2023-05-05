@@ -19,6 +19,8 @@ This object is returned by the \code{calc_weight} function in this package. The 
 
 \item{\code{estimand}}{A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE".}
 
+\item{\code{info}}{A slot to store a variety of info for inference. Currently under development.}
+
 \item{\code{method}}{A character denoting the method used to estimate the weights.}
 
 \item{\code{penalty}}{A list or the selected penalty parameters, if relevant.}

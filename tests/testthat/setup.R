@@ -1,7 +1,7 @@
 # rkeops >= 2.0 features a python dependency, which, at this time,
 # requires users to manage both a Python install and R install
-if (packageVersion("rkeops") >= 2.0 ) {
-  if(is.character(find.package("reticulate"))) {
+if (utils::packageVersion("rkeops") >= 2.0 ) {
+  if (is.character(find.package("reticulate"))) {
     rkeops_pyenv <- "rkeops_test_asdf"
     # setup.mess <- reticulate::py_capture_output({
       reticulate::virtualenv_create(envname = rkeops_pyenv)

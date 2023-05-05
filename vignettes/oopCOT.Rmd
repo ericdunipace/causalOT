@@ -1,9 +1,12 @@
 ---
 title: "Object Oriented COT Objects"
 author: "Eric Dunipace"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{Using causalOT}
+  %\VignetteIndexEntry{Object Oriented COT Objects}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -19,6 +22,7 @@ For most users, the vanilla function `calc_weight` should be sufficient for most
 One **very** important thing to note is that these objects are mutable; in other words, they are always passed by reference so changes to the base objects will effect all other objects they are reliant on. Thus, changes will propagate forward and backward. For these reasons, these objects will be more dangerous in terms of side-effects and should be used carefully.
 
 Finally, these data structures are heavy reliant on the ``torch`` package in ``R``. This allows relatively easy use of GPUs and also has other advantages such as passing by reference and various optimization methods available by default.
+
 
 ## Base functions for OOP
 
@@ -122,7 +126,7 @@ Also, we can print the measure objects to the screen to see some of the underlyi
 
 ```r
 m
-#> Measure: 0x7fa3dbaffeb0
+#> Measure: 0x7fdd8b7c4eb8
 #>   x      : a 5x3 matrix 
 #>            -0.11, 0.14, -0.92
 #>            0.02, -1.53, -0.26
@@ -164,6 +168,8 @@ $OT_\lambda$ is an optimal transport distance specified by the Sinkhorn distance
 or the Sinkhorn divergence:
 \[ S_\lambda(a,b) - 0.5 S_\lambda(a,a) - 0.5 S_\lambda(b,b). \]
 The linear constraint on the problem bounds the balance functions within some distance $\delta$ of their original standard deviation, $\sigma$.
+
+With this detail, we then need to specify which optimal transport problem we're using, the various penalty parameters, etc. to do this, we use the `setup_arguments` function below:
 
 
 ```r
@@ -211,7 +217,7 @@ Since the objects are passed by reference, the weights of the measure object tha
 #> [5,] 6.598182e-08 0.1210527
 ```
 
-*Note:* the dual optimization method currently available for the `COT` method is not implemented for `OTProblem` objects. Thus, these optimization problems will possibly take longer to solve.
+*Note:* the dual optimization method currently available for the `COT` method in the `calc_weight` function is not implemented for `OTProblem` objects. Thus, these optimization problems will possibly take longer to solve.
 
 We have run the function with a variety of `lambda` parameters chosen by the `OTProblem` object. We should select one to move forward with.
 
@@ -239,7 +245,7 @@ We can also see the final value of the optimal transport problem with the chosen
 ```r
 otp$loss
 #> torch_tensor
-#> 0.104641
+#> 0.141248
 #> [ CPUDoubleType{} ][ grad_fn = <SubBackward0> ]
 ```
 
@@ -339,10 +345,10 @@ One thing to note that's kind of cool is that we can add our `OTProblem` objects
 ```r
 overall_ot
 #> OT Problem: 
-#>   OT(0x7fa3f44ca140, 0x7fa3fa1f2e38) +
-#>   OT(0x7fa3f9daf3b8, 0x7fa3fa1f2e38) +
-#>   OT(0x7fa40bf40e98, 0x7fa3fa1f2e38) +
-#>   OT(0x7fa409a345c8, 0x7fa3fa1f2e38)
+#>   OT(0x7fdd7a0af5d0, 0x7fdd7a2b50a0) +
+#>   OT(0x7fdd7a15d830, 0x7fdd7a2b50a0) +
+#>   OT(0x7fdd7a1e1798, 0x7fdd7a2b50a0) +
+#>   OT(0x7fdd79b17810, 0x7fdd7a2b50a0)
 ```
 Neat!
 
@@ -690,22 +696,8 @@ We can also see how the balance functions are doing in terms of targeting the mo
 
 ```r
 info$balance.function.differences
-#> $`0x7fa3f28e75f0`
-#> $`0x7fa3f28e75f0`$balance
-#> torch_tensor
-#> 0.001 *
-#>  1.8163
-#> -0.3774
-#>  1.8235
-#> -1.8946
-#> [ CPUDoubleType{4} ][ grad_fn = <SubBackward0> ]
-#> 
-#> $`0x7fa3f28e75f0`$delta
-#> [1] 1e-04
-#> 
-#> 
-#> $`0x7fa3e7fb3ba0`
-#> $`0x7fa3e7fb3ba0`$balance
+#> $`0x7fdd8cdf5660`
+#> $`0x7fdd8cdf5660`$balance
 #> torch_tensor
 #> 0.001 *
 #> -3.3433
@@ -714,7 +706,21 @@ info$balance.function.differences
 #>  3.5927
 #> [ CPUDoubleType{4} ][ grad_fn = <SubBackward0> ]
 #> 
-#> $`0x7fa3e7fb3ba0`$delta
+#> $`0x7fdd8cdf5660`$delta
+#> [1] 1e-04
+#> 
+#> 
+#> $`0x7fdd9e7e9d60`
+#> $`0x7fdd9e7e9d60`$balance
+#> torch_tensor
+#> 0.001 *
+#>  1.8163
+#> -0.3774
+#>  1.8235
+#> -1.8946
+#> [ CPUDoubleType{4} ][ grad_fn = <SubBackward0> ]
+#> 
+#> $`0x7fdd9e7e9d60`$delta
 #> [1] 1e-04
 ```
 It appears that all of our balance functions are less than the desired tolerance. Finally, the optimal transport distance between treatments 1 and 2 is also improved:

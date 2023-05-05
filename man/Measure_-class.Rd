@@ -126,9 +126,9 @@ Constructor function
 
 \item{\code{target.values}}{The targets for the balance functions. Should be the same length as columns in \code{balance.functions.}}
 
-\item{\code{dtype}}{The torch_tensor dtype or NULL.}
+\item{\code{dtype}}{The \link[torch:torch_dtype]{torch::torch_dtype} or NULL.}
 
-\item{\code{device}}{The device to have the data on. Should be result of \href{torch::torch_device}{torch_device()} or NULL.}
+\item{\code{device}}{The device to have the data on. Should be result of \code{\link[torch:torch_device]{torch::torch_device()}} or NULL.}
 }
 \if{html}{\out{</div>}}
 }

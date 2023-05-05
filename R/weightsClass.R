@@ -4,6 +4,7 @@
 #' @slot w0 A slot with the weights for the control group with \eqn{n_0} entries. Weights sum to 1.
 #' @slot w1 The weights for the treated group with \eqn{n_1} entries. Weights sum to 1.
 #' @slot estimand A character denoting the estimand targeted by the weights. One of "ATT","ATC", or "ATE".
+#' @slot info A slot to store a variety of info for inference. Currently under development.
 #' @slot method A character denoting the method used to estimate the weights.
 #' @slot penalty A list or the selected penalty parameters, if relevant.
 #' @slot data The dataHolder object containing the original data.

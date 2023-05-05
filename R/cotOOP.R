@@ -113,8 +113,8 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    #' @param adapt Should we try to adapt the data ("x"), the weights ("weights"), or neither ("none"). Default is "none".
    #' @param balance.functions A matrix of functions of the covariates to target for mean balance. If NULL and `target.values` are provided, will use the data in `x`.
    #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
-   #' @param dtype The torch_tensor dtype or NULL.
-   #' @param device The device to have the data on. Should be result of [torch_device()](torch::torch_device) or NULL.
+   #' @param dtype The [torch::torch_dtype] or NULL.
+   #' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL.
    initialize = function(x, weights = NULL, 
                          probability.measure = TRUE, 
                          adapt = c("none","weights", "x"), 
@@ -291,31 +291,36 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
        }
      }
      
+     
      # save grad values
      torch::with_no_grad({
-     if(self$adapt == "none") {
-       stop("No elements of this Measure object have gradients")
-     } else if (self$adapt == "x") {
-       
-       l_v <- length(value)
-       dim_v <- dim(value)
-       
-       if(any(dim_v != c(self$n,self$d)) && l_v != self$d && l_v != self$d * self$n) {
-         stop(sprintf("Length of input for the `x` gradients must be of length %s or %s. Alternatively, better to supply a matrix of dimension %s by %s directly.", self$d, self$d*self$n, self$n, self$d))
+       if (!is_torch_tensor(value)) {
+         value <- torch::torch_tensor(value, dtype = self$dtype,
+                                      device = self$device)
        }
-       
-       private$data_$grad <- value
-       
-     } else if (self$adapt == "weights") {
-       
-       l_v <- length(value)
-       
-       if (l_v != (self$n - 1)) {
-         stop(sprintf("Input value must be of length %s for the weight gradients. The first value is fixed to make the vector identifiable and thus does not have a gradient.", self$n - 1))
+       if(self$adapt == "none") {
+         stop("No elements of this Measure object have gradients")
+       } else if (self$adapt == "x") {
+         
+         l_v <- length(value)
+         dim_v <- dim(value)
+         
+         if(any(dim_v != c(self$n,self$d)) && l_v != self$d && l_v != self$d * self$n) {
+           stop(sprintf("Length of input for the `x` gradients must be of length %s or %s. Alternatively, better to supply a matrix of dimension %s by %s directly.", self$d, self$d*self$n, self$n, self$d))
+         }
+         
+         private$data_$grad <- value$to(device = private$data_$device)
+         
+       } else if (self$adapt == "weights") {
+         
+         l_v <- length(value)
+         
+         if (l_v != (self$n - 1)) {
+           stop(sprintf("Input value must be of length %s for the weight gradients. The first value is fixed to make the vector identifiable and thus does not have a gradient.", self$n - 1))
+         }
+         
+         private$mass_$grad <- value$to(device = private$mass_$device)
        }
-       
-       private$mass_$grad <- value
-     }
      })
    },
    
@@ -513,7 +518,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
 #' @param balance.functions A matrix of functions of the covariates to target for mean balance. If NULL and `target.values` are provided, will use the data in `x`.
 #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
 #' @param dtype The torch_tensor dtype or NULL.
-#' @param device The device to have the data on. Should be result of [torch_device()](torch::torch_device) or NULL.
+#' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL.
 #' @return Returns a Measure object
 #' 
 #' @details # Public fields
@@ -523,7 +528,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
 #'       we want to adjust towards the targets}
 #'     \item{\code{balance_target}}{the values the balance_functions are targeting}
 #'     \item{\code{adapt}}{What aspect of the data will be adapted. One of "none","weights", or "x".}
-#'     \item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
+#'     \item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device}} of the data.}
 #'     \item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
 #'     \item{\code{n}}{the rows of the covariates, x.}
 #'     \item{\code{d}}{the columns of the covariates, x.}
@@ -1570,8 +1575,18 @@ setup_arguments = function(lambda, delta,
    frankwolfe_step = function(opt, osqp_args, tol) {
      
      # get weights and retain grad
+     # can probably be deleted
      weight_setup <- function() {
        private$weights <- private$get_weights()
+       pw <- NULL
+       for(w in ls(private$weights)) {
+         pw <- private$weights[[w]]
+         if(pw$requires_grad) pw$retain_grad()
+       }
+     }
+     
+     # retain grad
+     weight_retain_grad <- function() {
        pw <- NULL
        for(w in ls(private$weights)) {
          pw <- private$weights[[w]]
@@ -1610,9 +1625,10 @@ setup_arguments = function(lambda, delta,
      private$zero_grad()
      
      # eval loss and get gradients
-     weight_setup()
+     # weight_setup()
      # private$ot_update() # now in loss fun
      init_loss          <- self$loss
+     weight_retain_grad()
      init_loss$backward()
      
      # setup osqp args

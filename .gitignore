@@ -22,6 +22,7 @@ inst/cluster
 inst/stan/test
 inst/Reproduce/data/*.*
 inst/Reproduce/ReproduceCOT.log
+tests/testthat/testthat-problems.rds
 Output
 Plots
 Table
