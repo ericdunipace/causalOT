@@ -108,7 +108,7 @@ testthat::test_that("test forward functions", {
   
   
   # test keops versions
-  testthat::skip_if_not_installed("rkeops")
+  causalOT:::rkeops_check()
   
   ot_keops <- causalOT:::OT$new(x = x, y = z, debias = TRUE, tensorized = "online", penalty = 10)
   
@@ -240,7 +240,7 @@ testthat::test_that("dual nn modules work as expected",{
   
   #### check keops opt ####
   
-  testthat::skip_if_not_installed("rkeops")
+  causalOT:::rkeops_check()
   
   ot_keops <- causalOT:::OT$new(x = x, y = z, debias = TRUE, tensorized = "online", penalty = 10)
   
@@ -315,6 +315,7 @@ testthat::test_that("training function works for dual optimizer",{
   testthat::expect_true(inherits(causalOT:::cotDualTrain$new(Measure(x, adapt = "weights"), Measure(z))$setup_arguments()$.__enclos_env__$private$nn_holder, "cotDualOpt"))
   
   #no bf, keops
+  causalOT:::rkeops_check()
   testthat::expect_true(inherits(causalOT:::cotDualTrain$new(Measure(x, adapt = "weights"), Measure(z))$setup_arguments(cost.online = "online")$.__enclos_env__$private$nn_holder, "cotDualOpt_keops"))
   
   #no bf, keops

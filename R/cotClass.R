@@ -1,11 +1,17 @@
 
-setOldClass(c("gridSearchClass","R6"))
-setOldClass("balanceFunction")
-setOldClass(c("OT","R6"))
+# setOldClass(c("gridSearchClass","R6"))
+# setOldClass("balanceFunction")
+# setOldClass(c("OT","R6"))
 setOldClass("torch_tensor")
 
-#### NEW COT CLASS ####
+#' @include balanceFunctions.R
 
+#### NEW COT CLASS ####
+#' COT base class
+#'
+#' @include gridSearch.R
+#' @include balanceFunctions.R
+#' @include OT.R
 COT <- R6::R6Class(
   classname = "COT",
   public = {list(
@@ -257,9 +263,11 @@ COT <- R6::R6Class(
 #' 
 #'
 #' @examples
+#' if ( torch::torch_is_installed()) {
 #' opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_lbfgs)
 #' opts2 <- cotOptions(lambda = NULL)
 #' opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
+#' }
 cotOptions <- function(lambda = NULL,
                        delta = NULL,
                        opt.direction = c("dual", "primal"),

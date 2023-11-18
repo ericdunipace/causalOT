@@ -1,4 +1,6 @@
-
+#' @include DataSimClass.R
+setOldClass(c("DataSim","R6"))
+setOldClass(c("Hainmueller", "DataSim","R6"))
 
 check_dataHolder <- function(object) {
   errors <- character()
@@ -227,8 +229,8 @@ setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = 
 })
 
 # x is DataSim, z is numeric, no balance subset
-setOldClass(c("DataSim","R6"))
-setOldClass(c("Hainmueller", "DataSim","R6"))
+# setOldClass(c("DataSim","R6"))
+# setOldClass(c("Hainmueller", "DataSim","R6"))
 
 #' dataHolder-methods
 #' @rdname dataHolder-methods

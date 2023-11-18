@@ -84,7 +84,7 @@ n <- 2^5
 pp <- 6
 overlap <- "low"
 design <- "A"
-estimate <- "ATE"
+estimate <- "ATT"
 power <- 2
 data <- causalOT::Hainmueller$new(n = n, p = pp,
 design = design, overlap = overlap)
@@ -98,8 +98,10 @@ weights <- causalOT::calc_weight(x = data,
   
  df <- data.frame(y = data$get_y(), z = data$get_z(), data$get_x())
   
- fit <- causalOT::barycentric_projection(y ~ ., data = df, weight = weights,
-    separate.samples.on = "z")
+ fit <- causalOT::barycentric_projection(y ~ ., data = df, 
+    weight = weights,
+    separate.samples.on = "z",
+    niter = 2)
  inherits(fit, "bp")
  }
 }

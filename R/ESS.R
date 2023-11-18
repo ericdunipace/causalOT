@@ -1,4 +1,4 @@
-setOldClass("causalWeights")
+# setOldClass("causalWeights")
 
 #' Effective Sample Size
 #'
@@ -36,6 +36,7 @@ setMethod("ESS", signature(x = "numeric"),
 
 #' @describeIn ESS ESS method for objects of class [causalWeights][causalOT::causalWeights-class]
 #' @method ESS causalWeights
+#' @include weightsClass.R
 setMethod("ESS", signature = signature(x = "causalWeights"),
 function(x) {
   return(c("Control" = ESS(x@w0), "Treated" = ESS(x@w1)))

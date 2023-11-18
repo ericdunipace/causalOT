@@ -1,6 +1,5 @@
 testthat::test_that("gridSearch class forms", {
-  testthat::skip_if_not_installed("torch")
-  if(!torch::torch_is_installed()) testthat::skip("torch not installed")
+  causalOT:::torch_check()
   set.seed(12312)
   hain <- causalOT:::Hainmueller$new(128)
   hain$gen_data()
@@ -104,8 +103,7 @@ testthat::test_that("gridSearch EBW", {
 })
 
 testthat::test_that("gridSearch COT", {
-  testthat::skip_if_not_installed("torch")
-  if(!torch::torch_is_installed()) testthat::skip("torch not installed")
+  causalOT:::torch_check()
   
   set.seed(12312)
   hain <- causalOT:::Hainmueller$new(n=64)
@@ -154,8 +152,8 @@ testthat::test_that("gridSearch COT", {
 })
 
 testthat::test_that("gridSearch NNM", {
-  testthat::skip_if_not_installed("torch")
-  if(!torch::torch_is_installed()) testthat::skip("torch not installed")
+  causalOT:::torch_check()
+  
   set.seed(12312)
   hain <- causalOT:::Hainmueller$new(n=64)
   hain$gen_data()

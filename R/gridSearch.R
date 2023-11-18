@@ -1,10 +1,23 @@
 
 # grid search methods
-setOldClass("cotProblem")
-setOldClass(c("SBW","R6"))
-setOldClass(c("COT","R6"))
-setOldClass(c("EntropyBW","R6"))
-setOldClass(c("SCM","R6"))
+
+#' @include calc_weight.R
+#' @include weightsClass.R
+#' @include balanceFunctions.R
+#' @include scmClass.R
+#' @include cotClass.R
+
+
+
+#' gridSearch S4 class
+#'
+#' @slot penalty_list numeric. 
+#' @slot nboot integer. 
+#' @slot solver R6. 
+#' @slot method character. 
+#' @slot estimand character. 
+#'
+#' @keywords internal
 setClass("gridSearch",
          slots = c(
            penalty_list = "numeric",
@@ -14,9 +27,11 @@ setClass("gridSearch",
            estimand = "character"
            # ns = "integer",
            # nt = "integer"
-         ),
-         contains = "cotProblem"
+         )
+         # contains = "cotProblem"
 )
+
+
 setClass("ateClass",
          slots = c(
            control = "gridSearch",
@@ -120,6 +135,13 @@ gridSearchOptions <- function(nboot = 1000L, grid.length = 20L, ...) {
 }
 
 setGeneric("data_separate", function(data, estimand) standardGeneric("data_separate"))
+#' Title
+#'
+#' @param data dataHolder. 
+#' @param estimand character. 
+#'
+#' @keywords internal
+#' @include dataHolder.R
 setMethod("data_separate", signature(data = "dataHolder", estimand = "character"),
 function(data, estimand) {
   if(estimand == "ATC") {
@@ -195,4 +217,108 @@ function(object,w) {
               , penalty.grid = NULL
               ))
 }
+)
+
+
+# causalWeights def -------------------------------------------------------
+
+setMethod("causalWeights", signature(object1 = "gridSearch", object2 = "numeric"), 
+          function(object1, object2, ...) {
+            penalty <- list(...)[[1]]
+            estimand <- object1@estimand
+            
+            if (estimand == "ATE.T" || estimand == "ATC") {
+              w0 <- object1@solver$b
+              w1 <- as.numeric(object2)
+            } else if (estimand == "ATE.C" || estimand == "ATT") {
+              w0 <- as.numeric(object2)
+              w1 <- object1@solver$b
+            } else {
+              stop("estimand not found!")
+            }
+            if(!is.list(penalty$penalty)) penalty$penalty <- as.list(penalty$penalty)
+            
+            methods::new("causalWeights",
+                         w0 = w0,
+                         w1 = w1,
+                         estimand = object1@estimand,
+                         method  = object1@method,
+                         penalty = penalty$penalty,
+                         info    = list(metric = penalty$metric,
+                                        penalty.grid = penalty$penalty.grid,
+                                        gradients = NULL,
+                                        hessian = NULL
+                         ),
+                         data = dataHolder(x = matrix(0,0,0), z = numeric(0)),
+                         call = call("calc_weight"))
+          }
+)
+
+
+
+# cot_solve function ------------------------------------------------------
+
+#TODO: self object solver object@solver$solve(), like COT
+#' cot_solve for gridSearch
+#'
+#' @param object gridSearch. 
+#'
+#' @return returns object of class [causalWeights][causalOT::causalWeights-class]
+setMethod("cot_solve", signature(object = "gridSearch"),
+          function(object) {
+            # browser()
+            if (inherits(object@solver, "COT") ) {
+              object@solver$solve()
+              res <- object@solver$grid_search()
+              cw <- causalWeights(object, res$weight, res)
+              
+              return(cw)
+            }
+            
+            # set up terms for the loop
+            n_penalty <- length(object@penalty_list)
+            w <- vector("list", n_penalty)
+            penalty <- NULL
+            
+            # run solver on each penalty set
+            for(k in 1:n_penalty) {
+              penalty <- object@penalty_list[k]
+              # print(penalty)
+              w[[k]] <- object@solver$solve(penalty, w[k-1])
+            }
+            
+            # boot strap to find optimal penalty parameters
+            grid_info <- grid_select(object, w)
+            grid_info$penalty.grid <- object@penalty_list
+            
+            # store final weight and selected penalty parameters
+            w_final <- grid_info$weight
+            pen_final <- object@penalty_list[grid_info$idx]
+            
+            # create causalWeights object
+            cw <- causalWeights(object, w_final, grid_info)
+            
+            return(cw)
+          }
+)
+
+#' cot_solve method for ateClass objects
+#'
+#' @param object ateClass. 
+#'
+#' @return object of class [causalWeights][causalOT::causalWeights-class]
+setMethod("cot_solve", signature(object = "ateClass"),
+          function(object) {
+            
+            # control weights targeting full sample
+            cw_w0 <- cot_solve(object@control)
+            
+            # treated weights targeting full sample
+            cw_w1 <- cot_solve(object@treated)
+            
+            # combine objects
+            cw <- causalWeights(cw_w0, cw_w1)
+            
+            return(cw)
+          }
 )

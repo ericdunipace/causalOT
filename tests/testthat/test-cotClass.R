@@ -118,6 +118,7 @@ testthat::test_that("ent debiased works, online", {
   testthat::skip_on_cran()
   testthat::skip_on_ci()
   causalOT:::torch_check()
+  causalOT:::rkeops_check()
   
   testthat::skip_if_not_installed("rkeops")
   
@@ -219,6 +220,7 @@ testthat::test_that("NNM works",{
   testthat::skip_on_ci()
   causalOT:::torch_check()
   
+  
   set.seed(234808)
   n <- 15
   m <- 13
@@ -272,7 +274,7 @@ testthat::test_that("NNM works",{
   osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
   
   #### keops ####
-  testthat::skip_if_not_installed("rkeops")
+  causalOT:::rkeops_check()
   
   testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(lambda = 0,
@@ -345,7 +347,8 @@ testthat::test_that("weights function works",{
   testthat::expect_silent(w <- cot$weights)
   testthat::expect_true(all(w[1] == w))
   
-  
+  # run rkeops version
+  causalOT:::rkeops_check() #skips if rkeops fails or is not installed
   testthat::expect_silent(cot <- causalOT:::COT$new(source = x, target = y,
                                                     options = list(verbose = FALSE, 
                                                                    opt.direction = "dual",

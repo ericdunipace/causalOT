@@ -19,7 +19,7 @@
 ^inst/stan/test$
 ^inst/stan/deprecated$
 ^R/deprecated$
-^src/deprecated/$
+^src/deprecated$
 ^vignettes/cache$
 ^vignettes/.*\.orig$
 ^Meta$
@@ -29,3 +29,5 @@
 ^cran-comments.md$
 ^CRAN-SUBMISSION$
 ^cran-comments\.md$
+^revdep$
+^dev$

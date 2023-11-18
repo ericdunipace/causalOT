@@ -35,6 +35,7 @@ testthat::test_that("barycentric_projection works, p = 2 tensor", {
   testthat::expect_equal(preds, predict(fit)) # make sure S3 registered
   
   # compare to online formulation
+  causalOT:::rkeops_check()
   if(packageVersion("rkeops") >= "2.0" ) {
     rkeops::rkeops_use_float64()
   } else {
@@ -121,6 +122,7 @@ testthat::test_that("barycentric_projection works, p = 1", {
   preds <- causalOT:::predict.bp(fit)
   testthat::expect_equal(preds, predict(fit)) # make sure S3 registered
   
+  causalOT:::rkeops_check()
   # give error for the p = 1 online
   if(packageVersion("rkeops") >= "2.0" ) {
     rkeops::rkeops_use_float64()
@@ -211,6 +213,7 @@ testthat::test_that("barycentric_projection works, p = 3", {
   testthat::expect_warning(preds2 <- predict(fit))
   testthat::expect_equal(preds, preds2) # make sure S3 registered
   
+  causalOT:::rkeops_check()
   if(packageVersion("rkeops") >= "2.0" ) {
     rkeops::rkeops_use_float64()
   } else {

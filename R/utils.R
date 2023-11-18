@@ -206,6 +206,37 @@ torch_check <- function() {
   }
 }
 
+rkeops_check <- function() {
+  testthat::skip_if_not_installed("rkeops")
+  
+  if (utils::packageVersion("rkeops") >= 2.0 && rlang::is_installed("reticulate")) {
+  } else if (utils::packageVersion("rkeops") < 2.0 ){
+    cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
+                      error = function(e) {0L}
+    )
+    testthat::skip("error in cmake for rkeops")
+    
+    # from rkeops help pages
+    formula = "Sum_Reduction(Exp(-s * SqNorm2(x - y)) * b, 0)"
+    
+    # input arguments
+    args = c("x = Vi(3)",      # vector indexed by i (of dim 3)
+             "y = Vj(3)",      # vector indexed by j (of dim 3)
+             "b = Vj(6)",      # vector indexed by j (of dim 6)
+             "s = Pm(1)")      # parameter (scalar)
+    
+    # compilation of the corresponding operator
+    op <- tryCatch(rkeops::keops_kernel(formula, args),
+             error = function(e) {FALSE})
+    
+    # if an error during compilation, skip
+    if(is.logical(op) && isFALSE(op)) {
+      testthat::skip("error in compilation for rkeops")
+    }
+  }
+  
+}
+
 check_weights_torch <- function(a, x, device) {
   if(missing(a) || is.null(a) || all(is.na(a))) {
     a <- rep(1.0/nrow(x), nrow(x))

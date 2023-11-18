@@ -137,3 +137,35 @@ setMethod("print", signature(x = "likelihoodMethods"),
 function(x,...) {
   utils::str(x)
 })
+
+
+# cot_solve method --------------------------------------------------------
+
+#' cot_solve method for likelihoodMethods
+#'
+#' @param object likelihoodMethods. 
+#' 
+#' @include calc_weight.R
+#'
+#' @return object of class [causalWeights][causalOT::causalWeights-class]
+#' @keywords internal
+setMethod("cot_solve", signature(object = "likelihoodMethods"),
+          function(object) {
+            
+            fit <- object@solver(object)
+            
+            cw <- methods::new("causalWeights", 
+                               w0 = fit$w0,
+                               w1 = fit$w1,
+                               estimand = fit$estimand,
+                               method = fit$method,
+                               penalty = list(NULL),
+                               info = list(NULL),
+                               data = object@data,
+                               call = call("calc_weight")
+            )
+            
+            if(!inherits(cw, "causalWeights")) stop("Solver didn't return object of class causalWeights!")
+            return(cw)
+          }
+)

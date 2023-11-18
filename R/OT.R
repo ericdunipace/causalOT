@@ -1,6 +1,6 @@
 
 setOldClass("torch_tensor")
-setOldClass(c("OT","R6"))
+# setOldClass(c("OT","R6"))
 OT <- R6::R6Class("OT",
   public = list(
     C_xy = "cost",
@@ -1370,6 +1370,7 @@ setGeneric("ot_distance", function(x1, x2 = NULL,
 
 
 #' @rdname ot_distance
+#' @include weightsClass.R
 #' @keywords internal
 setMethod("ot_distance", signature(x1 = "causalWeights"),
 function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2, 

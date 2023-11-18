@@ -7,53 +7,6 @@
 \description{
 OTProblem R6 class
 }
-\examples{
-
-## ------------------------------------------------
-## Method `OTProblem_$new`
-## ------------------------------------------------
-
-if (torch::torch_is_installed()) {
-# setup measures
-x <- matrix(1, 100, 10)
-m1 <- Measure(x = x)
-
-y <- matrix(2, 100, 10)
-m2 <- Measure(x = y, adapt = "weights")
-
-z <- matrix(3,102, 10)
-m3 <- Measure(x = z)
-
-# setup OT problems
-ot1 <- OTProblem(m1, m2)
-ot2 <- OTProblem(m3, m2)
-ot <- 0.5 * ot1 + 0.5 * ot2
-}
-
-## ------------------------------------------------
-## Method `OTProblem_$setup_arguments`
-## ------------------------------------------------
-
-ot$setup_arguments(lambda = c(1000,10))
-
-## ------------------------------------------------
-## Method `OTProblem_$solve`
-## ------------------------------------------------
-
-ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
-
-## ------------------------------------------------
-## Method `OTProblem_$choose_hyperparameters`
-## ------------------------------------------------
-
-ot$choose_hyperparameters(n_boot_lambda = 10, n_boot_delta = 10, lambda_bootstrap = Inf)
-
-## ------------------------------------------------
-## Method `OTProblem_$info`
-## ------------------------------------------------
-
-ot$info()
-}
 \keyword{internal}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -201,29 +154,6 @@ Constructor method
 \subsection{Returns}{
 An R6 object of class "OTProblem"
 }
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
-# setup measures
-x <- matrix(1, 100, 10)
-m1 <- Measure(x = x)
-
-y <- matrix(2, 100, 10)
-m2 <- Measure(x = y, adapt = "weights")
-
-z <- matrix(3,102, 10)
-m3 <- Measure(x = z)
-
-# setup OT problems
-ot1 <- OTProblem(m1, m2)
-ot2 <- OTProblem(m3, m2)
-ot <- 0.5 * ot1 + 0.5 * ot2
-}
-}
-\if{html}{\out{</div>}}
-
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-setup_arguments"></a>}}
@@ -272,14 +202,6 @@ ot <- 0.5 * ot1 + 0.5 * ot2
 \subsection{Returns}{
 NULL
 }
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{ot$setup_arguments(lambda = c(1000,10))
-}
-\if{html}{\out{</div>}}
-
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-solve"></a>}}
@@ -320,14 +242,6 @@ Solve the OTProblem at each parameter value. Must run setup_arguments first.
 }
 \if{html}{\out{</div>}}
 }
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
-}
-\if{html}{\out{</div>}}
-
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-choose_hyperparameters"></a>}}
@@ -353,14 +267,6 @@ Selects the hyperparameter values through a bootstrap algorithm
 }
 \if{html}{\out{</div>}}
 }
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{ot$choose_hyperparameters(n_boot_lambda = 10, n_boot_delta = 10, lambda_bootstrap = Inf)
-}
-\if{html}{\out{</div>}}
-
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-info"></a>}}
@@ -379,14 +285,6 @@ a list with slots
 \item \code{balance.function.differences} The final differences in the balance functions
 \item \code{hyperparam.metrics} A list of the bootstrap evalustion for delta and lambda values}
 }
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{ot$info()
-}
-\if{html}{\out{</div>}}
-
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-clone"></a>}}

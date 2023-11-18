@@ -15,7 +15,7 @@
 #' p <- 6
 #' x <- matrix(stats::rnorm(n * p), n, p)
 #' z <- stats::rbinom(n, 1, 0.5)
-#' weights <- calc_weight(x = x, z = z, method = "Logistic")
+#' weights <- calc_weight(x = x, z = z, estimand = "ATT", method = "Logistic")
 #' mb <- mean_balance(x = x, z = z, weights = weights)
 #' print(mb)
 mean_balance <- function(x = NULL, z = NULL, weights = NULL, ...) {

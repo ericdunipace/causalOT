@@ -109,6 +109,7 @@ testthat::test_that("cotProblem EBW", {
 })
 
 testthat::test_that("cotProblem COT", {
+  causalOT:::torch_check()
   set.seed(12312)
   hain <- causalOT:::Hainmueller$new(n=64)
   hain$gen_data()
@@ -131,6 +132,7 @@ testthat::test_that("cotProblem COT", {
 })
 
 testthat::test_that("cotProblem NNM", {
+  causalOT:::torch_check()
   set.seed(12312)
   hain <- causalOT:::Hainmueller$new(n=64)
   hain$gen_data()

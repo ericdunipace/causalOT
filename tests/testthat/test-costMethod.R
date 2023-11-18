@@ -3,8 +3,7 @@ testthat::test_that("costParent class forms", {
 })
 
 testthat::test_that("costTensor class forms", {
-  testthat::skip_if_not_installed("torch")
-  if(!torch::torch_is_installed()) testthat::skip("torch is not installed")
+  causalOT:::torch_check()
   set.seed(124123)
   n <- 10
   m <- 11
@@ -49,7 +48,7 @@ testthat::test_that("costTensor class forms", {
 
 testthat::test_that("costOnline class forms", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed(pkg="rkeops")
+  causalOT:::rkeops_check()
   testthat::skip_on_ci()
   set.seed(124123)
   n <- 10
@@ -65,6 +64,7 @@ testthat::test_that("costOnline class forms", {
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
+  causalOT:::rkeops_check()
   keops_sum <- rkeops::keops_kernel(
     formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
     args = c(
@@ -86,6 +86,7 @@ testthat::test_that("costOnline class forms", {
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
+  causalOT:::rkeops_check()
   keops_sum2 <- rkeops::keops_kernel(
     formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
     args = c(
@@ -102,8 +103,7 @@ testthat::test_that("costOnline class forms", {
 })
 
 testthat::test_that("cost function forms appropriate classes", {
-  testthat::skip_if_not_installed("torch")
-  if(!torch::torch_is_installed()) skip("torch is not installed")
+  causalOT:::torch_check()
   set.seed(124123)
   n <- 10
   m <- 11
@@ -145,7 +145,7 @@ testthat::test_that("cost function forms appropriate classes", {
   
   # online
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed(pkg="rkeops")
+  causalOT:::rkeops_check()
   testthat::skip_on_ci()
   
   # given just p
@@ -155,6 +155,7 @@ testthat::test_that("cost function forms appropriate classes", {
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
+  causalOT:::rkeops_check()
   keops_sum <- rkeops::keops_kernel(
     formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
     args = c(
@@ -181,6 +182,7 @@ testthat::test_that("cost function forms appropriate classes", {
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
+  causalOT:::rkeops_check()
   keops_sum2 <- rkeops::keops_kernel(
     formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
     args = c(

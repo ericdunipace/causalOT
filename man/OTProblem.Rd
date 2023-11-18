@@ -296,7 +296,7 @@ if (torch::torch_is_installed()) {
 ## Method `OTProblem$setup_arguments`
 ## ------------------------------------------------
 
-  ot$setup_arguments(lambda = c(1000,10))
+  ot$setup_arguments(lambda = 1000)
 
 ## ------------------------------------------------
 ## Method `OTProblem$solve`
@@ -308,8 +308,8 @@ if (torch::torch_is_installed()) {
 ## Method `OTProblem$choose_hyperparameters`
 ## ------------------------------------------------
 
-  ot$choose_hyperparameters(n_boot_lambda = 10,
-                            n_boot_delta = 10, 
+  ot$choose_hyperparameters(n_boot_lambda = 1,
+                            n_boot_delta = 1, 
                             lambda_bootstrap = Inf)
 
 ## ------------------------------------------------

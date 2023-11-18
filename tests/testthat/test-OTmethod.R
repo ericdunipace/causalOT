@@ -41,6 +41,7 @@ testthat::test_that("OT object forms online", {
   b <- rep(1/m, m)
   
   # giving masses
+  causalOT:::rkeops_check()
   ot1 <- causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                                         cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                                         diameter=NULL)
@@ -111,6 +112,7 @@ testthat::test_that("sinkhorn_loop runs, online", {
   tol <- 1e-8
   
   # giving masses
+  causalOT:::rkeops_check()
   ot <- causalOT:::OT$new(x = x, y = y, 
                           a = a, b = b, 
                           penalty = penalty,
@@ -156,6 +158,7 @@ testthat::test_that("sinkhorn_loop runs, online", {
 })
 
 testthat::test_that("sinkhorn_self runs, tensor", {
+  causalOT:::torch_check()
   set.seed(1231)
   n <- 15
   m <- 13
@@ -207,6 +210,7 @@ testthat::test_that("sinkhorn_self runs, online", {
   tol <- 1e-8
   
   # giving masses
+  causalOT:::rkeops_check()
   ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                diameter=NULL)
@@ -239,6 +243,9 @@ testthat::test_that("sinkhorn_self runs, online", {
 })
 
 testthat::test_that("sinkhorn_cot runs, tensor", {
+  testthat::skip_on_cran()
+  testthat::skip_on_ci()
+  causalOT:::torch_check()
   set.seed(1231)
   n <- 15
   m <- 13
@@ -288,6 +295,7 @@ testthat::test_that("sinkhorn_cot runs, online", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed(pkg="rkeops")
   testthat::skip_on_ci()
+  causalOT:::torch_check()
   
   set.seed(1231)
   n <- 15
@@ -302,6 +310,7 @@ testthat::test_that("sinkhorn_cot runs, online", {
   niter <- 1000
   tol <- 1e-10
   
+  causalOT:::rkeops_check()
   ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                cost = NULL, p = 2, debias = FALSE, tensorized = "online",
                diameter=NULL)
@@ -335,6 +344,7 @@ testthat::test_that("sinkhorn_cot runs, online", {
 })
 
 testthat::test_that("sinkhorn_dist runs, tensor", {
+  causalOT:::torch_check()
   set.seed(1231)
   n <- 15
   m <- 13
@@ -397,6 +407,7 @@ testthat::test_that("sinkhorn_dist runs, online", {
   tol <- 1e-8
   
   # giving masses
+  causalOT:::rkeops_check()
   ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                diameter=NULL)
@@ -424,7 +435,6 @@ testthat::test_that("sinkhorn_dist runs, online", {
                          sum(output1$g_yx * bt)$item(), tolerance = 1e-3)
   
 })
-
 
 testthat::test_that("sinkhorn_loop runs, tensor", {
   causalOT:::torch_check()
@@ -486,6 +496,7 @@ testthat::test_that("sinkhorn_loop gradient", {
   tol <- 1e-8
   
   # giving masses
+  causalOT:::rkeops_check()
   ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                          cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                          diameter=NULL)
@@ -526,15 +537,6 @@ testthat::test_that("sinkhorn_loop gradient", {
   niter <- 1000
   tol <- 1e-8
   
-  # giving masses
-  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
-                         cost = NULL, p = 2, debias = TRUE, tensorized = "online",
-                         diameter=NULL)
-  outputx <- ot$.__enclos_env__$private$sinkhorn_self_loop(which.margin = "x", niter, tol)
-  outputy <- ot$.__enclos_env__$private$sinkhorn_self_loop(which.margin = "y", niter, tol)
-  testthat::expect_true(outputx$requires_grad)
-  testthat::expect_true(outputy$requires_grad)
-  
   ot1 <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                           cost = NULL, p = 2, 
                           debias = TRUE, tensorized = "tensorized",
@@ -544,6 +546,18 @@ testthat::test_that("sinkhorn_loop gradient", {
   output1y <- ot1$.__enclos_env__$private$sinkhorn_self_loop(which.margin = "y", niter, tol)
   testthat::expect_true(output1x$requires_grad)
   testthat::expect_true(output1y$requires_grad)
+  
+  # giving masses
+  causalOT:::rkeops_check()
+  ot <-causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
+                         cost = NULL, p = 2, debias = TRUE, tensorized = "online",
+                         diameter=NULL)
+  outputx <- ot$.__enclos_env__$private$sinkhorn_self_loop(which.margin = "x", niter, tol)
+  outputy <- ot$.__enclos_env__$private$sinkhorn_self_loop(which.margin = "y", niter, tol)
+  testthat::expect_true(outputx$requires_grad)
+  testthat::expect_true(outputy$requires_grad)
+  
+  
   
   
 })
@@ -565,6 +579,7 @@ testthat::test_that("OT infinite penalty distances online", {
   b <- rep(1/m, m)
   
   # giving masses
+  causalOT:::rkeops_check()
   ot1 <- causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                            cost = NULL, p = 2, debias = TRUE, tensorized = "online",
                            diameter=NULL)
@@ -573,6 +588,7 @@ testthat::test_that("OT infinite penalty distances online", {
   testthat::expect_silent(loss2 <- causalOT:::inf_sinkhorn_dist(ot1))
   testthat::expect_equal(loss1,loss2)
   
+  causalOT:::rkeops_check()
   ot2 <- causalOT:::OT$new(x = x, y = y, a = a, b = b, penalty = penalty, 
                            cost = NULL, p = 2, debias = FALSE, tensorized = "online",
                            diameter=NULL)

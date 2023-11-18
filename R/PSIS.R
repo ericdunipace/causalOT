@@ -1,4 +1,3 @@
-setOldClass("causalWeights")
 setOldClass("psis")
 
 PSIS.default <- function(x, r_eff = NULL, ...) {
@@ -15,6 +14,15 @@ PSIS.default <- function(x, r_eff = NULL, ...) {
   return(res)
 }
 
+#' PSIS casualWeights class
+#'
+#' @param x object of class causalWeights
+#' @param r_eff pass to PSIS
+#' @param ... pass to PSIS method
+#'
+#' @return object of class causalPSIS
+#' @keywords internal
+#' @include weightsClass.R
 PSIS.causalWeights <- function(x, r_eff = NULL, ...) {
   
   if(!is.null(r_eff)) {

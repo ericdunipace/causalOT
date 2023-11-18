@@ -312,7 +312,7 @@ estimate_model <- function(data, causalWeights, model.function,
 #' data$gen_data()
 #' 
 #' # calculate quantities
-#' weight <- calc_weight(data, method = "NNM", estimand = "ATE")
+#' weight <- calc_weight(data, method = "Logistic", estimand = "ATE")
 #' tx_eff <- estimate_effect(causalWeights = weight)
 #' 
 #' all.equal(coef(tx_eff), c(estimate = tx_eff@estimate))
@@ -339,7 +339,7 @@ coef.causalEffect <- function(object, ...) {
 #' data$gen_data()
 #' 
 #' # calculate quantities
-#' weight <- calc_weight(data, method = "Logistic")
+#' weight <- calc_weight(data, estimand = "ATT", method = "Logistic")
 #' tx_eff <- estimate_effect(causalWeights = weight)
 #' 
 #' vcov(tx_eff)

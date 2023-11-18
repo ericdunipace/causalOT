@@ -721,23 +721,6 @@ print = function(...) {
 #' @param ... Not used at this time 
 #'
 #' @return An R6 object of class "OTProblem"
-#' @examples 
-#' if (torch::torch_is_installed()) {
-#' # setup measures
-#' x <- matrix(1, 100, 10)
-#' m1 <- Measure(x = x)
-#' 
-#' y <- matrix(2, 100, 10)
-#' m2 <- Measure(x = y, adapt = "weights")
-#'
-#' z <- matrix(3,102, 10)
-#' m3 <- Measure(x = z)
-#'
-#' # setup OT problems
-#' ot1 <- OTProblem(m1, m2)
-#' ot2 <- OTProblem(m3, m2)
-#' ot <- 0.5 * ot1 + 0.5 * ot2
-#' }
 initialize = function(measure_1, measure_2) {
   # browser()
   add_1 <- rlang::obj_address(measure_1)
@@ -812,8 +795,6 @@ initialize = function(measure_1, measure_2) {
 #' @param ot_tol The tolerance for convergence of the OT problems
 #'
 #' @return NULL
-#' @examples
-#' ot$setup_arguments(lambda = c(1000,10))
 setup_arguments = function(lambda, delta, 
                            grid.length = 7L,
                            cost.function = NULL, 
@@ -969,9 +950,6 @@ setup_arguments = function(lambda, delta,
 #' @param torch_args Arguments passed to the torch optimizer and scheduler
 #' @param osqp_args Arguments passed to [osqp::osqpSettings()] if appropriate
 #' @param quick.balance.function Should [osqp::osqp()] be used to select balance function constraints (delta) or not. Default true.
-#'
-#' @examples
-#' ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
   solve = function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
                    torch_optim = torch::optim_lbfgs,
                    torch_scheduler = torch::lr_reduce_on_plateau,
@@ -1048,8 +1026,6 @@ setup_arguments = function(lambda, delta,
   #' @param lambda_bootstrap The penalty parameter to use when selecting lambda. Higher numbers run faster.
   #'
   #' @description Selects the hyperparameter values through a bootstrap algorithm
-  #' @examples 
-  #' ot$choose_hyperparameters(n_boot_lambda = 10, n_boot_delta = 10, lambda_bootstrap = Inf)
   choose_hyperparameters =  function(n_boot_lambda = 100L, n_boot_delta = 1000L, lambda_bootstrap = Inf) {
       
       # check arguments
@@ -1214,8 +1190,6 @@ setup_arguments = function(lambda, delta,
 #' \item `iterations` The number of iterations run for each combination of parameters
 #' \item `balance.function.differences` The final differences in the balance functions
 #' \item `hyperparam.metrics` A list of the bootstrap evalustion for delta and lambda values}
-#' @examples 
-#' ot$info()
    info = function(){
      losses <- if (is.list(private$final_loss)) {
        do.call("rbind", private$final_loss)
@@ -2497,7 +2471,7 @@ setup_arguments = function(lambda, delta,
 #' ## Method `OTProblem$setup_arguments`
 #' ## ------------------------------------------------
 #'
-#'   ot$setup_arguments(lambda = c(1000,10))
+#'   ot$setup_arguments(lambda = 1000)
 #'
 #' ## ------------------------------------------------
 #' ## Method `OTProblem$solve`
@@ -2509,8 +2483,8 @@ setup_arguments = function(lambda, delta,
 #' ## Method `OTProblem$choose_hyperparameters`
 #' ## ------------------------------------------------
 #'
-#'   ot$choose_hyperparameters(n_boot_lambda = 10,
-#'                             n_boot_delta = 10, 
+#'   ot$choose_hyperparameters(n_boot_lambda = 1,
+#'                             n_boot_delta = 1, 
 #'                             lambda_bootstrap = Inf)
 #'
 #' ## ------------------------------------------------

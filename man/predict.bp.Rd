@@ -39,7 +39,7 @@ n <- 2^5
 pp <- 6
 overlap <- "low"
 design <- "A"
-estimate <- "ATE"
+estimate <- "ATT"
 power <- 2
 data <- causalOT::Hainmueller$new(n = n, p = pp,
 design = design, overlap = overlap)
@@ -56,17 +56,18 @@ weights <- causalOT::calc_weight(x = data,
  # undebiased
  fit <- causalOT::barycentric_projection(y ~ ., data = df, 
     weight = weights,
-    separate.samples.on = "z")
- 
+    separate.samples.on = "z", niter = 2)
+    
+ #debiased
  fit_d <- causalOT::barycentric_projection(y ~ ., data = df, 
     weight = weights,
-    separate.samples.on = "z", debias = TRUE)
+    separate.samples.on = "z", debias = TRUE, niter = 2)
  
  # predictions, without new data
  undebiased_predictions <- predict(fit,   source.sample = df$z)
  debiased_predictions   <- predict(fit_d, source.sample = df$z)
  
- all.equal(undebiased_predictions, df$y) # FALSE
- all.equal(debiased_predictions, df$y) # TRUE
+ isTRUE(all.equal(unname(undebiased_predictions), df$y)) # FALSE
+ isTRUE(all.equal(unname(debiased_predictions), df$y)) # TRUE
  }
 }
