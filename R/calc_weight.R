@@ -1,3 +1,5 @@
+# TODO: walk through methods and make everything an R6 class
+
 #' Estimate causal weights
 #'
 #' @param x A numeric matrix of covariates. You can also pass an object of class [causalOT::dataHolder] or [causalOT::DataSim], which will make argument `z` not necessary,
@@ -114,6 +116,9 @@ cotProblem <- function(data, estimand, method,
   }
   return(prob)
 }
+
+# S3 method for R6 objects
+cot_solve <- function(object) { UseMethod("cot_solve") }
 
 # S4 method to solve the respective problems
 setGeneric("cot_solve", function(object) standardGeneric("cot_solve"))

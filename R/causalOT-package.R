@@ -12,6 +12,7 @@
 #' @importFrom stats .checkMFClasses .getXlevels as.formula binomial coef contrasts cov delete.response drop.terms formula glm lm median model.frame model.matrix model.response na.pass optim pgamma qchisq qnorm quantile rmultinom runif sd setNames terms var weighted.mean
 #' @importFrom utils capture.output data methods setTxtProgressBar txtProgressBar
 #' @importFrom R6 R6Class
+#' @importFrom methods setOldClass
 #' @rdname causalOT-package
 NULL
 

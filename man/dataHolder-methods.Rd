@@ -3,7 +3,7 @@
 \name{dataHolder,dataHolder-method}
 \alias{dataHolder,dataHolder-method}
 \alias{dataHolder,matrix-method}
-\alias{dataHolder,DataSim-method}
+\alias{dataHolder.DataSim}
 \alias{dataHolder,ANY-method}
 \alias{terms.dataHolder}
 \title{dataHolder-methods}
@@ -12,9 +12,9 @@
 
 \S4method{dataHolder}{matrix}(x, z, y = NA_real_, weights = NA_real_)
 
-\S4method{dataHolder}{DataSim}(x, z, y = NA_real_, weights = NA_real_)
+dataHolder.DataSim(x, z, y = NA_real_, weights = NA_real_)
 
-\S4method{dataHolder}{ANY}(x, z = NA_integer_, y = NA_real_)
+\S4method{dataHolder}{ANY}(x, z = NA_integer_, y = NA_real_, weights = NA_real_)
 
 \method{terms}{dataHolder}(x, ...)
 }

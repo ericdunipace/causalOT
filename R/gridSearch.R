@@ -1,4 +1,4 @@
-
+# TODO: make gridSearch class R6 method so plays more nicely with other R6
 # grid search methods
 
 #' @include calc_weight.R
@@ -7,6 +7,11 @@
 #' @include scmClass.R
 #' @include cotClass.R
 
+setOldClass(c("COT","R6"))
+setOldClass(c("SCM","R6"))
+setOldClass(c("balanceFunction", "R6"))
+setOldClass(c("EntropyBW", "balanceFunction", "R6"))
+setOldClass(c("SBW", "balanceFunction", "R6"))
 
 
 #' gridSearch S4 class
@@ -134,7 +139,9 @@ gridSearchOptions <- function(nboot = 1000L, grid.length = 20L, ...) {
   return(output)
 }
 
-setGeneric("data_separate", function(data, estimand) standardGeneric("data_separate"))
+# setGeneric("data_separate", function(data, estimand) standardGeneric("data_separate"))
+
+data_separate <- function(data, estimand) UseMethod("data_separate")
 #' Title
 #'
 #' @param data dataHolder. 
@@ -142,8 +149,7 @@ setGeneric("data_separate", function(data, estimand) standardGeneric("data_separ
 #'
 #' @keywords internal
 #' @include dataHolder.R
-setMethod("data_separate", signature(data = "dataHolder", estimand = "character"),
-function(data, estimand) {
+data_separate.dataHolder <- function(data, estimand) {
   if(estimand == "ATC") {
     source = get_x1(data)
     target = get_x0(data)
@@ -172,7 +178,37 @@ function(data, estimand) {
          a = a, b = b)
   )
 }
-)
+# setMethod("data_separate", signature(data = "dataHolder", estimand = "character"),
+# function(data, estimand) {
+#   if(estimand == "ATC") {
+#     source = get_x1(data)
+#     target = get_x0(data)
+#     a = get_w1(data)
+#     b = get_w0(data)
+#   } else if (estimand == "ATT") {
+#     source = get_x0(data)
+#     target = get_x1(data)
+#     a = get_w0(data)
+#     b = get_w1(data)
+#   } else if (estimand == "ATE.C") {
+#     source = get_x0(data)
+#     target = get_x(data)
+#     a = get_w0(data)
+#     b = get_w(data)
+#   } else if (estimand == "ATE.T") {
+#     source = get_x1(data)
+#     target = get_x(data)
+#     a = get_w1(data)
+#     b = get_w(data)
+#   } else {
+#     stop("estimand not found!")
+#   }
+#   return(
+#     list(source = source, target = target,
+#          a = a, b = b)
+#   )
+# }
+# )
 
 # create a generic right now but don't need necessarily...
 setGeneric("grid_select", function(object, w) standardGeneric("grid_select"))

@@ -2,16 +2,14 @@
 # setOldClass(c("gridSearchClass","R6"))
 # setOldClass("balanceFunction")
 # setOldClass(c("OT","R6"))
-setOldClass("torch_tensor")
+# setOldClass("torch_tensor")
 
 #' @include balanceFunctions.R
+#' @include gridSearch.R
+#' @include OT.R
 
 #### NEW COT CLASS ####
 #' COT base class
-#'
-#' @include gridSearch.R
-#' @include balanceFunctions.R
-#' @include OT.R
 COT <- R6::R6Class(
   classname = "COT",
   public = {list(

@@ -126,41 +126,64 @@ costOnline <- R6::R6Class("costOnline",
 )
 
 
-setGeneric("to_device", function(cost, device) standardGeneric("to_device"))
+to_device <- function(cost, device) {UseMethod("to_device")}
+# setGeneric("to_device", function(cost, device) standardGeneric("to_device"))
 
-setOldClass(c("costParent","R6"))
-setOldClass(c("costTensor","costParent"))
-setOldClass(c("costOnline", "costParent"))
-setMethod("to_device", signature(cost = "costTensor", device = "ANY"),
-function(cost, device) {
-  cost$data <- cost$data$to(device = device)
+# setOldClass(c("costParent","R6"))
+# setOldClass(c("costTensor","costParent"))
+# setOldClass(c("costOnline", "costParent"))
+
+to_device.costTensor <- function(cost, device) {
+  function(cost, device) {
+    cost$data <- cost$data$to(device = device)
+    return(cost)
+  }
+}
+
+# setMethod("to_device", signature(cost = "costTensor", device = "ANY"),
+# function(cost, device) {
+#   cost$data <- cost$data$to(device = device)
+#   return(cost)
+# }
+# )
+
+to_device.costOnline <- function(cost, device) {
+  cost$data <- list(x = cost$data$x$to(device = device),
+                    y = cost$data$y$to(device = device))
   return(cost)
 }
-)
 
-setMethod("to_device", signature(cost = "costOnline", device = "ANY"),
-          function(cost, device) {
-            cost$data <- list(x = cost$data$x$to(device = device),
-                              y = cost$data$y$to(device = device))
-            return(cost)
-          }
-)
+# setMethod("to_device", signature(cost = "costOnline", device = "ANY"),
+#           function(cost, device) {
+#             cost$data <- list(x = cost$data$x$to(device = device),
+#                               y = cost$data$y$to(device = device))
+#             return(cost)
+#           }
+# )
 
+update_cost <- function(cost, x, y) {UseMethod("update_cost")}
 setGeneric("update_cost", function(cost, x, y) standardGeneric("update_cost"))
 
-setMethod("update_cost", signature(cost = "costOnline", x = "ANY", y = "ANY"),
-function(cost, x, y) {
+update_cost.costOnline <- function(cost, x, y) {
   n <- nrow(cost$data$x)
   m <- nrow(cost$data$y)
   stopifnot("data for cost rows has different number of rows" = (n == nrow(x)))
   stopifnot("data for cost columns has different number of rows" = (m == nrow(y)))
   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
   cost$data <- list(x = x, y = y)
-}          
-)
+}  
+# setMethod("update_cost", signature(cost = "costOnline", x = "ANY", y = "ANY"),
+# function(cost, x, y) {
+#   n <- nrow(cost$data$x)
+#   m <- nrow(cost$data$y)
+#   stopifnot("data for cost rows has different number of rows" = (n == nrow(x)))
+#   stopifnot("data for cost columns has different number of rows" = (m == nrow(y)))
+#   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+#   cost$data <- list(x = x, y = y)
+# }          
+# )
 
-setMethod("update_cost", signature(cost = "costTensor", x = "ANY", y = "ANY"),
-function(cost, x, y) {
+update_cost.costTensor <- function(cost, x, y) {
   nm <- dim(cost$data)
   device <- cost$data$device
   dtype <- cost$data$dtype
@@ -168,5 +191,15 @@ function(cost, x, y) {
   stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
   cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
-}          
-)
+} 
+# setMethod("update_cost", signature(cost = "costTensor", x = "ANY", y = "ANY"),
+# function(cost, x, y) {
+#   nm <- dim(cost$data)
+#   device <- cost$data$device
+#   dtype <- cost$data$dtype
+#   stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
+#   stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
+#   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+#   cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
+# }          
+# )

@@ -2,7 +2,10 @@
 % Please edit documentation in R/OT.R
 \name{ot_distance}
 \alias{ot_distance}
-\alias{ot_distance,causalWeights-method}
+\alias{ot_distance.causalWeights}
+\alias{ot_distance.matrix}
+\alias{ot_distance.array}
+\alias{ot_distance.torch_tensor}
 \title{Optimal Transport Distance}
 \usage{
 ot_distance(
@@ -20,9 +23,54 @@ ot_distance(
   tol = 1e-07
 )
 
-\S4method{ot_distance}{causalWeights}(
+\method{ot_distance}{causalWeights}(
   x1,
   x2 = NULL,
+  a = NULL,
+  b = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07
+)
+
+\method{ot_distance}{matrix}(
+  x1,
+  x2,
+  a = NULL,
+  b = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07
+)
+
+\method{ot_distance}{array}(
+  x1,
+  x2,
+  a = NULL,
+  b = NULL,
+  penalty,
+  p = 2,
+  cost = NULL,
+  debias = TRUE,
+  online.cost = "auto",
+  diameter = NULL,
+  niter = 1000,
+  tol = 1e-07
+)
+
+\method{ot_distance}{torch_tensor}(
+  x1,
+  x2,
   a = NULL,
   b = NULL,
   penalty,
@@ -78,7 +126,6 @@ ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,],
 a= weights@w0/sum(weights@w0), b = weights@w1,
  penalty = 100, p = 2, debias = TRUE, online.cost = "auto", diameter = NULL)
 
- all.equal(ot1, ot2)
+ all.equal(ot1$post, ot2)
 }
 }
-\keyword{internal}

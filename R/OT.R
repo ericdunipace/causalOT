@@ -1,5 +1,5 @@
 
-setOldClass("torch_tensor")
+# setOldClass("torch_tensor")
 # setOldClass(c("OT","R6"))
 OT <- R6::R6Class("OT",
   public = list(
@@ -307,9 +307,28 @@ OT <- R6::R6Class("OT",
 
 
 # log_weights function
-setGeneric("log_weights", function(a) standardGeneric("log_weights"))
-setMethod("log_weights", signature(a = "torch_tensor"),
-function(a) {
+# setGeneric("log_weights", function(a) standardGeneric("log_weights"))
+# setMethod("log_weights", signature(a = "torch_tensor"),
+# function(a) {
+#   min_val <- as.double(-1e5)
+#   torch::with_no_grad({
+#     a_log <- torch::torch_log(a)
+#     a_log[a_log < min_val] <- min_val
+#   })
+#   return(a_log)
+# }
+# ) 
+# setMethod("log_weights", signature(a = "numeric"),
+#           function(a) {
+#             min_val <- as.double(-1e5)
+#             a_log <- log(a)
+#             a_log[a_log < min_val] <- min_val
+#             return(a_log)
+#           }
+# ) 
+
+log_weights <- function(a) UseMethod("log_weights")
+log_weights.torch_tensor <- function(a) {
   min_val <- as.double(-1e5)
   torch::with_no_grad({
     a_log <- torch::torch_log(a)
@@ -317,15 +336,13 @@ function(a) {
   })
   return(a_log)
 }
-) 
-setMethod("log_weights", signature(a = "numeric"),
-          function(a) {
-            min_val <- as.double(-1e5)
-            a_log <- log(a)
-            a_log[a_log < min_val] <- min_val
-            return(a_log)
-          }
-) 
+
+log_weights.numeric <- function(a) {
+  min_val <- as.double(-1e5)
+  a_log <- log(a)
+  a_log[a_log < min_val] <- min_val
+  return(a_log)
+}
 
 softmin_tensorized <- function(eps, C_xy, y_potential, b_log) {
   return ( -eps * ( torch::torch_add(y_potential / eps, b_log) - C_xy$data / eps )$logsumexp(2) )
@@ -1358,22 +1375,29 @@ loss_select <- function(ot, niter, tol) {
 #' a= weights@w0/sum(weights@w0), b = weights@w1,
 #'  penalty = 100, p = 2, debias = TRUE, online.cost = "auto", diameter = NULL)
 #'
-#'  all.equal(ot1, ot2)
+#'  all.equal(ot1$post, ot2)
 #' }
-setGeneric("ot_distance", function(x1, x2 = NULL, 
-                                   a = NULL, b = NULL,
-                                   penalty, p = 2, 
-                                   cost = NULL, 
-                                   debias = TRUE, online.cost = "auto",
-                                   diameter = NULL,
-                                   niter = 1000, tol = 1e-7) standardGeneric("ot_distance"))
+ot_distance <- function(x1, x2 = NULL, 
+         a = NULL, b = NULL,
+         penalty, p = 2, 
+         cost = NULL, 
+         debias = TRUE, online.cost = "auto",
+         diameter = NULL,
+         niter = 1000, tol = 1e-7) UseMethod("ot_distance")
+
+# setGeneric("ot_distance", function(x1, x2 = NULL, 
+#                                    a = NULL, b = NULL,
+#                                    penalty, p = 2, 
+#                                    cost = NULL, 
+#                                    debias = TRUE, online.cost = "auto",
+#                                    diameter = NULL,
+#                                    niter = 1000, tol = 1e-7) standardGeneric("ot_distance"))
 
 
 #' @rdname ot_distance
 #' @include weightsClass.R
-#' @keywords internal
-setMethod("ot_distance", signature(x1 = "causalWeights"),
-function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2, 
+#' @export 
+ot_distance.causalWeights <- function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2, 
          cost = NULL, 
          debias = TRUE, online.cost = "auto",
          diameter=NULL,
@@ -1407,17 +1431,17 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
     a1_init <- renormalize(b[z==1])
     
     ot0_init <- OT$new(x = x0, y = x, 
-                  a = a0_init, b = b,
-                  penalty = penalty, 
-                  cost = cost, p = p, debias = debias, 
-                  tensorized = online.cost,
-                  diameter = diameter)
+                       a = a0_init, b = b,
+                       penalty = penalty, 
+                       cost = cost, p = p, debias = debias, 
+                       tensorized = online.cost,
+                       diameter = diameter)
     ot1_init <- OT$new(x = x1, y = x, 
-                  a = a1_init, b = b,
-                  penalty = penalty, 
-                  cost = cost, p = p, debias = debias, 
-                  tensorized = online.cost,
-                  diameter = diameter)
+                       a = a1_init, b = b,
+                       penalty = penalty, 
+                       cost = cost, p = p, debias = debias, 
+                       tensorized = online.cost,
+                       diameter = diameter)
     
     ot0 <- OT$new(x = x0, y = x, 
                   a = renormalize(cw@w0), b = b,
@@ -1433,12 +1457,12 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
                   diameter = diameter)
     
     return(list(pre = c(control = as_numeric(loss_select(ot0_init, niter, tol)),
-                           treated = as_numeric(loss_select(ot1_init, niter, tol))),
+                        treated = as_numeric(loss_select(ot1_init, niter, tol))),
                 post =  c(control = as_numeric(loss_select(ot0, niter, tol)),
-                           treated = as_numeric(loss_select(ot1, niter, tol)))
-                ))
+                          treated = as_numeric(loss_select(ot1, niter, tol)))
+    ))
     
-   
+    
   } else if (cw@estimand == "ATT" || cw@estimand == "ATC") {
     x0 <- get_x0(dh)
     x1 <- get_x1(dh)
@@ -1451,26 +1475,123 @@ function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
   }
   
   ot_init <- OT$new(x = x0, y = x1, 
-                     a = a_init, b = b_init,
+                    a = a_init, b = b_init,
+                    penalty = penalty, 
+                    cost = cost, p = p, debias = debias, 
+                    tensorized = online.cost,
+                    diameter = diameter)
+  
+  ot_final <- OT$new(x = x0, y = x1, 
+                     a = renormalize(cw@w0), b = renormalize(cw@w1),
                      penalty = penalty, 
                      cost = cost, p = p, debias = debias, 
                      tensorized = online.cost,
                      diameter = diameter)
-  
-  ot_final <- OT$new(x = x0, y = x1, 
-               a = renormalize(cw@w0), b = renormalize(cw@w1),
-               penalty = penalty, 
-               cost = cost, p = p, debias = debias, 
-               tensorized = online.cost,
-               diameter = diameter)
   
   
   return(list(pre = as_numeric(loss_select(ot_init, niter, tol)),
               post = as_numeric(loss_select(ot_final, niter, tol))))
   
 }
-          
-)
+# setMethod("ot_distance", signature(x1 = "causalWeights"),
+# function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2, 
+#          cost = NULL, 
+#          debias = TRUE, online.cost = "auto",
+#          diameter=NULL,
+#          niter = 1000, tol = 1e-7) {
+#   
+#   
+#   stopifnot(inherits(x1, "causalWeights"))
+#   
+#   
+#   cw <- x1
+#   dh <- x1@data
+#   
+#   if(missing(penalty) || is.na(penalty) || is.null(penalty)) {
+#     warning("Penalty parameter not provided. Using estimated cost diameter as a penalty parameter.")
+#     maxes <- apply(dh@x,2,max)
+#     mins  <- apply(dh@x,2,min)
+#     
+#     penalty <- 1/p * sum((maxes-mins)^p)
+#     
+#   }
+#   
+#   stopifnot(penalty > 0.0)
+#   
+#   if( cw@estimand == "ATE" ) {
+#     x0 <- get_x0(dh)
+#     x1 <- get_x1(dh)
+#     x <- get_x(dh)
+#     z <- get_z(dh)
+#     b <- renormalize(get_w(dh))
+#     a0_init <- renormalize(b[z==0])
+#     a1_init <- renormalize(b[z==1])
+#     
+#     ot0_init <- OT$new(x = x0, y = x, 
+#                   a = a0_init, b = b,
+#                   penalty = penalty, 
+#                   cost = cost, p = p, debias = debias, 
+#                   tensorized = online.cost,
+#                   diameter = diameter)
+#     ot1_init <- OT$new(x = x1, y = x, 
+#                   a = a1_init, b = b,
+#                   penalty = penalty, 
+#                   cost = cost, p = p, debias = debias, 
+#                   tensorized = online.cost,
+#                   diameter = diameter)
+#     
+#     ot0 <- OT$new(x = x0, y = x, 
+#                   a = renormalize(cw@w0), b = b,
+#                   penalty = penalty, 
+#                   cost = cost, p = p, debias = debias, 
+#                   tensorized = online.cost,
+#                   diameter = diameter)
+#     ot1 <- OT$new(x = x1, y = x, 
+#                   a = renormalize(cw@w1), b = b,
+#                   penalty = penalty, 
+#                   cost = cost, p = p, debias = debias, 
+#                   tensorized = online.cost,
+#                   diameter = diameter)
+#     
+#     return(list(pre = c(control = as_numeric(loss_select(ot0_init, niter, tol)),
+#                            treated = as_numeric(loss_select(ot1_init, niter, tol))),
+#                 post =  c(control = as_numeric(loss_select(ot0, niter, tol)),
+#                            treated = as_numeric(loss_select(ot1, niter, tol)))
+#                 ))
+#     
+#    
+#   } else if (cw@estimand == "ATT" || cw@estimand == "ATC") {
+#     x0 <- get_x0(dh)
+#     x1 <- get_x1(dh)
+#     w <- get_w(dh)
+#     z <- get_z(dh)
+#     a_init <- renormalize(w[z==0])
+#     b_init <- renormalize(w[z==1])
+#   } else {
+#     stop("Estimand not found!")
+#   }
+#   
+#   ot_init <- OT$new(x = x0, y = x1, 
+#                      a = a_init, b = b_init,
+#                      penalty = penalty, 
+#                      cost = cost, p = p, debias = debias, 
+#                      tensorized = online.cost,
+#                      diameter = diameter)
+#   
+#   ot_final <- OT$new(x = x0, y = x1, 
+#                a = renormalize(cw@w0), b = renormalize(cw@w1),
+#                penalty = penalty, 
+#                cost = cost, p = p, debias = debias, 
+#                tensorized = online.cost,
+#                diameter = diameter)
+#   
+#   
+#   return(list(pre = as_numeric(loss_select(ot_init, niter, tol)),
+#               post = as_numeric(loss_select(ot_final, niter, tol))))
+#   
+# }
+#           
+# )
 
 ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2, 
                             cost = NULL, 
@@ -1488,18 +1609,18 @@ ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2,
   return(as_numeric(loss_select(ot, niter, tol)))
 }
 
-#' ot_distance-methods
-#' @rdname ot_distance-methods
-#' @keywords internal
-setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)
+#' @rdname ot_distance
+#' @export
+ot_distance.matrix <- ot_dist_default
+# setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)
 
-#' ot_distance-methods
-#' @rdname ot_distance-methods
-#' @keywords internal
-setMethod("ot_distance", signature(x1 = "array"), ot_dist_default)
+#' @rdname ot_distance
+#' @export 
+ot_distance.array <- ot_dist_default
+# setMethod("ot_distance", signature(x1 = "array"), ot_dist_default)
 
-#' ot_distance-methods
-#' @rdname ot_distance-methods
-#' @keywords internal
-setMethod("ot_distance", signature(x1 = "torch_tensor"), ot_dist_default)
+#' @rdname ot_distance
+#' @export 
+ot_distance.torch_tensor <- ot_dist_default
+# setMethod("ot_distance", signature(x1 = "torch_tensor"), ot_dist_default)
 

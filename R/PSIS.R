@@ -14,6 +14,9 @@ PSIS.default <- function(x, r_eff = NULL, ...) {
   return(res)
 }
 
+PSIS <- function(x, r_eff = NULL, ...) UseMethod("PSIS")
+PSIS.numeric <- PSIS.default
+
 #' PSIS casualWeights class
 #'
 #' @param x object of class causalWeights

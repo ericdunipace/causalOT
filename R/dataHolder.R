@@ -166,6 +166,8 @@ setMethod("get_w1", signature(object = "dataHolder"),
 
 # constructor function
 
+dataHolder <- function(x,z,y = NA_real_,weights=NA_real_) UseMethod("dataHolder")
+
 #' dataHolder
 #' 
 #' @details Creates an object used internally by the `causalOT` package for data management. 
@@ -235,7 +237,7 @@ setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = 
 #' dataHolder-methods
 #' @rdname dataHolder-methods
 #' @keywords internal
-setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights = "ANY"), function(x, z, y = NA_real_, weights = NA_real_) {
+dataHolder.DataSim <- function(x, z, y = NA_real_, weights = NA_real_) {
   
   ds <- x
   x_mat <- as.matrix(ds$get_x())
@@ -258,12 +260,16 @@ setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights =
   
   dH <- methods::new("dataHolder", x = x_mat, z = z, y = y, n0 = n0, n1 = n1, weights = weights )
   return(dH)
-})
+}
+
+# setMethod("dataHolder", signature(x = "DataSim", z = "ANY", y = "ANY", weights = "ANY"), dataHolder.DataSim)
 
 #' dataHolder-methods
 #' @rdname dataHolder-methods
 #' @keywords internal
-setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY",weights = "ANY" ), function(x, z = NA_integer_, y = NA_real_) {
+setMethod("dataHolder", signature(x = "ANY", z = "ANY", y = "ANY", weights = "ANY" ), function(x, z = NA_integer_, y = NA_real_, weights = NA_real_) {
+  if ( inherits(x, "DataSim") ) return(dataHolder.DataSim(x, z, y))
+  
   stop("must supply one of the following combinations: (x =matrix, z = integer), (x = result of df2dataHolder, z = ANY), (x = dataHolder, z = ANY), or (x = DataSim, z = ANY)")
 })
 
