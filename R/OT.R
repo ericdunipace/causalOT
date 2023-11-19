@@ -1375,7 +1375,7 @@ loss_select <- function(ot, niter, tol) {
 #' a= weights@w0/sum(weights@w0), b = weights@w1,
 #'  penalty = 100, p = 2, debias = TRUE, online.cost = "auto", diameter = NULL)
 #'
-#'  all.equal(ot1$post, ot2)
+#'  all.equal(ot1$post, ot2) 
 #' }
 ot_distance <- function(x1, x2 = NULL, 
          a = NULL, b = NULL,
