@@ -35,7 +35,7 @@ testthat::test_that("gridSearch SBW", {
   testthat::expect_true(inherits(gs@solver, "SBW"))
   testthat::expect_true(gs@method == "SBW")
   testthat::expect_true(gs@estimand == "ATT")
-  mess <- testthat::capture_output()
+  mess <- testthat::capture_output(suppressWarnings(cw <- causalOT:::cot_solve(gs)))
   testthat::expect_true(inherits(cw, "causalWeights"))
   
   mess <- testthat::capture_output(gs <- causalOT:::gridSearch(data = data,
