@@ -15,3 +15,4 @@ object of class \link[=causalWeights-class]{causalWeights}
 \description{
 cot_solve method for ateClass objects
 }
+\keyword{internal}

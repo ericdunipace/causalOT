@@ -15,3 +15,4 @@ returns object of class \link[=causalWeights-class]{causalWeights}
 \description{
 cot_solve for gridSearch
 }
+\keyword{internal}

@@ -295,11 +295,13 @@ setMethod("causalWeights", signature(object1 = "gridSearch", object2 = "numeric"
 # cot_solve function ------------------------------------------------------
 
 #TODO: self object solver object@solver$solve(), like COT
+
 #' cot_solve for gridSearch
 #'
 #' @param object gridSearch. 
 #'
 #' @return returns object of class [causalWeights][causalOT::causalWeights-class]
+#' @keywords internal
 setMethod("cot_solve", signature(object = "gridSearch"),
           function(object) {
             # browser()
@@ -343,6 +345,7 @@ setMethod("cot_solve", signature(object = "gridSearch"),
 #' @param object ateClass. 
 #'
 #' @return object of class [causalWeights][causalOT::causalWeights-class]
+#' @keywords internal
 setMethod("cot_solve", signature(object = "ateClass"),
           function(object) {
             

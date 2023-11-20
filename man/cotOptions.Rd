@@ -123,7 +123,7 @@ If \code{cost.function} is provided, it should be a function that takes argument
 
 \examples{
 if ( torch::torch_is_installed()) {
-opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_lbfgs)
+opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_rmsprop)
 opts2 <- cotOptions(lambda = NULL)
 opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
 }

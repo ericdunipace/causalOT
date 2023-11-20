@@ -120,7 +120,7 @@ cotProblem <- function(data, estimand, method,
 # S3 method for R6 objects
 cot_solve <- function(object) { UseMethod("cot_solve") }
 
-# S4 method to solve the respective problems
+# # S4 method to solve the respective problems
 setGeneric("cot_solve", function(object) standardGeneric("cot_solve"))
 
 

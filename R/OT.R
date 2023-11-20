@@ -1362,6 +1362,7 @@ loss_select <- function(ot, niter, tol) {
 #'
 #' @return For objects of class matrix, numeric value giving the optimal transport distance. For objects of class causalWeights, results are returned as a list for before ('pre') and after adjustment ('post').
 #' @export
+#' @rdname ot_distance
 #'
 #' @examples
 #' if ( torch::torch_is_installed()) {
@@ -1394,9 +1395,10 @@ ot_distance <- function(x1, x2 = NULL,
 #                                    niter = 1000, tol = 1e-7) standardGeneric("ot_distance"))
 
 
-#' @rdname ot_distance
 #' @include weightsClass.R
 #' @export 
+#' @describeIn ot_distance method for causalWeights class
+#' @method ot_distance causalWeights
 ot_distance.causalWeights <- function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2, 
          cost = NULL, 
          debias = TRUE, online.cost = "auto",
@@ -1609,18 +1611,21 @@ ot_dist_default <- function(x1, x2, a = NULL, b = NULL, penalty, p = 2,
   return(as_numeric(loss_select(ot, niter, tol)))
 }
 
-#' @rdname ot_distance
 #' @export
+#' @describeIn ot_distance method for matrices
+#' @method ot_distance matrix
 ot_distance.matrix <- ot_dist_default
 # setMethod("ot_distance", signature(x1 = "matrix"), ot_dist_default)
 
-#' @rdname ot_distance
 #' @export 
+#' @describeIn ot_distance method for arrays
+#' @method ot_distance array
 ot_distance.array <- ot_dist_default
 # setMethod("ot_distance", signature(x1 = "array"), ot_dist_default)
 
-#' @rdname ot_distance
 #' @export 
+#' @describeIn ot_distance method for torch_tensors
+#' @method ot_distance torch_tensor
 ot_distance.torch_tensor <- ot_dist_default
 # setMethod("ot_distance", signature(x1 = "torch_tensor"), ot_dist_default)
 

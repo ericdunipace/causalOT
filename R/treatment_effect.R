@@ -13,12 +13,12 @@
 #' @export
 #'
 #' @examples
+#' if ( torch::torch_is_installed() ){
 #' # set-up data
 #' data <- Hainmueller$new()
 #' data$gen_data()
 #' 
 #' # calculate quantities
-#' if ( torch::torch_is_installed() ){
 #' weight <- calc_weight(data, method = "COT", 
 #'                       estimand = "ATT",
 #'                       options = list(lambda = 0))

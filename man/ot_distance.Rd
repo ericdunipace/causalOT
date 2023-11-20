@@ -114,6 +114,17 @@ For objects of class matrix, numeric value giving the optimal transport distance
 \description{
 Optimal Transport Distance
 }
+\section{Methods (by class)}{
+\itemize{
+\item \code{ot_distance(causalWeights)}: method for causalWeights class
+
+\item \code{ot_distance(matrix)}: method for matrices
+
+\item \code{ot_distance(array)}: method for arrays
+
+\item \code{ot_distance(torch_tensor)}: method for torch_tensors
+
+}}
 \examples{
 if ( torch::torch_is_installed()) {
 x <- matrix(stats::rnorm(10*5), 10, 5)
@@ -126,6 +137,6 @@ ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,],
 a= weights@w0/sum(weights@w0), b = weights@w1,
  penalty = 100, p = 2, debias = TRUE, online.cost = "auto", diameter = NULL)
 
- all.equal(ot1$post, ot2)
+ all.equal(ot1$post, ot2) 
 }
 }
