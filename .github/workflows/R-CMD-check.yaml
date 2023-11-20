@@ -41,8 +41,24 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          dependencies: '"hard"'
+          cache: false
+          extra-packages: |
+            any::rcmdcheck
+            any::testthat
+            any::knitr
+            any::rmarkdown
+            any::data.table
+            any::testthat,
+            any::knitr
+            any::V8
+            any::withr
           needs: check
+          
+      - name: Install rkeops
+        run: |
+            if (.Platform$OS.type != "windows") install.packages("rkeops")
+        shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2
         with:

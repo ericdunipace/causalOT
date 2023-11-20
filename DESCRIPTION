@@ -43,11 +43,10 @@ Suggests:
     testthat (>= 2.1.0),
     knitr,
     reticulate,
+    rkeops,
     rmarkdown,
     V8,
     withr
-Enhances:
-    rkeops
 Biarch: true
 Depends: 
     R (>= 3.5.0)
