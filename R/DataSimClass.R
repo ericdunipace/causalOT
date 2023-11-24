@@ -594,15 +594,15 @@ LaLonde <- R6::R6Class("LaLonde",
                          #' @description
                          #' Sets up the covariate data
                          gen_x = function() {
-                           form <- as.formula("~. + I(as.numeric(re74 == 0)) + I(as.numeric(re75 == 0)) + + 0")
+                           form <- stats::as.formula("~. + I(as.numeric(re74 == 0)) + I(as.numeric(re75 == 0)) + + 0")
                            if (private$design == "Full") {
                              cn <- colnames(lalonde_full)
                              
-                             private$x <- model.matrix(object = form, 
+                             private$x <- stats::model.matrix(object = form, 
                                                        data = lalonde_full[,-match(c("data_id","treat","re78"),cn)])
                            } else if (private$design == "NSW") {
                              cn <- colnames(lalonde_nsw)
-                             private$x <- model.matrix(object = form, 
+                             private$x <- stats::model.matrix(object = form, 
                                                        data = lalonde_nsw[,-match(c("data_id","treat","re78"),cn)])
                            } else {
                              stop("Design not found")

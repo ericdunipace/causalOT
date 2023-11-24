@@ -4,7 +4,6 @@
 #'
 #' @author Eric Dunipace
 #' @name causalOT
-#' @docType package
 #' @useDynLib causalOT, .registration = TRUE
 #' @importFrom Rcpp sourceCpp 
 #' @importFrom Rcpp evalCpp
@@ -14,7 +13,8 @@
 #' @importFrom R6 R6Class
 #' @importFrom methods setOldClass
 #' @rdname causalOT-package
-NULL
+#' @keywords internal 
+"_PACKAGE"
 
 #' An external control trial of treatments for post-partum hemorrhage
 #' 

@@ -1,7 +1,10 @@
 # rkeops >= 2.0 features a python dependency, which, at this time,
 # requires users to manage both a Python install and R install
 if ( rlang::is_installed("rkeops") ) {
-  if (utils::packageVersion("rkeops") >= 2.0 && rlang::is_installed("reticulate")) {
+  two_debian_catch <- base::.make_numeric_version("2.0",TRUE,.standard_regexps()$valid_numeric_version)
+  vers_match   <- tryCatch(utils::packageVersion("rkeops") >= two_debian_catch,
+                           error = function(e) FALSE)
+  if (vers_match && rlang::is_installed("reticulate")) {
     if (is.character(find.package("reticulate"))) {
       rkeops_pyenv <- "rkeops_test_asdf"
       # setup.mess <- reticulate::py_capture_output({

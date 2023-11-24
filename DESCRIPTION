@@ -2,7 +2,7 @@ Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
 Version: 1.0
-Date: 2023-11-19
+Date: 2023-11-23
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -17,7 +17,7 @@ Description: Uses optimal transport distances to find probabilistic
     calculate confidence intervals via the methods described in the paper.
     The package also supports several other methods as described in the help 
     files.
-License: GPL (>=3.0)
+License: GPL (==3.0)
 Imports: 
     CBPS,
     ggplot2,

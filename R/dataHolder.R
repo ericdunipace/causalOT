@@ -320,7 +320,7 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
   of <- !missing(outcome.formula) && (inherits(outcome.formula, "formula") || !is.na(outcome.formula))
   
   if (of) {
-    outcome.formula <- formula(outcome.formula)
+    outcome.formula <- stats::formula(outcome.formula)
     mf.y <- stats::model.frame(outcome.formula, data)
     y <- stats::model.response(mf.y, "numeric")
     mt.y <- attr(mf.y, "terms")
@@ -331,9 +331,9 @@ setMethod("df2dataHolder", signature(treatment.formula = "ANY", outcome.formula 
     y <- NA_real_
   }
   if (tf) {
-    treatment.formula <- formula(treatment.formula)
+    treatment.formula <- stats::formula(treatment.formula)
     mf.z <- stats::model.frame(formula = treatment.formula, data = data)
-    z <- model.response(mf.z, "any")
+    z <- stats::model.response(mf.z, "any")
     if (is.factor(z)) {
       if(length(levels(z)) > 2) stop("Treatment indicator must be binary.")
       vals.z <- levels(z)
