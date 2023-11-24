@@ -37,5 +37,4 @@ inst/Meta
 .DS_Store
 **/.DS_Store
 inst/Reproduce/code/original_sim/.DS_Store
-vignettes/cache
 cran-comments.md
