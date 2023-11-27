@@ -31,7 +31,7 @@ setOldClass("summary_causalWeights")
 #' original$gen_data()
 #' weights <- calc_weight(x = original, estimand = estimand, method = "Logistic")
 #' s <- summary(weights)
-#' \dontrun{plot(s)}
+#' plot(s)
 #' }
 summary.causalWeights <- function(object, r_eff = NULL, 
                                   penalty, p = 2, cost = NULL, 

@@ -1,5 +1,6 @@
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/ericdunipace/causalOT/actions/workflows/check-standard.yaml/badge.svg)](https://github.com/ericdunipace/causalOT/actions/workflows/check-standard.yaml)
+[![CRAN status](https://www.r-pkg.org/badges/version/causalOT)](https://CRAN.R-project.org/package=causalOT)
 <!-- badges: end -->
 
 # causalOT: Optimal transport methods for causal inference

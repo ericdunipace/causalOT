@@ -18,13 +18,18 @@ devtools::check(remote = TRUE, manual = TRUE)
 devtools::check_win_devel(quiet=TRUE)
 devtools::check_win_release(quiet = TRUE)
 devtools::check_win_oldrelease(quiet = TRUE)
-out <- rhub::check_for_cran(show_status = FALSE)
+
+# out <- rhub::check_for_cran(show_status = FALSE) #not work on windows with CRAN versions
+out <- rhub::check(platforms=c("ubuntu-gcc-release" ,"fedora-clang-devel","linux-x86_64-rocker-gcc-san"),
+                   check_args = "--as-cran", 
+                   env_vars = c(`_R_CHECK_FORCE_SUGGESTS_` = "true", `_R_CHECK_CRAN_INCOMING_USE_ASPELL_` = "true"),
+                   show_status = FALSE)
 
 # reverse dependency
 # run if no rev dep check devtools::install_github('r-lib/revdepcheck')
 revdepcheck::revdep_reset()
 revdepcheck::revdep_check(num_workers = 4,
-                          timeout = as.difftime(240, units = "mins"))
+                          timeout = as.difftime(240, units = "mins"), show_status = FALSE)
 
 
 # to submit

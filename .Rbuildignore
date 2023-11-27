@@ -31,3 +31,6 @@
 ^cran-comments\.md$
 ^revdep$
 ^dev$
+^vignettes/vignette_run.R$
+^vignettes/oopCOT.Rmd.orig$
+^vignettes/usage.Rmd.orig$

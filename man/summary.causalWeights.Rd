@@ -80,6 +80,6 @@ original <- Hainmueller$new(n = n, p = p,
 original$gen_data()
 weights <- calc_weight(x = original, estimand = estimand, method = "Logistic")
 s <- summary(weights)
-\dontrun{plot(s)}
+plot(s)
 }
 }
