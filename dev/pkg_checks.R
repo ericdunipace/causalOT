@@ -20,10 +20,17 @@ devtools::check_win_release(quiet = TRUE)
 devtools::check_win_oldrelease(quiet = TRUE)
 
 # out <- rhub::check_for_cran(show_status = FALSE) #not work on windows with CRAN versions
+# versions with rkeops
 out <- rhub::check(platforms=c("ubuntu-gcc-release" ,"fedora-clang-devel","linux-x86_64-rocker-gcc-san"),
                    check_args = "--as-cran", 
                    env_vars = c(`_R_CHECK_FORCE_SUGGESTS_` = "true", `_R_CHECK_CRAN_INCOMING_USE_ASPELL_` = "true"),
                    show_status = FALSE)
+
+# don't force suggests since rkeops not available on windows
+out_windows <- rhub::check(platforms= "windows-x86_64-devel",
+                    check_args = "--as-cran", 
+                    env_vars = c(`_R_CHECK_FORCE_SUGGESTS_` = "false", `_R_CHECK_CRAN_INCOMING_USE_ASPELL_` = "true"),
+                    show_status = FALSE)
 
 # reverse dependency
 # run if no rev dep check devtools::install_github('r-lib/revdepcheck')

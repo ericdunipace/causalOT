@@ -64,7 +64,8 @@ lbfgs3c_R6_solve <- function(init, options,
                             ...
   )
   
-  if(is.null(fit$convergence) || fit$convergence != 0) warning(fit$message)
+  not_conv <- is.null(fit$convergence) || isFALSE(fit$convergence == 0) #|| is.na(fit$convergence)
+  if(not_conv) warning(fit$message)
   
   return(fit$par)
   
