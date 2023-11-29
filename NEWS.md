@@ -1,3 +1,8 @@
+# causalOT 1.0.1
+
+## Minor improvements and fixes
+* Bug squashed under the hood arising from an update in an imported package
+
 # causalOT 1.0
 
 ## Breaking changes
