@@ -1,8 +1,8 @@
 Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
-Version: 0.1.2
-Date: 2022-08-30
+Version: 1.0.1
+Date: 2023-11-29
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -17,38 +17,66 @@ Description: Uses optimal transport distances to find probabilistic
     calculate confidence intervals via the methods described in the paper.
     The package also supports several other methods as described in the help 
     files.
-License: GPL (>=3.0)
+License: GPL (==3.0)
 Imports: 
-    approxOT,
-    Matrix,
-    matrixStats,
-    methods,
+    CBPS,
+    ggplot2,
     lbfgsb3c,
     loo,
+    Matrix (>= 1.5-0),
+    matrixStats,
+    methods,
     osqp,
-    pbapply,
-    reticulate,
     R6 (>= 2.4.1),
     Rcpp (>= 1.0.3),
-    RSpectra,
-    sandwich
+    rlang,
+    sandwich,
+    torch,
+    utils
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
     RcppEigen (>= 0.3.3.3.0),
+    torch
 Suggests: 
-    CBPS,
     data.table (>= 1.12.8),
-    rstan (>= 2.19.3),
-    Rmosek,
     testthat (>= 2.1.0),
     knitr,
-    rmarkdown
+    reticulate,
+    rkeops,
+    rmarkdown,
+    V8,
+    withr
 Biarch: true
 Depends: 
     R (>= 3.5.0)
 Roxygen: list(markdown = TRUE)
 Encoding: UTF-8
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 LazyData: true
 VignetteBuilder: knitr
+Collate: 
+    'DataSimClass.R'
+    'dataHolder.R'
+    'weightsClass.R'
+    'ESS.R'
+    'OT.R'
+    'PSIS.R'
+    'RcppExports.R'
+    'balanceFunctions.R'
+    'barycentricProjection.R'
+    'calc_weight.R'
+    'causalOT-package.R'
+    'cost_functions.R'
+    'scmClass.R'
+    'gridSearch.R'
+    'cotClass.R'
+    'cotOOP.R'
+    'cot_opts.R'
+    'likelihoodClass.R'
+    'mean_balance.R'
+    'summary.R'
+    'supportedMethods.R'
+    'treatment_effect.R'
+    'utils.R'
+    'zzz.R'

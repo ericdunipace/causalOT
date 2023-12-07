@@ -19,7 +19,7 @@
 ^inst/stan/test$
 ^inst/stan/deprecated$
 ^R/deprecated$
-^src/deprecated/$
+^src/deprecated$
 ^vignettes/cache$
 ^vignettes/.*\.orig$
 ^Meta$
@@ -27,3 +27,10 @@
 ^vignettes/.*cache.*
 ^cran_notes.md$
 ^cran-comments.md$
+^CRAN-SUBMISSION$
+^cran-comments\.md$
+^revdep$
+^dev$
+^vignettes/vignette_run.R$
+^vignettes/oopCOT.Rmd.orig$
+^vignettes/usage.Rmd.orig$

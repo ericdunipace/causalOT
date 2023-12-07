@@ -12,377 +12,102 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// cost_calculation_
-Rcpp::NumericMatrix cost_calculation_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p);
-RcppExport SEXP _causalOT_cost_calculation_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP) {
+// bootStrap_
+Rcpp::NumericVector bootStrap_(Rcpp::List& w_list, int nboot, Rcpp::Environment& object);
+RcppExport SEXP _causalOT_bootStrap_(SEXP w_listSEXP, SEXP nbootSEXP, SEXP objectSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type A_(A_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type B_(B_SEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    rcpp_result_gen = Rcpp::wrap(cost_calculation_(A_, B_, p));
+    Rcpp::traits::input_parameter< Rcpp::List& >::type w_list(w_listSEXP);
+    Rcpp::traits::input_parameter< int >::type nboot(nbootSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Environment& >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(bootStrap_(w_list, nboot, object));
     return rcpp_result_gen;
 END_RCPP
 }
-// cost_mahal_
-Rcpp::NumericMatrix cost_mahal_(const Rcpp::NumericMatrix& A_, const Rcpp::NumericMatrix& B_, const double p, const std::string estimand);
-RcppExport SEXP _causalOT_cost_mahal_(SEXP A_SEXP, SEXP B_SEXP, SEXP pSEXP, SEXP estimandSEXP) {
+// sbw_oop_bs_
+Rcpp::NumericVector sbw_oop_bs_(Rcpp::List& w_list, int nboot, matrix& source, vector& target, Rcpp::NumericVector& a);
+RcppExport SEXP _causalOT_sbw_oop_bs_(SEXP w_listSEXP, SEXP nbootSEXP, SEXP sourceSEXP, SEXP targetSEXP, SEXP aSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type A_(A_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type B_(B_SEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type estimand(estimandSEXP);
-    rcpp_result_gen = Rcpp::wrap(cost_mahal_(A_, B_, p, estimand));
+    Rcpp::traits::input_parameter< Rcpp::List& >::type w_list(w_listSEXP);
+    Rcpp::traits::input_parameter< int >::type nboot(nbootSEXP);
+    Rcpp::traits::input_parameter< matrix& >::type source(sourceSEXP);
+    Rcpp::traits::input_parameter< vector& >::type target(targetSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type a(aSEXP);
+    rcpp_result_gen = Rcpp::wrap(sbw_oop_bs_(w_list, nboot, source, target, a));
     return rcpp_result_gen;
 END_RCPP
 }
-// kernel_calc_dose_
-Rcpp::List kernel_calc_dose_(const Rcpp::NumericMatrix& X_, const Rcpp::NumericMatrix& z_, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const std::string& kernel_, const bool calc_covariance);
-RcppExport SEXP _causalOT_kernel_calc_dose_(SEXP X_SEXP, SEXP z_SEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP kernel_SEXP, SEXP calc_covarianceSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type z_(z_SEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type kernel_(kernel_SEXP);
-    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    rcpp_result_gen = Rcpp::wrap(kernel_calc_dose_(X_, z_, p, theta_, gamma_, kernel_, calc_covariance));
-    return rcpp_result_gen;
-END_RCPP
-}
-// similarity_calc_dose_
-Rcpp::List similarity_calc_dose_(const Rcpp::NumericMatrix& X_, const Rcpp::NumericMatrix& z_, const bool calc_covariance);
-RcppExport SEXP _causalOT_similarity_calc_dose_(SEXP X_SEXP, SEXP z_SEXP, SEXP calc_covarianceSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type z_(z_SEXP);
-    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    rcpp_result_gen = Rcpp::wrap(similarity_calc_dose_(X_, z_, calc_covariance));
-    return rcpp_result_gen;
-END_RCPP
-}
-// kernel_calc_
-Rcpp::List kernel_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const std::string& kernel_, const bool calc_covariance, const std::string& estimand);
-RcppExport SEXP _causalOT_kernel_calc_(SEXP X_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP kernel_SEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z(zSEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type sigma_2_(sigma_2_SEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type kernel_(kernel_SEXP);
-    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
-    rcpp_result_gen = Rcpp::wrap(kernel_calc_(X_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand));
-    return rcpp_result_gen;
-END_RCPP
-}
-// kernel_calc_pred_
-Rcpp::List kernel_calc_pred_(const Rcpp::NumericMatrix& X_, const Rcpp::NumericMatrix& X_test_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const std::string& kernel_, const bool calc_covariance, const std::string& estimand);
-RcppExport SEXP _causalOT_kernel_calc_pred_(SEXP X_SEXP, SEXP X_test_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP kernel_SEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_test_(X_test_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z(zSEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type sigma_2_(sigma_2_SEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type kernel_(kernel_SEXP);
-    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
-    rcpp_result_gen = Rcpp::wrap(kernel_calc_pred_(X_, X_test_, z, p, theta_, gamma_, sigma_2_, kernel_, calc_covariance, estimand));
-    return rcpp_result_gen;
-END_RCPP
-}
-// kernel_update_
-Rcpp::NumericMatrix kernel_update_(const Rcpp::NumericMatrix& sim_, const Rcpp::IntegerVector& z_, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const Rcpp::NumericVector& sigma_2_, const std::string& kernel_);
-RcppExport SEXP _causalOT_kernel_update_(SEXP sim_SEXP, SEXP z_SEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP sigma_2_SEXP, SEXP kernel_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type sim_(sim_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z_(z_SEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type sigma_2_(sigma_2_SEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type kernel_(kernel_SEXP);
-    rcpp_result_gen = Rcpp::wrap(kernel_update_(sim_, z_, p, theta_, gamma_, sigma_2_, kernel_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// similarity_calc_
-matrix similarity_calc_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const bool calc_covariance, const std::string& estimand);
-RcppExport SEXP _causalOT_similarity_calc_(SEXP X_SEXP, SEXP zSEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z(zSEXP);
-    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
-    rcpp_result_gen = Rcpp::wrap(similarity_calc_(X_, z, calc_covariance, estimand));
-    return rcpp_result_gen;
-END_RCPP
-}
-// marginal_lik_gp_
-double marginal_lik_gp_(const Rcpp::NumericVector& y_, const Rcpp::NumericMatrix& K_);
-RcppExport SEXP _causalOT_marginal_lik_gp_(SEXP y_SEXP, SEXP K_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y_(y_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type K_(K_SEXP);
-    rcpp_result_gen = Rcpp::wrap(marginal_lik_gp_(y_, K_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// kernel_calc_ot_
-Rcpp::List kernel_calc_ot_(const Rcpp::NumericMatrix& X_, const Rcpp::IntegerVector& z, const double p, const Rcpp::NumericVector& theta_, const Rcpp::NumericVector& gamma_, const std::string& kernel_, const bool calc_covariance, const std::string& estimand);
-RcppExport SEXP _causalOT_kernel_calc_ot_(SEXP X_SEXP, SEXP zSEXP, SEXP pSEXP, SEXP theta_SEXP, SEXP gamma_SEXP, SEXP kernel_SEXP, SEXP calc_covarianceSEXP, SEXP estimandSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type X_(X_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type z(zSEXP);
-    Rcpp::traits::input_parameter< const double >::type p(pSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gamma_(gamma_SEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type kernel_(kernel_SEXP);
-    Rcpp::traits::input_parameter< const bool >::type calc_covariance(calc_covarianceSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type estimand(estimandSEXP);
-    rcpp_result_gen = Rcpp::wrap(kernel_calc_ot_(X_, z, p, theta_, gamma_, kernel_, calc_covariance, estimand));
-    return rcpp_result_gen;
-END_RCPP
-}
-// cotDualL2_obj_
-double cotDualL2_obj_(const SEXP& vars_, const SEXP& QQ, const SEXP& cost_, double pf_, double lambda);
-RcppExport SEXP _causalOT_cotDualL2_obj_(SEXP vars_SEXP, SEXP QQSEXP, SEXP cost_SEXP, SEXP pf_SEXP, SEXP lambdaSEXP) {
+// entBW_obj_
+double entBW_obj_(const SEXP& vars_, const SEXP& A_, double delta);
+RcppExport SEXP _causalOT_entBW_obj_(SEXP vars_SEXP, SEXP A_SEXP, SEXP deltaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< double >::type pf_(pf_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(cotDualL2_obj_(vars_, QQ, cost_, pf_, lambda));
+    Rcpp::traits::input_parameter< const SEXP& >::type A_(A_SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    rcpp_result_gen = Rcpp::wrap(entBW_obj_(vars_, A_, delta));
     return rcpp_result_gen;
 END_RCPP
 }
-// cotDualL2_grad_
-Rcpp::NumericVector cotDualL2_grad_(const SEXP& vars_, const SEXP& QQ, const SEXP& cost_, const SEXP& pf_, double lambda);
-RcppExport SEXP _causalOT_cotDualL2_grad_(SEXP vars_SEXP, SEXP QQSEXP, SEXP cost_SEXP, SEXP pf_SEXP, SEXP lambdaSEXP) {
+// entBW_grad_
+vector entBW_grad_(const SEXP& vars_, const SEXP& A_, double delta);
+RcppExport SEXP _causalOT_entBW_grad_(SEXP vars_SEXP, SEXP A_SEXP, SEXP deltaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type pf_(pf_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(cotDualL2_grad_(vars_, QQ, cost_, pf_, lambda));
+    Rcpp::traits::input_parameter< const SEXP& >::type A_(A_SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    rcpp_result_gen = Rcpp::wrap(entBW_grad_(vars_, A_, delta));
     return rcpp_result_gen;
 END_RCPP
 }
-// cotDual_obj_
-double cotDual_obj_(const SEXP& vars_, const SEXP& QQ, const SEXP& cost_, const SEXP& pf_, double lambda, std::string penalty);
-RcppExport SEXP _causalOT_cotDual_obj_(SEXP vars_SEXP, SEXP QQSEXP, SEXP cost_SEXP, SEXP pf_SEXP, SEXP lambdaSEXP, SEXP penaltySEXP) {
+// logSumExp
+double logSumExp(vector& x_);
+RcppExport SEXP _causalOT_logSumExp(SEXP x_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type pf_(pf_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    Rcpp::traits::input_parameter< std::string >::type penalty(penaltySEXP);
-    rcpp_result_gen = Rcpp::wrap(cotDual_obj_(vars_, QQ, cost_, pf_, lambda, penalty));
+    Rcpp::traits::input_parameter< vector& >::type x_(x_SEXP);
+    rcpp_result_gen = Rcpp::wrap(logSumExp(x_));
     return rcpp_result_gen;
 END_RCPP
 }
-// cotDual_grad_
-Rcpp::NumericVector cotDual_grad_(const SEXP& vars_, const SEXP& QQ, const SEXP& cost_, const SEXP& pf_, double lambda, std::string penalty);
-RcppExport SEXP _causalOT_cotDual_grad_(SEXP vars_SEXP, SEXP QQSEXP, SEXP cost_SEXP, SEXP pf_SEXP, SEXP lambdaSEXP, SEXP penaltySEXP) {
+// rowLogSumExp
+vector rowLogSumExp(matrix& x_);
+RcppExport SEXP _causalOT_rowLogSumExp(SEXP x_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type pf_(pf_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    Rcpp::traits::input_parameter< std::string >::type penalty(penaltySEXP);
-    rcpp_result_gen = Rcpp::wrap(cotDual_grad_(vars_, QQ, cost_, pf_, lambda, penalty));
+    Rcpp::traits::input_parameter< matrix& >::type x_(x_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rowLogSumExp(x_));
     return rcpp_result_gen;
 END_RCPP
 }
-// sbwDual_obj_
-double sbwDual_obj_(const SEXP& vars_, const SEXP& QQ, const SEXP& pf_, std::string penalty);
-RcppExport SEXP _causalOT_sbwDual_obj_(SEXP vars_SEXP, SEXP QQSEXP, SEXP pf_SEXP, SEXP penaltySEXP) {
+// colLogSumExp
+vector colLogSumExp(matrix& x_);
+RcppExport SEXP _causalOT_colLogSumExp(SEXP x_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type pf_(pf_SEXP);
-    Rcpp::traits::input_parameter< std::string >::type penalty(penaltySEXP);
-    rcpp_result_gen = Rcpp::wrap(sbwDual_obj_(vars_, QQ, pf_, penalty));
-    return rcpp_result_gen;
-END_RCPP
-}
-// sbwDual_grad_
-Rcpp::NumericVector sbwDual_grad_(const SEXP& vars_, const SEXP& QQ, const SEXP& pf_, std::string penalty);
-RcppExport SEXP _causalOT_sbwDual_grad_(SEXP vars_SEXP, SEXP QQSEXP, SEXP pf_SEXP, SEXP penaltySEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type QQ(QQSEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type pf_(pf_SEXP);
-    Rcpp::traits::input_parameter< std::string >::type penalty(penaltySEXP);
-    rcpp_result_gen = Rcpp::wrap(sbwDual_grad_(vars_, QQ, pf_, penalty));
-    return rcpp_result_gen;
-END_RCPP
-}
-// otDualL2_obj_
-double otDualL2_obj_(const SEXP& vars_, const SEXP& a_, const SEXP& b_, const SEXP& cost_, double lambda);
-RcppExport SEXP _causalOT_otDualL2_obj_(SEXP vars_SEXP, SEXP a_SEXP, SEXP b_SEXP, SEXP cost_SEXP, SEXP lambdaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type a_(a_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type b_(b_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(otDualL2_obj_(vars_, a_, b_, cost_, lambda));
-    return rcpp_result_gen;
-END_RCPP
-}
-// otDualL2_grad_
-Rcpp::NumericVector otDualL2_grad_(const SEXP& vars_, const SEXP& a_, const SEXP& b_, const SEXP& cost_, double lambda);
-RcppExport SEXP _causalOT_otDualL2_grad_(SEXP vars_SEXP, SEXP a_SEXP, SEXP b_SEXP, SEXP cost_SEXP, SEXP lambdaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type a_(a_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type b_(b_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(otDualL2_grad_(vars_, a_, b_, cost_, lambda));
-    return rcpp_result_gen;
-END_RCPP
-}
-// otDualL2_obj_self_
-double otDualL2_obj_self_(const SEXP& vars_, const SEXP& a_, const SEXP& cost_, double lambda);
-RcppExport SEXP _causalOT_otDualL2_obj_self_(SEXP vars_SEXP, SEXP a_SEXP, SEXP cost_SEXP, SEXP lambdaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type a_(a_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(otDualL2_obj_self_(vars_, a_, cost_, lambda));
-    return rcpp_result_gen;
-END_RCPP
-}
-// otDualL2_grad_self_
-Rcpp::NumericVector otDualL2_grad_self_(const SEXP& vars_, const SEXP& a_, const SEXP& cost_, double lambda);
-RcppExport SEXP _causalOT_otDualL2_grad_self_(SEXP vars_SEXP, SEXP a_SEXP, SEXP cost_SEXP, SEXP lambdaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const SEXP& >::type vars_(vars_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type a_(a_SEXP);
-    Rcpp::traits::input_parameter< const SEXP& >::type cost_(cost_SEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(otDualL2_grad_self_(vars_, a_, cost_, lambda));
-    return rcpp_result_gen;
-END_RCPP
-}
-// otL2_grad_
-Rcpp::XPtr<gradCrossPtr> otL2_grad_();
-RcppExport SEXP _causalOT_otL2_grad_() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(otL2_grad_());
-    return rcpp_result_gen;
-END_RCPP
-}
-// otL2_obj_
-Rcpp::XPtr<objCrossPtr> otL2_obj_();
-RcppExport SEXP _causalOT_otL2_obj_() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(otL2_obj_());
-    return rcpp_result_gen;
-END_RCPP
-}
-// otL2_grad_self_
-Rcpp::XPtr<gradSelfPtr> otL2_grad_self_();
-RcppExport SEXP _causalOT_otL2_grad_self_() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(otL2_grad_self_());
-    return rcpp_result_gen;
-END_RCPP
-}
-// otL2_obj_self_
-Rcpp::XPtr<objSelfPtr> otL2_obj_self_();
-RcppExport SEXP _causalOT_otL2_obj_self_() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(otL2_obj_self_());
+    Rcpp::traits::input_parameter< matrix& >::type x_(x_SEXP);
+    rcpp_result_gen = Rcpp::wrap(colLogSumExp(x_));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_causalOT_cost_calculation_", (DL_FUNC) &_causalOT_cost_calculation_, 3},
-    {"_causalOT_cost_mahal_", (DL_FUNC) &_causalOT_cost_mahal_, 4},
-    {"_causalOT_kernel_calc_dose_", (DL_FUNC) &_causalOT_kernel_calc_dose_, 7},
-    {"_causalOT_similarity_calc_dose_", (DL_FUNC) &_causalOT_similarity_calc_dose_, 3},
-    {"_causalOT_kernel_calc_", (DL_FUNC) &_causalOT_kernel_calc_, 9},
-    {"_causalOT_kernel_calc_pred_", (DL_FUNC) &_causalOT_kernel_calc_pred_, 10},
-    {"_causalOT_kernel_update_", (DL_FUNC) &_causalOT_kernel_update_, 7},
-    {"_causalOT_similarity_calc_", (DL_FUNC) &_causalOT_similarity_calc_, 4},
-    {"_causalOT_marginal_lik_gp_", (DL_FUNC) &_causalOT_marginal_lik_gp_, 2},
-    {"_causalOT_kernel_calc_ot_", (DL_FUNC) &_causalOT_kernel_calc_ot_, 8},
-    {"_causalOT_cotDualL2_obj_", (DL_FUNC) &_causalOT_cotDualL2_obj_, 5},
-    {"_causalOT_cotDualL2_grad_", (DL_FUNC) &_causalOT_cotDualL2_grad_, 5},
-    {"_causalOT_cotDual_obj_", (DL_FUNC) &_causalOT_cotDual_obj_, 6},
-    {"_causalOT_cotDual_grad_", (DL_FUNC) &_causalOT_cotDual_grad_, 6},
-    {"_causalOT_sbwDual_obj_", (DL_FUNC) &_causalOT_sbwDual_obj_, 4},
-    {"_causalOT_sbwDual_grad_", (DL_FUNC) &_causalOT_sbwDual_grad_, 4},
-    {"_causalOT_otDualL2_obj_", (DL_FUNC) &_causalOT_otDualL2_obj_, 5},
-    {"_causalOT_otDualL2_grad_", (DL_FUNC) &_causalOT_otDualL2_grad_, 5},
-    {"_causalOT_otDualL2_obj_self_", (DL_FUNC) &_causalOT_otDualL2_obj_self_, 4},
-    {"_causalOT_otDualL2_grad_self_", (DL_FUNC) &_causalOT_otDualL2_grad_self_, 4},
-    {"_causalOT_otL2_grad_", (DL_FUNC) &_causalOT_otL2_grad_, 0},
-    {"_causalOT_otL2_obj_", (DL_FUNC) &_causalOT_otL2_obj_, 0},
-    {"_causalOT_otL2_grad_self_", (DL_FUNC) &_causalOT_otL2_grad_self_, 0},
-    {"_causalOT_otL2_obj_self_", (DL_FUNC) &_causalOT_otL2_obj_self_, 0},
+    {"_causalOT_bootStrap_", (DL_FUNC) &_causalOT_bootStrap_, 3},
+    {"_causalOT_sbw_oop_bs_", (DL_FUNC) &_causalOT_sbw_oop_bs_, 5},
+    {"_causalOT_entBW_obj_", (DL_FUNC) &_causalOT_entBW_obj_, 3},
+    {"_causalOT_entBW_grad_", (DL_FUNC) &_causalOT_entBW_grad_, 3},
+    {"_causalOT_logSumExp", (DL_FUNC) &_causalOT_logSumExp, 1},
+    {"_causalOT_rowLogSumExp", (DL_FUNC) &_causalOT_rowLogSumExp, 1},
+    {"_causalOT_colLogSumExp", (DL_FUNC) &_causalOT_colLogSumExp, 1},
     {NULL, NULL, 0}
 };
 

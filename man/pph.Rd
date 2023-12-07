@@ -7,6 +7,16 @@
 \format{
 A matrix with 802 rows and 17 variables
 }
+\source{
+Data from the following Harvard Dataverse:
+\itemize{
+\item Winikoff, Beverly, 2019, "Two randomized controlled trials of misoprostol for the treatment of postpartum hemorrhage", https://doi.org/10.7910/DVN/ETHH4N, Harvard Dataverse, V1.
+}
+The data was originally analyzed in
+\itemize{
+\item Blum, J. et al. Treatment of post-partum haemorrhage with sublingual misoprostol versus oxytocin in women receiving prophylactic oxytocin: a double-blind, randomised, non-inferiority trial. The Lancet 375, 217--223 (2010).
+}
+}
 \usage{
 data(pph)
 }
@@ -35,16 +45,6 @@ The variables are as follows:
 \item placenta. whether placenta was delivered before treatment given (1 = yes, 0 = no).
 \item bloodlossattx. amount of blood lost when treatment given (500 mL -- 1800 mL)
 \item sitecode. Which site is the individual from? (1 = Cairo, Egypt,  2 = Turkey,        3 = Hocmon, Vietnam,  4 = Cuchi, Vietnam, and 5 Burkina Faso).
-}
-}
-\seealso{
-Data from the following Harvard Dataverse:
-\itemize{
-\item Winikoff, Beverly, 2019, "Two randomized controlled trials of misoprostol for the treatment of postpartum hemorrhage", https://doi.org/10.7910/DVN/ETHH4N, Harvard Dataverse, V1.
-}
-The data was originally analyzed in
-\itemize{
-\item Blum, J. et al. Treatment of post-partum haemorrhage with sublingual misoprostol versus oxytocin in women receiving prophylactic oxytocin: a double-blind, randomised, non-inferiority trial. The Lancet 375, 217--223 (2010).
 }
 }
 \keyword{datasets}

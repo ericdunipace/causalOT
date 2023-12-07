@@ -5,32 +5,29 @@
 \title{Estimate causal weights}
 \usage{
 calc_weight(
-  data,
-  constraint = NULL,
-  estimand = c("ATE", "ATT", "ATC", "cATE", "feasible"),
-  method = supported.methods(),
-  formula = NULL,
-  transport.matrix = FALSE,
-  grid.search = FALSE,
+  x,
+  z,
+  estimand = c("ATC", "ATT", "ATE"),
+  method = supported_methods(),
+  options = NULL,
+  weights = NULL,
   ...
 )
 }
 \arguments{
-\item{data}{Either a matrix, a data.frame, or a DataSim class. Arguments "balance.covariates" and "treatment.indicator" must be provided in the \code{...} arguments if data is of class data.frame or matrix.}
+\item{x}{A numeric matrix of covariates. You can also pass an object of class \link{dataHolder} or \link{DataSim}, which will make argument \code{z} not necessary,}
 
-\item{constraint}{The constraints or penalties for the weights. See details.}
+\item{z}{A binary treatment indicator.}
 
 \item{estimand}{The estimand of interest. One of "ATT","ATC", or "ATE".}
 
-\item{method}{The method to estimate the causal weights. Must be one of the methods returned by \code{\link[=supported.methods]{supported.methods()}}.}
+\item{method}{The method to estimate the causal weights. Must be one of the methods returned by \code{\link[=supported_methods]{supported_methods()}}.}
 
-\item{formula}{The formula for creating the design matrix used in various methods. See details.}
+\item{options}{The options for the solver. Specific options depend on the solver you will be using and you can use the solver specific options functions as detailed below..}
 
-\item{transport.matrix}{Should the method calculate the transportation matrix if not done as a part of the method (TRUE/FALSE)? Default is FALSE.}
+\item{weights}{The sample weights. Should be \code{NULL} or have a weight for each observation in the data. Normalized to sum to one.}
 
-\item{grid.search}{Should hyperparameters be selected by a grid search? Only available for "SBW" and "COT"/"Wasserstein" methods.}
-
-\item{...}{Many additional arguments are possible depending on the chosen method. See details for more information. Arguments "balance.covariates" and "treatment.indicator" must be provided if data is of class data.frame or matrix.}
+\item{...}{Not used at this time.}
 }
 \value{
 An object of class \link[=causalWeights-class]{causalWeights}
@@ -40,107 +37,73 @@ Estimate causal weights
 }
 \details{
 We detail some of the particulars of the function arguments below.
-\subsection{\code{data}}{
+\subsection{Causal Optimal Transport (COT)}{
 
-The following classes are recognized by the \code{data} variable.
-\subsection{DataSim class}{
-
-The DataSim class is provided by this package for simulations. You can pass a DataSim object (once data has been simulated) to this function
-and it will be recognized and handled appropriately.
+This is the.main method of the package. This method relies on various solvers depending on the particular options chosen. Please see \link[=cotOptions]{cotOptions()} for more details.
 }
 
-\subsection{data.frame or matrix}{
+\subsection{Energy Balancing Weights (EnergyBW)}{
 
-If the \code{data} argument is of class \code{data.frame} or \code{matrix}, then additional arguments are necessary to pass in the dots (\code{...}).
-These \emph{must} include a vector argument \code{balance.covariates} and an integer or character in the \code{treatment.indicator} argument. The
-\code{balance.covariates} argument should be either an integer vector giving the column numbers of the covariates to balance or a character vector
-giving the names of the columns to balance. Similarly, the \code{treatment.indicator} argument should be a integer giving the column number of the
-treatment labels or a character giving the column name.
+This is equivalent to COT with an infinite penalty parameter, \code{options(lambda = Inf)}. Uses the same solver and options as COT, \link[=cotOptions]{cotOptions()}.
 }
 
+\subsection{Nearest Neighbor Matching with replacement (NNM)}{
+
+This is equivalent to COT with a penalty parameter = 0, \code{options(lambda = 0)}. Uses the same solver and options as COT, \link[=cotOptions]{cotOptions()}.
 }
 
-\subsection{Constraints}{
+\subsection{Synthetic Control Method (SCM)}{
 
-The constraint argument is used by the balancing methods like "SBW". This will specify a tolerance for basis function balance.
-
-If method "COT"/"Wasserstein" is used, will specify the penalty parameter to put on the weights. For "ATT" and "ATC" estimands, must be of the form \verb{list(penalty = ###)}, while for estimand "ATE", must be a list of length 2 specifying penalty first for the controls and then for treated: \verb{list(list(penalty = ###), list(penalty = ###))}.
-
-This argument is not needed if \code{grid.search} is TRUE.
+The SCM method is equivalent to an OT problem from a different angle. See \code{\link[=scmOptions]{scmOptions()}}.
 }
 
-\subsection{Formula}{
+\subsection{Entropy Balancing Weights (EntropyBW)}{
 
-For methods "SBW" or "COT", should be a formula object or character without a response but with the covariate functions desired. e.g., "~." includes all covariates without transformation.
-
-For methods "Logistic" and "Probit", a propensity score model either as a formula object or character: "z ~.".
+This method balances chosen functions of the covariates specified in the data argument, \code{x}. See \code{\link[=entBWOptions]{entBWOptions()}} for more details. Hainmueller (2012).
 }
 
-\subsection{Additional arguments in \code{...}}{
+\subsection{Stable Balancing Weights (SBW)}{
 
-In addition to the already mentioned arguments, there are several additional
-optional arguments for the method "COT".
-\itemize{
-\item \code{p}. The power of the Wasserstein distance to use.
-\item \code{metric}. The metric to use for the ground cost function. See \code{\link[=dist.metrics]{dist.metrics()}} for supported distance metrics.
-\item \code{penalty}. What type of penalty should be used on the weights? Must be one of "entropy" or "L2".
-\item \code{add.divergence}. TRUE or FALSE. If TRUE, \code{penalty} defaults to entropy.
-and will calculate the Sinkhorn divergence version of Causal Optimal Transport.
-If choosing Sinkhorn divergences, the Python
-package \code{geomloss} must be installed.
-\item \code{balance.constraints}. The tolerance for the balancing basis function methods.
-\item \code{cost}. If the cost matrix is already calculated, you can supply this to potentially save time.
+Entropy Balancing Weights with a different penalty parameter, proposed by Zuizarreta (2012). See \code{\link[=sbwOptions]{sbwOptions()}} for more details
 }
 
-Additionally, methods like "SBW" and "COT" need the specification of a solver function if using balancing functions, i.e. if the \code{formula} argument is specified.
-\itemize{
-\item \code{solver}. Should be one of "mosek" or "osqp".
+\subsection{Covariate Balancing Propensity Score (CBPS)}{
+
+The CBPS method of Imai and Ratkovic. Options argument is passed to the function \link[CBPS:CBPS]{CBPS()}.
 }
+
+\subsection{Logistic Regression or Probit Regression}{
+
+The main methods historically for implementing inverse probability weights. Options are passed directly to the \code{glm} function from \code{R}.
 }
 }
 \examples{
 set.seed(23483)
-n <- 2^7
+n <- 2^5
 p <- 6
-overlap <- "low"
-design <- "A"
-estimate <- "ATE"
-#### get simulation functions ####
-data <- causalOT::Hainmueller$new(n = n, p = p, 
-      design = design, overlap = overlap)
-      data$gen_data()
-weights <- calc_weight(data = data, 
-      p = p,
-      estimand = estimate,
-      method = "NNM")
-\dontrun{
-# Needs Python package GeomLoss
-COTweights <- calc_weight(data = data, 
-      p = 2,
-      constraint = list(list(penalty = 1000),
-                        list(penalty = 10000)),
-      estimand = estimate,
-      method = "COT",
-      penalty = "entropy",
-      add.divergence = TRUE,
-      verbose = TRUE
-      )
-# with basis function balancing.
- COTweightsBF <- calc_weight(data = data, 
-      p = 2,
-      constraint = list(list(penalty = 1000),
-                        list(penalty = 10000)),
-      estimand = estimate,
-      method = "COT",
-      penalty = "entropy",
-      add.divergence = TRUE,
-      formula = "~.",
-      balance.constraints = 0.2,
-      solver = "osqp",
-      verbose = TRUE
-      )
+#### get data ####
+data <- Hainmueller$new(n = n, p = p)
+data$gen_data()
+x <- data$get_x()
+z <- data$get_z()
+
+if (torch::torch_is_installed()) {
+# estimate weights
+weights <- calc_weight(x = x,
+                                 z = z, 
+                                 estimand = "ATE",
+                                 method = "COT",
+                                 options = list(lambda = 0))
+#we can also use the dataSim object directly
+weightsDS <- calc_weight(x = data,
+                                 z = NULL,
+                                 estimand = "ATE",
+                                 method = "COT",
+                                 options = list(lambda = 0))
+all.equal(weights@w0, weightsDS@w0)
+all.equal(weights@w1, weightsDS@w1)
 }
 }
 \seealso{
-\link[=estimate_effect]{estimate_effect()}
+\code{\link[=estimate_effect]{estimate_effect()}}
 }

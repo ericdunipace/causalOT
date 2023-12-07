@@ -37,7 +37,7 @@ typedef Eigen::LDLT<matrix> ldlt;
 
 typedef Eigen::Map<matrix> matMap;
 typedef Eigen::Map<const matrix> matMapConst;
-typedef Eigen::Map<Eigen::Matrix<long double, Eigen::Dynamic,  Eigen::Dynamic>> matMapLD;
+typedef Eigen::Map<matrixLD> matMapLD;
 typedef Eigen::Map<rowMat> rowMatMap;
 
 typedef Eigen::Map<Eigen::VectorXd> vecMap;
@@ -48,32 +48,4 @@ typedef Eigen::Map<const Eigen::VectorXi> vecMapConstI;
 
 typedef Eigen::SparseMatrix<double> SpMat;
 typedef Eigen::SparseVector<double> SpVec;
-
-typedef Rcpp::NumericVector (*gradCrossPtr)(const SEXP & vars_, 
-                             const SEXP & a_,
-                             const SEXP & b_,
-                             const SEXP& cost_,
-                             double lambda);
-
-typedef double (*objCrossPtr)(const SEXP & vars_, 
-                const SEXP & a_,
-                const SEXP & b_,
-                const SEXP& cost_,
-                double lambda);
-
-typedef Rcpp::NumericVector (*gradSelfPtr)(const SEXP & vars_, 
-                             const SEXP & a_,
-                             const SEXP& cost_,
-                             double lambda);
-
-typedef double (*objSelfPtr)(const SEXP & vars_, 
-                const SEXP & a_,
-                const SEXP& cost_,
-                double lambda);
-
-typedef vector (*omegaPtr)(vector & eta,
-                double lambda);
-
-typedef double (*dblomegaPtr)(vector & eta,
-                double lambda);
 

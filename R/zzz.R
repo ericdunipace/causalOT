@@ -1,20 +1,24 @@
-ot_fun_path <- lp_python_path <- NULL
+# 
+# .onLoad <- function(libname, pkgname) {
+#   softmin_jit <- torch::jit_load("data/softmin.zip")
+#   
+#   assign("softmin_jit", softmin_jit, envir = parent.env(environment()))
+# }
 
-
-#' Python path
-#'
-#' @param libname default args. unused.
-#' @param pkgname default args. unused.
-#'
-#' @details sets variables with paths to python functions after installation.
-#' @keywords internal
-.onLoad <- function(libname, pkgname) {
-  # np <<- reticulate::import("numpy", delay_load = TRUE)
-  # scipy <<- reticulate::import("scipy", delay_load = TRUE)
-  # torch <<- reticulate::import("torch", delay_load = TRUE)
-  ot_fun_path <- file.path(system.file(package="causalOT"), "Python","r_to_OT_imputer.py")
-  pycot_path <- file.path(system.file(package="causalOT"), "Python")
-  
-  assign("ot_fun_path", ot_fun_path, envir = parent.env(environment()))
-  assign("pycot_path", pycot_path, envir = parent.env(environment()))
-}
+# .onAttach <- function(libname, pkgname) {
+#   where <- as.environment("package:causalOT")
+#   clss <- list(
+#     c("DataSim","R6"),
+#     c("Hainmueller", "DataSim","R6"),
+#     c("OT","R6"),
+#     # "cotProblem",
+#     c("COT","R6"),
+#     c("SCM","R6"),
+#     c("balanceFunction", "R6"),
+#     c("EntropyBW", "balanceFunction", "R6"),
+#     c("SBW", "balanceFunction", "R6")
+#   )
+#   sapply(clss, function(cls) {
+#     try(setOldClass(cls, where = where))
+#   })
+# }

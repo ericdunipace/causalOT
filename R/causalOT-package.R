@@ -4,7 +4,6 @@
 #'
 #' @author Eric Dunipace
 #' @name causalOT
-#' @docType package
 #' @useDynLib causalOT, .registration = TRUE
 #' @importFrom Rcpp sourceCpp 
 #' @importFrom Rcpp evalCpp
@@ -12,8 +11,10 @@
 #' @importFrom stats .checkMFClasses .getXlevels as.formula binomial coef contrasts cov delete.response drop.terms formula glm lm median model.frame model.matrix model.response na.pass optim pgamma qchisq qnorm quantile rmultinom runif sd setNames terms var weighted.mean
 #' @importFrom utils capture.output data methods setTxtProgressBar txtProgressBar
 #' @importFrom R6 R6Class
+#' @importFrom methods setOldClass
 #' @rdname causalOT-package
-NULL
+#' @keywords internal 
+"_PACKAGE"
 
 #' An external control trial of treatments for post-partum hemorrhage
 #' 
@@ -42,7 +43,7 @@ NULL
 #'   \item sitecode. Which site is the individual from? (1 = Cairo, Egypt,  2 = Turkey,        3 = Hocmon, Vietnam,  4 = Cuchi, Vietnam, and 5 Burkina Faso).
 #' }
 #' 
-#' @seealso Data from the following Harvard Dataverse: 
+#' @source Data from the following Harvard Dataverse: 
 #' \itemize{
 #' \item Winikoff, Beverly, 2019, "Two randomized controlled trials of misoprostol for the treatment of postpartum hemorrhage", https://doi.org/10.7910/DVN/ETHH4N, Harvard Dataverse, V1. 
 #' }

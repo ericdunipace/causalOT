@@ -1,129 +1,120 @@
-pos_sdef <- function(X, symmetric = FALSE) {
-  p <- ncol(X)
-   if (inherits(X, "dsTMatrix")) {
-     X <- as(as(X, "CsparseMatrix"),"generalMatrix")
-     symmetric <- TRUE
-   }
-   if (inherits(X, "dgTMatrix")) {
-     X <- as(X, "CsparseMatrix")
-     symmetric <- TRUE
-   }
-  if (symmetric) {
-    # emax <- RSpectra::eigs_sym(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs_sym(X, k = 1, which = "LA", sigma = -100,
-                               opts = list(retvec = FALSE,
-                                           maxitr = 2000,
-                                           tol = 1e-7))$values
-  } else {
-    # emax <- RSpectra::eigs(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs(X, k = 1, which = "LA", sigma = -100,
-                           opts = list(retvec = FALSE,
-                                       maxitr = 2000,
-                                       tol = 1e-7))$values
+converged <- function(new, old, tol) {
+  diff = abs(old - new)
+  error = diff / abs(old + .Machine$double.eps)
+  rel_conv <- as.logical(as_numeric(sum(error)) < tol)
+  abs_conv <- as.logical(as_numeric(sum(diff)) < tol * tol)
+  conv_check = rel_conv || abs_conv
+
+  return (conv_check)
+}
+
+# make vector sum to 1
+renormalize <- function(x) {
+  if (all(is.na(x))) return(x)
+  
+  if (isTRUE(any(x < 0))) {
+    warning("Negative weights found! Normalizing to sum to 1 with less accurate function. Make sure negative weights make sense for your problem")
+    return(x/sum(x, na.rm = TRUE))
   }
-  if (emin < 0) {
-    adjust <- abs(emin) + 1e-6
-  } else {
-    return(X)
+  if (isTRUE(all(x == 0)) ) return(rep(0, length(x)))
+  l_x <- log_weights(x)
+  return(exp(l_x - logSumExp(l_x)))
+}
+
+osqp_R6_solve <- function(model, delta, delta_idx, w = NULL, normalize = TRUE) {
+  
+  if (!missing(delta) && !is.null(delta)) {
+    l <- model$GetData(element = "l")
+    u <- model$GetData(element = "u")
+    u[delta_idx] <- delta
+    l[delta_idx] <- -delta
+    model$Update(l = l, u = u)
   }
-  return(X + Matrix::Diagonal(n = p, x = adjust))
-}
-
-check_pos_sdef <- function(X, symmetric = FALSE) {
-  p <- ncol(X)
-  if (inherits(X, "dsTMatrix")) {
-    X <- as(as(X, "CsparseMatrix"),"generalMatrix")
-    symmetric <- TRUE
+  if(!is.null(w) && length(w)>0)  model$WarmStart(x = w)
+  
+  res <- model$Solve()
+  w <- res$x
+  if(normalize) {
+    w[w<0] <- 0
+    w <- renormalize(w)
   }
-  if (inherits(X, "dgTMatrix")) {
-    X <- as(X, "CsparseMatrix")
-    symmetric <- TRUE
+  
+  if (res$info$status_val != 1 && res$info$status_val != 2 ) {
+    # browser()
+    warning("Algorithm did not converge!!! OSQP solver message: ", res$info$status)
   }
-  if (symmetric) {
-    # emax <- RSpectra::eigs_sym(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs_sym(X, k = 1, which = "LA", sigma = -100,
-                               opts = list(retvec = FALSE,
-                                           maxitr = 2000,
-                                           tol = 1e-7))$values
-  } else {
-    # emax <- RSpectra::eigs(X, k = 1, which = "LM")$values
-    emin <- RSpectra::eigs(X, k = 1, which = "LA", sigma = -100,
-                           opts = list(retvec = FALSE,
-                                       maxitr = 2000,
-                                       tol = 1e-7))$values
+  if (res$info$status_val == -3 || res$info$status_val == -4) {
+    stop("Problem infeasible")
   }
-  return(emin < 0)
+  return(w)
 }
 
-robust_sqrt_mat <- function(X) {
-  X <- pos_sdef(X, symmetric = TRUE)
-  return(Matrix::Matrix(chol(X), sparse = TRUE))
-}
-
-# round_pi <- function(f,g, cost, lambda, a, b) {
-#   n <- length(a)
-#   m <- length(b)
-#   
-#   f_prime <- log(a) - f/lambda + row_log_sum_exp((matrix(g, n, m, byrow = TRUE) - cost)/lambda)
-#   f_prime <- f_prime * (f_prime < 0)
-#   
-#   g_prime <- log(b) - g/lambda + col_log_sum_exp((matrix(f, n, m) - cost)/lambda)
-#   g_prime <- g_prime * (g_prime < 0)
-#   
-#   pi_prime <- exp((matrix(f_prime, n, m) + matrix(g_prime, n, m, byrow = TRUE) - cost)/lambda)
-#   err_row <- a - rowSums(pi_prime)
-#   err_col <- b - colSums(pi_prime)
-#   
-#   return(pi_prime + matrix(err_row, n, m) * matrix(err_col,n,m,byrow=TRUE)/ sum(abs(err_row)))
-#   
-# }
-
-round_pi <- function(raw_pi, a, b) {
-  n <- length(a)
-  m <- length(b)
+lbfgs3c_R6_solve <- function(init, options, 
+                             bounds,
+                             objective,
+                             gradient,
+                             ...) {
   
-  x <- a/rowSums(raw_pi)
-  x[x > 1] <- 1
+  fit <- lbfgsb3c::lbfgsb3c(par = init,
+                            fn = objective,
+                            gr = gradient,
+                            lower = bounds[,1],
+                            upper = bounds[,2],
+                            control = options,
+                            ...
+  )
   
-  y <- b/colSums(raw_pi)
-  y[y > 1] <- 1
+  not_conv <- is.null(fit$convergence) || isFALSE(fit$convergence == 0) || is.na(fit$convergence)
+  if(not_conv) warning(fit$message)
   
-  X <- diag(x)
-  Y <- diag(y)
-  
-  pi_prime <-  matrix(x, n, m) *  raw_pi
-  pi_2_prime <- pi_prime * matrix(y, n, m, byrow = TRUE)
-  err_row <- a - rowSums(pi_2_prime)
-  err_col <- b - colSums(pi_2_prime)
-  
-  return(pi_2_prime + matrix(err_row, n, m) * matrix(err_col,n,m,byrow=TRUE)/ sum(abs(err_row)))
+  return(fit$par)
   
 }
 
-sqrt_mat <- function(X, symmetric = FALSE) {
-  p <- ncol(X)
-  decomp <- eigen(X, symmetric = symmetric)
-  return(tcrossprod(decomp$vectors %*% diag(sqrt(abs(decomp$values)), p, p), decomp$vectors))
-}
-
-inv_sqrt_mat <- function(X, symmetric = FALSE) {
-  p <- ncol(X)
-  decomp <- eigen(as.matrix(X), symmetric = symmetric)
-  return(tcrossprod(decomp$vectors %*% diag(1/sqrt(abs(decomp$values)), p, p), decomp$vectors))
-}
-
-inv_mat <- function(X, symmetric = FALSE) {
-  p <- ncol(X)
-  decomp <- eigen(as.matrix(X), symmetric = symmetric)
-  return(tcrossprod(decomp$vectors %*% diag(1/abs(decomp$values), p, p), decomp$vectors))
-}
-
-mahal_transform <- function(X, Y, symmetric = FALSE) {
-  p <- ncol(X)
-  decomp <- eigen(as.matrix(0.5 * cov(X) + 0.5 * cov(Y)), symmetric = symmetric)
-  L_inv <- tcrossprod(decomp$vectors %*% diag(1/sqrt(abs(decomp$values)), p, p), decomp$vectors)
+lbfgs3c_control <- function(...) {
+  control <- list(...)
+  control.names <- c("trace","factr",
+                     "pgtol", "abstol",
+                     "reltol", "lmm",
+                     "maxit", "info")
+  if(is.null(control$maxit) && !is.null(control$niter)) control$maxit <- control$niter
+  control <- control[names(control) %in% control.names]
   
-  return(list(X %*% L_inv, Y %*% L_inv))
+  if (length(control) == 0 || is.null(control) || !is.list(control)) {
+    control <- list(trace = 0L,
+                    factr = 1e7,
+                    pgtol = 0,
+                    abstol = 0,
+                    reltol = 0,
+                    lmm = 5,
+                    maxit = 1000L,
+                    info = FALSE
+    )
+  }
+  
+  if (is.null(control$trace))         control$trace <- 0
+  if (is.null(control$factr))         control$factr <- 1e7
+  if (is.null(control$pgtol))         control$pgtol <- 0
+  if (is.null(control$abstol))        control$abstol <- 0
+  if (is.null(control$reltol))        control$reltol <- 0
+  if (is.null(control$lmm))           control$lmm <- 5
+  if (is.null(control$maxit))         control$maxit <- 1000L
+  if (is.null(control$info))          control$info <- FALSE
+  
+  control$trace <- as.numeric(control$trace)
+  control$factr <- as.numeric(control$factr)
+  control$pgtol <- as.numeric(control$pgtol)
+  control$abstol <- as.numeric(control$abstol)
+  control$reltol <- as.numeric(control$reltol)
+  control$lmm   <-   as.integer(control$lmm)
+  control$maxit <- as.integer(control$maxit)
+  control$info   <- isTRUE(control$info)
+  
+  return(control)
+}
+
+arg_not_used <- function(arg) {
+  return(missing(arg) || all(is.na(arg)) || is.null(arg))
 }
 
 vec_to_row_constraints <- function(rows, cols) {
@@ -135,26 +126,12 @@ vec_to_row_constraints <- function(rows, cols) {
   col_idx <- seq(1,rows*cols,rows)
   
   return(Matrix::sparseMatrix(i = rep(1:rows, each = cols),
-                       j = c(sapply(0:(rows - 1), function(i) i + col_idx)),
-                       x = rep.int(1,rows * cols),
-                       dims = c(rows, rows * cols), repr = "T"))
+                              j = c(sapply(0:(rows - 1), function(i) i + col_idx)),
+                              x = rep.int(1,rows * cols),
+                              dims = c(rows, rows * cols), repr = "C"))
 }
 
 vec_to_col_constraints <- function(rows, cols) {
-  # ones_rows <- Matrix::Matrix(data = 1, nrow = 1, ncol = rows)
-  # diag_cols <- Matrix::Diagonal(cols, x = 1)
-  # return(Matrix::kronecker(ones_rows, diag_cols))
-  
-  
-  return( Matrix::sparseMatrix(i = rep(1:cols, each = rows),
-                                         j = c(sapply(0:(cols - 1), function(i) i * rows + 1:rows)),
-                                         x = rep(1,rows * cols),
-                                         dims = c(cols, rows * cols), repr = "T")
-  
-  )
-}
-
-vec_to_col_constraints_csparse <- function(rows, cols) {
   # ones_rows <- Matrix::Matrix(data = 1, nrow = 1, ncol = rows)
   # diag_cols <- Matrix::Diagonal(cols, x = 1)
   # return(Matrix::kronecker(ones_rows, diag_cols))
@@ -168,331 +145,528 @@ vec_to_col_constraints_csparse <- function(rows, cols) {
   )
 }
 
-zero_mat_sp <- function(rows, cols) {
-  return(Matrix::sparseMatrix(i = integer(0),
-                              j = integer(0),
-                              x = 0,
-                              dims = c(rows, cols), repr = "T"))
-}
-
-form_all_squares <- function(form, data.names) {
-  if (is.character(form)) {
-    split.form   <- strsplit(form, "~")[[1]]
-    form.temp    <- split.form[2]
-    form.outcome <- split.form[1]
-    
-  } else if (inherits(form,"formula")) {
-    nform        <- length(form)
-    form.temp    <- as.character(form[nform])
-    form.outcome <- as.character(form[nform - 1])
-    if (form.outcome == "~") form.outcome <- NULL
+mirror_softmax <- torch::autograd_function( # for mirror descent
+  forward = function(ctx, param) {
+    return(param$log_softmax(1)$exp())
+  },
+  backward = function(ctx, grad_output) {
+    # browser()
+    # grad_output[1L] <- 0.0 # set first gradient to 0 so is identified
+    return(list(param = grad_output))
   }
-  form.terms <- strsplit(form.temp, "\\+")[[1]]
-  is.square  <- grepl("I\\(\\s*\\.\\^2\\s*\\)", form.terms)
-  form.terms <- form.terms[!is.square]
-  form.nsq   <- paste0(form.terms, collapse = "+")
-  square.terms <- NULL
-  if ( any(is.square) ) {
-    square.terms <- paste0("I(",data.names, "^2)", collapse = " + ")
-  }
-  form <- as.formula(paste0(form.outcome,
-                            "~",
-                            paste0(c(form.nsq, square.terms), 
-                                   collapse = " + "))
-  )
-  return(form)
-}
+)
 
-cot.model.matrix <- function(formula, object) {
-  model.matrix( formula, data=object, contrasts.arg = 
-                  lapply(data.frame(object[,sapply(data.frame(object), is.factor)]),
-                         contrasts, contrasts = FALSE))
-}
-
-f.call.list <- function(fun, list.args) {
-  fun <- as.name(as.character(fun))
-  
-  list.args <- list.args[!duplicated(names(list.args))]
-  list.args <- list.args[!sapply(list.args, is.null)]
-  name.args <- lapply(names(list.args), as.name)
-  names(name.args) <- names(list.args)
-  f.call <- as.call(c(list(fun), name.args))
-  
-  return(eval(expr = f.call, envir = list.args))
-}
-
-f.call.list.no.eval <- function(fun, list.args) {
-  fun <- as.name(as.character(fun))
-  
-  list.args <- list.args[!duplicated(names(list.args))]
-  list.args <- list.args[!sapply(list.args, is.null)]
-  name.args <- lapply(names(list.args), as.name)
-  names(name.args) <- names(list.args)
-  f.call <- as.call(c(list(fun), name.args))
-  
-  return(list(expr = f.call, envir = list.args))
-}
-
-#from PropCis package
-z2stat <- function(p1x, nx, p1y, ny, dif) 
+.cubic_interpolate <- function (x1, f1, g1, x2, f2, g2, bounds = NULL) 
 {
-  diff = p1x - p1y - dif
-  if (abs(diff) == 0) {
-    fmdiff = 0
+  if (!is.null(bounds)) {
+    xmin_bound <- bounds[1]
+    xmax_bound <- bounds[2]
+  }
+  else if (x1 <= x2) {
+    xmin_bound <- x1
+    xmax_bound <- x2
   }
   else {
-    t = ny/nx
-    a = 1 + t
-    b = -(1 + t + p1x + t * p1y + dif * (t + 2))
-    c = dif * dif + dif * (2 * p1x + t + 1) + p1x + t * p1y
-    d = -p1x * dif * (1 + dif)
-    v = (b/a/3)^3 - b * c/(6 * a * a) + d/a/2
-    s = sqrt((b/a/3)^2 - c/a/3)
-    if (v > 0) {
-      u = s
-    }
-    else {
-      u = -s
-    }
-    w = (3.141592654 + acos(v/u^3))/3
-    p1d = 2 * u * cos(w) - b/a/3
-    p2d = p1d - dif
-    nxy = nx + ny
-    var = (p1d * (1 - p1d)/nx + p2d * (1 - p2d)/ny) * nxy/(nxy - 
-                                                             1)
-    fmdiff = diff^2/var
+    xmin_bound <- x2
+    xmax_bound <- x1
   }
-  return(fmdiff)
+  d1 <- g1$item() + g2$item() - 3 * (f1 - f2)/(x1 - x2)
+  d2_square <- d1^2 - g1$item() * g2$item()
+  # browser()
+  if (!is.nan(d2_square) && is.finite(d2_square) && d2_square >= 0) {
+    d2 <- sqrt(d2_square)
+    min_pos <- if(x1 == x2) {
+      x2
+    } else if (x1 < x2 ) {
+      x2 - (x2 - x1) * ((g2$item() + d2 - d1)/(g2$item() - g1$item() + 2 * d2))
+    } else {
+      x1 - (x1 - x2) * ((g1$item() + d2 - d1) / (g1$item() - g2$item() + 2 * d2))
+    }
+    return(as.numeric(min(max(min_pos, xmin_bound), xmax_bound)))
+  } else {
+    return(as.numeric((xmin_bound + xmax_bound)/2))
+  }
 }
 
-#from PropCIs package
-scoreci <- function(x, n, conf.level) 
-{
-  zalpha <- abs(qnorm((1 - conf.level)/2))
-  phat <- x/n
-  bound <- (zalpha * ((phat * (1 - phat) + (zalpha^2)/(4 * 
-                                                         n))/n)^(1/2))/(1 + (zalpha^2)/n)
-  midpnt <- (phat + (zalpha^2)/(2 * n))/(1 + (zalpha^2)/n)
-  uplim <- round(midpnt + bound, digits = 4)
-  lowlim <- round(midpnt - bound, digits = 4)
-  cint <- c(lowlim, uplim)
-  attr(cint, "conf.level") <- conf.level
-  rval <- list(conf.int = cint)
-  class(rval) <- "htest"
-  return(rval)
+# cot_torch_bincount <- function (self, weights = list(), minlength = 0L) 
+# {
+#   args <- mget(x = c("self", "weights", "minlength"))
+#   args$self <- torch_sub(args$self, 1L)
+#   expected_types <- list(self = "Tensor", weights = "Tensor", 
+#                          minlength = "int64_t")
+#   nd_args <- "self"
+#   return_types <- list(list("Tensor"))
+#   call_c_function(fun_name = "bincount", args = args, expected_types = expected_types, 
+#                   nd_args = nd_args, return_types = return_types, fun_type = "namespace")
+# }
+
+torch_check <- function() {
+  testthat::skip_if_not_installed("torch")
+  if(!torch::torch_is_installed()) {
+    testthat::skip("Torch is not installed")
+  }
 }
 
-#from PropCis package
-diffpropci <- function(x1, n1, x2, n2, conf.level) 
-{
-  px = x1/n1
-  py = x2/n2
-  z = qchisq(conf.level, 1)
-  proot = px - py
-  dp = 1 - proot
-  niter = 1
-  while (niter <= 50) {
-    dp = 0.5 * dp
-    up2 = proot + dp
-    score = z2stat(px, n1, py, n2, up2)
-    if (score < z) {
-      proot = up2
-    }
-    niter = niter + 1
-    if ((dp < 1e-07) || (abs(z - score) < 1e-06)) {
-      niter = 51
-      ul = up2
-    }
-  }
-  proot = px - py
-  dp = 1 + proot
-  niter = 1
-  while (niter <= 50) {
-    dp = 0.5 * dp
-    low2 = proot - dp
-    score = z2stat(px, n1, py, n2, low2)
-    if (score < z) {
-      proot = low2
-    }
-    niter = niter + 1
-    if ((dp < 1e-07) || (abs(z - score) < 1e-06)) {
-      ll = low2
-      niter = 51
+rkeops_check <- function() {
+  testthat::skip_if_not_installed("rkeops")
+  
+  if (utils::packageVersion("rkeops") >= 2.0 && rlang::is_installed("reticulate")) {
+  } else if (utils::packageVersion("rkeops") < 2.0 ){
+    cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
+                      error = function(e) {0L}
+    )
+    testthat::skip("error in cmake for rkeops")
+    
+    # from rkeops help pages
+    formula = "Sum_Reduction(Exp(-s * SqNorm2(x - y)) * b, 0)"
+    
+    # input arguments
+    args = c("x = Vi(3)",      # vector indexed by i (of dim 3)
+             "y = Vj(3)",      # vector indexed by j (of dim 3)
+             "b = Vj(6)",      # vector indexed by j (of dim 6)
+             "s = Pm(1)")      # parameter (scalar)
+    
+    # compilation of the corresponding operator
+    op <- tryCatch(rkeops::keops_kernel(formula, args),
+             error = function(e) {FALSE})
+    
+    # if an error during compilation, skip
+    if(is.logical(op) && isFALSE(op)) {
+      testthat::skip("error in compilation for rkeops")
     }
   }
-  cint <- c(ll, ul)
-  attr(cint, "conf.level") <- conf.level
-  rval <- list(conf.int = cint)
-  class(rval) <- "htest"
-  return(rval)
+  
 }
 
-entropy <- function(x) {
-  x_pos <- x[x > 0]
-  return(sum(-x_pos * log(x_pos)))
+check_weights_torch <- function(a, x, device) {
+  if(missing(a) || is.null(a) || all(is.na(a))) {
+    a <- rep(1.0/nrow(x), nrow(x))
+  }
+  stopifnot("x must be a torch_tensor" = inherits(x, "torch_tensor"))
+  return(torch::torch_tensor(a, dtype = x$dtype, device = device)$contiguous())
 }
 
-# log sum exp function
-log_sum_exp <- function(x) {
-  # if(is.vector(x)) {
-  if(all(is.infinite(x))) return(x[1])
-  mx <- max(x)
-  x_temp <- x - mx
-  return(log(sum(exp(x_temp)))+ mx)
-  # } else if (is.matrix(x)) {
-  #   mx <- apply(x, 1, max)
-  #   x_temp <- x - mx
-  #   return(log(rowSums(exp(x_temp)))+ mx)
+check_weights_torch_torch <- function(a, x, device) {
+  if(all(as.logical(a$isnan()$to(device = "cpu")))) {
+    a <- rep(1.0/nrow(x), nrow(x))
+  }
+  stopifnot("x must be a torch_tensor" = inherits(x, "torch_tensor"))
+  return(torch::torch_tensor(a, dtype = x$dtype, device = device)$contiguous())
+}
+
+check_weights_numeric <- function(a, x, ...) {
+  if(missing(a) || is.null(a) || all(is.na(a)) ) {
+    a <- rep(1.0/nrow(x), nrow(x))
+  } 
+  return(a)
+}
+
+setOldClass(c("torch_tensor","R7"))
+setGeneric("check_weights", function(a, x, ...) standardGeneric("check_weights"))
+
+setMethod("check_weights", 
+          signature(a = "ANY", x = "torch_tensor"),
+          check_weights_torch)
+
+setMethod("check_weights", 
+          signature(a = "torch_tensor", x = "torch_tensor"),
+          check_weights_torch_torch)
+
+setMethod("check_weights", 
+          signature(a = "ANY", x = "matrix"),
+          check_weights_numeric)
+
+#based on scipy implementation
+scalar_search_armijo <- function(phi, phi0, derphi0, x, dx, c1=1e-4, alpha0=1, amin=0) {
+  #   phi is eval fun scalar
+  #   phi0 is eval at starting values, scalar
+  #   derphi0 is a scalar starting sum of gradients times (proposal - original)
+  #   x is original value, vector
+  #   dx are gradients, vector
+  # 
+  #   Minimize over alpha, the function ``phi(alpha)``.
+  #   Uses the interpolation algorithm (Armijo backtracking) as suggested by
+  #   Wright and Nocedal in 'Numerical Optimization', 1999, pp. 56-57
+  #   alpha > 0 is assumed to be a descent direction.
+  #   Returns
+  #   -------
+  #   alpha
+  #   phi1
+  
+  phi_a0 = phi(x, dx, alpha0)
+  if (as.logical((phi_a0 <= phi0 + c1 * alpha0 * derphi0)$to(device = "cpu"))) {
+    return(list(alpha = alpha0, phi1 = phi_a0))
+  }
+  
+  # Otherwise, compute the minimizer of a quadratic interpolant:
+  alpha1 = -(derphi0) * alpha0 ^ 2 / 2.0 / (phi_a0 - phi0 - derphi0 * alpha0)
+  phi_a1 = phi(x, dx, alpha1)
+  if (as.logical( (phi_a1 <= (phi0 + c1 * alpha1 * derphi0) )$to(device = "cpu"))  && as.logical((alpha1 >= 0)$to(device = "cpu"))  ) {
+    return(list(alpha = alpha1, phi1 = phi_a1))
+  }
+  if (as.logical((alpha1 < 0)$to(device = "cpu")) ) alpha1 <- alpha0 - 0.01  #avoids the negative step size
+  # Otherwise, loop with cubic interpolation until we find an alpha which
+  # satisfies the first Wolfe condition (since we are backtracking, we will
+  # assume that the value of alpha is not too small and satisfies the second
+  # condition.
+  a <- b <- alpha2 <- phi_a2 <- NULL
+  while (as.logical((alpha1 > amin)$to(device = "cpu")) ) {      # we are assuming alpha>0 is a descent direction
+    factor = alpha0^2 * alpha1^2 * (alpha1 - alpha0)
+    if (as.logical((factor == 0)$to(device = "cpu")) ) break
+    a = alpha0^2 * (phi_a1 - phi0 - derphi0 * alpha1) - 
+      alpha1^2 * (phi_a0 - phi0 - derphi0 * alpha0)
+    a = a / factor
+    b = -alpha0^3 * (phi_a1 - phi0 - derphi0 * alpha1) + 
+      alpha1^3 * (phi_a0 - phi0 - derphi0 * alpha0)
+    b = b / factor
+    
+    alpha2 = (-b + sqrt(abs(b^2 - 3 * a * derphi0))) / (3.0 * a)
+    phi_a2 = phi(x,  dx, alpha2)
+    if ( as.logical((phi_a2 <= phi0 + c1 * alpha2 * derphi0)$to(device = "cpu")) && as.logical((alpha2 >= 0)$to(device = "cpu")) ) {
+      return(list(alpha = alpha2, phi1 = phi_a2))
+    }
+    
+    if (as.logical( ((alpha1 - alpha2) > alpha1 / 2.0)$to(device = "cpu")) || as.logical(((1 - alpha2/alpha1) < 0.96)$to(device = "cpu") ) ) {
+      alpha2 = alpha1 / 2.0
+      alpha0 = alpha1
+      alpha1 = alpha2
+      phi_a0 = phi_a1
+      phi_a1 = phi_a2
+    }
+  }
+  
+  # ## brute force
+  # phi_a3 <- NULL
+  # for (alpha3 in seq(alpha0, amin, by = -0.01)) {
+  #   phi_a3 = phi(x + dx * alpha3)
+  #   if (phi_a3 <= (phi0 + c1 * alpha3 * derphi0) ) {
+  #     return(list(alpha = alpha3, phi1 = phi_a3))
+  #   }
   # }
-}
-
-# log sum exp for two vectors
-log_sum_exp2 <- function(x,y) {
-  mx <- pmax(x,y)
-  # if(is.infinite(mx)) return(mx)
   
-  temp <- cbind(x,y) - mx
-  temp[mx == -Inf,] <- -Inf
-  return(log(rowSums(exp(temp))) + mx)
+  # Failed to find a suitable step length
+  return(list(alpha = NULL, phi1 = phi_a1))
 }
 
-# log sum exp function by column
-col_log_sum_exp <- function(x) {
-  # if(is.vector(x)) {
-  if(all(is.infinite(x))) return(x[1])
-  mx <- apply(x,2,max)
-  mx_mat <- matrix(mx,nrow(x),ncol(x),byrow=TRUE)
-  x_temp <- x - mx_mat
-  return(log(colSums(exp(x_temp))) + mx)
-  # } else if (is.matrix(x)) {
-  #   mx <- apply(x, 1, max)
-  #   x_temp <- x - mx
-  #   return(log(rowSums(exp(x_temp)))+ mx)
-  # }
-}
+original_cubic <- get(".cubic_interpolate", envir = asNamespace("torch"))
 
-# log sum exp function by row
-row_log_sum_exp <- function(x) {
-  # if(is.vector(x)) {
-  if(all(is.infinite(x))) return(x[1])
-  mx <- apply(x,1,max)
-  mx_mat <- matrix(mx,nrow(x),ncol(x))
-  x_temp <- x - mx_mat
-  return(log(rowSums(exp(x_temp))) + mx)
-  # } else if (is.matrix(x)) {
-  #   mx <- apply(x, 1, max)
-  #   x_temp <- x - mx
-  #   return(log(rowSums(exp(x_temp)))+ mx)
-  # }
-}
-
-# make vector sum to 1
-renormalize <- function(x) {
-  if (all(is.na(x))) return(x)
-  
-  if (isTRUE(any(x < 0))) {
-    # warning("Negative weights found! Normalizing to sum to 1 with less accurate function. Make sure negative weights make sense for your problem")
-    return(x/sum(x, na.rm = TRUE))
-  }
-  if (isTRUE(all(x == 0)) ) return(rep(0, length(x)))
-  l_x <- log(x)
-  return(exp(l_x - log_sum_exp(l_x)))
-}
-
-# project weights onto simplex
-simplex_proj <- function(y) { #simplex projection of Condat 2015
-  N <- length(y)
-  v <- v_tilde <- rep(NA_real_, N)
-  v_count <- 1
-  vt_count <- 0
-  v[1] <- y[1]
-  rho <- y[1] - 1
-  
-  for(n in 2:N) {
-    if(y[n] > rho){
-      rho <- rho + (y[n] - rho)/(v_count + 1)
-      if(rho > y[n] - 1) {
-        v[v_count + 1] <- y[n]
-        v_count <- v_count + 1
-      } else {
-        v_tilde[(vt_count+1):(v_count + vt_count)] <- v[1:v_count]
-        vt_count <- vt_count + v_count
-        v[[1]] <- y[n]
-        v[2:N] <- NA_real_
-        rho <- y[n] - 1
-        v_count <- 1
-      }
+torch_lbfgs_check <- function(opt){
+  if (inherits(opt, "optim_lbfgs")) {
+    cb <- .cubic_interpolate
+    tmpfun <- get(".cubic_interpolate", envir = asNamespace("torch"))
+    environment(cb) <- environment(tmpfun)
+    attributes(cb) <- attributes(tmpfun)
+    utils::assignInNamespace(".cubic_interpolate", cb, "torch" )
+    
+    ln_srch <- opt$defaults$line_search_fn
+    no_ls <- (is.null(ln_srch) || is.na(ln_srch) || ln_srch != "strong_wolfe")
+    if(no_ls ) {
+      warning(" Torch's LBFGS doesn't work well without 'strong_wolfe' line search on this problem. Specify it with line_search_fn = 'strong_wolfe' in the appropriate options argument.")
     }
   }
-  if(!all(is.na(v_tilde))) { #ie, output non-empty
-    v_tilde <- v_tilde[!is.na(v_tilde)]
-    for(x in v_tilde) {
-      if(x > rho) {
-        v[[v_count]] <- x
-        v_count <- v_count + 1
-        rho <- rho + (x - rho)/v_count
-      }
+}
+
+torch_cubic_reassign <- function() {
+  utils::assignInNamespace(".cubic_interpolate", original_cubic, "torch" )
+}
+
+lr_reduce = function(sched, loss) {
+  if (is.null(sched)) return(TRUE)
+  
+  check <- TRUE
+  
+  if (inherits(sched, "lr_reduce_on_plateau")) {
+    old_mode <- sched$threshold_mode
+    if (as.logical(loss == sched$best) ) sched$threshold_mode <- "abs"
+    
+    init_lr <- sched$optimizer$defaults$lr
+    lr <- tryCatch(
+      sched$get_lr(),
+      error = function(e) sapply(sched$optimizer$state_dict()$param_groups, function(p) p[["lr"]])
+    )
+    min_lr <- sched$min_lrs[[1]]
+    
+    # if ( sched$num_bad_epochs == sched$patience && init_lr != lr) {
+    if(abs(lr - min_lr)/lr < 1e-3) {
+      check <- TRUE 
+    } else {
+      check <- FALSE
+    }
+    sched$step(loss)
+    sched$threshold_mode <- old_mode
+  } else {
+    sched$step(loss)
+  }
+    
+  
+  return(check)
+}
+
+#' @export
+is.na.torch_tensor <- function(x) {
+  is.nan.torch_tensor(x)
+}
+
+#' @export
+is.nan.torch_tensor <- function(x) {
+  as.logical(x$isnan()$to(device = "cpu"))
+}
+
+is_torch_tensor <- function(x) {
+  inherits(x, "torch_tensor")
+}
+
+as_numeric <- function(x) {
+  return(as.numeric(switch(is_torch_tensor(x) + 1L,
+                    x,
+                    x$to(device = "cpu"))))
+}
+
+
+as_matrix <- function(x) {
+  return(as.matrix(switch(is_torch_tensor(x) + 1L,
+                           x,
+                           x$to(device = "cpu"))))
+}
+
+as_logical <- function(x) {
+  return(as.logical(switch(is_torch_tensor(x) + 1L,
+                          x,
+                          x$to(device = "cpu"))))
+}
+
+get_device <- function(...) {
+  args <- list(...)
+  nargs <- ...length()
+  device <- vector("list", nargs) |> setNames(...names())
+  for(i in 1:nargs) {
+   if (inherits(args[[i]], "torch_tensor"))  {
+     device[[i]] <- args[[i]]$device
+   } else {
+     device[[i]] <- torch::torch_device("cpu")
+   }
+  }
+  return(device)
+}
+
+get_dtype <- function(...) {
+  args <- list(...)
+  nargs <- ...length()
+  dtype <- vector("list", nargs) |> setNames(...names())
+  for(i in 1:nargs) {
+    if (inherits(args[[i]], "torch_tensor"))  {
+      dtype[[i]] <- args[[i]]$dtype
+    } else {
+      dtype[[i]] <- torch::torch_double()
     }
   }
-  change <- 1
-  v_count <- sum(!is.na(v))
-  while(change == 1) {
-    change <- 0
-    v <- v[!is.na(v)]
-    for(n in 1:length(v)) {
-      x <- v[n]
-      if(x <= rho) {
-        v[[n]] <- NA_real_
-        v_count <- v_count - 1
-        rho <- rho + (rho - x)/v_count
-        change <- 1
-      }
+  return(dtype)
+}
+
+cuda_device_check <- function(device) {
+  if (is.null(device)) {
+    cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1
+    if (cuda_opt) {
+      device <-  torch::torch_device("cuda")
+    } else {
+      device <-  torch::torch_device("cpu")
+    }
+  } 
+  stopifnot("device argument must be NULL or an object of class 'torch_device'" = torch::is_torch_device(device))
+  return(device)
+}
+
+cuda_dtype_check <- function(dtype, device = NULL) {
+  #dtype
+  stopifnot("device not set" = !is.null(device))
+  if ( is.null(dtype) ) {
+    if (grepl("cuda", capture.output(print(device)) ) ) {
+      dtype <- torch::torch_float()
+    } else {
+      dtype <- torch::torch_double()
     }
   }
-  tau <- rho
-  K <- sum(!is.na(v))
-  x <- pmax(y - tau, 0)
-  return(x)
+  stopifnot("Argument 'dtype' must be of class 'torch_dtype'. Please see '?torch_dtype' for more info." = torch::is_torch_dtype(dtype))
+  
+  return(dtype)
 }
 
+jacobian_torch <- function(vector_function, parameters) {
+  stopifnot("parameters must be a list"= is.list(parameters))
+  # stopifnot("losses must be a list" = is.list(losses))
+  
+  n_param <- length(parameters)
+  n_fun   <- length(vector_function)
+  nc      <- ncol(vector_function)
+  stopifnot("input must be a vector not a matrix" = is.na(nc) || nc==1)
+  
+  deriv_list <- vector("list", n_fun)
 
-#' Covert the 2-dimensional index to 1-dimensional index
-#'
-#' @param i Index of row
-#' @param j Index of column
-#' @param n Total number of rows
-#' @param m Total number of columns
-#'
-#' @return a 1d index for easy matrix entry
-#' 
-#' @keywords internal
-dist_2d_to_1d <- function (i, j, n, m) {
-  valid <- (i >= 1) & (j >= 1) & (i <= n) & (j <= m)
-  k <- (j - 1) * n + i
-  k[!valid] <- NA_real_
-  return(k)
+  for (i in 1:n_fun) {
+    deriv_list[[i]] <- torch::autograd_grad(vector_function[i],
+                         inputs = parameters,
+                         retain_graph = TRUE,
+                         create_graph = TRUE,
+                         allow_unused = TRUE)
+  }
+  # deriv_list <- lapply(1:n_fun, function(i) torch::autograd_grad(vector_function[i], 
+  #                                                                           inputs = parameters,
+  #                                                                           retain_graph = TRUE,
+  #                                                                           create_graph = TRUE,
+  #                                                                           allow_unused = TRUE))
+  
+  first_derivatives <- lapply(X = deriv_list, 
+                              FUN = .none_deriv_to_zeros,
+                              parameters = parameters
+                              )
+  
+  return(
+    torch::torch_vstack(first_derivatives)$transpose(-1,1)
+  )
 }
 
-
-seed.gen <- function(design, overlap, niter, seed) {
+.none_deriv_to_zeros <- function(derivs, parameters) {
   
-  nd <- length(design)
-  no <- length(overlap)
-  ni <- as.integer(niter)
+  deriv_out <- vector("list", length(parameters))
   
-  num.seeds <- nd*no*ni
+  for (p in seq_along(parameters) ) {
+    deriv_out[[p]] <- if(derivs[[p]]$numel() == 0) {
+      torch::torch_zeros_like(parameters[[p]])
+    } else {
+      derivs[[p]]
+    }
+  }
   
-  set.seed(seed)
-  
-  seeds.out <- sample.int(.Machine$integer.max, num.seeds, replace = FALSE)
-  
-  return(seeds.out)
+  return( torch::torch_hstack(deriv_out) )
 }
 
-
-`%+%` <- direct_sum <- function(f, g) {
-  n <- length(f)
-  m <- length(g)
+hessian_torch <- function(loss, parameters) {
+  stopifnot("parameters must be a list"= is.list(parameters))
   
-  return(matrix(f, n,m) + matrix(g, n, m, byrow = TRUE))
+  n_param <- length(parameters)
+  
+  param_lengths <- sapply(parameters, length)
+  total_n       <- sum(param_lengths)
+  param_idx     <- .get_parameter_indices(param_lengths)
+  hessian_out  <- torch::torch_zeros(c(total_n, total_n),
+                                     dtype = parameters[[1]]$dtype,
+                                     device = parameters[[1]]$device)
+  
+  first_deriv <- torch::autograd_grad(loss, 
+                               parameters, 
+                               retain_graph = TRUE, 
+                               create_graph = TRUE,
+                               allow_unused = TRUE)
+  
+  indexes_def <- .check_undefined_grad(first_deriv)
+  hessian_list <- vector("list", length(indexes_def))
+  cur_deriv <- NULL
+  cur_idx   <- NULL
+  
+  for (p in seq_along(indexes_def)) {
+    cur_idx <- indexes_def[[p]]
+    cur_deriv <- first_deriv[[cur_idx]]
+    hessian_list[[p]] <- .second_deriv(cur_deriv, parameters)
+  }
+  
+  used_idx <- unlist(param_idx[indexes_def])
+  target_hessian <- torch::torch_vstack(hessian_list)$detach()
+  hessian_out[used_idx][, used_idx] <- target_hessian
+  
+  return(
+    hessian_out
+  )
+  
 }
+
+.get_parameter_indices <- function(p_lengths) {
+  
+  n          <- sum(p_lengths)
+  idx        <- 1:n
+  cur_idx    <- 1L
+  cur_length <- NULL
+  out_idx    <- vector("list", length(p_lengths))
+  
+  for (p in seq_along(p_lengths) ) {
+    cur_length   <- p_lengths[[p]]
+    out_idx[[p]] <- cur_idx:(cur_idx +  cur_length - 1L)
+    cur_idx      <- cur_idx + cur_length 
+  }
+  
+  return( out_idx )
+  
+}
+
+.check_undefined_grad <- function(derivatives) {
+  
+  # is_none <- sapply(derivatives, function(p) p$numel() == 0)
+  # none_idx <- which(is_none)
+  
+  not_none <- sapply(derivatives, function(p) p$numel() != 0)
+  
+  return(which(not_none))
+  
+}
+
+.second_deriv <- function(first_param, parameters) {
+  
+  length_first <- length(first_param)
+  selection_vector <- torch::torch_zeros(length_first,
+                                         dtype = torch::torch_long(),
+                                         device = first_param$device)
+  ag_output <- NULL
+  ag_vectors <- vector("list", length_first)
+  
+  for (i in 1:length_first) {
+    selection_vector$copy_(0L)
+    selection_vector[i] <- 1L
+
+    ag_output <- torch::autograd_grad(outputs = first_param, 
+                               inputs = parameters, 
+                               grad_outputs = selection_vector,
+                               retain_graph = TRUE, 
+                               create_graph = FALSE,
+                               allow_unused = TRUE)
+    ag_vectors[[i]] <- .none_deriv_to_zeros(ag_output, parameters)$detach()
+    
+  }
+  
+  return(torch::torch_vstack(ag_vectors))
+}
+
+.idx_2d_to_1d <- function(idx, nrow, ncol) {
+  rep_idx <- rep(idx,length(idx))
+  out_idx <-  rep_idx + nrow * (rep(idx, each = length(idx)) - 1L)
+  stopifnot(max(out_idx) <= nrow*ncol)
+  return(out_idx)
+}
+  
+# R6_bootStrap <- function() {
+#   n <- self$n
+#   m <- self$m
+#   a <- self$a
+#   b <- self$b
+#   
+#   a_tilde <- rmultinom(1, n, prob = a)/n
+#   b_tilde <- rmultinom(1, m, prob = b)/m
+#   
+#   return(list(a = a_tilde, b = b_tilde))
+# }
+# 
+# R6_boot <- function(w_list) {
+#   masses <- private$bootStrap()
+#   a <- masses$a
+#   b_tilde <- masses$b
+#   n <- self$n
+#   m <- self$m
+#   
+#   means <- rep(NA_real_, length(w_list))
+#   for(i in seq_along(w_list)) {
+#     w <- w_list[i]
+#     stopifnot(length(w) == n)
+#     w_tilde <- renormalize(w *rmultinom(1, n, prob = a))
+#     means[i] <- self$eval(w_tilde, b_tilde)
+#   }
+#   
+#   return(means)
+# }

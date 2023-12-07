@@ -1,7 +1,6 @@
 <!-- badges: start -->
-
 [![R-CMD-check](https://github.com/ericdunipace/causalOT/actions/workflows/check-standard.yaml/badge.svg)](https://github.com/ericdunipace/causalOT/actions/workflows/check-standard.yaml)
-
+[![CRAN status](https://www.r-pkg.org/badges/version/causalOT)](https://CRAN.R-project.org/package=causalOT)
 <!-- badges: end -->
 
 # causalOT: Optimal transport methods for causal inference
@@ -27,10 +26,6 @@ After downloading the git package using `git clone` or by downloading the .zip f
 ### 3. CRAN
 
 A stable version of this package is available on [CRAN](https://CRAN.R-project.org/package=causalOT), but usually this GitHub will have the latest version.
-
-## Additional required software
-
-If using Causal Optimal Transport based on the Sinkhorn divergence, you will need to install Python 3.x and the `geomloss` package, which depends on `numpy`, `scipy`, `torch`, and `pykeops`.
 
 ## Usage
 

@@ -1,245 +1,205 @@
-.cost_fun_deprecated <- function(x, y, power = 2, metric = c("mahalanobis","Lp","RKHS"), 
-                     rkhs.args = NULL, estimand = "ATE", ...) {
-  direction <- "rowwise"
-  metric <- match.arg(metric)
-  
-  dist <- switch(metric, 
-         "Lp" = cost_calc_lp(x,y,ground_p = power, direction = direction),
-         "mahalanobis" = cost_mahalanobis(x,y, ground_p = power, direction = direction),
-         "RKHS" = cost_RKHS(X = x, Y = y, rkhs.args = rkhs.args, estimand = estimand, ...))
-  
-  return(dist)
-  
-}
-
-#' Calculate cost matrix for a given estimand
-#'
-#' @param x An object of class `matrix`
-#' @param z A treatment indicator with values in 0 and 1. Should be of class
-#' `integer` or `vector`
-#' @param power The power used to calculate the the cost matrix: \eqn{\{(x-y)^{power}\}^{(1/{power})}}
-#' @param metric One of the values in [dist.metrics][dist.metrics()].
-#' @param estimand The estimand desired for the weighting estimator. See details
-#' @param ... Arguments passed to the RKHS calculating function including
-#' \itemize{
-#' \item `kernel`, one of "RBF", "polynomial", "linear"
-#' \item `rkhs.args` The arguments used to construct the kernel
-#' }
-#' `...` can also be used to handle extra arguments passed by mistake so that
-#' an error is not thrown.
-#' 
-#' @details 
-#' If the estimand is "ATT" or "ATC", `cost_fun` will calculate 
-#' the cost matrix where the rows are the control
-#' and the columns are the treated. If "ATE" will calculate to cost matrices
-#' with the first having the rows corresponding to the control individual and the
-#' second having rows correspond to the treated individuals. For both matrices,
-#' the columns will correspond to the full sample. The dimensions of the output will
-#'  depend on the estimand. For reference, let \eqn{n_1 = \sum_i z_i}, 
-#'  \eqn{n_0 = \sum_i (1-z_i)}, and \eqn{n = n_1 + n_0}.
-#' 
-#'
-#' @return Output depends on the estimand.
-#' * For ATT and ATC: a matrix of dimension \deqn{n_0 \times n_1}{n_0 * n_1}.
-#' * For ATE: a list of two matrices of dimension \eqn{n_0 \times n}{n_0 * n} and \eqn{n_1 \times n}.
-#' See details for more information.
-#' 
-#' @export
-#'
-#' @examples
-#' n0 <- 100
-#' n1 <- 55
-#' d <- 5
-#' x1 <- matrix(stats::rnorm(n1*d), n1, d)
-#' x0 <- matrix(stats::rnorm(n0*d), n0, d)
-#' 
-#' x <- rbind(x0,x1)
-#' z <- c(rep(0,n0), rep(1,n1))
-#' power <- 2.0
-#' 
-#' # ATT
-#' estimand <- "ATT"
-#' metric <- "Lp"
-#' cost_ATT <- cost_fun(x, z, power = power, metric = metric, estimand = estimand)
-#' print(dim(cost_ATT))
-#' 
-#' # ATE
-#' estimand <- "ATE"
-#' cost_ATT <- cost_fun(x, z, power = power, metric = metric, estimand = estimand)
-#' length(cost_ATT)
-cost_fun <- function(x, z, power = 2, metric = dist.metrics(), 
-                     estimand = "ATE", ...) {
-  metric <- match.arg(metric)
-  
-  dist <- switch(metric, 
-                 "Lp" = cost_metric_calc(x,z,ground_p = power, metric = metric, estimand = estimand),
-                 "mahalanobis" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "sdLp" = cost_metric_calc(x,z,ground_p = power,  metric = metric, estimand = estimand),
-                 "RKHS" = cost_RKHS(X = x, z = z, estimand = estimand, ...))
-  
-  return(dist)
-  
-}
-
-cost_metric_calc <- function(x,z,ground_p, metric = c("mahalanobis","Lp","sdLp"), estimand) {
-  direction <- "rowwise"
-  metric <- match.arg(metric)
-  
-  cost_function <- switch(metric,
-                          "Lp" = "cost_calc_lp",
-                          "mahalanobis" = "cost_mahalanobis",
-                          "sdLp" = "cost_calc_sdlp")
-  
-  if (estimand == "ATT" | estimand == "ATC") {
-    return(match.fun(cost_function)(X = x[z == 0, , drop = FALSE], 
-                                    Y = x[z == 1, , drop = FALSE], ground_p = ground_p, direction = direction,
-                                    estimand = estimand))
-  } else if (estimand == "ATE") {
-    return(list(
-      match.fun(cost_function)(X = x[z == 0, , drop = FALSE], Y = x, ground_p = ground_p, 
-                               direction = direction,
-                               estimand = estimand),
-      match.fun(cost_function)(X = x[z == 1, , drop = FALSE], Y = x, ground_p = ground_p, 
-                               direction = direction,
-                               estimand = estimand)
-    ))
-  }
-}
-
-cost_calc_lp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"), ...) {
-  
-  dir <- match.arg(direction)
-  if (!is.matrix(X)) {
-    X <- as.matrix(X)
-  }
-  if (!is.matrix(Y)) {
-    Y <- as.matrix(Y)
-  }
-  if (dir == "rowwise") {
-    if (ncol(X) != ncol(Y)) {
-      stop("ncol X and Y should be equal. They can have different numbers of observations")
-    }
-    X <- t(X)
-    Y <- t(Y)
+# main cost function in the package
+cost <- function(x, y, p = 2, tensorized = TRUE, cost_function = NULL) {
+  if(missing(p) || is.null(p) || is.na(p)) p <- 2L
+  cfm <- (missing(cost_function) || is.null(cost_function))
+  if (inherits(cost_function, "character") ) {
+    costObj <- costOnline$new(x, y, p = p, cost_function = cost_function)
+    
+  } else if (cfm && isTRUE(tensorized)) {
+    costObj <- costTensor$new(x, y, p = p, cost_function = cost_function)
+  } else if (isFALSE(tensorized) && cfm) {
+    costObj <- costOnline$new(x, y, p = p, cost_function = cost_function)
+  } else if(inherits(cost_function, "function") && isTRUE(tensorized) ) {
+    costObj <- costTensor$new(x, y, p = p, cost_function = cost_function)
+  } else if (is.function(cost_function) && isFALSE(tensorized) ){
+    stop("cost_function must be either not given or a keops recognized character of functions.")
   } else {
-    if (nrow(X) != nrow(Y)) {
-      stop("Number of covariates of X and Y should be equal.")
-    }
+    stop("cost options combination not accounted for! Please report this bug.")
   }
-  stopifnot(ground_p > 0)
-  
-  return(cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
+  return(costObj)
 }
-
-cost_calc_sdlp <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"), estimand = "ATE") {
-  dir <- match.arg(direction)
-  if (!is.matrix(X)) {
-    X <- as.matrix(X)
-  }
-  if (!is.matrix(Y)) {
-    Y <- as.matrix(Y)
-  }
-  if (dir == "rowwise") {
-    if (ncol(X) != ncol(Y)) {
-      stop("ncol X and Y should be equal. They can have different numbers of observations")
-    }
-    X <- t(X)
-    Y <- t(Y)
-  } else {
-    if (nrow(X) != nrow(Y)) {
-      stop("Number of covariates of X and Y should be equal.")
-    }
-  }
-  stopifnot(ground_p > 0)
-  
-  if (estimand == "ATE") {
-    scale <- 1/matrixStats::rowSds(Y)
-    center <- rowMeans(Y)
-  } else  {
-    total <- cbind(X,Y)
-    scale <- 1/matrixStats::rowSds(total)
-    center <- rowMeans(total)
-  } 
-  
-  X <-  scale * (X - center)
-  Y <-  scale * (Y - center)
-  
-  if (any(is.infinite(scale)) ) {
-    nonzero.idx <- is.finite(scale)
-    X <- X[nonzero.idx, , drop = FALSE]
-    Y <- Y[nonzero.idx, , drop = FALSE]
-  }
-  
-  return(cost_calculation_(A_ = X, B_ = Y, p = as.double(ground_p))) 
-}
-
-cost_mahalanobis <- function(X, Y, ground_p = 2, direction = c("rowwise", "colwise"),
-                             estimand = "ATT") {
-  
-  dir <- match.arg(direction)
-  
-  if (dir == "rowwise") {
-    if (ncol(X) != ncol(Y)) {
-      stop("ncol X and Y should be equal. They can different numbers of observations")
-    }
-    X <- t(X)
-    Y <- t(Y)
-  }
-  
-  if (!is.double(ground_p) ) ground_p <- as.double(ground_p)
-  if (nrow(X) != nrow(Y)) {
-    stop("Number of covariates of X and Y should be equal.")
-  }
-  
-  return( cost_mahal_(A_ = X, B_ = Y, p = ground_p, estimand = estimand) )
-}
-
-cost_RKHS <- function(X, z, 
-                      kernel = c("RBF", "polynomial", "linear"),
-                      rkhs.args = list(p = 1.0, 
-                                        theta = c(1,1), 
-                                        gamma = c(1,1), 
-                                        is.dose = FALSE),
-                      estimand = "ATE", ...
-                      ){
-  if(is.null(rkhs.args)) stop("rkhs args must be specified")
-  kernel <- match.arg(kernel)
-  # dir <- match.arg(direction)
-  # 
-  # if(dir == "rowwise") {
-  #   if (ncol(X) != ncol(Y)) {
-  #     stop("ncol X and Y should be equal. They can different numbers of observations")
-  #   }
-  #   X <- t(X)
-  #   Y <- t(Y)
-  # }
-  
-  # if ( ncol(X) != ncol(Y) ) {
-  #   stop("Number of covariates of X and Y should be equal.")
-  # }
-  
-  # covars <- rbind(X,Y)
-  # z <- c(rep(0,nrow(X)), rep(1, nrow(Y)))
-  
-  dist <- ot_kernel_calculation(X = X, z = z, 
-                                p = rkhs.args$p, 
-                               theta = rkhs.args$theta, 
-                               gamma = rkhs.args$gamma,
-                               kernel = kernel,
-                               metric = "mahalanobis",
-                               is.dose = rkhs.args$is.dose, 
-                               estimand = estimand)
-  if(estimand != "ATE") {
-    dist <- dist[[1]]
-  #   dist <- dist[[1]][1:nrow(X), (nrow(X) + 1):nrow(covars)]
-  }
-  return( dist )
-}
+costParent <- R6::R6Class("cost",
+            public = list(
+              data = "torch_tensor",
+              fun = "function",
+              p   = "numeric",
+              reduction = "function",
+              algorithm = "character"
+            ))
+costTensor <- R6::R6Class("costTensor",
+         inherit = costParent,
+         public = list(
+           initialize = function(x, y, p = 2, cost_function = NULL) {
+             self$p = as.numeric(p)
+             cfm <- (missing(cost_function) || is.null(cost_function))
+             if (cfm) {
+               self$fun <- function(x1, x2, p) {
+                 if(!inherits(x1, "torch_tensor")) {
+                   x1 <- torch::torch_tensor(x1, dtype = torch::torch_double())
+                 }
+                 if(!inherits(x2, "torch_tensor")) {
+                   x2 <- torch::torch_tensor(x2, dtype = torch::torch_double())
+                 }
+                 ((1/p) * torch::torch_cdist(x1 = x1, 
+                                             x2 = x2, 
+                                             p = p)^p)$contiguous()
+               }
+               if( p  == 1) {
+                 self$algorithm = "L1"
+               } else if (p == 2) {
+                 self$algorithm = "squared.euclidean"
+               } else {
+                 self$algorithm = "other"
+               }
+             } else if(inherits(cost_function, "function") ) {
+              # self$fun <- function(x, y, p) {
+              #   (1/p) * cost_function(x, y, p)^p
+              # }
+               self$fun <- cost_function                          
+               self$algorithm = "user"
+             } else {
+               stop("cost function not found. please report this bug")
+             }
+             self$data =  self$fun(x, y, p)
+             
+             if(!inherits(self$data, "torch_tensor")) {
+               self$data <-torch::torch_tensor(
+                 self$data,
+               dtype = torch::torch_double())$contiguous()
+             }
+           }
+         ),
+         active = list(
+           to_device = function(device) {
+             if(missing(device) || is.null(device) ){
+               return(NULL)
+             }
+             self$data <- self$data$to(device = device)
+             return(invisible(self))
+           }
+         )
+)
+costOnline <- R6::R6Class("costOnline",
+         inherit = costParent,
+         public = c(
+           initialize = function(x, y, p = 2, cost_function = NULL) {
+             self$p = p
+             if (missing(cost_function) || is.null(cost_function) || is.na(cost_function)) {
+               self$algorithm <- if (p == 2) {
+                 "squared.euclidean"
+               } else if (p == 1) {
+                 "L1"
+               } else {
+                 "other"
+               }
+               cost_function <-  if (p == 2) {
+                 "(SqDist(X,Y) / IntCst(2))"
+               } else if (p == 1) {
+                 "Sum(Abs(X-Y))"
+               } else if (is.integer(p)) {
+                 paste0("(Sum(Pow(Abs(X-Y),",p,")) /  IntCst(",p,"))")
+               } else {
+                 stop("'p' must be an integer for online cost functions.")
+               }
+             } else if (!is.character(cost_function)) {
+               stop("cost_function must be not provided or a keops recognized character function.")
+             } else {
+               self$algorithm <-  "user"
+             }
+             
+            self$data = list(x = x, 
+                             y = y)
+            self$fun = cost_function
+            self$reduction = function(...){NULL}
+           }
+         ),
+         active = list(
+           to_device = function(device) {
+             if (missing(device) || is.null(device)) {
+               return(NULL)
+             }
+             self$data$x <- self$data$x$to(device = device)
+             self$data$y <- self$data$y$to(device = device)
+             return(invisible(self))
+           }
+      )
+)
 
 
-cost_factor <- function(x, z) {
-  x0 <- x[z==0]
-  x1 <- x[z==1]
-  
-  return(sapply(x1, function(y1) sapply(x0, function(y0) as.numeric(y0 == y1))))
+to_device <- function(cost, device) {UseMethod("to_device")}
+# setGeneric("to_device", function(cost, device) standardGeneric("to_device"))
+
+# setOldClass(c("costParent","R6"))
+# setOldClass(c("costTensor","costParent"))
+# setOldClass(c("costOnline", "costParent"))
+
+to_device.costTensor <- function(cost, device) {
+  function(cost, device) {
+    cost$data <- cost$data$to(device = device)
+    return(cost)
+  }
 }
+
+# setMethod("to_device", signature(cost = "costTensor", device = "ANY"),
+# function(cost, device) {
+#   cost$data <- cost$data$to(device = device)
+#   return(cost)
+# }
+# )
+
+to_device.costOnline <- function(cost, device) {
+  cost$data <- list(x = cost$data$x$to(device = device),
+                    y = cost$data$y$to(device = device))
+  return(cost)
+}
+
+# setMethod("to_device", signature(cost = "costOnline", device = "ANY"),
+#           function(cost, device) {
+#             cost$data <- list(x = cost$data$x$to(device = device),
+#                               y = cost$data$y$to(device = device))
+#             return(cost)
+#           }
+# )
+
+update_cost <- function(cost, x, y) {UseMethod("update_cost")}
+setGeneric("update_cost", function(cost, x, y) standardGeneric("update_cost"))
+
+update_cost.costOnline <- function(cost, x, y) {
+  n <- nrow(cost$data$x)
+  m <- nrow(cost$data$y)
+  stopifnot("data for cost rows has different number of rows" = (n == nrow(x)))
+  stopifnot("data for cost columns has different number of rows" = (m == nrow(y)))
+  stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+  cost$data <- list(x = x, y = y)
+}  
+# setMethod("update_cost", signature(cost = "costOnline", x = "ANY", y = "ANY"),
+# function(cost, x, y) {
+#   n <- nrow(cost$data$x)
+#   m <- nrow(cost$data$y)
+#   stopifnot("data for cost rows has different number of rows" = (n == nrow(x)))
+#   stopifnot("data for cost columns has different number of rows" = (m == nrow(y)))
+#   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+#   cost$data <- list(x = x, y = y)
+# }          
+# )
+
+update_cost.costTensor <- function(cost, x, y) {
+  nm <- dim(cost$data)
+  device <- cost$data$device
+  dtype <- cost$data$dtype
+  stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
+  stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
+  stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+  cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
+} 
+# setMethod("update_cost", signature(cost = "costTensor", x = "ANY", y = "ANY"),
+# function(cost, x, y) {
+#   nm <- dim(cost$data)
+#   device <- cost$data$device
+#   dtype <- cost$data$dtype
+#   stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
+#   stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
+#   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+#   cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
+# }          
+# )
