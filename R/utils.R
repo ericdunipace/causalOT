@@ -210,12 +210,12 @@ torch_check <- function() {
 rkeops_check <- function() {
   testthat::skip_if_not_installed("rkeops")
   
-  if (utils::packageVersion("rkeops") >= 2.0 && rlang::is_installed("reticulate")) {
-  } else if (utils::packageVersion("rkeops") < 2.0 ){
-    cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
-                      error = function(e) {0L}
-    )
-    testthat::skip("error in cmake for rkeops")
+  if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0") && rlang::is_installed("reticulate")) {
+  } else if (utils::packageVersion("rkeops") < pkg_vers_number("2.0") ){
+    # cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
+    #                   error = function(e) {0L}
+    # )
+    # testthat::skip("error in cmake for rkeops")
     
     # from rkeops help pages
     formula = "Sum_Reduction(Exp(-s * SqNorm2(x - y)) * b, 0)"
@@ -640,6 +640,8 @@ hessian_torch <- function(loss, parameters) {
   stopifnot(max(out_idx) <= nrow*ncol)
   return(out_idx)
 }
+
+pkg_vers_number <- function(x) {base::.make_numeric_version(as.character(x),TRUE,.standard_regexps()$valid_numeric_version)}
   
 # R6_bootStrap <- function() {
 #   n <- self$n

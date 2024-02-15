@@ -86,7 +86,7 @@ cat(c("Running ", nsims, " simulations.\nThe maximum sample size is ", max_n, ".
 start <- proc.time()
 result <- 
   foreach(nw=1:n_worker, .errorhandling = "pass",.export = c("estimand", "worker_iteration")) %dorng% {
-    if(packageVersion("rkeops") >= "2.0") {
+    if(utils::packageVersion("rkeops") >= "2.0") {
       vename <- paste0("rkeops", nw)
       #Sys.setenv("CUDA_PATH"="/usr/local/cuda-11.6")
       #Sys.setenv("CUDA_ROOT"="locate libcuda.so.1")

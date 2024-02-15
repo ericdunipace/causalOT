@@ -464,7 +464,7 @@ bp_pow2 <- function(n, eps, C_yx, y_target, f, a_log, tensorized, niter = 1e3, t
                      
     )
     
-    if (utils::packageVersion("rkeops") >= 2.0) {
+    if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
       # online_red <- rkeops::keops_kernel(
       #   formula = paste0("SumSoftMaxWeight_Reduction(G - P *", C_yx$fun,", Outcome, 1)"),
       #   args = c(
@@ -651,7 +651,7 @@ tensorized_switch_generator <- function(tensorized) {
                               P = as.numeric(1.0/eps)
              )
              
-             if (utils::packageVersion("rkeops") >= 2.0) {
+             if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
                # online_red <- rkeops::keops_kernel(
                #   formula = paste0("SumSoftMaxWeight_Reduction(  G - P *", x_form,",", y_form,", 1)"),
                #   args = c(
@@ -737,7 +737,7 @@ tensorized_switch_generator <- function(tensorized) {
              s_grad <- rkeops::keops_grad(s$kernel_op, var="S")
              # browser()
              eta <- as.matrix(rep(as_numeric(grad_output), length(s$data$Norm)))
-             grad_data <- if(utils::packageVersion("rkeops") >= 2.0) {
+             grad_data <- if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
                c(s$data, list(varReNPP = eta))
              } else {
                c(s$data, list(eta = eta))

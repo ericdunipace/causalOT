@@ -36,7 +36,7 @@ testthat::test_that("barycentric_projection works, p = 2 tensor", {
   
   # compare to online formulation
   causalOT:::rkeops_check()
-  if(packageVersion("rkeops") >= "2.0" ) {
+  if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0") ) {
     rkeops::rkeops_use_float64()
   } else {
     rkeops::compile4float64()
@@ -124,7 +124,7 @@ testthat::test_that("barycentric_projection works, p = 1", {
   
   causalOT:::rkeops_check()
   # give error for the p = 1 online
-  if(packageVersion("rkeops") >= "2.0" ) {
+  if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0") ) {
     rkeops::rkeops_use_float64()
   } else {
     rkeops::compile4float64()
@@ -214,7 +214,7 @@ testthat::test_that("barycentric_projection works, p = 3", {
   testthat::expect_equal(preds, preds2) # make sure S3 registered
   
   causalOT:::rkeops_check()
-  if(packageVersion("rkeops") >= "2.0" ) {
+  if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0") ) {
     rkeops::rkeops_use_float64()
   } else {
     rkeops::compile4float64()
