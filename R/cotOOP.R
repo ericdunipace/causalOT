@@ -2823,7 +2823,7 @@ NNM <- R6::R6Class(
         x = as_matrix(C_xy$data$x)
         y = as_matrix(C_xy$data$y)
         d = ncol(x)
-        dim.red <- if(packageVersion("rkeops") >= 2.0) {
+        dim.red <- if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
           "0"
         } else {
           "1"
@@ -2927,7 +2927,7 @@ dual_forwards_keops <- list(
                                        as.numeric(f_lambda$to(device = "cpu")),
                                        1.0 / lambda) )
     
-    g_lambda <- if (packageVersion("rkeops") >= 2.0) {
+    g_lambda <- if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
        - c(exp_sums_g) + as_numeric(b_log)
     } else {
        - (log(exp_sums_g[,2]) + exp_sums_g[,1]) + as_numeric(b_log)
@@ -2936,7 +2936,7 @@ dual_forwards_keops <- list(
     exp_sums_a1 <- C_xy$reduction( list(xmat, ymat, 
                                         g_lambda,
                                         1.0 / lambda) )
-    a1_log <- if (packageVersion("rkeops") >= 2.0) {
+    a1_log <- if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
         torch::torch_tensor(c(exp_sums_a1), dtype = f$dtype, device = f$device) + f_lambda
       } else {
         torch::torch_tensor(log(exp_sums_a1[,2]) + exp_sums_a1[,1], dtype = f$dtype, device = f$device) + f_lambda
@@ -2949,7 +2949,7 @@ dual_forwards_keops <- list(
     xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     # ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
     
-    if (packageVersion("rkeops") >= 2.0) {
+    if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
       log_exp_sums_a2 <- C_xy$reduction( list(xmat, xmat,
                                           as.numeric(f_lambda$to(device = "cpu")),
                                           1.0 / lambda) )

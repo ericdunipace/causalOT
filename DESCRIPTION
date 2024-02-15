@@ -1,8 +1,8 @@
 Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
-Version: 1.0.1.9000
-Date: 2023-11-29
+Version: 1.0.2
+Date: 2024-02-14
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -43,7 +43,7 @@ Suggests:
     testthat (>= 2.1.0),
     knitr,
     reticulate,
-    rkeops,
+    rkeops (>= 2.2.2),
     rmarkdown,
     V8,
     withr
@@ -52,7 +52,7 @@ Depends:
     R (>= 3.5.0)
 Roxygen: list(markdown = TRUE)
 Encoding: UTF-8
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 LazyData: true
 VignetteBuilder: knitr
 Collate: 
