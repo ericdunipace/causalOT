@@ -59,7 +59,7 @@ jobs:
           
       - name: Install rkeops
         run: |
-            if (.Platform$OS.type != "windows") pak::pkg_install(("getkeops/keops/rkeops")
+            if (.Platform$OS.type != "windows") pak::pkg_install("getkeops/keops/rkeops")
         shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2

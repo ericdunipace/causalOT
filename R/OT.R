@@ -286,7 +286,10 @@ OT <- R6::R6Class("OT",
         tensorized <- TRUE
       } else if (tensorized == "online") {
         tensorized <- FALSE
-        if(!rkeops_installed()) tensorized <- TRUE
+        if (!rkeops_installed()) {
+          warning("Package 'rkeops' must be installed to use online cost calculations.")
+          tensorized <- TRUE
+        }
       } else {
         stop("tensorized must be one of auto, tensorized, or online")
       }
