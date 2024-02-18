@@ -54,12 +54,12 @@ jobs:
             any::reticulate
             any::V8
             any::withr
-            any::remotes
+            any::pak
           needs: check
           
       - name: Install rkeops
         run: |
-            if (.Platform$OS.type != "windows") remotes::install_github("getkeops/keops/rkeops")
+            if (.Platform$OS.type != "windows") pak::pkg_install(("getkeops/keops/rkeops")
         shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2
