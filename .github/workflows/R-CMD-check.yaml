@@ -49,16 +49,17 @@ jobs:
             any::knitr
             any::rmarkdown
             any::data.table
-            any::testthat,
+            any::testthat
             any::knitr
             any::reticulate
             any::V8
             any::withr
+            any::remotes
           needs: check
           
       - name: Install rkeops
         run: |
-            if (.Platform$OS.type != "windows") install.packages("rkeops")
+            if (.Platform$OS.type != "windows") remotes::install_github("getkeops/keops/rkeops")
         shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2

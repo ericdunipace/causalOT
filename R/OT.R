@@ -64,13 +64,13 @@ OT <- R6::R6Class("OT",
         self$dtype <- dtype
       }
       
-      if(self$dtype == torch::torch_double()) {
-        if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-          rkeops::rkeops_use_float64()
-        } else {
-          rkeops::compile4float64()
-        }
-      }
+      # if(self$dtype == torch::torch_double()) {
+      #   if(packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+      #     rkeops::rkeops_use_float64()
+      #   } else {
+      #     rkeops::compile4float64()
+      #   }
+      # }
       
       # setup data
       if ( ! inherits(x, "torch_tensor")) {
@@ -107,47 +107,49 @@ OT <- R6::R6Class("OT",
       if(tensorized) {
         softmin <- softmin_tensorized
       } else {
-        if(capture.output(self$dtype) == "torch_Double") {
-          if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-            rkeops::rkeops_use_float64()
+        if ( rkeops_installed() ) {
+          if(capture.output(self$dtype) == "torch_Double") {
+            if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+              rkeops::rkeops_use_float64()
+            } else {
+              rkeops::compile4float64()
+            }
           } else {
-            rkeops::compile4float64()
+            if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+              rkeops::rkeops_use_float32()
+            } else {
+              rkeops::compile4float32()
+            }
+            
           }
-        } else {
-          if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-            rkeops::rkeops_use_float32()
+          if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+            reduction <- rkeops::keops_kernel(
+              formula = paste0("LogSumExp_Reduction( G - P *", C_xy$fun, ", 1)"),
+              args = c(
+                paste0("X = Vi(",d,")"),
+                paste0("Y = Vj(",d,")"),
+                "G = Vj(1)",
+                "P = Pm(1)")
+            )
           } else {
-            rkeops::compile4float32()
+            reduction <- rkeops::keops_kernel(
+              formula = paste0("Max_SumShiftExp_Reduction( G - P *", C_xy$fun, ", 0)"),
+              args = c(
+                paste0("X = Vi(",d,")"),
+                paste0("Y = Vj(",d,")"),
+                "G = Vj(1)",
+                "P = Pm(1)")
+            )
           }
           
+          C_xy$reduction <- reduction
+          C_yx$reduction <- reduction
+          if (debias) {
+            C_xx$reduction <- reduction
+            C_yy$reduction <- reduction
+          }
+          softmin <- softmin_online
         }
-        if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-          reduction <- rkeops::keops_kernel(
-            formula = paste0("LogSumExp_Reduction( G - P *", C_xy$fun, ", 1)"),
-            args = c(
-              paste0("X = Vi(",d,")"),
-              paste0("Y = Vj(",d,")"),
-              "G = Vj(1)",
-              "P = Pm(1)")
-          )
-        } else {
-          reduction <- rkeops::keops_kernel(
-            formula = paste0("Max_SumShiftExp_Reduction( G - P *", C_xy$fun, ", 0)"),
-            args = c(
-              paste0("X = Vi(",d,")"),
-              paste0("Y = Vj(",d,")"),
-              "G = Vj(1)",
-              "P = Pm(1)")
-          )
-        }
-        
-        C_xy$reduction <- reduction
-        C_yx$reduction <- reduction
-        if (debias) {
-          C_xx$reduction <- reduction
-          C_yy$reduction <- reduction
-        }
-        softmin <- softmin_online
       }
       
       # setup diameter
@@ -275,7 +277,7 @@ OT <- R6::R6Class("OT",
         n <- nrow(x)
         m <- nrow(y)
         cutoff <- log(n) + log(m) >= 17.03439
-        if ( is.na(cutoff) || isTRUE(cutoff) ) {
+        if ( rkeops_installed() && (is.na(cutoff) || isTRUE(cutoff)) ) {
           tensorized <- FALSE
         } else {
           tensorized <- TRUE
@@ -284,6 +286,7 @@ OT <- R6::R6Class("OT",
         tensorized <- TRUE
       } else if (tensorized == "online") {
         tensorized <- FALSE
+        if(!rkeops_installed()) tensorized <- TRUE
       } else {
         stop("tensorized must be one of auto, tensorized, or online")
       }
@@ -380,7 +383,7 @@ softmin_keops <- torch::autograd_function(
                                         G = G,
                                         P = one_over_eps) 
     )
-    if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+    if (rkeops_installed() && utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
       out <- torch::torch_tensor(-eps * c(sums), 
                                  dtype = b_log$dtype, device = b_log$device)
     } else {
@@ -864,7 +867,7 @@ energy_dist_online <- torch::autograd_function(
     
     device <- get_device(x = x, y = y, a = a, b = b)
     dtype <- get_dtype(x = x, y = y, a = a, b = b)
-    if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+    if (rkeops_installed() && utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
       sumred <- rkeops::keops_kernel(
         formula = paste0("Sum_Reduction( B* ", formula, ", 1)"),
         args = c(
@@ -936,7 +939,7 @@ energy_dist_online <- torch::autograd_function(
                          Y = sv$x,
                          B = sv$a,
                          eta = matrix(sv$a))
-      if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+      if(rkeops_installed() && utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
         grad_data <- unname(grad_data)
         grad_data2 <- unname(grad_data2)
       } 
@@ -965,7 +968,7 @@ energy_dist_online <- torch::autograd_function(
                         B = sv$b,
                         eta = matrix(sv$b))
       
-      if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+      if(rkeops_installed() && utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
         grad_data <- unname(grad_data)
         grad_data2 <- unname(grad_data2)
       } 
@@ -1098,7 +1101,7 @@ inf_sinkhorn_online <- torch::autograd_function(
                         B = saved_var$a,
                         eta =  matrix(saved_var$b))
       
-      if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
+      if(rkeops_installed() && utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
         grad_data <- unname(grad_data)
       } 
       

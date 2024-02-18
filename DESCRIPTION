@@ -2,7 +2,7 @@ Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
 Version: 1.0.2
-Date: 2024-02-14
+Date: 2024-02-17
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -47,6 +47,7 @@ Suggests:
     rmarkdown,
     V8,
     withr
+Additional_repositories: https://ericdunipace.github.io/drat/
 Biarch: true
 Depends: 
     R (>= 3.5.0)

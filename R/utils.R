@@ -207,10 +207,14 @@ torch_check <- function() {
   }
 }
 
+rkeops_installed <- function() {
+  rlang::is_installed("rkeops")
+}
+
 rkeops_check <- function() {
   testthat::skip_if_not_installed("rkeops")
   
-  if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0") && rlang::is_installed("reticulate")) {
+  if (rkeops_installed() && utils::packageVersion("rkeops") >= pkg_vers_number("2.0") && rlang::is_installed("reticulate")) {
   } else if (utils::packageVersion("rkeops") < pkg_vers_number("2.0") ){
     # cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
     #                   error = function(e) {0L}
