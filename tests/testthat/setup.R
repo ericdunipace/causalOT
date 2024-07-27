@@ -12,7 +12,8 @@ if ( rlang::is_installed("rkeops") ) {
       reticulate::virtualenv_create(envname = rkeops_pyenv)
       reticulate::use_virtualenv(virtualenv = rkeops_pyenv, required = TRUE)
       reticulate::py_config()
-      reticulate::py_install("pykeops")
+      rkeops::install_rkeops()
+      # reticulate::py_install("pykeops")
       # })
       mess <- reticulate::py_capture_output(
         testthat::capture_messages(rkeops_good <- rkeops::check_rkeops())

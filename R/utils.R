@@ -470,8 +470,11 @@ get_dtype <- function(...) {
 cuda_device_check <- function(device) {
   if (is.null(device)) {
     cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1
+    mps_opt <- torch::backends_mps_is_available()
     if (cuda_opt) {
       device <-  torch::torch_device("cuda")
+    } else if (mps_opt) {
+      device <- torch::torch_device("mps")
     } else {
       device <-  torch::torch_device("cpu")
     }
@@ -484,7 +487,9 @@ cuda_dtype_check <- function(dtype, device = NULL) {
   #dtype
   stopifnot("device not set" = !is.null(device))
   if ( is.null(dtype) ) {
-    if (grepl("cuda", capture.output(print(device)) ) ) {
+    if ( grepl("cuda", capture.output(print(device)) ) ) {
+      dtype <- torch::torch_float()
+    } else if ( device$type == "mps" ) {
       dtype <- torch::torch_float()
     } else {
       dtype <- torch::torch_double()

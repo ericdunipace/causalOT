@@ -207,6 +207,10 @@ OT <- R6::R6Class("OT",
     potentials = function(value) {
       # browser()
       if(missing(value)) return(private$pot)
+      if(is.null(value)) {
+        private$pot <- list()
+        return(invisible(self))
+      }
       if(all(is.character(names(value)))) {
         if(!all(names(value) %in% c("f_xy","g_yx", "f_xx","g_yy"))) {
           stop("Names of potential list, if given, must be in f_xy, g_yx, f_xx, g_yy.")
@@ -453,20 +457,22 @@ epsilon_trajectory <- function(diameter, eps, tot_iter){
 OT$set("public", 
 "sinkhorn_opt",
 function(niter = 1e3, tol = 1e-7) {
-  
-  fg_list <- private$sinkhorn_loop(niter, tol)
-  
-  if ( self$debias ) {
-    f_xx <- private$sinkhorn_self_loop("x", niter, tol)
-    g_yy <- private$sinkhorn_self_loop("y", niter, tol)
-    self$potentials <- list(f_xy = fg_list$f_xy,
-                            g_yx = fg_list$g_yx,
-                            f_xx = f_xx,
-                            g_yy = g_yy)
-  } else {
-    self$potentials <- list(f_xy = fg_list$f_xy,
-                            g_yx = fg_list$g_yx)
+  if(is.finite(self$penalty)) {
+    fg_list <- private$sinkhorn_loop(niter, tol)
+    
+    if ( self$debias ) {
+      f_xx <- private$sinkhorn_self_loop("x", niter, tol)
+      g_yy <- private$sinkhorn_self_loop("y", niter, tol)
+      self$potentials <- list(f_xy = fg_list$f_xy,
+                              g_yx = fg_list$g_yx,
+                              f_xx = f_xx,
+                              g_yy = g_yy)
+    } else {
+      self$potentials <- list(f_xy = fg_list$f_xy,
+                              g_yx = fg_list$g_yx)
+    }
   }
+  
   return(invisible(self))
 })
 
@@ -582,6 +588,8 @@ OT$set("private",
        "sinkhorn_loop",
 function(niter, tol) {
   # ttorch::autograd_set_grad_mode(enabled = FALSE)
+  
+  # extract variables needed
   eps      <- torch::jit_scalar(self$penalty)
   diameter <- torch::jit_scalar(self$diameter)
   softmin  <- self$softmin
@@ -606,7 +614,10 @@ function(niter, tol) {
     nan_g <- as.logical(g_yx$isnan()$any()$to(device = "cpu"))
   }
   
+  # turn off grad so doesn't record all of the iterations
   torch::with_no_grad({
+  
+  # intialize variables if needed
   if (missing_pot || nan_f || nan_g) {
     if (as.logical(eps > diameter)) {
       f_xy <- softmin(eps, 
@@ -629,49 +640,72 @@ function(niter, tol) {
     }
   } 
   
-  loss <- loss_0 <- (a$dot(f_xy) + b$dot(g_yx))$item()
-  norm <- NULL
+  # setup variables needed in for loop
+    norm <- (g_yx * b)$sum()
+    f_xy$add_(norm)
+    g_yx$sub_(norm)
+    loss <- loss_0 <- ((a * f_xy)$sum() + (g_yx * b)$sum())$item()
+  
   ft = f_xy$detach()$clone()
   gt = g_yx$detach()$clone()
   epsilons <- epsilon_trajectory(diameter, eps, niter)
   eps_cur <- NULL
   
+  # optimization iterations
   for (e in epsilons) {
     eps_cur = torch::jit_scalar(e)
     # eps_cur = epsilons[i]
     # eps_cur = epsilon_select(diameter, eps, niter, i)
     
+    # uses acceleration for larger epsilon values
     if (eps_cur > eps_log_switch) {
-      gt = softmin(eps_cur, C_yx, f_xy, a_log)
-      ft = softmin(eps_cur, C_xy, g_yx, b_log)
+      #softmin step
+        ft = softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
+        gt = softmin(eps_cur, C_yx, f_xy, a_log) # OT(b,a)
+      
+      # center gt
+        norm <- (b * gt)$sum()
+        gt$sub_(norm)
+        ft$add_(norm)
+      
       # Anderson acceleration
-      #g_yx = g_yx + gt;  g_yx = g_yx * 0.5;  # OT(b,a)
-      #f_xy = f_xy + ft;  f_xy = f_xy * 0.5; # OT(a,b)
-      g_yx$add_(gt)$mul_(0.5);  # OT(b,a)
-      f_xy$add_(ft)$mul_(0.5); # OT(a,b)
+        #f_xy = f_xy + ft;  f_xy = f_xy * 0.5; # OT(a,b)
+        # equiv of f_xy_{iter + 1} = 0.5 * f_xy_{iter}+ 0.5 * ft
+        f_xy$add_(ft)$mul_(0.5); # OT(a,b)
+        
+        #g_yx = g_yx + gt;  g_yx = g_yx * 0.5;  # OT(b,a)
+        # equiv of g_yx_{iter + 1} = 0.5 * g_yx_{iter}+ 0.5 * gt
+        g_yx$add_(gt)$mul_(0.5);  # OT(b,a)
     } else {
-      g_yx = softmin(eps_cur, C_yx, f_xy, a_log) # OT(b,a)
-      f_xy = softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
+      # regular softmin steps
+        f_xy = softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
+        g_yx = softmin(eps_cur, C_yx, f_xy, a_log) # OT(b,a)
+      
     }
     
-    norm <- b$dot(g_yx)
-    g_yx$sub_(norm)
-    f_xy$add_(norm)
-    loss = ( a$dot(f_xy) )$item() #+ b$dot(g_yx))$item()
+    # center the g parameteres
+      norm <- (b * g_yx)$sum()
+      g_yx$sub_(norm)
+      f_xy$add_(norm)
+    
+    # record loss and check for convergence
+      loss = (f_xy * a )$sum()$item() #+ (g_yx * b)$sum()$item()
     # cat(paste0(loss$item(),", "))
     # if ( (i %% print_period) == 0 ) {
       if (abs(loss - loss_0) < tol) break
     # }
     
+    # saves old loss
     loss_0 = loss
     
   }
   
+  # get copies of potentials without gradients for final step
   gt <- g_yx$detach()$clone()
   ft <- f_xy$detach()$clone()
   })
-  # torch::autograd_set_grad_mode(enabled = TRUE)
   
+  # this step records gradients if active and returns values
   return(list(f_xy = softmin(eps, C_xy, gt, b_log), 
               g_yx = softmin(eps, C_yx, ft, a_log)))
 })
@@ -714,6 +748,328 @@ OT$set("public",
                   yy = pi_yy)
    return(output)
  })
+
+OT$set("public", 
+       "hessian",
+       function(nonzero = FALSE) {
+   
+  # whether to return a full hessian or one only with the nonzero entries
+   nonzero <- as.logical(isTRUE(nonzero))
+   
+   index_a <- which(as.logical(self$a$detach() > 0))
+   index_b <- which(as.logical(self$b$detach() > 0))
+   
+   n       <- length(index_a)
+   m       <- length(index_b)
+   
+   l_a     <- private$a_log$detach()[index_a]
+   l_b     <- private$b_log$detach()[index_b]
+   f       <- self$potentials$f_xy$detach()[index_a]
+   g       <- self$potentials$g_yx$detach()[index_b]
+   C       <- self$C_xy$data$detach()[index_a,index_b]
+   
+   index_b_1 <- index_b[1:(m-1)]
+   
+   if (self$tensorized) {
+     # if(!debias) {
+     # measure <- torch::torch_cat(list(self$a,self$b[index_b]))
+     # P_neg   <- -( (f/lambda + l_a)$view(c(n,1)) +
+     #                 (g[index_b] / lambda + l_b)$view(c(1,m-1)) -
+     #                 C[,index_b] / lambda
+     # )$exp()
+     
+     # E_d_phi <- torch::torch_diag(-measure)
+     
+     # E_d_phi[(n+1):(n + m-1), 1:n]  <- P_neg$transpose(-1,1)
+     # E_d_phi[1:n, (n+1):(n + m-1)]  <- P_neg
+     # rm(P_neg)
+     
+     l_P  <- ( (f / lambda + l_a)$view(c(n,1)) +
+                     (g / lambda + l_b)$view(c(1,m)) -
+                     C  / lambda )
+     
+     l_b_approx <- l_P$logsumexp(1)[index_b_1]
+     
+     E_d_phi  <- torch::torch_diag(
+       torch::torch_cat(list(
+         -l_P$logsumexp(2)$exp(),
+         -l_b_approx$exp()$view(c(m-1))
+       )
+       )$to(device = "cpu")
+     )
+     E_d_phi[(n+1):(n + m-1), (n+1):(n + m-1)]$sub_(
+         (l_b_approx$view(c((m-1),1)) + l_b_approx$view(c(1,(m-1))) - l_b[m])$exp()$to(device = "cpu")
+     )
+     
+     E_d_phi[1:n, (n+1):(n + m-1)]  <- -l_P[1:n,1:(m-1)]$exp()$to(device = "cpu")
+     E_d_phi[1:n, (n+1):(n + m-1)]$add_(
+       ((l_P[,m] - l_b[m] )$view(c(n,1)) + l_b[index_b_1]$view(c(1,m-1)))$exp()$to(device = "cpu")
+       )
+     
+     rm(l_P)
+     rm(l_b_approx)
+     
+     E_d_phi[(n+1):(n + m-1), 1:n]  <- E_d_phi[1:n, (n+1):(n + m-1)]$transpose(-1,1)
+     
+     if(nonzero) {
+       return((E_d_phi/self$penalty)$to(device = self$device))
+     } else {
+       E_d_phi_full <- torch::torch_zeros(c(self$n+self$m, self$n+self$m),
+                                          dtype = self$dtype,
+                                          device = "cpu")
+       
+       full_idx <- c(index_a, self$n + index_b_1)
+       E_d_phi_full[full_idx][, full_idx] <- E_d_phi$to(device = "cpu")/self$penalty
+       rm(E_d_phi)
+       
+       return(E_d_phi_full$to(device = self$device))
+     }
+     
+     # if (debias)
+     
+     
+   }
+   
+   
+         
+})
+
+OT$set("public", 
+       "var_phi", #variance of gradient
+       function() {
+         
+         # get basic variables 
+         n       <- self$n
+         m       <- self$m
+         
+         l_a     <- private$a_log
+         l_b     <- private$b_log
+         a       <- self$a
+         b       <- self$b
+         
+         f       <- self$potentials$f_xy
+         g       <- self$potentials$g_yx
+         C_obj   <- self$C_xy
+         
+         # check that measures are positive and remove parts that aren't
+         nz_a    <- which(as.logical(a > 0))
+         nz_b    <- which(as.logical(b > 0))
+         
+         # new lengths
+         nn      <- length(nz_a)
+         mm      <- length(nz_b)
+         
+         if (self$tensorized) {
+           
+           # cost tensor
+           C <- C_obj$data
+           
+           # density with respect a x b
+           la_cross_lb <- l_a[nz_a]$view(c(nn,1)) +
+             l_b[nz_b]$view(c(1,mm))
+           
+           P <- ( (f[nz_a]$view(c(nn,1)) + 
+                       g[nz_b]$view(c(1,mm)) - 
+                       C[nz_a, nz_b]) / lambda +
+                       la_cross_lb)$exp()
+           
+           # output matrix phiV
+           phiV <- torch::torch_zeros(c(nn + mm - 1, nn + mm - 1),
+                                      device = self$device,
+                                      dtype = self$dtype)
+           
+           # covar phi_f
+           phi_f <-  (la_cross_lb$exp() - P )
+           phiV[1:nn, 1:nn] <- phi_f$mm(phi_f$transpose(-1,1))
+           rm(phi_f)
+           
+           
+           # covar phi_g
+           # -dens[,1:(ot$m-1)]$transpose(-1,1) *b[1:(ot$m-1)]$view(c(ot$m-1,1)) + dens[,4]$view(c(1,ot$n)) *b[1:(ot$m-1)]$view(c(ot$m-1,1))
+           phi_g <- (-P[,1:(mm-1)]$transpose(-1,1) + 
+                       P[,mm]$view(c(1,nn)) / b[nz_b][mm] * b[nz_b][1:(mm-1)]$view(c(mm-1,1)) )
+           phiV[(nn + 1):(nn + mm - 1), (nn + 1):(nn + mm - 1)] <-
+             phi_g$mm(phi_g$transpose(-1,1))
+           
+           rm(phi_g)
+           
+           # covar phi_f phi_g is 0
+           
+           # first calculate variance of derivative
+           # K   <- (a[nz_a]$view(c(nn,1))* b[nz_b]$view(c(1,mm)) - 
+           #           ( (f[nz_a]$view(c(nn,1)) + 
+           #                g[nz_b]$view(c(1,mm)) - 
+           #                C[nz_a, nz_b]) / lambda + 
+           #               l_a[nz_a]$view(c(nn,1)) + 
+           #               l_b[nz_b]$view(c(1,mm)))$exp())
+           #    #var f, var g
+           # 
+           # phiV <- torch::torch_cat(list( K$sum(2), K$sum(1)[1:(mm - 1)]))$diag()
+           # phiV[1:nn, (nn + 1):(nn + mm - 1)] <- K[,1:(mm - 1)] # covar f,g
+           # # phiV[(nn + 1):(nn + mm - 1), 1:nn] <- K[,1:(mm - 1)]$transpose(-1, 1) # covar g,f
+           # 
+           # # additional constraints for the sum to 0
+           # nz_b_1 <- nz_b[1:(mm -1 )] # nonzero elements save last one, this will be constrained
+           # phiV[(nn + 1):(nn + mm - 1), (nn + 1):(nn + mm - 1)]$add_(K[,mm]$sum(1) *
+           #                                                             b[nz_b_1]$view(c(mm - 1, 1)) * b[nz_b_1]$view(c(1, mm - 1)) / 
+           #                                                             b[nz_b[mm]]^2) #covar g,g
+           # phiV[1:nn, (nn + 1):(nn + mm - 1)]$sub_(K[,mm]$view(c(nn,1)) *
+           #                                           b[nz_b_1]$view(c(1,mm-1))/b[nz_b[mm]] ) # covar f,g
+           # 
+           # # add last component of covar
+           # phiV[(nn + 1):(nn + mm - 1), 1:nn] <- phiV[1:nn, (nn + 1):(nn + mm - 1)]$transpose(-1,1) # covar g,f
+           # 
+           # # remove K to save memory
+           # rm(K)
+           
+           
+         } else {
+           stop("Online cost version of the variance not yet implemented")
+         }
+         
+         return(phiV)
+         
+       })
+
+OT$set("public", 
+       "vcov",
+function() {
+  
+     
+  # get basic variables 
+     n       <- self$n
+     m       <- self$m
+     
+     l_a     <- private$a_log
+     l_b     <- private$b_log
+     a       <- self$a
+     b       <- self$b
+     
+     f       <- self$potentials$f_xy
+     g       <- self$potentials$g_yx
+     C_obj   <- self$C_xy
+     
+     # check that measures are positive and remove parts that aren't
+     nz_a    <- which(as.logical(a > 0))
+     nz_b    <- which(as.logical(b > 0))
+     
+     # new lengths
+     nn      <- length(nz_a)
+     mm      <- length(nz_b)
+     
+     # m-1 index
+     nz_b_1  <- nz_b[1:(mm -1 )]
+     
+     
+  if (self$tensorized) {
+    
+    # get variance of gradient
+    phiV <- self$var_phi()
+    
+    # get hessian
+    hessian <- self$hessian(nonzero = TRUE)
+    # 
+    # 
+    # C <- C_obj$data
+    # 
+    # # first calculate variance of derivative
+    # K   <- (1.0 - ( (f[nz_a]$view(c(nn,1)) + g[nz_b]$view(c(1,mm)) - C[nz_a, nz_b]) / lambda)$exp())^2 *
+    #   a[nz_a]$view(c(nn,1))* b[nz_b]$view(c(1,mm)) #var f, var g
+    # 
+    # phiV <- torch::torch_cat(list( K$sum(2), K$sum(1)[1:(mm - 1)]))$diag()
+    # phiV[1:nn, (nn + 1):(nn + mm - 1)] <- K[,1:(mm - 1)] # covar f,g
+    # # phiV[(nn + 1):(nn + mm - 1), 1:nn] <- K[,1:(mm - 1)]$transpose(-1, 1) # covar g,f
+    # 
+    # # additional constraints for the sum to 0
+    # nz_b_1 <- nz_b[1:(mm -1 )] # nonzero elements save last one, this will be constrained
+    # phiV[(nn + 1):(nn + mm - 1), (nn + 1):(nn + mm - 1)]$add_(K[,mm]$sum(1) *
+    #   b[nz_b_1]$view(c(mm - 1, 1)) * b[nz_b_1]$view(c(1, mm - 1)) / 
+    #   b[nz_b[mm]]^2) #covar g,g
+    # phiV[1:nn, (nn + 1):(nn + mm - 1)]$sub_(K[,mm]$view(c(nn,1)) *
+    #                                          b[nz_b_1]$view(c(1,mm-1))/b[nz_b[mm]] ) # covar f,g
+    # 
+    # # add last component of covar
+    # phiV[(nn + 1):(nn + mm - 1), 1:nn] <- phiV[1:nn, (nn + 1):(nn + mm - 1)]$transpose(-1,1) # covar g,f
+    # 
+    # # remove K to save memory
+    # rm(K)
+    # 
+    # # get hessian
+    # hessian <- self$hessian(nonzero = TRUE)#[c(nz_a, n + nz_b_1),
+    #                           # c(nz_a, n + nz_b_1)]$to(device = self$device)
+    
+    # now combine to get (cholesky decomposition of the ) variance of parameters
+    # S = (-hessian)^-1 %*% cholesky(variance(phi))
+    if(self$device$type =="cpu" || self$device$type == "cuda") {
+      
+      phiV_svd <- torch::linalg_svd(phiV)
+      phiV_half <- phiV_svd[[1]]$mm(phiV_svd[[2]]$sqrt()$diag())$mm(phiV_svd[[3]]$transpose(-1,1))
+      phi_scale <- torch::linalg_solve(
+        -hessian, 
+        phiV_half
+      )
+      
+      # free up that memory!
+      rm(phiV,phiV_half)
+      
+      # setup empty variance matrix
+      VAR <- torch::torch_zeros(c(n+m,n+m), device = self$device, dtype = self$dtype)
+    } else {
+      # solve function not work for MPS
+      # inverse also gives an error on MPS
+      # so we move to cpu for linalg solve and then back
+      phiV_svd <- torch::linalg_svd(phiV$to(device = "cpu"))
+      phiV_half <- phiV_svd[[1]]$mm(phiV_svd[[2]]$sqrt()$diag())$mm(phiV_svd[[3]]$transpose(-1,1))
+      phi_scale <- torch::linalg_solve(
+        -hessian$to(device = "cpu"),
+        phiV_half
+      )$to(device = self$device)
+      
+      # free up that memory!
+      rm(phiV,phiV_half)
+      
+      # setup empty variance matrix
+      VAR <- torch::torch_zeros(c(n+m,n+m), device = self$device, dtype = self$dtype)
+    }
+    
+    
+    # full indexes to allow us to write values the right spot
+    idxes <- c(nz_a, n + nz_b_1)
+    
+    # matrix multiply cholesky decomposition to get variance and return
+    # S S^T = (-hessian)^-1 %*% variance(phi) %*% (-hessian)^-1
+    # technically right-most term is [(-hessian)^-1]^T, but second derivs are symmetric
+    if (nn > 1 ) {
+      VAR[idxes][,idxes] <- phi_scale$mm(phi_scale$transpose(-1,1))# / (m*n)
+    } else {
+      VAR[idxes][idxes]  <- phi_scale$mm(phi_scale$transpose(-1,1))# / (m*n)
+    }
+    
+    return(VAR)
+    
+  } else {
+    stop("Online cost version of the variance not yet implemented")
+  }
+         
+  
+ })
+
+
+param_var <- function(phi_var, phi_jacobian, n, m) {
+  if(phi_var$device$type =="cpu" || phi_var$device$type == "cuda") {
+    phi_scale <- torch::linalg_solve(
+      phi_jacobian, phi_var$cholesky()
+    )
+    return(phi_scale$mm(phi_scale$transpose(-1,1))/ (m*n))
+  } else {
+    phi_scale <- torch::linalg_solve(
+      phi_jacobian$to(device = "cpu"), 
+      torch::linalg_cholesky_ex(phi_var$to(device = "cpu"))$L
+    )
+    return(phi_scale$mm(phi_scale$transpose(-1,1))/ (m*n))
+  }
+  
+}
 
 round_pi <- function(raw_pi, a, b) {
   n <- length(a)
@@ -771,8 +1127,8 @@ sinkhorn_loss <- function(OT) {
   g_yx <- pot$g_yx
   
   if (OT$tensorized) {
-    n <- nrow(C_xy)
-    m <- ncol(C_xy)
+    n <- OT$n
+    m <- OT$m
     a_log <- log_weights(OT$a)
     b_log <- log_weights(OT$b)
     

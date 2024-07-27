@@ -203,3 +203,22 @@ update_cost.costTensor <- function(cost, x, y) {
 #   cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
 # }          
 # )
+
+
+# update_cost_col <- function(cost, x, y_vec, j) {UseMethod("update_cost")}
+# setGeneric("update_cost", function(cost, x, y) standardGeneric("update_cost"))
+# 
+# update_cost_col.costOnline <- function(cost, x, y_vec, j) {
+#   stopifnot("data must have same number of columns" = ncol(x) == length(y))
+#   cost$data$y[j,] <- y_vec
+# }  
+# 
+# update_cost_col.costTensor <- function(cost, x, y_vec, j) {
+#   nm <- dim(cost$data)
+#   device <- cost$data$device
+#   dtype <- cost$data$dtype
+#   stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
+#   stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
+#   stopifnot("data must have same number of columns" = ncol(x) == length(y))
+#   cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
+# } 

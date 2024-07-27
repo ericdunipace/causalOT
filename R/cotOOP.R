@@ -2052,6 +2052,10 @@ setup_arguments = function(lambda, delta,
      
      if( inherits(opt, "optim_lbfgs") ) {
        loss <- opt$step(closure)
+       if (self$device$type == "mps") {
+         nms <- names(opt$param_groups[[1]]$params)
+         for(i in nms) opt$param_groups[[1]]$params[[i]]$requires_grad <- TRUE
+       }
      } else {
        loss <- closure()
        opt$step()
