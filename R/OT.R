@@ -503,6 +503,33 @@ function(niter = 1e3, tol = 1e-7) {
 }
 )
 
+
+OT$set("public", 
+       "sinkhorn_smc",
+       function(niter = 1e3, tol = 1e-7) {
+         if ( is.finite(self$penalty) ) {
+           fg_list <- private$sinkhorn_loop(niter, tol)
+           
+           if ( self$debias ) {
+             f_xx <- private$pot$f_xx
+             if(is.null(f_xx)) {
+               f_xx <- private$sinkhorn_self_loop("x", niter, tol)
+             }
+             g_yy <- private$sinkhorn_self_loop("y", niter, tol)
+             self$potentials <- list(
+               f_xy = fg_list$f_xy,
+               g_yx = fg_list$g_yx,
+               f_xx = f_xx,
+               g_yy = g_yy
+             )
+           } else {
+             self$potentials <- list(f_xy = fg_list$f_xy,
+                                     g_yx = fg_list$g_yx)
+           }
+         }
+         return(invisible(self))
+       })
+
 OT$set("private", 
 "sinkhorn_self_loop",
 function(which.margin = "x", niter, tol) {
