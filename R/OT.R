@@ -572,6 +572,8 @@ function(which.margin = "x", niter, tol) {
   
   loss <- loss_1 <- loss_2 <- a$dot(f_xx)$item() * 2.0
   ft_1 = f_xx$detach()$clone()
+  ft_2 = f_xx$detach()$clone()
+  f_xx2= f_xx$detach()$clone()
   # f_01 <- f_02 <- f_xx
   # f_1 <- f_2 <- f_xx
   
@@ -586,13 +588,20 @@ function(which.margin = "x", niter, tol) {
     
     if (eps_cur > eps_log_switch) {
       # Anderson acceleration
-      ft_1 = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
+      ft_1 = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx2, a_log)
       f_xx$add_(ft_1)$mul_(0.5) #OT(a,a)
+      
+      ft_2 = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
+      f_xx2$add_(ft_2)$mul_(0.5) #OT(a,a)
       #f_xx = ft_1 + f_xx; f_xx = f_xx * 0.5;  # OT(a,a)
     } else {
-      f_xx = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
+      f_xx = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx2, a_log)
+      f_xx2= softmin(torch::jit_scalar(eps_cur), C_xx, f_xx , a_log)
     }
     # loss = sum((f_1 + f_2) * a)
+    f_xx$add_(f_xx2)$mul_(0.5)
+    f_xx2 = f_xx$clone()
+    
     loss = a$dot(f_xx)$item() * 2.0
     # if ((i %% print_period) == 0) {
       if (abs(loss - loss_1) < tol) break
