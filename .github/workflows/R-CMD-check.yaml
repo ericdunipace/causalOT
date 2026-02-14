@@ -38,9 +38,6 @@ jobs:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
-          extra-repositories: |
-            eric=https://ericdunipace.github.io/drat
-
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: '"hard"'
@@ -57,14 +54,14 @@ jobs:
             any::V8
             any::withr
             any::pak
-            eric::rkeops
           needs: check
       
       - name: Check drat reachable
         run: Rscript -e 'ap <- available.packages(repos="https://ericdunipace.github.io/drat"); cat("drat pkgs:", nrow(ap), "\n"); cat(any(ap[,"Package"]=="rkeops"), "\n")'
-          
-      - name: Install rkeops from drat
-        run: Rscript -e 'pak::pkg_install("rkeops")'
+      
+      - name: Install rkeops from drat (explicit URL)
+        run: |
+          Rscript -e 'install.packages("https://ericdunipace.github.io/drat/src/contrib/rkeops_2.2.2.tar.gz", repos=NULL, type="source")'
       
       - uses: r-lib/actions/check-r-package@v2
         with:
