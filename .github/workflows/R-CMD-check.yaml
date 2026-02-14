@@ -61,7 +61,7 @@ jobs:
       
       - name: Install rkeops from drat (explicit URL)
         run: |
-          Rscript -e 'install.packages("https://ericdunipace.github.io/drat/src/contrib/rkeops_2.2.2.tar.gz", repos=NULL, type="source")'
+          Rscript -e 'install.packages(c('future', 'Rdpack', 'RhpcBLASctl', 'stringi', 'stringr')); install.packages("https://ericdunipace.github.io/drat/src/contrib/rkeops_2.2.2.tar.gz", repos=NULL, type="source")'
       
       - uses: r-lib/actions/check-r-package@v2
         with:
