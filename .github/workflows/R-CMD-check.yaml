@@ -11,7 +11,6 @@ name: R-CMD-check
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
-
     name: ${{ matrix.config.os }} (${{ matrix.config.r }})
 
     strategy:
@@ -27,9 +26,11 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      MATRIX_OS: ${{ matrix.config.os }}
+      MATRIX_R: ${{ matrix.config.r }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-pandoc@v2
 
@@ -38,6 +39,7 @@ jobs:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
+
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: '"hard"'
@@ -48,23 +50,87 @@ jobs:
             any::knitr
             any::rmarkdown
             any::data.table
-            any::testthat
-            any::knitr
             any::reticulate
             any::V8
             any::withr
             any::pak
           needs: check
-      
+
       - name: Check drat reachable
         run: Rscript -e 'ap <- available.packages(repos="https://ericdunipace.github.io/drat"); cat("drat pkgs:", nrow(ap), "\n"); cat(any(ap[,"Package"]=="rkeops"), "\n")'
-      
+
       - name: Install rkeops from drat (explicit URL)
         if: runner.os != 'Windows'
         run: |
           Rscript -e 'install.packages(c("future","Rdpack","RhpcBLASctl","stringi","stringr"))'
           Rscript -e 'install.packages("https://ericdunipace.github.io/drat/src/contrib/rkeops_2.2.2.tar.gz", repos=NULL, type="source")'
-      
+
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
+          upload-results: true
+
+      - name: Generate CRAN comments block
+        if: always()
+        shell: bash
+        run: |
+          Rscript -e 'if (!requireNamespace("rcmdcheck", quietly=TRUE)) install.packages("rcmdcheck")'
+
+          Rscript - <<'RS'
+          rchecks <- Sys.glob("**/*.Rcheck")
+          if (length(rchecks) == 0L) {
+            cat("No *.Rcheck directory found.\n")
+            quit(status = 0)
+          }
+          rcheck <- rchecks[1]
+          log <- file.path(rcheck, "00check.log")
+
+          res <- tryCatch(
+            rcmdcheck::parse_check(rcheck, quiet = TRUE),
+            error = function(e) NULL
+          )
+
+          errors <- warnings <- notes <- NA_integer_
+
+          if (!is.null(res)) {
+            errors   <- length(res$errors)
+            warnings <- length(res$warnings)
+            notes    <- length(res$notes)
+          } else if (file.exists(log)) {
+            x <- readLines(log, warn = FALSE)
+            errors   <- sum(grepl("^\\*\\*\\*\\s+ERROR", x))
+            warnings <- sum(grepl("^\\*\\*\\*\\s+WARNING", x))
+            notes    <- sum(grepl("^\\*\\*\\*\\s+NOTE", x))
+          }
+
+          platform <- R.version$platform
+
+          block <- c(
+            "R CMD check results:",
+            "",
+            sprintf("%s | %s | %s",
+                    paste0(errors, " errors"),
+                    paste0(warnings, " warnings"),
+                    paste0(notes, " notes")),
+            "",
+            "Tested on (GitHub Actions):",
+            sprintf("- %s (R-%s; %s)", Sys.getenv("MATRIX_OS"), Sys.getenv("MATRIX_R"), platform),
+            "",
+            "Additional details:",
+            "- rkeops is installed from a drat repo on non-Windows runners; Windows runner skips rkeops installation.",
+            "",
+            "----",
+            "Raw check log path (in workflow artifact / results):",
+            sprintf("- %s", log)
+          )
+
+          cat(paste(block, collapse = "\n"), "\n")
+
+          sumfile <- Sys.getenv("GITHUB_STEP_SUMMARY")
+          if (nzchar(sumfile)) {
+            cat(paste0("## CRAN comments (copy/paste)\n\n```\n",
+                       paste(block, collapse = "\n"),
+                       "\n```\n"),
+                file = sumfile, append = TRUE)
+          }
+          RS
