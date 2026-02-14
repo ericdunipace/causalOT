@@ -63,7 +63,7 @@ jobs:
         run: Rscript -e 'ap <- available.packages(repos="https://ericdunipace.github.io/drat"); cat("drat pkgs:", nrow(ap), "\n"); cat(any(ap[,"Package"]=="rkeops"), "\n")'
           
       - name: Install rkeops from drat
-         run: Rscript -e 'pak::pkg_install("rkeops")'
+        run: Rscript -e 'pak::pkg_install("rkeops")'
       
       - uses: r-lib/actions/check-r-package@v2
         with:
