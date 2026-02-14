@@ -44,6 +44,7 @@ jobs:
           dependencies: '"hard"'
           cache: false
           extra-packages: |
+            eric=https://ericdunipace.github.io/drat
             any::rcmdcheck
             any::testthat
             any::knitr
@@ -57,15 +58,17 @@ jobs:
             any::pak
           needs: check
       
-      - name: Add Eric drat repo
+      - name: Add drat repo
         run: |
           Rscript -e 'pak::repo_add(eric="https://ericdunipace.github.io/drat"); print(getOption("repos"))'
-      
-      - name: Install rkeops
+          
+      - name: Check drat reachable
+        run: Rscript -e 'ap <- available.packages(repos="https://ericdunipace.github.io/drat"); cat("drat pkgs:", nrow(ap), "\n"); cat(any(ap[,"Package"]=="rkeops"), "\n")'
+          
+      - name: Install rkeops from drat
         run: |
-            if (.Platform$OS.type != "windows") pak::pkg_install("getkeops/keops/rkeops")
-        shell: Rscript {0}
-
+          Rscript -e 'options(repos=c(eric="https://ericdunipace.github.io/drat", CRAN="https://cran.rstudio.com")); install.packages("rkeops")'
+      
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
