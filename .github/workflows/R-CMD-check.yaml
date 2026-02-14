@@ -56,7 +56,11 @@ jobs:
             any::withr
             any::pak
           needs: check
-          
+      
+      - name: Add Eric drat repo
+        run: |
+          Rscript -e 'pak::repo_add(eric="https://ericdunipace.github.io/drat"); print(getOption("repos"))'
+      
       - name: Install rkeops
         run: |
             if (.Platform$OS.type != "windows") pak::pkg_install("getkeops/keops/rkeops")
