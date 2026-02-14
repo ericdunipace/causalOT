@@ -8,6 +8,18 @@ usethis::use_release_issue()
 # build documents
 devtools::document()
 
+# redo manual pages
+  rd <- "man/Measure.Rd"
+  x <- readLines(rd, warn = FALSE)
+  x <- x[!grepl("^\\\\alias\\{Measure_\\}$", x)]
+  x <- gsub("Measure_\\$", "Measure\\$", x, fixed = FALSE)
+  writeLines(x, rd)
+  rd <- "man/OTProblem.Rd"
+  x <- readLines(rd, warn = FALSE)
+  x <- x[!grepl("^\\\\alias\\{OTProblem_\\}$", x)]
+  x <- gsub("OTProblem_\\$", "OTProblem\\$", x, fixed = FALSE)
+  writeLines(x, rd)
+
 # url checks
 urlchecker::url_check()
 
@@ -16,6 +28,7 @@ devtools::check(remote = TRUE, manual = TRUE)
 
 # build package once
 build_path <- devtools::build(manual = TRUE)
+# install.packages(build_path)
 
 # command checks, remote
 devtools::check_win_devel(quiet=TRUE)

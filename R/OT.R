@@ -590,18 +590,19 @@ function(which.margin = "x", niter, tol) {
       # Anderson acceleration
       ft_1 = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx2, a_log)
       f_xx$add_(ft_1)$mul_(0.5) #OT(a,a)
+      #f_xx = ft_1 + f_xx; f_xx = f_xx * 0.5;  # OT(a,a)
       
       ft_2 = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
       f_xx2$add_(ft_2)$mul_(0.5) #OT(a,a)
-      #f_xx = ft_1 + f_xx; f_xx = f_xx * 0.5;  # OT(a,a)
+      
     } else {
       f_xx = softmin(torch::jit_scalar(eps_cur), C_xx, f_xx2, a_log)
       f_xx2= softmin(torch::jit_scalar(eps_cur), C_xx, f_xx , a_log)
     }
-    # loss = sum((f_1 + f_2) * a)
     f_xx$add_(f_xx2)$mul_(0.5)
     f_xx2 = f_xx$clone()
     
+    # loss = sum((f_1 + f_2) * a)
     loss = a$dot(f_xx)$item() * 2.0
     # if ((i %% print_period) == 0) {
       if (abs(loss - loss_1) < tol) break

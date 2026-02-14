@@ -1,8 +1,8 @@
 Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
-Version: 1.0.2.9000
-Date: 2024-02-17
+Version: 1.0.3
+Date: 2026-02-13
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -12,7 +12,7 @@ Authors@R:
 Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
 Description: Uses optimal transport distances to find probabilistic 
     matching estimators for causal inference.
-    These methods are described in Dunipace, Eric (2021) <arXiv:2109.01991>.
+    These methods are described in Dunipace, Eric (2021) <doi:10.48550/arXiv.2109.01991>.
     The package will build the weights, estimate treatment effects, and
     calculate confidence intervals via the methods described in the paper.
     The package also supports several other methods as described in the help 
@@ -50,10 +50,10 @@ Suggests:
 Additional_repositories: https://ericdunipace.github.io/drat/
 Biarch: true
 Depends: 
-    R (>= 3.5.0)
+    R (>= 4.1.0)
 Roxygen: list(markdown = TRUE)
 Encoding: UTF-8
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 LazyData: true
 VignetteBuilder: knitr
 Collate: 

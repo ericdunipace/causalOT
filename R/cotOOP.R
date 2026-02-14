@@ -1,14 +1,45 @@
 # COT general form using object oriented code and R6 classes
 
-#' @name Measure_
-#' @title An R6 object for measures
-#' @rdname Measure_-class
-#' @description Internal R6 class object for Measure objects
-#' @keywords internal
+#' Measure
+#'
+#' An R6 class for representing empirical measures (data + weights) with optional
+#' gradient-based adaptation via torch.
+#'
+#' @name Measure
+#' @description Constructor for an R6 Measure object.
+#' @details Use `Measure()` to construct a measure. The returned object supports
+#'   active bindings like `$weights` and `$x`, and methods like `$detach()`. See below for defined methods and fields.
+#' @examples 
+#' if(torch::torch_is_installed()) {
+#' m <- Measure(x = matrix(0, 10, 2), adapt = "none")
+#' print(m)
+#' m$x
+#' m$x <- matrix(1,10,2) # must have same dimensions
+#' m$x
+#' m$weights
+#' m$weights <- 1:10/sum(1:10)
+#' m$weights
+#' 
+#' # with gradients
+#' m <- Measure(x = matrix(0, 10, 2), adapt = "weights")
+#' m$requires_grad # TRUE
+#' m$requires_grad <- "none" # turns off
+#' m$requires_grad # FALSE
+#' m$requires_grad <- "x"
+#' m$requires_grad # TRUE
+#' m <- Measure(matrix(0, 10, 2), adapt = "none")
+#' m$grad # NULL
+#' m <- Measure(matrix(0, 10, 2), adapt = "weights")
+#' loss <- sum(m$weights * 1:10)
+#' loss$backward()
+#' m$grad
+#' # note the weights gradient is on the log softmax scale
+#' #and the first parameter is fixed for identifiability
+#' m$grad <- rep(1,9)  
+#' m$grad
+#' }
 Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
  public = {list(
-   # data
-   
    #' @field balance_functions the functions of the data that 
    #' we want to adjust towards the targets
    balance_functions = "torch_tensor",
@@ -35,8 +66,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
    #' @field probability_measure is the measure a probability measure?
    probability_measure = "logical",
    
-   # functions
-   #' @description 
+   #' @description
    #' generates a deep clone of the object without gradients.
    detach = function() { #removes gradient calculation in copy
      orig_adapt <- self$adapt
@@ -62,13 +92,13 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
      return(temp_obj)
    },
    
-   #' @description 
+   #' @description
    #' Makes a copy of the weights parameters.
    get_weight_parameters = function() {
      private$mass_$clone()
    },
    
-   #' @description prints the measure object
+   #' prints the measure object
    #' @param ... Not used
    print = function(...) {
      cat("Measure: ",  rlang::obj_address(self), "\n", sep = "")
@@ -106,7 +136,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
      cat("  device : ", capture.output(self$device), "\n", sep = "")
    },
    
-   #' @description Constructor function
+   #' Constructor function
    #' @param x The data points
    #' @param weights The empirical measure. If NULL, assigns equal weight to each observation
    #' @param probability.measure Is the empirical measure a probability measure? Default is TRUE.
@@ -508,9 +538,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
  )}
 )
 
-#' @name Measure
-#' @title An R6 Class for setting up measures
-#'
+#' @rdname Measure
 #' @param x The data points
 #' @param weights The empirical measure. If NULL, assigns equal weight to each observation
 #' @param probability.measure Is the empirical measure a probability measure? Default is TRUE.
@@ -519,104 +547,7 @@ Measure_ <- R6::R6Class("Measure", # change name later for Roxygen purposes
 #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
 #' @param dtype The torch_tensor dtype or NULL.
 #' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL.
-#' @return Returns a Measure object
-#' 
-#' @details # Public fields
-#'   \if{html}{\out{<div class="r6-fields">}}
-#'   \describe{
-#'     \item{\code{balance_functions}}{the functions of the data that
-#'       we want to adjust towards the targets}
-#'     \item{\code{balance_target}}{the values the balance_functions are targeting}
-#'     \item{\code{adapt}}{What aspect of the data will be adapted. One of "none","weights", or "x".}
-#'     \item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device}} of the data.}
-#'     \item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
-#'     \item{\code{n}}{the rows of the covariates, x.}
-#'     \item{\code{d}}{the columns of the covariates, x.}
-#'     \item{\code{probability_measure}}{is the measure a probability measure?}
-#'   }
-#'   \if{html}{\out{</div>}}
-#' @details # Active bindings
-#'   \if{html}{\out{<div class="r6-active-bindings">}}
-#'   \describe{
-#'     \item{\code{grad}}{gets or sets gradient}
-#'     \item{\code{init_weights}}{returns the initial value of the weights}
-#'     \item{\code{init_data}}{returns the initial value of the data}
-#'     \item{\code{requires_grad}}{checks or turns on/off gradient}
-#'     \item{\code{weights}}{gets or sets weights}
-#'     \item{\code{x}}{Gets or sets the data}
-#'   }
-#'   \if{html}{\out{</div>}}
-#' @details # Methods
-#' \subsection{Public methods}{
-#' \itemize{
-#' \item \href{#method-Measure-detach}{\code{Measure$detach()}}
-#' \item \href{#method-Measure-get_weight_parameters}{\code{Measure$get_weight_parameters()}}
-#' \item \href{#method-Measure-clone}{\code{Measure$clone()}}
-#' }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-Measure-detach"></a>}}
-#' \if{latex}{\out{\hypertarget{method-Measure-detach}{}}}
-#' \subsection{Method \code{detach()}}{
-#' generates a deep clone of the object without gradients.
-#' \subsection{Usage}{
-#' \if{html}{\out{<div class="r">}}\preformatted{Measure$detach()}\if{html}{\out{</div>}}
-#' }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-Measure-get_weight_parameters"></a>}}
-#' \if{latex}{\out{\hypertarget{method-Measure-get_weight_parameters}{}}}
-#' \subsection{Method \code{get_weight_parameters()}}{
-#' Makes a copy of the weights parameters.
-#' \subsection{Usage}{
-#' \if{html}{\out{<div class="r">}}\preformatted{Measure$get_weight_parameters()}\if{html}{\out{</div>}}
-#' }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-Measure-clone"></a>}}
-#' \if{latex}{\out{\hypertarget{method-Measure-clone}{}}}
-#' \subsection{Method \code{clone()}}{
-#' The objects of this class are cloneable with this method.
-#' \subsection{Usage}{
-#' \if{html}{\out{<div class="r">}}\preformatted{Measure$clone(deep = FALSE)}\if{html}{\out{</div>}}
-#' }
-#' \subsection{Arguments}{
-#' \if{html}{\out{<div class="arguments">}}
-#' \describe{
-#'   \item{\code{deep}}{Whether to make a deep clone.}
-#' }
-#' \if{html}{\out{</div>}}
-#' }
-#' }
-#' @examples 
-#' if(torch::torch_is_installed()) {
-#' m <- Measure(x = matrix(0, 10, 2), adapt = "none")
-#' print(m)
-#' m$x
-#' m$x <- matrix(1,10,2) # must have same dimensions
-#' m$x
-#' m$weights
-#' m$weights <- 1:10/sum(1:10)
-#' m$weights
-#' 
-#' # with gradients
-#' m <- Measure(x = matrix(0, 10, 2), adapt = "weights")
-#' m$requires_grad # TRUE
-#' m$requires_grad <- "none" # turns off
-#' m$requires_grad # FALSE
-#' m$requires_grad <- "x"
-#' m$requires_grad # TRUE
-#' m <- Measure(matrix(0, 10, 2), adapt = "none")
-#' m$grad # NULL
-#' m <- Measure(matrix(0, 10, 2), adapt = "weights")
-#' loss <- sum(m$weights * 1:10)
-#' loss$backward()
-#' m$grad
-#' # note the weights gradient is on the log softmax scale
-#' #and the first parameter is fixed for identifiability
-#' m$grad <- rep(1,9)  
-#' m$grad
-#' }
+#' @return Returns a `Measure` object
 #' @export
 Measure <- function(x, 
                     weights = NULL, 
@@ -654,14 +585,55 @@ oop_loss_select <- function(ot) {
   }
 }
 
-#' @name OTProblem_-class
-#' @title An R6 class to construct OTProblems
-#' @rdname OTProblem_-class
-#' @description OTProblem R6 class
-#' @keywords internal
+
+#' OTProblem
+#'
+#' An R6 class for creating optimal transport problems with two `Measure` objects.
+#'
+#' @name OTProblem
+#' @description User-facing constructor for an R6 `OTProblem` object.
+#' @details Use `OTProblem()` to construct an object of class
+#' `OTProblem`. The component objects must be of class [Measure].
+#' 
+#' The process of solving an OT problem involves three steps: 
+#' (1) setting up the problem by creating `Measure` objects and combining them into an `OTProblem` object, 
+#' (2) choosing the hyperparameters for the problem, and 
+#' (3) solving the problem by minimizing the objective function.
+#'  The first step is done by creating `Measure` objects and 
+#'  then combining them into an `OTProblem` object using 
+#'  the `$add()`, `$subtract()`, `$multiply()`, and `$divide()` methods. 
+#'  The second step is done by calling the `$setup_arguments()` method on the `OTProblem` object. 
+#'  The third step is done by calling the `$solve()` method on the `OTProblem` object.
+#' 
+#' @examples
+#' if (torch::torch_is_installed()) {
+#'   # setup measures
+#'   x <- matrix(1, 100, 10)
+#'   m1 <- Measure(x = x)
+#'   
+#'   y <- matrix(2, 100, 10)
+#'   m2 <- Measure(x = y, adapt = "weights")
+#'   
+#'   z <- matrix(3,102, 10)
+#'   m3 <- Measure(x = z)
+#'   
+#'   # setup OT problems
+#'   ot1 <- OTProblem(m1, m2)
+#'   ot2 <- OTProblem(m3, m2)
+#'   
+#'   # you can add or subtract OTProblem objects into 
+#'   # a new OTProblem
+#'   ot <- 0.5 * ot1 + 0.5 * ot2
+#'   print(ot)
+#'   
+#'   # Then you choose the hyperparameters
+#'   ot$setup_arguments(lambda = 1000)
+#'   
+#'   # then you can solve the objective function
+#'   ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+#'   }
 OTProblem_ <- R6::R6Class("OTProblem",
  public = {list(
-   # objects
    
    #' @field device the [torch::torch_device()] of the data.
    device = "torch_device",
@@ -675,126 +647,252 @@ OTProblem_ <- R6::R6Class("OTProblem",
    #' @field selected_lambda the lambda value selected after `choose_hyperparameters`
    selected_lambda = "numeric", # final lambda
 
-   # functions
-   
-   #' @param o2 A number or object of class OTProblem
-   #' @description adds `o2` to the OTProblem
+   #' @description
+   #' adds `o2` to the `OTProblem`
+   #' @param o2 A number or object of class `OTProblem`
+   #' @examples
+      #' # example code
+      #' if (torch::torch_is_installed()) {
+      #'  # setup measures
+      #'  x <- matrix(1, 100, 10)
+      #'  m1 <- Measure(x = x)
+      #'  
+      #'  y <- matrix(2, 100, 10)
+      #'  m2 <- Measure(x = y)
+      #'  
+      #'  z <- matrix(3,102, 10)
+      #'  
+      #'  m3 <- Measure(x = z)
+      #'  
+      #' # setup OT problems
+      #'  ot1 <- OTProblem(m1, m2)
+      #'  
+      #'  ot2 <- OTProblem(m3, m2)
+      #'  
+      #'  print(ot1)
+      #'  print(ot2)
+      #'  
+      #'  ot1$add(ot2)
+      #'  
+      #'  print(ot1)
+      #'  print(ot2)
+      #'  
+      #' }
    add = function(o2) {
      private$unaryop(o2, "+")
    },
    
-   #' @param o2 A number or object of class OTProblem
-   #' @description subtracts `o2` from OTProblem
+   #' @description
+   #' subtracts `o2` from `OTProblem`
+   #' @param o2 A number or object of class `OTProblem`
+   #' @examples
+   #' if (torch::torch_is_installed()) {
+   #'  # setup measures
+   #'  x <- matrix(1, 100, 10)
+   #'  m1 <- Measure(x = x)
+   #'  
+   #'  y <- matrix(2, 100, 10)
+   #'  m2 <- Measure(x = y)
+   #'  
+   #'  z <- matrix(3,102, 10)
+   #'  
+   #'  m3 <- Measure(x = z)
+   #'  
+   #' # setup OT problems
+   #'  ot1 <- OTProblem(m1, m2)
+   #'  
+   #'  ot2 <- OTProblem(m3, m2)
+   #'  
+   #'  print(ot1)
+   #'  print(ot2)
+   #'  
+   #'  ot1$subtract(ot2)
+   #'  
+   #'  print(ot1)
+   #'  print(ot2)
+   #'  
+   #' }
    subtract = function(o2) {
      private$unaryop(o2, "-")
    },
    
+   #' @description
+   #' multiplies `OTProblem` by `o2`
    #' @param o2 A number or object of class OTProblem
-   #' @description multiplies OTProblem by `o2`
+   #' @examples
+   #' if (torch::torch_is_installed()) {
+   #'  # setup measures
+   #'  x <- matrix(1, 100, 10)
+   #'  m1 <- Measure(x = x)
+   #'  
+   #'  y <- matrix(2, 100, 10)
+   #'  m2 <- Measure(x = y)
+   #'  
+   #'  z <- matrix(3,102, 10)
+   #'  
+   #'  m3 <- Measure(x = z)
+   #'  
+   #' # setup OT problems
+   #'  ot1 <- OTProblem(m1, m2)
+   #'  
+   #'  ot2 <- OTProblem(m3, m2)
+   #'  
+   #'  print(ot1)
+   #'  print(ot2)
+   #'  
+   #'  ot1$multiply(ot2)
+   #'  
+   #'  print(ot1)
+   #'  print(ot2)
+   #'  
+   #' }
    multiply = function(o2) {
      private$unaryop(o2, "*")
    },
    
-#' @param o2 A number or object of class OTProblem
-#' @description divides OTProblem by `o2`
+   #' @description
+   #' divides OTProblem by agument `o2`
+   #' @param o2 A number or object of class OTProblem
+   #' @examples
+   #' if (torch::torch_is_installed()) {
+   #'  # setup measures
+   #'  x <- matrix(1, 100, 10)
+   #'  m1 <- Measure(x = x)
+   #'  
+   #'  y <- matrix(2, 100, 10)
+   #'  m2 <- Measure(x = y)
+   #'  
+   #'  z <- matrix(3,102, 10)
+   #'  
+   #'  m3 <- Measure(x = z)
+   #'  
+   #' # setup OT problems
+   #'  ot1 <- OTProblem(m1, m2)
+   #'  
+   #'  ot2 <- OTProblem(m3, m2)
+   #'  
+   #'  print(ot1)
+   #'  print(ot2)
+   #'  
+   #'  ot1$divide(ot2)
+   #'  
+   #'  print(ot1)
+   #'  print(ot2)
+   #'  
+   #' }
    divide = function(o2) {
      private$unaryop(o2, "/")
    },
 
-#' @description prints the OT problem object
-#' @param ... Not used
-print = function(...) {
-  obj <- rlang::expr_text(private$objective)
-  obj <- gsub("oop_loss_select", "OT", obj)
-  obj <- gsub('private$ot_objects[[\"', "", obj, fixed = TRUE)
-  obj <- gsub('\"]]', "", obj, fixed = TRUE)
-  obj <- gsub("\n    ", "", obj)
-  obj <- gsub("+ ", "+\n  ", obj, fixed = TRUE)
-  obj <- gsub("- ", "-\n  ", obj, fixed = TRUE)
-  cat("OT Problem: \n")
-  cat("  ", obj, "\n", sep = "")
-},
+  #' @description
+  #' prints the OT problem object
+  #' @param ... Not used at this time
+  print = function(...) {
+    obj <- rlang::expr_text(private$objective)
+    obj <- gsub("oop_loss_select", "OT", obj)
+    obj <- gsub('private$ot_objects[[\"', "", obj, fixed = TRUE)
+    obj <- gsub('\"]]', "", obj, fixed = TRUE)
+    obj <- gsub("\n    ", "", obj)
+    obj <- gsub("+ ", "+\n  ", obj, fixed = TRUE)
+    obj <- gsub("- ", "-\n  ", obj, fixed = TRUE)
+    cat("OT Problem: \n")
+    cat("  ", obj, "\n", sep = "")
+  },
 
-#' @description Constructor method
-#' @param measure_1 An object of class [Measure]
-#' @param measure_2 An object of class [Measure]
-#' @param ... Not used at this time 
-#'
-#' @return An R6 object of class "OTProblem"
-initialize = function(measure_1, measure_2) {
-  # browser()
-  add_1 <- rlang::obj_address(measure_1)
-  add_2 <- rlang::obj_address(measure_2)
-  addresses <- c(add_1, add_2)
-  address_names <- paste0(addresses, collapse = ", ")
-  
-  stopifnot("argument 'measure_1' must be of class 'Measure'" = inherits(measure_1, "Measure"))
-  stopifnot("argument 'measure_2' must be of class 'Measure'" = inherits(measure_2, "Measure"))
-  
-  dtype <- measure_1$dtype
-  device <- measure_1$device
-  
-  if(isFALSE(measure_2$dtype == dtype) ) {
-    stop(sprintf("Measures must have same data type! measure_1 is of type %s, while measure_2 is of type %s.", dtype, measure_2$dtype))
-  }
-  if (!(measure_2$device == device) ) { # can't use != with torch device
-    stop(sprintf("Measures should be on same device! measure_1 is is on device %s, while measure_2 is on device %s.", device, measure_2$device) )
-  }
-  if (measure_1$d != measure_2$d) {
-    stop(sprintf("Measures should have the same number of columns! measure_1 has %s columns, while measure_2 has %s columns.", measure_1$d, measure_2$d))
-  }
-  
-  self$dtype <- dtype
-  self$device <- device
-  
-  #environment with names as obj_add, and measures as elements of environment
-  private$measures <- rlang::env(!!add_1 := measure_1, !!add_2 := measure_2)
-  
-  # env with names as obj_add1, obj_add2 (sorted),
-  #contains vector with c(obj_add1, obj_add2)
-  private$problems <- rlang::env(!!address_names := addresses)
-  
-  # envionrment with names as obj_add1, obj_add2 (sorted), then a list with f, g duals
-  # self$duals <- rlang::env(!!address_names := list(!!addresses[1] := torch::torch_zeros(private$measures[[addresses[1] ]]$n, device = device, dtype = dtype)),
-  #                          !!addresses[2] := torch::torch_zeros(private$measures[[addresses[2] ]]$n, device = device, dtype = dtype) )
-  
-  # ot_objects
-  # envionrment with names as obj_add1, obj_add2 (sorted), with OT class objects
-  private$ot_objects <- rlang::env()
-  
-  # target_objects
-  # envionrment with names as obj_add1, obj_add2 (sorted), with list of balance.functions, means and delta values
-  private$target_objects <- rlang::env()
-  
-  #penalty list
-  private$penalty_list <- list(lambda = NA_real_, delta = NA_real_)
-  
-  # parameter list initialize
-  private$parameters <- list()
-  
-  
-  private$objective <- rlang::expr(
-    oop_loss_select(private$ot_objects[[!!address_names]])
-  )
-  
-  private$args_set <- FALSE
-  private$opt <- private$sched <- NULL
-  
-  return(invisible(self))
-},
 
-#' @param lambda The penalty parameters to try for the OT problems. If not provided, function will select some
-#' @param delta The constraint paramters to try for the balance function problems, if any
-#' @param grid.length The number of hyperparameters to try if not provided
-#' @param cost.function The cost function for the data. Can be any function that takes arguments `x1`, `x2`, `p`. Defaults to the Euclidean distance
-#' @param p The power to raise the cost matrix by. Default is 2
-#' @param cost.online Should online costs be used? Default is "auto" but "tensorized" stores the cost matrix in memory while "online" will calculate it on the fly.
-#' @param debias Should debiased OT problems be used? Defaults to TRUE
-#' @param diameter Diameter of the cost function.
-#' @param ot_niter Number of iterations to run the OT problems
-#' @param ot_tol The tolerance for convergence of the OT problems
-#'
-#' @return NULL
+  #' @description
+  #' Constructor method
+  #' @param measure_1 An object of class [Measure]
+  #' @param measure_2 An object of class [Measure]
+  #' @param ... Not used at this time 
+  #' @return An R6 object of class `OTProblem`
+  initialize = function(measure_1, measure_2) {
+    # browser()
+    add_1 <- rlang::obj_address(measure_1)
+    add_2 <- rlang::obj_address(measure_2)
+    addresses <- c(add_1, add_2)
+    address_names <- paste0(addresses, collapse = ", ")
+    
+    stopifnot("argument 'measure_1' must be of class 'Measure'" = inherits(measure_1, "Measure"))
+    stopifnot("argument 'measure_2' must be of class 'Measure'" = inherits(measure_2, "Measure"))
+    
+    dtype <- measure_1$dtype
+    device <- measure_1$device
+    
+    if(isFALSE(measure_2$dtype == dtype) ) {
+      stop(sprintf("Measures must have same data type! measure_1 is of type %s, while measure_2 is of type %s.", dtype, measure_2$dtype))
+    }
+    if (!(measure_2$device == device) ) { # can't use != with torch device
+      stop(sprintf("Measures should be on same device! measure_1 is is on device %s, while measure_2 is on device %s.", device, measure_2$device) )
+    }
+    if (measure_1$d != measure_2$d) {
+      stop(sprintf("Measures should have the same number of columns! measure_1 has %s columns, while measure_2 has %s columns.", measure_1$d, measure_2$d))
+    }
+    
+    self$dtype <- dtype
+    self$device <- device
+    
+    #environment with names as obj_add, and measures as elements of environment
+    private$measures <- rlang::env(!!add_1 := measure_1, !!add_2 := measure_2)
+    
+    # env with names as obj_add1, obj_add2 (sorted),
+    #contains vector with c(obj_add1, obj_add2)
+    private$problems <- rlang::env(!!address_names := addresses)
+    
+    # envionrment with names as obj_add1, obj_add2 (sorted), then a list with f, g duals
+    # self$duals <- rlang::env(!!address_names := list(!!addresses[1] := torch::torch_zeros(private$measures[[addresses[1] ]]$n, device = device, dtype = dtype)),
+    #                          !!addresses[2] := torch::torch_zeros(private$measures[[addresses[2] ]]$n, device = device, dtype = dtype) )
+    
+    # ot_objects
+    # envionrment with names as obj_add1, obj_add2 (sorted), with OT class objects
+    private$ot_objects <- rlang::env()
+    
+    # target_objects
+    # envionrment with names as obj_add1, obj_add2 (sorted), with list of balance.functions, means and delta values
+    private$target_objects <- rlang::env()
+    
+    #penalty list
+    private$penalty_list <- list(lambda = NA_real_, delta = NA_real_)
+    
+    # parameter list initialize
+    private$parameters <- list()
+    
+    
+    private$objective <- rlang::expr(
+      oop_loss_select(private$ot_objects[[!!address_names]])
+    )
+    
+    private$args_set <- FALSE
+    private$opt <- private$sched <- NULL
+    
+    return(invisible(self))
+  },
+
+  #' @description 
+  #' Sets up the OT problems for the `OTProblem` object. This should be run before `choose_hyperparameters` and `solve`.
+  #' @param lambda The penalty parameters to try for the `OTProblem.` If not provided, the function will select some.
+  #' @param delta The constraint paramters to try for the balance function problems, if any.
+  #' @param grid.length The number of hyperparameters to try if not provided
+  #' @param cost.function The cost function for the data. Can be any function that takes arguments `x1`, `x2`, `p`. Defaults to the Euclidean distance.
+  #' @param p The power to raise the cost matrix by. Default is 2
+  #' @param cost.online Should online costs be used? Default is "auto" but "tensorized" stores the cost matrix in memory while "online" will calculate it on the fly.
+  #' @param debias Should debiased a debiased `OTProblem` be used? Defaults to TRUE
+  #' @param diameter Diameter of the cost function.
+  #' @param ot_niter Number of iterations to run the solver
+  #' @param ot_tol The tolerance for convergence of the objective function
+  #' @return returns the object invisibly
+  #' 
+  #' @examples
+  #' if (torch::torch_is_installed()) {
+  #'  # setup measures
+  #'  x <- matrix(1, 100, 10)
+  #'  m1 <- Measure(x = x)
+  #'  y <- matrix(2, 100, 10)
+  #'  m2 <- Measure(x = y, adapt = "weights")
+  #'  
+  #'  ot <- OTProblem(m1, m2)
+  #'  ot$setup_arguments(lambda = 1000)
+  #' }
 setup_arguments = function(lambda, delta, 
                            grid.length = 7L,
                            cost.function = NULL, 
@@ -941,15 +1039,29 @@ setup_arguments = function(lambda, delta,
   return(invisible(self))
 },
 
-#' @description Solve the OTProblem at each parameter value. Must run setup_arguments first.
-#' @param niter The nubmer of iterations to run solver at each combination of hyperparameter values 
-#' @param tol The tolerance for convergence
-#' @param optimizer The optimizer to use. One of "torch" or "frank-wolfe"
-#' @param torch_optim The `torch_optimizer` to use. Default is [torch::optim_lbfgs]
-#' @param torch_scheduler The [torch::lr_scheduler] to use. Default is [torch::lr_reduce_on_plateau]
-#' @param torch_args Arguments passed to the torch optimizer and scheduler
-#' @param osqp_args Arguments passed to [osqp::osqpSettings()] if appropriate
-#' @param quick.balance.function Should [osqp::osqp()] be used to select balance function constraints (delta) or not. Default true.
+  #' @description
+  #' Solve the `OTProblem` at each parameter value. Must run setup_arguments first.
+  #' @param niter The nubmer of iterations to run solver at each combination of hyperparameter values 
+  #' @param tol The tolerance for convergence
+  #' @param optimizer The optimizer to use. One of "torch" or "frank-wolfe"
+  #' @param torch_optim The `torch_optimizer` to use. Default is [torch::optim_lbfgs]
+  #' @param torch_scheduler The [torch::lr_scheduler] to use. Default is [torch::lr_reduce_on_plateau]
+  #' @param torch_args Arguments passed to the torch optimizer and scheduler
+  #' @param osqp_args Arguments passed to [osqp::osqpSettings()] if appropriate
+  #' @param quick.balance.function Should [osqp::osqp()] be used to select balance function constraints (delta) or not. Default true.
+  #' @return returns the object invisibly
+  #' @examples
+  #' if (torch::torch_is_installed()) {
+  #'  # setup measures
+  #'  x <- matrix(1, 100, 10)
+  #'  m1 <- Measure(x = x)
+  #'  y <- matrix(2, 100, 10)
+  #'  m2 <- Measure(x = y, adapt = "weights")
+  #'  
+  #'  ot <- OTProblem(m1, m2)
+  #'  ot$setup_arguments(lambda = 1000)
+  #'  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+  #' }
   solve = function(niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
                    torch_optim = torch::optim_lbfgs,
                    torch_scheduler = torch::lr_reduce_on_plateau,
@@ -1021,11 +1133,26 @@ setup_arguments = function(lambda, delta,
     return(invisible(self))
   },
 
+  #' @description
+  #' Selects the hyperparameter values through a bootstrap algorithm
   #' @param n_boot_lambda The number of bootstrap iterations to run when selecting lambda
   #' @param n_boot_delta The number of bootstrap iterations to run when selecting delta
   #' @param lambda_bootstrap The penalty parameter to use when selecting lambda. Higher numbers run faster.
-  #'
-  #' @description Selects the hyperparameter values through a bootstrap algorithm
+  #' @return returns the object invisibly
+  #' 
+  #' @examples
+  #' if (torch::torch_is_installed()) {
+  #'  # setup measures
+  #'  x <- matrix(1, 100, 10)
+  #'  m1 <- Measure(x = x)
+  #'  y <- matrix(2, 100, 10)
+  #'  m2 <- Measure(x = y, adapt = "weights")
+  #'  
+  #'  ot <- OTProblem(m1, m2)
+  #'  ot$setup_arguments(lambda = c(1,1000))
+  #'  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
+  #'  ot$choose_hyperparameters(n_boot_lambda = 2, n_boot_delta = 10, lambda_bootstrap = 100)
+  #' }
   choose_hyperparameters =  function(n_boot_lambda = 100L, n_boot_delta = 1000L, lambda_bootstrap = Inf) {
       
       # check arguments
@@ -1182,14 +1309,18 @@ setup_arguments = function(lambda, delta,
       
     },
 
-#' @description Provides diagnostics after solve and choose_hyperparameter methods have been run.
-#'
+#' @description 
+#' Provides diagnostics after solve and choose_hyperparameter methods have been run.
 #' @return a list with slots
 #' \itemize{
 #' \item `loss` the final loss values
 #' \item `iterations` The number of iterations run for each combination of parameters
 #' \item `balance.function.differences` The final differences in the balance functions
-#' \item `hyperparam.metrics` A list of the bootstrap evalustion for delta and lambda values}
+#' \item `hyperparam.metrics` A list of the bootstrap evaluation for delta and lambda values}
+#' @examples
+#' if (torch::torch_is_installed()) {
+#'   ot$info()
+#' }
    info = function(){
      losses <- if (is.list(private$final_loss)) {
        do.call("rbind", private$final_loss)
@@ -1222,11 +1353,12 @@ setup_arguments = function(lambda, delta,
    
  )},
  active = {list(
-#' @field loss prints the current value of the objective. Only availble after the solve method has been run
-   loss = function() {
-     private$ot_update()
-     return(eval(private$objective)$to(device = self$device))
-   },
+   
+  #' @field loss Prints the current value of the objective. Only available after the solve method has been run
+  loss = function() {
+   private$ot_update()
+   return(eval(private$objective)$to(device = self$device))
+  },
    
    #' @field penalty Returns a list of the lambda and delta penalities that will be iterated through. To set these values, use the `setup_arguments` function.
    penalty = function() {
@@ -2197,308 +2329,13 @@ setup_arguments = function(lambda, delta,
  )}
 )
 
-#' Object Oriented OT Problem
-#'
+#' @name OTProblem
 #' @param measure_1 An object of class [Measure]
 #' @param measure_2 An object of class [Measure]
 #' @param ... Not used at this time 
-#'
-#' @return An R6 object of class "OTProblem"
-#' @details # Public fields
-#'   \if{html}{\out{<div class="r6-fields">}}
-#'   \describe{
-#'     \item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
-#'     \item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
-#'     \item{\code{selected_delta}}{the delta value selected after \code{choose_hyperparameters}}
-#'     \item{\code{selected_lambda}}{the lambda value selected after \code{choose_hyperparameters}}
-#'   }
-#'   \if{html}{\out{</div>}}
-#' @details # Active bindings
-#'   \if{html}{\out{<div class="r6-active-bindings">}}
-#'   \describe{
-#'     \item{\code{loss}}{prints the current value of the objective. Only availble after the \href{#method-OTProblem-solve}{\code{OTProblem$solve()}} method has been run}
-#'     \item{\code{penalty}}{Returns a list of the lambda and delta penalities that will be iterated through. To set these values, use the \href{#method-OTProblem-setup_arguments}{\code{OTProblem$setup_arguments()}} function.}
-#'   }
-#'   \if{html}{\out{</div>}}
-#' @details # Methods
-#'   \subsection{Public methods}{
-#'     \itemize{
-#'     \item \href{#method-OTProblem-add}{\code{OTProblem$add()}}
-#'     \item \href{#method-OTProblem-subtract}{\code{OTProblem$subtract()}}
-#'     \item \href{#method-OTProblem-multiply}{\code{OTProblem$multiply()}}
-#'     \item \href{#method-OTProblem-divide}{\code{OTProblem$divide()}}
-#'     \item \href{#method-OTProblem-setup_arguments}{\code{OTProblem$setup_arguments()}}
-#'     \item \href{#method-OTProblem-solve}{\code{OTProblem$solve()}}
-#'     \item \href{#method-OTProblem-choose_hyperparameters}{\code{OTProblem$choose_hyperparameters()}}
-#'     \item \href{#method-OTProblem-info}{\code{OTProblem$info()}}
-#'     \item \href{#method-OTProblem-clone}{\code{OTProblem$clone()}}
-#'     }
-#'     }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-add"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-add}{}}}
-#' \subsection{Method \code{add()}}{
-#'   adds \code{o2} to the OTProblem
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$add(o2)}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{o2}}{A number or object of class OTProblem}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-subtract"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-subtract}{}}}
-#' \subsection{Method \code{subtract()}}{
-#'   subtracts \code{o2} from OTProblem
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$subtract(o2)}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{o2}}{A number or object of class OTProblem}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-multiply"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-multiply}{}}}
-#' \subsection{Method \code{multiply()}}{
-#'   multiplies OTProblem by \code{o2}
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$multiply(o2)}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{o2}}{A number or an object of class OTProblem}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-divide"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-divide}{}}}
-#' \subsection{Method \code{divide()}}{
-#'   divides OTProblem by \code{o2}
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$divide(o2)}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{o2}}{A number or object of class OTProblem}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-setup_arguments"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-setup_arguments}{}}}
-#' \subsection{Method \code{setup_arguments()}}{
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$setup_arguments(
-#'       lambda,
-#'       delta,
-#'       grid.length = 7L,
-#'       cost.function = NULL,
-#'       p = 2,
-#'       cost.online = "auto",
-#'       debias = TRUE,
-#'       diameter = NULL,
-#'       ot_niter = 1000L,
-#'       ot_tol = 0.001
-#'     )}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{lambda}}{The penalty parameters to try for the OT problems. If not provided, function will select some}
-#'       \item{\code{delta}}{The constraint paramters to try for the balance function problems, if any}
-#'       \item{\code{grid.length}}{The number of hyperparameters to try if not provided}
-#'       \item{\code{cost.function}}{The cost function for the data. Can be any function that takes arguments \code{x1}, \code{x2}, \code{p}. Defaults to the Euclidean distance}
-#'       \item{\code{p}}{The power to raise the cost matrix by. Default is 2}
-#'       \item{\code{cost.online}}{Should online costs be used? Default is "auto" but "tensorized" stores the cost matrix in memory while "online" will calculate it on the fly.}
-#'       \item{\code{debias}}{Should debiased OT problems be used? Defaults to TRUE}
-#'       \item{\code{diameter}}{Diameter of the cost function.}
-#'       \item{\code{ot_niter}}{Number of iterations to run the OT problems}
-#'       \item{\code{ot_tol}}{The tolerance for convergence of the OT problems}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Returns}{
-#'     NULL
-#'   }
-#'   \subsection{Examples}{
-#'     \if{html}{\out{<div class="r example copy">}}
-#'     \preformatted{ ot$setup_arguments(lambda = c(1000,10))
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-solve"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-solve}{}}}
-#' \subsection{Method \code{solve()}}{
-#'   Solve the OTProblem at each parameter value. Must run setup_arguments first.
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$solve(
-#'       niter = 1000L,
-#'       tol = 1e-05,
-#'       optimizer = c("torch", "frank-wolfe"),
-#'       torch_optim = torch::optim_lbfgs,
-#'       torch_scheduler = torch::lr_reduce_on_plateau,
-#'       torch_args = NULL,
-#'       osqp_args = NULL,
-#'       quick.balance.function = TRUE
-#'     )}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{niter}}{The nubmer of iterations to run solver at each combination of hyperparameter values}
-#'       \item{\code{tol}}{The tolerance for convergence}
-#'       \item{\code{optimizer}}{The optimizer to use. One of "torch" or "frank-wolfe"}
-#'       \item{\code{torch_optim}}{The \code{torch_optimizer} to use. Default is \link[torch:optim_lbfgs]{torch::optim_lbfgs}}
-#'       \item{\code{torch_scheduler}}{The \link[torch:lr_scheduler]{torch::lr_scheduler} to use. Default is \link[torch:lr_reduce_on_plateau]{torch::lr_reduce_on_plateau}}
-#'       \item{\code{torch_args}}{Arguments passed to the torch optimizer and scheduler}
-#'       \item{\code{osqp_args}}{Arguments passed to \code{\link[osqp:osqpSettings]{osqp::osqpSettings()}} if appropriate}
-#'       \item{\code{quick.balance.function}}{Should \code{\link[osqp:osqp]{osqp::osqp()}} be used to select balance function constraints (delta) or not. Default true.}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Examples}{
-#'     \if{html}{\out{<div class="r example copy">}}
-#'     \preformatted{ ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-choose_hyperparameters"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-choose_hyperparameters}{}}}
-#' \subsection{Method \code{choose_hyperparameters()}}{
-#'   Selects the hyperparameter values through a bootstrap algorithm
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$choose_hyperparameters(
-#'       n_boot_lambda = 100L,
-#'       n_boot_delta = 1000L,
-#'       lambda_bootstrap = Inf
-#'     )}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{n_boot_lambda}}{The number of bootstrap iterations to run when selecting lambda}
-#'       \item{\code{n_boot_delta}}{The number of bootstrap iterations to run when selecting delta}
-#'       \item{\code{lambda_bootstrap}}{The penalty parameter to use when selecting lambda. Higher numbers run faster.}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Examples}{
-#'     \if{html}{\out{<div class="r example copy">}}
-#'     \preformatted{ ot$choose_hyperparameters(n_boot_lambda = 10, 
-#'                                              n_boot_delta = 10, 
-#'                                              lambda_bootstrap = Inf)
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-info"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-info}{}}}
-#' \subsection{Method \code{info()}}{
-#'   Provides diagnostics after solve and choose_hyperparameter methods have been run.
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$info()}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Returns}{
-#'     a list with slots
-#'     \itemize{
-#'       \item \code{loss} the final loss values
-#'       \item \code{iterations} The number of iterations run for each combination of parameters
-#'       \item \code{balance.function.differences} The final differences in the balance functions
-#'       \item \code{hyperparam.metrics} A list of the bootstrap evalustion for delta and lambda values}
-#'   }
-#'   \subsection{Examples}{
-#'     \if{html}{\out{<div class="r example copy">}}
-#'     \preformatted{ ot$info()
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' \if{html}{\out{<hr>}}
-#' \if{html}{\out{<a id="method-OTProblem-clone"></a>}}
-#' \if{latex}{\out{\hypertarget{method-OTProblem-clone}{}}}
-#' \subsection{Method \code{clone()}}{
-#'   The objects of this class are cloneable with this method.
-#'   \subsection{Usage}{
-#'     \if{html}{\out{<div class="r">}}\preformatted{OTProblem$clone(deep = FALSE)}\if{html}{\out{</div>}}
-#'   }
-#'   \subsection{Arguments}{
-#'     \if{html}{\out{<div class="arguments">}}
-#'     \describe{
-#'       \item{\code{deep}}{Whether to make a deep clone.}
-#'     }
-#'     \if{html}{\out{</div>}}
-#'   }
-#' }
-#' @examples
-#' ## ------------------------------------------------
-#' ## Method `OTProblem(measure_1, measure_2)`
-#' ## ------------------------------------------------
-#'
-#' if (torch::torch_is_installed()) {
-#'   # setup measures
-#'   x <- matrix(1, 100, 10)
-#'   m1 <- Measure(x = x)
-#'   
-#'   y <- matrix(2, 100, 10)
-#'   m2 <- Measure(x = y, adapt = "weights")
-#'   
-#'   z <- matrix(3,102, 10)
-#'   m3 <- Measure(x = z)
-#'   
-#'   # setup OT problems
-#'   ot1 <- OTProblem(m1, m2)
-#'   ot2 <- OTProblem(m3, m2)
-#'   ot <- 0.5 * ot1 + 0.5 * ot2
-#'   print(ot)
-#'
-#' ## ------------------------------------------------
-#' ## Method `OTProblem$setup_arguments`
-#' ## ------------------------------------------------
-#'
-#'   ot$setup_arguments(lambda = 1000)
-#'
-#' ## ------------------------------------------------
-#' ## Method `OTProblem$solve`
-#' ## ------------------------------------------------
-#'
-#'   ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
-#'
-#' ## ------------------------------------------------
-#' ## Method `OTProblem$choose_hyperparameters`
-#' ## ------------------------------------------------
-#'
-#'   ot$choose_hyperparameters(n_boot_lambda = 1,
-#'                             n_boot_delta = 1, 
-#'                             lambda_bootstrap = Inf)
-#'
-#' ## ------------------------------------------------
-#' ## Method `OTProblem$info`
-#' ## ------------------------------------------------
-#'
-#' ot$info()
-#' }
+#' @return An R6 object of class `OTProblem`.
 #' @export
-OTProblem <- function(measure_1, measure_2,...) {
+OTProblem <- function(measure_1, measure_2, ...) {
   
   OTProblem_$new(measure_1 = measure_1, 
                   measure_2 = measure_2)

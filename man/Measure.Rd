@@ -2,7 +2,7 @@
 % Please edit documentation in R/cotOOP.R
 \name{Measure}
 \alias{Measure}
-\title{An R6 Class for setting up measures}
+\title{Measure}
 \usage{
 Measure(
   x,
@@ -33,84 +33,18 @@ Measure(
 \item{device}{The device to have the data on. Should be result of \code{\link[torch:torch_device]{torch::torch_device()}} or NULL.}
 }
 \value{
-Returns a Measure object
+Returns a \code{Measure} object
 }
 \description{
-An R6 Class for setting up measures
+Constructor for an R6 Measure object.
 }
-\section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{balance_functions}}{the functions of the data that
-we want to adjust towards the targets}
-\item{\code{balance_target}}{the values the balance_functions are targeting}
-\item{\code{adapt}}{What aspect of the data will be adapted. One of "none","weights", or "x".}
-\item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device}} of the data.}
-\item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
-\item{\code{n}}{the rows of the covariates, x.}
-\item{\code{d}}{the columns of the covariates, x.}
-\item{\code{probability_measure}}{is the measure a probability measure?}
-}
-\if{html}{\out{</div>}}
-}
+\details{
+An R6 class for representing empirical measures (data + weights) with optional
+gradient-based adaptation via torch.
 
-\section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{grad}}{gets or sets gradient}
-\item{\code{init_weights}}{returns the initial value of the weights}
-\item{\code{init_data}}{returns the initial value of the data}
-\item{\code{requires_grad}}{checks or turns on/off gradient}
-\item{\code{weights}}{gets or sets weights}
-\item{\code{x}}{Gets or sets the data}
+Use \code{Measure()} to construct a measure. The returned object supports
+active bindings like \verb{$weights} and \verb{$x}, and methods like \verb{$detach()}. See below for defined methods and fields.
 }
-\if{html}{\out{</div>}}
-}
-
-\section{Methods}{
-\subsection{Public methods}{
-\itemize{
-\item \href{#method-Measure-detach}{\code{Measure$detach()}}
-\item \href{#method-Measure-get_weight_parameters}{\code{Measure$get_weight_parameters()}}
-\item \href{#method-Measure-clone}{\code{Measure$clone()}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Measure-detach"></a>}}
-\if{latex}{\out{\hypertarget{method-Measure-detach}{}}}
-\subsection{Method \code{detach()}}{
-generates a deep clone of the object without gradients.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$detach()}\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Measure-get_weight_parameters"></a>}}
-\if{latex}{\out{\hypertarget{method-Measure-get_weight_parameters}{}}}
-\subsection{Method \code{get_weight_parameters()}}{
-Makes a copy of the weights parameters.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$get_weight_parameters()}\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Measure-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-Measure-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
-}
-
 \examples{
 if(torch::torch_is_installed()) {
 m <- Measure(x = matrix(0, 10, 2), adapt = "none")
@@ -139,5 +73,149 @@ m$grad
 #and the first parameter is fixed for identifiability
 m$grad <- rep(1,9)  
 m$grad
+}
+}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{balance_functions}}{the functions of the data that
+we want to adjust towards the targets}
+
+\item{\code{balance_target}}{the values the balance_functions are targeting}
+
+\item{\code{adapt}}{What aspect of the data will be adapted. One of "none","weights", or "x".}
+
+\item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
+
+\item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
+
+\item{\code{n}}{the rows of the covariates, x.}
+
+\item{\code{d}}{the columns of the covariates, x.}
+
+\item{\code{probability_measure}}{is the measure a probability measure?}
+}
+\if{html}{\out{</div>}}
+}
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
+\describe{
+\item{\code{grad}}{gets or sets gradient}
+
+\item{\code{init_weights}}{returns the initial value of the weights}
+
+\item{\code{init_data}}{returns the initial value of the data}
+
+\item{\code{requires_grad}}{checks or turns on/off gradient}
+
+\item{\code{weights}}{gets or sets weights}
+
+\item{\code{x}}{Gets or sets the data.}
+}
+\if{html}{\out{</div>}}
+}
+\section{Methods}{
+\subsection{Public methods}{
+\itemize{
+\item \href{#method-Measure-detach}{\code{Measure$detach()}}
+\item \href{#method-Measure-get_weight_parameters}{\code{Measure$get_weight_parameters()}}
+\item \href{#method-Measure-print}{\code{Measure$print()}}
+\item \href{#method-Measure-new}{\code{Measure$new()}}
+\item \href{#method-Measure-clone}{\code{Measure$clone()}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Measure-detach"></a>}}
+\if{latex}{\out{\hypertarget{method-Measure-detach}{}}}
+\subsection{Method \code{detach()}}{
+generates a deep clone of the object without gradients.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Measure$detach()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Measure-get_weight_parameters"></a>}}
+\if{latex}{\out{\hypertarget{method-Measure-get_weight_parameters}{}}}
+\subsection{Method \code{get_weight_parameters()}}{
+Makes a copy of the weights parameters.
+prints the measure object
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Measure$get_weight_parameters()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Measure-print"></a>}}
+\if{latex}{\out{\hypertarget{method-Measure-print}{}}}
+\subsection{Method \code{print()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Measure$print(...)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Not used
+Constructor function}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Measure-new"></a>}}
+\if{latex}{\out{\hypertarget{method-Measure-new}{}}}
+\subsection{Method \code{new()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Measure$new(
+  x,
+  weights = NULL,
+  probability.measure = TRUE,
+  adapt = c("none", "weights", "x"),
+  balance.functions = NA_real_,
+  target.values = NA_real_,
+  dtype = NULL,
+  device = NULL
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{The data points}
+
+\item{\code{weights}}{The empirical measure. If NULL, assigns equal weight to each observation}
+
+\item{\code{probability.measure}}{Is the empirical measure a probability measure? Default is TRUE.}
+
+\item{\code{adapt}}{Should we try to adapt the data ("x"), the weights ("weights"), or neither ("none"). Default is "none".}
+
+\item{\code{balance.functions}}{A matrix of functions of the covariates to target for mean balance. If NULL and \code{target.values} are provided, will use the data in \code{x}.}
+
+\item{\code{target.values}}{The targets for the balance functions. Should be the same length as columns in \code{balance.functions.}}
+
+\item{\code{dtype}}{The \link[torch:torch_dtype]{torch::torch_dtype} or NULL.}
+
+\item{\code{device}}{The device to have the data on. Should be result of \code{\link[torch:torch_device]{torch::torch_device()}} or NULL.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Measure-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-Measure-clone}{}}}
+\subsection{Method \code{clone()}}{
+The objects of this class are cloneable with this method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Measure$clone(deep = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{deep}}{Whether to make a deep clone.}
+}
+\if{html}{\out{</div>}}
+}
 }
 }
