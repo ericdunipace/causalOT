@@ -295,7 +295,7 @@ PSIS_diag(raw_psis)
 We can see that all of the $k$ values are below the recommended 0.5, indicating finite variance and that the central limit theorem holds. Note the estimated sample sizes are a bit lower than the `ESS` method above.
 
 #### 2. Mean balance
-Many authors consider the standardized absolute mean balance as a marker for important balance: see [Stuart (2010)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2943670/). That is
+Many authors consider the standardized absolute mean balance as a marker for important balance: see [Stuart (2010)](https://pmc.ncbi.nlm.nih.gov/articles/PMC2943670/). That is
 $$ \frac{|\overline{X}_c - \overline{X}_t| }{\sigma_{\text{pool}}},$$ where
 $\overline{X}_c$ is the mean in the controls, $\overline{X}_t$ is the mean in the treated, and $\sigma_{\text{pool}}$ is the pooled standard deviation.
 We offer such checks in `causalOT` as well.

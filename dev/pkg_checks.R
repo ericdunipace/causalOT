@@ -42,8 +42,7 @@ rhub::rhub_doctor()
 rhub::rhub_platforms()
 
 
-rhub::rhub_check(platforms=c("linux", "m1-san", "macos-arm64","windows"))
-rhub::rhub_check(platforms=c("ubuntu-release" ,"gcc15","clang-asan"))
+rhub::rhub_check(platforms=c("linux", "m1-san", "macos-arm64","windows","ubuntu-release" ,"gcc15","clang-asan"))
 
 # reverse dependency
 # run if no rev dep check: devtools::install_github('r-lib/revdepcheck')

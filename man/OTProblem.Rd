@@ -2,6 +2,7 @@
 % Please edit documentation in R/cotOOP.R
 \name{OTProblem}
 \alias{OTProblem}
+\alias{OTProblem_}
 \title{OTProblem}
 \usage{
 OTProblem(measure_1, measure_2, ...)
@@ -64,7 +65,7 @@ if (torch::torch_is_installed()) {
   }
 
 ## ------------------------------------------------
-## Method `OTProblem$add`
+## Method `OTProblem_$add`
 ## ------------------------------------------------
 
 # example code
@@ -96,7 +97,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## ------------------------------------------------
-## Method `OTProblem$subtract`
+## Method `OTProblem_$subtract`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -127,7 +128,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## ------------------------------------------------
-## Method `OTProblem$multiply`
+## Method `OTProblem_$multiply`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -158,7 +159,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## ------------------------------------------------
-## Method `OTProblem$divide`
+## Method `OTProblem_$divide`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -189,7 +190,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## ------------------------------------------------
-## Method `OTProblem$setup_arguments`
+## Method `OTProblem_$setup_arguments`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -204,7 +205,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## ------------------------------------------------
-## Method `OTProblem$solve`
+## Method `OTProblem_$solve`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -220,7 +221,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## ------------------------------------------------
-## Method `OTProblem$choose_hyperparameters`
+## Method `OTProblem_$choose_hyperparameters`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -237,7 +238,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## ------------------------------------------------
-## Method `OTProblem$info`
+## Method `OTProblem_$info`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -269,17 +270,17 @@ if (torch::torch_is_installed()) {
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-OTProblem-add}{\code{OTProblem$add()}}
-\item \href{#method-OTProblem-subtract}{\code{OTProblem$subtract()}}
-\item \href{#method-OTProblem-multiply}{\code{OTProblem$multiply()}}
-\item \href{#method-OTProblem-divide}{\code{OTProblem$divide()}}
-\item \href{#method-OTProblem-print}{\code{OTProblem$print()}}
-\item \href{#method-OTProblem-new}{\code{OTProblem$new()}}
-\item \href{#method-OTProblem-setup_arguments}{\code{OTProblem$setup_arguments()}}
-\item \href{#method-OTProblem-solve}{\code{OTProblem$solve()}}
-\item \href{#method-OTProblem-choose_hyperparameters}{\code{OTProblem$choose_hyperparameters()}}
-\item \href{#method-OTProblem-info}{\code{OTProblem$info()}}
-\item \href{#method-OTProblem-clone}{\code{OTProblem$clone()}}
+\item \href{#method-OTProblem-add}{\code{OTProblem_$add()}}
+\item \href{#method-OTProblem-subtract}{\code{OTProblem_$subtract()}}
+\item \href{#method-OTProblem-multiply}{\code{OTProblem_$multiply()}}
+\item \href{#method-OTProblem-divide}{\code{OTProblem_$divide()}}
+\item \href{#method-OTProblem-print}{\code{OTProblem_$print()}}
+\item \href{#method-OTProblem-new}{\code{OTProblem_$new()}}
+\item \href{#method-OTProblem-setup_arguments}{\code{OTProblem_$setup_arguments()}}
+\item \href{#method-OTProblem-solve}{\code{OTProblem_$solve()}}
+\item \href{#method-OTProblem-choose_hyperparameters}{\code{OTProblem_$choose_hyperparameters()}}
+\item \href{#method-OTProblem-info}{\code{OTProblem_$info()}}
+\item \href{#method-OTProblem-clone}{\code{OTProblem_$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -288,7 +289,7 @@ if (torch::torch_is_installed()) {
 \subsection{Method \code{add()}}{
 adds \code{o2} to the \code{OTProblem}
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$add(o2)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$add(o2)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -339,7 +340,7 @@ if (torch::torch_is_installed()) {
 \subsection{Method \code{subtract()}}{
 subtracts \code{o2} from \code{OTProblem}
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$subtract(o2)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$subtract(o2)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -389,7 +390,7 @@ subtracts \code{o2} from \code{OTProblem}
 \subsection{Method \code{multiply()}}{
 multiplies \code{OTProblem} by \code{o2}
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$multiply(o2)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$multiply(o2)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -439,7 +440,7 @@ multiplies \code{OTProblem} by \code{o2}
 \subsection{Method \code{divide()}}{
 divides OTProblem by agument \code{o2}
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$divide(o2)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$divide(o2)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -489,7 +490,7 @@ divides OTProblem by agument \code{o2}
 \subsection{Method \code{print()}}{
 prints the OT problem object
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$print(...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$print(...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -506,7 +507,7 @@ prints the OT problem object
 \subsection{Method \code{new()}}{
 Constructor method
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$new(measure_1, measure_2)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$new(measure_1, measure_2)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -530,7 +531,7 @@ An R6 object of class \code{OTProblem}
 \subsection{Method \code{setup_arguments()}}{
 Sets up the OT problems for the \code{OTProblem} object. This should be run before \code{choose_hyperparameters} and \code{solve}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$setup_arguments(
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$setup_arguments(
   lambda,
   delta,
   grid.length = 7L,
@@ -596,7 +597,7 @@ returns the object invisibly
 \subsection{Method \code{solve()}}{
 Solve the \code{OTProblem} at each parameter value. Must run setup_arguments first.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$solve(
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$solve(
   niter = 1000L,
   tol = 1e-05,
   optimizer = c("torch", "frank-wolfe"),
@@ -657,7 +658,7 @@ returns the object invisibly
 \subsection{Method \code{choose_hyperparameters()}}{
 Selects the hyperparameter values through a bootstrap algorithm
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$choose_hyperparameters(
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$choose_hyperparameters(
   n_boot_lambda = 100L,
   n_boot_delta = 1000L,
   lambda_bootstrap = Inf
@@ -704,7 +705,7 @@ returns the object invisibly
 \subsection{Method \code{info()}}{
 Provides diagnostics after solve and choose_hyperparameter methods have been run.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$info()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$info()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -732,7 +733,7 @@ a list with slots
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$clone(deep = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

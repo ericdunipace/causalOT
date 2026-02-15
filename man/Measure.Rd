@@ -2,6 +2,7 @@
 % Please edit documentation in R/cotOOP.R
 \name{Measure}
 \alias{Measure}
+\alias{Measure_}
 \title{Measure}
 \usage{
 Measure(
@@ -117,11 +118,11 @@ we want to adjust towards the targets}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-Measure-detach}{\code{Measure$detach()}}
-\item \href{#method-Measure-get_weight_parameters}{\code{Measure$get_weight_parameters()}}
-\item \href{#method-Measure-print}{\code{Measure$print()}}
-\item \href{#method-Measure-new}{\code{Measure$new()}}
-\item \href{#method-Measure-clone}{\code{Measure$clone()}}
+\item \href{#method-Measure-detach}{\code{Measure_$detach()}}
+\item \href{#method-Measure-get_weight_parameters}{\code{Measure_$get_weight_parameters()}}
+\item \href{#method-Measure-print}{\code{Measure_$print()}}
+\item \href{#method-Measure-new}{\code{Measure_$new()}}
+\item \href{#method-Measure-clone}{\code{Measure_$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -130,7 +131,7 @@ we want to adjust towards the targets}
 \subsection{Method \code{detach()}}{
 generates a deep clone of the object without gradients.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$detach()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Measure_$detach()}\if{html}{\out{</div>}}
 }
 
 }
@@ -141,7 +142,7 @@ generates a deep clone of the object without gradients.
 Makes a copy of the weights parameters.
 prints the measure object
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$get_weight_parameters()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Measure_$get_weight_parameters()}\if{html}{\out{</div>}}
 }
 
 }
@@ -150,7 +151,7 @@ prints the measure object
 \if{latex}{\out{\hypertarget{method-Measure-print}{}}}
 \subsection{Method \code{print()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$print(...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Measure_$print(...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -167,7 +168,7 @@ Constructor function}
 \if{latex}{\out{\hypertarget{method-Measure-new}{}}}
 \subsection{Method \code{new()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$new(
+\if{html}{\out{<div class="r">}}\preformatted{Measure_$new(
   x,
   weights = NULL,
   probability.measure = TRUE,
@@ -207,7 +208,7 @@ Constructor function}
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Measure$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Measure_$clone(deep = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
