@@ -1,6 +1,7 @@
 # causalOT
 
 # causalOT 1.0.3
+
 ## Minor improvements and fixes
 * Updated `R` required version to 4.1.0
 * Fixed issue with html tags in the manual causing a CRAN note

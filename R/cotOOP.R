@@ -11,7 +11,9 @@
 #'   active bindings like `$weights` and `$x`, and methods like `$detach()`. See below for defined methods and fields.
 #' @examples 
 #' if(torch::torch_is_installed()) {
-#' m <- Measure(x = matrix(0, 10, 2), adapt = "none")
+#' m <- Measure(x = matrix(0, 10, 2), adapt = "none",
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #' print(m)
 #' m$x
 #' m$x <- matrix(1,10,2) # must have same dimensions
@@ -21,15 +23,22 @@
 #' m$weights
 #' 
 #' # with gradients
-#' m <- Measure(x = matrix(0, 10, 2), adapt = "weights")
+#' m <- Measure(x = matrix(0, 10, 2), 
+#'              adapt = "weights",
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #' m$requires_grad # TRUE
 #' m$requires_grad <- "none" # turns off
 #' m$requires_grad # FALSE
 #' m$requires_grad <- "x"
 #' m$requires_grad # TRUE
-#' m <- Measure(matrix(0, 10, 2), adapt = "none")
+#' m <- Measure(matrix(0, 10, 2), adapt = "none",
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #' m$grad # NULL
-#' m <- Measure(matrix(0, 10, 2), adapt = "weights")
+#' m <- Measure(matrix(0, 10, 2), adapt = "weights",
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #' loss <- sum(m$weights * 1:10)
 #' loss$backward()
 #' m$grad
@@ -609,17 +618,27 @@ oop_loss_select <- function(ot) {
 #' if (torch::torch_is_installed()) {
 #'   # setup measures
 #'   x <- matrix(1, 100, 10)
-#'   m1 <- Measure(x = x)
+#'   m1 <- Measure(x = x,
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #'   
 #'   y <- matrix(2, 100, 10)
-#'   m2 <- Measure(x = y, adapt = "weights")
+#'   m2 <- Measure(x = y, adapt = "weights",
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #'   
 #'   z <- matrix(3,102, 10)
-#'   m3 <- Measure(x = z)
+#'   m3 <- Measure(x = z,
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #'   
 #'   # setup OT problems
-#'   ot1 <- OTProblem(m1, m2)
-#'   ot2 <- OTProblem(m3, m2)
+#'   ot1 <- OTProblem(m1, m2,
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
+#'   ot2 <- OTProblem(m3, m2,
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
 #'   
 #'   # you can add or subtract OTProblem objects into 
 #'   # a new OTProblem
@@ -655,14 +674,20 @@ OTProblem_ <- R6::R6Class("OTProblem",
       #' if (torch::torch_is_installed()) {
       #'  # setup measures
       #'  x <- matrix(1, 100, 10)
-      #'  m1 <- Measure(x = x)
+      #'  m1 <- Measure(x = x,
+      #'              device = torch::torch_device("cpu"),
+      #'              dtype = torch::torch_double())
       #'  
       #'  y <- matrix(2, 100, 10)
-      #'  m2 <- Measure(x = y)
+      #'  m2 <- Measure(x = y,
+      #'              device = torch::torch_device("cpu"),
+      #'              dtype = torch::torch_double())
       #'  
       #'  z <- matrix(3,102, 10)
       #'  
-      #'  m3 <- Measure(x = z)
+      #'  m3 <- Measure(x = z,
+      #'              device = torch::torch_device("cpu"),
+      #'              dtype = torch::torch_double())
       #'  
       #' # setup OT problems
       #'  ot1 <- OTProblem(m1, m2)
@@ -689,14 +714,20 @@ OTProblem_ <- R6::R6Class("OTProblem",
    #' if (torch::torch_is_installed()) {
    #'  # setup measures
    #'  x <- matrix(1, 100, 10)
-   #'  m1 <- Measure(x = x)
+   #'  m1 <- Measure(x = x,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #'  y <- matrix(2, 100, 10)
-   #'  m2 <- Measure(x = y)
+   #'  m2 <- Measure(x = y,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #'  z <- matrix(3,102, 10)
    #'  
-   #'  m3 <- Measure(x = z)
+   #'  m3 <- Measure(x = z,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #' # setup OT problems
    #'  ot1 <- OTProblem(m1, m2)
@@ -723,14 +754,20 @@ OTProblem_ <- R6::R6Class("OTProblem",
    #' if (torch::torch_is_installed()) {
    #'  # setup measures
    #'  x <- matrix(1, 100, 10)
-   #'  m1 <- Measure(x = x)
+   #'  m1 <- Measure(x = x,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #'  y <- matrix(2, 100, 10)
-   #'  m2 <- Measure(x = y)
+   #'  m2 <- Measure(x = y,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #'  z <- matrix(3,102, 10)
    #'  
-   #'  m3 <- Measure(x = z)
+   #'  m3 <- Measure(x = z,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #' # setup OT problems
    #'  ot1 <- OTProblem(m1, m2)
@@ -757,14 +794,20 @@ OTProblem_ <- R6::R6Class("OTProblem",
    #' if (torch::torch_is_installed()) {
    #'  # setup measures
    #'  x <- matrix(1, 100, 10)
-   #'  m1 <- Measure(x = x)
+   #'  m1 <- Measure(x = x,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #'  y <- matrix(2, 100, 10)
-   #'  m2 <- Measure(x = y)
+   #'  m2 <- Measure(x = y,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #'  z <- matrix(3,102, 10)
    #'  
-   #'  m3 <- Measure(x = z)
+   #'  m3 <- Measure(x = z,
+   #'              device = torch::torch_device("cpu"),
+   #'              dtype = torch::torch_double())
    #'  
    #' # setup OT problems
    #'  ot1 <- OTProblem(m1, m2)
@@ -886,9 +929,13 @@ OTProblem_ <- R6::R6Class("OTProblem",
   #' if (torch::torch_is_installed()) {
   #'  # setup measures
   #'  x <- matrix(1, 100, 10)
-  #'  m1 <- Measure(x = x)
+  #'  m1 <- Measure(x = x,
+  #'              device = torch::torch_device("cpu"),
+  #'              dtype = torch::torch_double())
   #'  y <- matrix(2, 100, 10)
-  #'  m2 <- Measure(x = y, adapt = "weights")
+  #'  m2 <- Measure(x = y, adapt = "weights",
+  #'              device = torch::torch_device("cpu"),
+  #'              dtype = torch::torch_double())
   #'  
   #'  ot <- OTProblem(m1, m2)
   #'  ot$setup_arguments(lambda = 1000)
@@ -1054,9 +1101,13 @@ setup_arguments = function(lambda, delta,
   #' if (torch::torch_is_installed()) {
   #'  # setup measures
   #'  x <- matrix(1, 100, 10)
-  #'  m1 <- Measure(x = x)
+  #'  m1 <- Measure(x = x,
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
   #'  y <- matrix(2, 100, 10)
-  #'  m2 <- Measure(x = y, adapt = "weights")
+  #'  m2 <- Measure(x = y, adapt = "weights",
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
   #'  
   #'  ot <- OTProblem(m1, m2)
   #'  ot$setup_arguments(lambda = 1000)
@@ -1144,9 +1195,13 @@ setup_arguments = function(lambda, delta,
   #' if (torch::torch_is_installed()) {
   #'  # setup measures
   #'  x <- matrix(1, 100, 10)
-  #'  m1 <- Measure(x = x)
+  #'  m1 <- Measure(x = x,
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
   #'  y <- matrix(2, 100, 10)
-  #'  m2 <- Measure(x = y, adapt = "weights")
+  #'  m2 <- Measure(x = y, adapt = "weights",
+#'              device = torch::torch_device("cpu"),
+#'              dtype = torch::torch_double())
   #'  
   #'  ot <- OTProblem(m1, m2)
   #'  ot$setup_arguments(lambda = c(1,1000))

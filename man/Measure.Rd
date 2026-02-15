@@ -47,7 +47,9 @@ active bindings like \verb{$weights} and \verb{$x}, and methods like \verb{$deta
 }
 \examples{
 if(torch::torch_is_installed()) {
-m <- Measure(x = matrix(0, 10, 2), adapt = "none")
+m <- Measure(x = matrix(0, 10, 2), adapt = "none",
+             device = torch::torch_device("cpu"),
+             dtype = torch::torch_double())
 print(m)
 m$x
 m$x <- matrix(1,10,2) # must have same dimensions
@@ -57,15 +59,22 @@ m$weights <- 1:10/sum(1:10)
 m$weights
 
 # with gradients
-m <- Measure(x = matrix(0, 10, 2), adapt = "weights")
+m <- Measure(x = matrix(0, 10, 2), 
+             adapt = "weights",
+             device = torch::torch_device("cpu"),
+             dtype = torch::torch_double())
 m$requires_grad # TRUE
 m$requires_grad <- "none" # turns off
 m$requires_grad # FALSE
 m$requires_grad <- "x"
 m$requires_grad # TRUE
-m <- Measure(matrix(0, 10, 2), adapt = "none")
+m <- Measure(matrix(0, 10, 2), adapt = "none",
+             device = torch::torch_device("cpu"),
+             dtype = torch::torch_double())
 m$grad # NULL
-m <- Measure(matrix(0, 10, 2), adapt = "weights")
+m <- Measure(matrix(0, 10, 2), adapt = "weights",
+             device = torch::torch_device("cpu"),
+             dtype = torch::torch_double())
 loss <- sum(m$weights * 1:10)
 loss$backward()
 m$grad
