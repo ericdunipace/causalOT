@@ -57,17 +57,17 @@ jobs:
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
-
-      - uses: r-hub/actions/setup-deps@v1
-        with:
-          token: ${{ secrets.RHUB_TOKEN }}
-          job-config: ${{ matrix.config.job-config }}
-
+          
       - name: Install rkeops from drat (non-Windows)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           Rscript -e 'options(repos=c(eric="https://ericdunipace.github.io/drat", getOption("repos"))); install.packages("rkeops")'
+
+      - uses: r-hub/actions/setup-deps@v1
+        with:
+          token: ${{ secrets.RHUB_TOKEN }}
+          job-config: ${{ matrix.config.job-config }}
 
       - uses: r-hub/actions/run-check@v1
         with:
@@ -96,17 +96,17 @@ jobs:
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
-
-      - uses: r-hub/actions/setup-deps@v1
-        with:
-          job-config: ${{ matrix.config.job-config }}
-          token: ${{ secrets.RHUB_TOKEN }}
-
+          
       - name: Install rkeops from drat (non-Windows)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           Rscript -e 'options(repos=c(eric="https://ericdunipace.github.io/drat", getOption("repos"))); install.packages("rkeops")'
+
+      - uses: r-hub/actions/setup-deps@v1
+        with:
+          job-config: ${{ matrix.config.job-config }}
+          token: ${{ secrets.RHUB_TOKEN }}
 
       - uses: r-hub/actions/run-check@v1
         with:
