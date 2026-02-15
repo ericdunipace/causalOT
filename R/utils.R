@@ -203,7 +203,7 @@ mirror_softmax <- torch::autograd_function( # for mirror descent
 torch_check <- function() {
   testthat::skip_if_not_installed("torch")
   if(!torch::torch_is_installed()) {
-    testthat::skip("Torch is not installed")
+    testthat::skip("Torch library is not installed. Please see '??torch::installation' for installation instructions.")
   }
 }
 
@@ -213,8 +213,31 @@ rkeops_installed <- function() {
 
 rkeops_check <- function() {
   testthat::skip_if_not_installed("rkeops")
+  formula = "Sum_Reduction(Exp(-s * SqNorm2(x - y)) * b, 0)"
+  
+  # input arguments
+  args = c("x = Vi(3)",      # vector indexed by i (of dim 3)
+           "y = Vj(3)",      # vector indexed by j (of dim 3)
+           "b = Vj(6)",      # vector indexed by j (of dim 6)
+           "s = Pm(1)")      # parameter (scalar)
   
   if (rkeops_installed() && utils::packageVersion("rkeops") >= pkg_vers_number("2.0") && rlang::is_installed("reticulate")) {
+    nx <- 10
+    ny <- 15
+    X <- matrix(runif(nx*3), nrow=3, ncol=nx)
+    Y <- matrix(runif(ny*3), nrow=3, ncol=ny)
+    beta <- matrix(runif(ny*3), nrow=ny, ncol=6)
+    s <- 0.25
+    op <- tryCatch(rkeops::keops_kernel(formula, args),
+                   error = function(e) {FALSE})
+    if(is.logical(op) && isFALSE(op)) {
+      testthat::skip("error in compilation for rkeops")
+    }
+    res <- tryCatch(op(list(X, Y, beta, s)),
+                   error = function(e) {FALSE})
+    if(is.logical(res) && isFALSE(res)) {
+      testthat::skip("error in compilation for rkeops")
+    }
   } else if (utils::packageVersion("rkeops") < pkg_vers_number("2.0") ){
     # cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
     #                   error = function(e) {0L}
@@ -222,13 +245,6 @@ rkeops_check <- function() {
     # testthat::skip("error in cmake for rkeops")
     
     # from rkeops help pages
-    formula = "Sum_Reduction(Exp(-s * SqNorm2(x - y)) * b, 0)"
-    
-    # input arguments
-    args = c("x = Vi(3)",      # vector indexed by i (of dim 3)
-             "y = Vj(3)",      # vector indexed by j (of dim 3)
-             "b = Vj(6)",      # vector indexed by j (of dim 6)
-             "s = Pm(1)")      # parameter (scalar)
     
     # compilation of the corresponding operator
     op <- tryCatch(rkeops::keops_kernel(formula, args),

@@ -51,13 +51,13 @@ testthat::test_that("PSIS diagnostics work, ATT", {
   weights <- list(NNM = test1,
                   IPW = test2
   )
-  testthat::expect_silent(ps <- lapply(weights, PSIS))
-  testthat::expect_silent(ps.check <- PSIS(weights))
+  testthat::expect_warning(ps <- lapply(weights, PSIS))
+  testthat::expect_warning(ps.check <- PSIS(weights))
   testthat::expect_equivalent(ps, ps.check)
   
   diag.check <- lapply(ps, PSIS_diag)
   diag <- PSIS_diag(ps)
-  testthat::expect_silent(diag.check2 <- PSIS_diag(weights))
+  testthat::expect_warning(diag.check2 <- PSIS_diag(weights))
   testthat::expect_equal(diag, diag.check)
   testthat::expect_equal(diag, diag.check2)
 })

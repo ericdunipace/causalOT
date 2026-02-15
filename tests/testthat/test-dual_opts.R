@@ -7,7 +7,9 @@ testthat::test_that("test forward functions", {
   x  <- matrix(rnorm(n *2), n, 2)
   
   
-  m1 <- Measure(x, target.values = colMeans(z), adapt = "weights")
+  m1 <- Measure(x, target.values = colMeans(z), 
+                device = torch::torch_device("cpu"), dtype = torch::torch_double(),
+                adapt = "weights")
   mt <- Measure(z)
   
   gamma <- torch::torch_tensor(stats::rnorm(n), 
@@ -156,10 +158,13 @@ testthat::test_that("dual nn modules work as expected",{
   x  <- matrix(rnorm(n *2), n, 2)
   
   
-  m1 <- Measure(x, target.values = colMeans(z), adapt = "weights")
-  mt <- Measure(z)
+  m1 <- Measure(x, target.values = colMeans(z), 
+                adapt = "weights", device = torch::torch_device("cpu"))
+  mt <- Measure(z, device = m1$device, dtype = m1$dtype )
   
-  opt <- causalOT:::cotDualOpt$new(n, 2)
+  opt <- causalOT:::cotDualOpt$new(n, 2, 
+                                   device = m1$device, dtype = m1$dtype 
+                                   )
   
   gamma <- torch::torch_tensor(stats::rnorm(n), 
                                device = m1$device,
@@ -215,7 +220,9 @@ testthat::test_that("dual nn modules work as expected",{
   tests(res, res_mod, opt, gamma)
   
   # bf
-  optbf <- causalOT:::cotDualBfOpt$new(n,2)
+  optbf <- causalOT:::cotDualBfOpt$new(n,2,
+                                       device = m1$device, dtype = m1$dtype 
+                                       )
   
   torch::with_no_grad({
     optbf$beta$copy_(c(1,2))
@@ -247,7 +254,10 @@ testthat::test_that("dual nn modules work as expected",{
   C_xy <- ot_keops$C_xy
   C_xx <- ot_keops$C_xx
   
-  opt <- causalOT:::cotDualOpt_keops$new(n, 2)
+  opt <- causalOT:::cotDualOpt_keops$new(n, 2,
+                                         device = C_xy$data$x$device,
+                                         dtype = C_xy$data$x$dtype
+                                         )
   torch::with_no_grad(opt$gamma$copy_(gamma))
   
   keops_fun <- causalOT:::dual_forwards_keops
@@ -258,7 +268,9 @@ testthat::test_that("dual nn modules work as expected",{
   tests(res, res_mod, opt, gamma)
   
   
-  optbf <- causalOT:::cotDualBfOpt_keops$new(n, 2)
+  optbf <- causalOT:::cotDualBfOpt_keops$new(n, 2,
+                                             device = C_xy$data$x$device,
+                                             dtype = C_xy$data$x$dtype)
   torch::with_no_grad({
     optbf$gamma$copy_(gamma)
     optbf$beta$copy_(beta1)
