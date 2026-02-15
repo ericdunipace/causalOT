@@ -57,22 +57,97 @@ jobs:
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
-          
-      - name: Install rkeops from drat (non-Windows)
-        if: runner.os != 'Windows'
+
+      # IMPORTANT: make sure pak can see your drat repo during dependency solving
+      - name: Configure drat repo for pak (before deps)
         shell: bash
         run: |
-          Rscript -e 'options(repos=c(eric="https://ericdunipace.github.io/drat", getOption("repos"))); install.packages("rkeops")'
+          mkdir -p .github
+          cat > .github/rprofile <<'EOF'
+          options(repos = c(
+            eric = "https://ericdunipace.github.io/drat",
+            getOption("repos")
+          ))
+          EOF
+          echo "R_PROFILE_USER=${GITHUB_WORKSPACE}/.github/rprofile" >> "$GITHUB_ENV"
+          Rscript -e 'print(getOption("repos"))'
 
       - uses: r-hub/actions/setup-deps@v1
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
+          # Ensure rcmdcheck exists for the summary step below
+          extra-packages: any::rcmdcheck
 
       - uses: r-hub/actions/run-check@v1
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
+
+      - name: Summarize R-hub check results
+        if: always()
+        shell: bash
+        run: |
+          Rscript - <<'RS'
+          if (!requireNamespace("rcmdcheck", quietly = TRUE)) {
+            install.packages("rcmdcheck")
+          }
+
+          rchecks <- Sys.glob("**/*.Rcheck")
+          if (!length(rchecks)) {
+            cat("No *.Rcheck directory found.\n")
+            quit(status = 0)
+          }
+          rcheck <- rchecks[1]
+          log <- file.path(rcheck, "00check.log")
+
+          res <- tryCatch(
+            rcmdcheck::parse_check(rcheck, quiet = TRUE),
+            error = function(e) NULL
+          )
+
+          os <- Sys.info()[["sysname"]]
+          rver <- paste0("R ", getRversion())
+          platform <- R.version$platform
+
+          errors <- warnings <- notes <- NA_integer_
+          if (!is.null(res)) {
+            errors   <- length(res$errors)
+            warnings <- length(res$warnings)
+            notes    <- length(res$notes)
+          } else if (file.exists(log)) {
+            x <- readLines(log, warn = FALSE)
+            errors   <- sum(grepl("^\\*\\*\\*\\s+ERROR", x))
+            warnings <- sum(grepl("^\\*\\*\\*\\s+WARNING", x))
+            notes    <- sum(grepl("^\\*\\*\\*\\s+NOTE", x))
+          }
+
+          block <- c(
+            "R-hub check results:",
+            "",
+            sprintf("%s | %s | %s",
+                    paste0(errors, " errors"),
+                    paste0(warnings, " warnings"),
+                    paste0(notes, " notes")),
+            "",
+            sprintf("Tested on: %s (%s; %s)", os, rver, platform),
+            "",
+            "Repo details:",
+            "- drat repo added via R_PROFILE_USER so pak can resolve rkeops during dependency solving.",
+            "",
+            "Log path:",
+            sprintf("- %s", log)
+          )
+
+          cat(paste(block, collapse = "\n"), "\n")
+
+          sumfile <- Sys.getenv("GITHUB_STEP_SUMMARY")
+          if (nzchar(sumfile)) {
+            cat("## R-hub results (copy/paste)\n\n```\n",
+                paste(block, collapse = "\n"),
+                "\n```\n", file = sumfile, append = TRUE, sep = "")
+          }
+          RS
 
   other-platforms:
     needs: setup
@@ -96,19 +171,94 @@ jobs:
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
-          
-      - name: Install rkeops from drat (non-Windows)
-        if: runner.os != 'Windows'
+
+      # IMPORTANT: make sure pak can see your drat repo during dependency solving
+      - name: Configure drat repo for pak (before deps)
         shell: bash
         run: |
-          Rscript -e 'options(repos=c(eric="https://ericdunipace.github.io/drat", getOption("repos"))); install.packages("rkeops")'
+          mkdir -p .github
+          cat > .github/rprofile <<'EOF'
+          options(repos = c(
+            eric = "https://ericdunipace.github.io/drat",
+            getOption("repos")
+          ))
+          EOF
+          echo "R_PROFILE_USER=${GITHUB_WORKSPACE}/.github/rprofile" >> "$GITHUB_ENV"
+          Rscript -e 'print(getOption("repos"))'
 
       - uses: r-hub/actions/setup-deps@v1
         with:
           job-config: ${{ matrix.config.job-config }}
           token: ${{ secrets.RHUB_TOKEN }}
+          # Ensure rcmdcheck exists for the summary step below
+          extra-packages: any::rcmdcheck
 
       - uses: r-hub/actions/run-check@v1
         with:
           job-config: ${{ matrix.config.job-config }}
           token: ${{ secrets.RHUB_TOKEN }}
+
+      - name: Summarize R-hub check results
+        if: always()
+        shell: bash
+        run: |
+          Rscript - <<'RS'
+          if (!requireNamespace("rcmdcheck", quietly = TRUE)) {
+            install.packages("rcmdcheck")
+          }
+
+          rchecks <- Sys.glob("**/*.Rcheck")
+          if (!length(rchecks)) {
+            cat("No *.Rcheck directory found.\n")
+            quit(status = 0)
+          }
+          rcheck <- rchecks[1]
+          log <- file.path(rcheck, "00check.log")
+
+          res <- tryCatch(
+            rcmdcheck::parse_check(rcheck, quiet = TRUE),
+            error = function(e) NULL
+          )
+
+          os <- Sys.info()[["sysname"]]
+          rver <- paste0("R ", getRversion())
+          platform <- R.version$platform
+
+          errors <- warnings <- notes <- NA_integer_
+          if (!is.null(res)) {
+            errors   <- length(res$errors)
+            warnings <- length(res$warnings)
+            notes    <- length(res$notes)
+          } else if (file.exists(log)) {
+            x <- readLines(log, warn = FALSE)
+            errors   <- sum(grepl("^\\*\\*\\*\\s+ERROR", x))
+            warnings <- sum(grepl("^\\*\\*\\*\\s+WARNING", x))
+            notes    <- sum(grepl("^\\*\\*\\*\\s+NOTE", x))
+          }
+
+          block <- c(
+            "R-hub check results:",
+            "",
+            sprintf("%s | %s | %s",
+                    paste0(errors, " errors"),
+                    paste0(warnings, " warnings"),
+                    paste0(notes, " notes")),
+            "",
+            sprintf("Tested on: %s (%s; %s)", os, rver, platform),
+            "",
+            "Repo details:",
+            "- drat repo added via R_PROFILE_USER so pak can resolve rkeops during dependency solving.",
+            "",
+            "Log path:",
+            sprintf("- %s", log)
+          )
+
+          cat(paste(block, collapse = "\n"), "\n")
+
+          sumfile <- Sys.getenv("GITHUB_STEP_SUMMARY")
+          if (nzchar(sumfile)) {
+            cat("## R-hub results (copy/paste)\n\n```\n",
+                paste(block, collapse = "\n"),
+                "\n```\n", file = sumfile, append = TRUE, sep = "")
+          }
+          RS
