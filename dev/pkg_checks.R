@@ -41,25 +41,10 @@ devtools::check_win_oldrelease(quiet = TRUE)
 rhub::rhub_doctor()
 rhub::rhub_platforms()
 
-rhub::rhub_check(platforms=c("ubuntu-gcc-release" ,"fedora-clang-devel","linux-x86_64-rocker-gcc-san"))
 
-                 
-                                    path = build_path,
-                   check_args = "--as-cran",
-                   env_vars = c(`_R_CHECK_FORCE_SUGGESTS_` = "true", `_R_CHECK_CRAN_INCOMING_USE_ASPELL_` = "true"),
-                   show_status = TRUE)
-out <- rhub::check(platforms=c("ubuntu-gcc-release" ,"fedora-clang-devel","linux-x86_64-rocker-gcc-san"),
-                   path = build_path,
-                   check_args = "--as-cran",
-                   env_vars = c(`_R_CHECK_FORCE_SUGGESTS_` = "true", `_R_CHECK_CRAN_INCOMING_USE_ASPELL_` = "true"),
-                   show_status = FALSE)
-# 
-# # don't force suggests since rkeops not available on windows
-out_windows <- rhub::check(platforms= "windows-x86_64-devel",
-                           path = build_path,
-                    check_args = "--as-cran",
-                    env_vars = c(`_R_CHECK_FORCE_SUGGESTS_` = "false", `_R_CHECK_CRAN_INCOMING_USE_ASPELL_` = "true"),
-                    show_status = FALSE)
+rhub::rhub_check(platforms=c("linux", "m1-san", "macos", "macos-arm64","windows"))
+rhub::rhub_check(platforms=c("ubuntu-release" ,"gcc15","clang-asan"),
+                 check_args = "--as-cran")
 
 # reverse dependency
 # run if no rev dep check: devtools::install_github('r-lib/revdepcheck')
