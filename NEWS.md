@@ -1,6 +1,9 @@
-# causalOT (development version)
-
 # causalOT
+
+# causalOT 1.0.4
+
+## Minor improvements and fixes
+* Fixed test that gave error on some linux builds
 
 # causalOT 1.0.3
 
@@ -12,7 +15,6 @@
 
 ## Minor improvements and fixes
 * `rkeops` was removed to CRAN. Constructed a work-around to prevent having to remove all optional code that uses `rkeops` by moving `rkeops` build to an additional repository.
-
 
 # causalOT 1.0.1
 
