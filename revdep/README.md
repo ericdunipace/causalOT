@@ -3,14 +3,14 @@
 |field    |value                                                                       |
 |:--------|:---------------------------------------------------------------------------|
 |version  |R version 4.5.2 (2025-10-31)                                                |
-|os       |macOS Tahoe 26.3                                                            |
+|os       |macOS Tahoe 26.3.1                                                          |
 |system   |aarch64, darwin20                                                           |
 |ui       |RStudio                                                                     |
 |language |(EN)                                                                        |
 |collate  |en_US.UTF-8                                                                 |
 |ctype    |en_US.UTF-8                                                                 |
 |tz       |America/Los_Angeles                                                         |
-|date     |2026-03-04                                                                  |
+|date     |2026-03-07                                                                  |
 |rstudio  |2026.01.1+403 Apple Blossom (desktop)                                       |
 |pandoc   |3.9 @ /opt/homebrew/bin/pandoc                                              |
 |quarto   |1.8.25 @ /Applications/RStudio.app/Contents/Resources/app/quarto/bin/quarto |

@@ -9,6 +9,7 @@ usethis::use_release_issue()
 devtools::document()
 
 # redo manual pages
+{
   rd <- "man/Measure.Rd"
   x <- readLines(rd, warn = FALSE)
   x <- x[!grepl("^\\\\alias\\{Measure_\\}$", x)]
@@ -19,6 +20,7 @@ devtools::document()
   x <- x[!grepl("^\\\\alias\\{OTProblem_\\}$", x)]
   x <- gsub("OTProblem_\\$", "OTProblem\\$", x, fixed = FALSE)
   writeLines(x, rd)
+}
 
 # url checks
 urlchecker::url_check()
@@ -43,15 +45,6 @@ rhub::rhub_platforms()
 
 
 rhub::rhub_check(platforms=c("linux", "m1-san", "macos-arm64","windows","ubuntu-release" ,"gcc15","clang-asan","nosuggests"))
-
-rhub::rhub_check(
-  platforms=c("clang-asan","nosuggests"),
-  env_vars = c(
-    `_R_CHECK_FORCE_SUGGESTS_` = "false",
-    `_R_CHECK_BUILD_VIGNETTES_` = "false"
-  ),
-  check_args = c("--no-build-vignettes", "--ignore-vignettes")
-)
 
 # reverse dependency
 # run if no rev dep check: devtools::install_github('r-lib/revdepcheck')
