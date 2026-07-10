@@ -8,24 +8,30 @@ testthat::test_that("PSIS diagnostics work, ATE", {
   overlap <- "high"
   design <- "A"
   estimand <- "ATE"
-  
+
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p,
-                                    design = design, overlap = overlap)
+  data <- causalOT::Hainmueller$new(
+    n = n,
+    p = p,
+    design = design,
+    overlap = overlap
+  )
   data$gen_data()
   test1 <- causalOT::calc_weight(x = data, estimand = estimand, method = "NNM")
-  test2 <- causalOT::calc_weight(x = data, estimand = estimand, method = "Logistic")
-  
-  weights <- list(NNM = test1,
-                  IPW = test2
+  test2 <- causalOT::calc_weight(
+    x = data,
+    estimand = estimand,
+    method = "Logistic"
   )
-  testthat::expect_warning(ps <- lapply(weights, PSIS))
-  testthat::expect_warning(ps.check <- PSIS(weights))
+
+  weights <- list(NNM = test1, IPW = test2)
+  testthat::expect_silent(ps <- lapply(weights, PSIS))
+  testthat::expect_silent(ps.check <- PSIS(weights))
   testthat::expect_equivalent(ps, ps.check)
-  
+
   diag.check <- lapply(ps, PSIS_diag)
   diag <- PSIS_diag(ps)
-  testthat::expect_warning(diag.check2 <- PSIS_diag(weights))
+  testthat::expect_silent(diag.check2 <- PSIS_diag(weights))
   testthat::expect_equal(diag, diag.check)
   testthat::expect_equal(diag, diag.check2)
 })
@@ -40,21 +46,27 @@ testthat::test_that("PSIS diagnostics work, ATT", {
   overlap <- "high"
   design <- "A"
   estimand <- "ATT"
-  
+
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p,
-                                    design = design, overlap = overlap)
+  data <- causalOT::Hainmueller$new(
+    n = n,
+    p = p,
+    design = design,
+    overlap = overlap
+  )
   data$gen_data()
   test1 <- causalOT::calc_weight(x = data, estimand = estimand, method = "NNM")
-  test2 <- causalOT::calc_weight(x = data, estimand = estimand, method = "Logistic")
-  
-  weights <- list(NNM = test1,
-                  IPW = test2
+  test2 <- causalOT::calc_weight(
+    x = data,
+    estimand = estimand,
+    method = "Logistic"
   )
+
+  weights <- list(NNM = test1, IPW = test2)
   testthat::expect_warning(ps <- lapply(weights, PSIS))
   testthat::expect_warning(ps.check <- PSIS(weights))
   testthat::expect_equivalent(ps, ps.check)
-  
+
   diag.check <- lapply(ps, PSIS_diag)
   diag <- PSIS_diag(ps)
   testthat::expect_warning(diag.check2 <- PSIS_diag(weights))
@@ -72,21 +84,27 @@ testthat::test_that("PSIS diagnostics work, ATC", {
   overlap <- "high"
   design <- "A"
   estimand <- "ATC"
-  
+
   #### get simulation functions ####
-  data <- causalOT::Hainmueller$new(n = n, p = p,
-                                    design = design, overlap = overlap)
+  data <- causalOT::Hainmueller$new(
+    n = n,
+    p = p,
+    design = design,
+    overlap = overlap
+  )
   data$gen_data()
   test1 <- causalOT::calc_weight(x = data, estimand = estimand, method = "NNM")
-  test2 <- causalOT::calc_weight(x = data, estimand = estimand, method = "Logistic")
-  
-  weights <- list(NNM = test1,
-                  IPW = test2
+  test2 <- causalOT::calc_weight(
+    x = data,
+    estimand = estimand,
+    method = "Logistic"
   )
+
+  weights <- list(NNM = test1, IPW = test2)
   testthat::expect_silent(ps <- lapply(weights, PSIS))
   testthat::expect_silent(ps.check <- PSIS(weights))
   testthat::expect_equivalent(ps, ps.check)
-  
+
   diag.check <- lapply(ps, PSIS_diag)
   diag <- PSIS_diag(ps)
   testthat::expect_silent(diag.check2 <- PSIS_diag(weights))

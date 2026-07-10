@@ -325,7 +325,10 @@ coef.causalEffect <- function(object, ...) {
 #' Get the variance of a causalEffect
 #'
 #' @param object An object of class [causalEffect][causalOT::causalEffect-class]
-#' @param ... Passed on to the sandwich estimator if there is a model fit that supports one
+#' @param type How to compute the semiparametric variance. `"if"` uses the
+#'   empirical second moment of the full plug-in influence function. `"components"`
+#'   uses the legacy three-component calculation without cross terms.
+#' @param ... Unused.
 #'
 #' @return The variance of the treatment effect as a matrix
 #' @export
@@ -343,15 +346,11 @@ coef.causalEffect <- function(object, ...) {
 #' tx_eff <- estimate_effect(causalWeights = weight)
 #' 
 #' vcov(tx_eff)
-vcov.causalEffect <- function(object, ...) {
+vcov.causalEffect <- function(object, type = c("if", "components"), ...) {
   
-  run.sandwich <- sandwich_avail_check(object)
+  type <- match.arg(type)
   
-  VAR <- if(run.sandwich) {
-    sandwich_vars(object, ...)
-  } else {
-    semiparm_eff_var(object, ...)
-  }
+  VAR <- semiparm_eff_var(object, type = type, ...)
   
   VAR <- as.matrix(VAR)
   rownames(VAR) <- colnames(VAR) <- "estimate"
@@ -359,48 +358,24 @@ vcov.causalEffect <- function(object, ...) {
   return(VAR)
 }
 
-semiparm_eff_var <- function(object, ...) {
-  
-  # calculates variance of estimating y(z)
-  semipar_var <- function(y, z, yhat, w, denom) {
-    # estimate of expected y(z)
-    e_y   <- sum(w * y * z - yhat * (w * z - 1))/denom
-    
-    # centered data
-    resid <- w * y * z - e_y - yhat * (w * z - 1)
-    
-    # weighted variance
-    return( sum( resid^2)/(denom - 1) )
+semiparm_eff_var <- function(object, type = c("if", "components"), ...) {
+  type <- match.arg(type)
+  components <- semiparm_eff_components(object)
+  measure <- components$measure
+  denom <- components$denom
+  if (type == "if") {
+    second_moment <- sum(measure * components$phi^2) / denom
+  } else {
+    second_moment <- sum(measure * (
+      components$treated_residual^2 +
+        components$control_residual^2 +
+        components$heterogeneity^2
+    )) / denom
   }
-  
-  semipar_var_ATT_ATC <- function(y, z, yhat_0, yhat_1, w, tau, denom, estimand) {
-    delta       <- w * (y_hat_1 - y_hat_0 )
-    
-    delta_model <- switch(estimand,
-                          "ATT" = (delta - tau) * z,
-                          "ATC" = (delta - tau) * (1-z))
-    
-    
-    # weights targeted to ATC or ATT
-    resid       <-   w * (y - y_hat_1) *      z  - # treated mean estimate
-                     w * (y - y_hat_0) * (1 - z) + # control mean estimate
-                     delta_model
-    
-    # variance
-    return( sum( resid^2 ) / (denom - 1) )
-    
-  }
-  
-  # ATE specific variance calculation
-  semipar_var_ate <- function(y, z, yhat_1, yhat_0, w, w_init, tau, denom) {
-    resid <- w * z * (y - yhat_1) - # treated model residual
-             w * (1 - z) * (y - yhat_0) + # control model residual
-             (yhat_1 - yhat_0) - # model stats::prediction for all data
-             tau # estimate of treatment effect
-    
-    # weighted variance
-    return( sum( w_init * resid^2 )/(denom - 1)  )
-  }
+  return(second_moment / denom)
+}
+
+semiparm_eff_components <- function(object) {
   
   # pull out relevant terms from augmentedData
   data    <- object@augmentedData
@@ -433,34 +408,30 @@ semiparm_eff_var <- function(object, ...) {
   
   # rescale weight vector to frequency weights
   w      <- w * denom
-  
-  # get sample variance estimates
-  if (estimand == "ATE" ) {
-    
-    # rescale weight vectors to frequency weights
-    w_init <- cw@data@weights
-    w_init <- w_init * denom
-    
-    VAR_sample    <- semipar_var_ate(y, z = z, yhat_1 = y_hat_1,
-                              yhat_0 = y_hat_0, w = w, 
-                              w_init = w_init,
-                              tau = tau,
-                              denom = denom)
+
+  if (estimand == "ATE") {
+    measure <- cw@data@weights * denom
+    heterogeneity <- (y_hat_1 - y_hat_0) - tau
   } else {
-    
-    # total var assuming no correlation between obs
-    VAR_sample <- semipar_var_ATT_ATC(y, z = z, yhat_1 = y_hat_1,
-                                      yhat_0 = y_hat_0, w = w, 
-                                      tau = tau,
-                                      denom = denom,
-                                      estimand = estimand)
+    measure <- rep(1, n)
+    heterogeneity <- switch(estimand,
+                            "ATT" = ((y_hat_1 - y_hat_0) - tau) * z,
+                            "ATC" = ((y_hat_1 - y_hat_0) - tau) * (1 - z))
   }
-  
-  # variance of mean estimate
-  VAR <- VAR_sample/denom
-  
-  return(VAR)
-  
+
+  treated_residual <- w * z * (y - y_hat_1)
+  control_residual <- -w * (1 - z) * (y - y_hat_0)
+  phi <- treated_residual + control_residual + heterogeneity
+
+  return(list(
+    treated_residual = treated_residual,
+    control_residual = control_residual,
+    heterogeneity = heterogeneity,
+    phi = phi,
+    measure = measure,
+    denom = denom,
+    estimand = estimand
+  ))
 }
 
 sandwich_avail_check <- function(object) {

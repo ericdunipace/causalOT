@@ -73,6 +73,7 @@ Collate:
     'gridSearch.R'
     'cotClass.R'
     'cotOOP.R'
+    'cotCCPTrain.R'
     'cot_opts.R'
     'likelihoodClass.R'
     'mean_balance.R'
