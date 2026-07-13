@@ -17,6 +17,7 @@ COT <- R6::R6Class(
       tol = "numeric",
       lambda_bootstrap = "numeric",
       lambda_selector = "character",
+      lambda_selector_control = "list",
       nboot = "integer",
       gridInit = function(...) {
         private$optimizer$penalty$lambda
@@ -26,7 +27,8 @@ COT <- R6::R6Class(
           n_boot_lambda = self$nboot,
           n_boot_delta = self$nboot,
           lambda_bootstrap = self$lambda_bootstrap,
-          lambda.selector = self$lambda_selector
+          lambda.selector = self$lambda_selector,
+          lambda.selector.control = self$lambda_selector_control
         )
 
         lambda <- private$optimizer$selected_lambda
@@ -113,6 +115,7 @@ COT <- R6::R6Class(
         self$nboot <- options$nboot
         self$lambda_bootstrap <- options$lambda.bootstrap
         self$lambda_selector <- options$lambda.selector
+        self$lambda_selector_control <- options$lambda.selector.control
 
         #setup bf
         if (!is.null(options$balance.formula)) {
@@ -285,9 +288,17 @@ COT <- R6::R6Class(
 #' @param niter The number of iterations to run the solver
 #' @param nboot The number of iterations for the bootstrap to select the final penalty parameters.
 #' @param lambda.bootstrap The penalty parameter to use for the bootstrap hyperparameter selection of lambda.
-#' @param lambda.selector How to select lambda among the fitted grid. `"sym_evidence"`
-#'   uses symmetric debiased evidence on eligible finite positive lambda fits.
-#'   `"bootstrap_legacy"` retains the existing bootstrap/grid selector.
+#' @param lambda.selector How to select lambda among the fitted grid.
+#'   Supported values are `"profile_symmetric_loo"`, `"profile_marginal_loo"`,
+#'   `"symmetric_loo"`, `"marginal_loo"`, `"mass_bootstrap_symmetric"`, and
+#'   `"bootstrap_legacy"`. `"sym_evidence"` is retained as a
+#'   backward-compatible alias for `"profile_symmetric_loo"`, and
+#'   `"legacy_bootstrap_balance"` is retained as an alias for
+#'   `"bootstrap_legacy"`.
+#' @param lambda.selector.control Optional list of controls for lambda
+#'   selection. Supported entries are `pilot.weights`, `details`,
+#'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`, and
+#'   `mass.bootstrap.kappa`.
 #' @param tol The tolerance for convergence
 #' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
@@ -316,7 +327,8 @@ COT <- R6::R6Class(
 #' \item `niter` The number of iterations to run the solver
 #' \item `nboot` The number of bootstrap samples
 #' \item `lambda.bootstrap` The penalty parameter to use for the bootstrap hyperparameter selection.
-#' \item `lambda.selector` The lambda selection rule used after fitting the lambda grid.
+#' \item `lambda.selector` The normalized lambda selection rule used after fitting the lambda grid.
+#' \item `lambda.selector.control` The lambda selector control list.
 #' \item `tol` The tolerance for convergence.
 #' \item `device` An object of class `torch_device`.
 #' \item `dtype` An object of class `torch_dtype`.
@@ -367,7 +379,18 @@ cotOptions <- function(
   niter = 2e3,
   nboot = 100L,
   lambda.bootstrap = 0.05,
-  lambda.selector = c("sym_evidence", "bootstrap_legacy"),
+  lambda.selector = c(
+    "sym_evidence",
+    "profile_symmetric_loo",
+    "profile_marginal_loo",
+    "symmetric_loo",
+    "marginal_loo",
+    "mass_bootstrap_symmetric",
+    "bootstrap_legacy",
+    "legacy_bootstrap_balance",
+    "kfold_symmetric"
+  ),
+  lambda.selector.control = list(),
   tol = 1e-4,
   device = NULL,
   dtype = NULL,
@@ -567,11 +590,19 @@ cotOptions <- function(
   }
 
   if (missing(lambda.selector) || arg_not_used(lambda.selector)) {
-    output$lambda.selector <- "sym_evidence"
+    output$lambda.selector <- cot_normalize_lambda_selector("sym_evidence")
   } else {
-    output$lambda.selector <- match.arg(
-      lambda.selector,
-      c("sym_evidence", "bootstrap_legacy")
+    output$lambda.selector <- cot_normalize_lambda_selector(lambda.selector)
+  }
+
+  if (
+    missing(lambda.selector.control) ||
+      arg_not_used(lambda.selector.control)
+  ) {
+    output$lambda.selector.control <- cot_normalize_lambda_selector_control()
+  } else {
+    output$lambda.selector.control <- cot_normalize_lambda_selector_control(
+      lambda.selector.control
     )
   }
 

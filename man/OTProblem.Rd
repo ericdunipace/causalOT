@@ -739,7 +739,19 @@ Selects the hyperparameter values through a bootstrap algorithm
 \if{html}{\out{<div class="r">}}\preformatted{OTProblem_$choose_hyperparameters(
   n_boot_lambda = 100L,
   n_boot_delta = 1000L,
-  lambda_bootstrap = Inf
+  lambda_bootstrap = Inf,
+  lambda.selector = c(
+    "sym_evidence",
+    "profile_symmetric_loo",
+    "profile_marginal_loo",
+    "symmetric_loo",
+    "marginal_loo",
+    "mass_bootstrap_symmetric",
+    "bootstrap_legacy",
+    "legacy_bootstrap_balance",
+    "kfold_symmetric"
+  ),
+  lambda.selector.control = list()
 )}\if{html}{\out{</div>}}
 }
 
@@ -751,6 +763,10 @@ Selects the hyperparameter values through a bootstrap algorithm
 \item{\code{n_boot_delta}}{The number of bootstrap iterations to run when selecting delta}
 
 \item{\code{lambda_bootstrap}}{The penalty parameter to use when selecting lambda. Higher numbers run faster.}
+
+\item{\code{lambda.selector}}{Lambda selection rule to apply across the fitted lambda grid.}
+
+\item{\code{lambda.selector.control}}{Optional list of controls for the selected lambda selector.}
 }
 \if{html}{\out{</div>}}
 }

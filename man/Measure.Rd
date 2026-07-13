@@ -12,6 +12,7 @@ Measure(
   adapt = c("none", "weights", "x"),
   balance.functions = NA_real_,
   target.values = NA_real_,
+  unit.id = NULL,
   dtype = NULL,
   device = NULL
 )
@@ -28,6 +29,8 @@ Measure(
 \item{balance.functions}{A matrix of functions of the covariates to target for mean balance. If NULL and \code{target.values} are provided, will use the data in \code{x}.}
 
 \item{target.values}{The targets for the balance functions. Should be the same length as columns in \code{balance.functions.}}
+
+\item{unit.id}{Optional unit identifiers. If \code{NULL}, non-automatic row names from \code{x} are used when available.}
 
 \item{dtype}{The torch_tensor dtype or NULL.}
 
@@ -102,6 +105,8 @@ we want to adjust towards the targets}
 \item{\code{n}}{the rows of the covariates, x.}
 
 \item{\code{d}}{the columns of the covariates, x.}
+
+\item{\code{unit_id}}{Optional unit identifiers for exact cross-support LOO exclusion.}
 
 \item{\code{probability_measure}}{is the measure a probability measure?}
 }
@@ -184,6 +189,7 @@ Constructor function}
   adapt = c("none", "weights", "x"),
   balance.functions = NA_real_,
   target.values = NA_real_,
+  unit.id = NULL,
   dtype = NULL,
   device = NULL
 )}\if{html}{\out{</div>}}
@@ -203,6 +209,8 @@ Constructor function}
 \item{\code{balance.functions}}{A matrix of functions of the covariates to target for mean balance. If NULL and \code{target.values} are provided, will use the data in \code{x}.}
 
 \item{\code{target.values}}{The targets for the balance functions. Should be the same length as columns in \code{balance.functions.}}
+
+\item{\code{unit.id}}{Optional unit identifiers. If \code{NULL}, non-automatic row names from \code{x} are used when available.}
 
 \item{\code{dtype}}{The \link[torch:torch_dtype]{torch::torch_dtype} or NULL.}
 

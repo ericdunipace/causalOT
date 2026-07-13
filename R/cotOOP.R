@@ -47,6 +47,23 @@
 #' m$grad <- rep(1,9)
 #' m$grad
 #' }
+cot_default_unit_id <- function(x, unit.id = NULL) {
+  if (!is.null(unit.id)) {
+    return(unit.id)
+  }
+
+  row_ids <- rownames(x)
+  if (is.null(row_ids)) {
+    return(NULL)
+  }
+
+  if (identical(row_ids, as.character(seq_len(NROW(x))))) {
+    return(NULL)
+  }
+
+  row_ids
+}
+
 Measure_ <- R6::R6Class(
   "Measure", # change name later for Roxygen purposes
   public = {
@@ -73,6 +90,9 @@ Measure_ <- R6::R6Class(
 
       #' @field d the columns of the covariates, x.
       d = "integer",
+
+      #' @field unit_id Optional unit identifiers for exact cross-support LOO exclusion.
+      unit_id = NULL,
 
       #' @field probability_measure is the measure a probability measure?
       probability_measure = "logical",
@@ -299,15 +319,25 @@ Measure_ <- R6::R6Class(
         adapt = c("none", "weights", "x"),
         balance.functions = NA_real_,
         target.values = NA_real_,
+        unit.id = NULL,
         dtype = NULL,
         device = NULL
       ) {
+        unit_id_input <- cot_default_unit_id(x, unit.id = unit.id)
         # browser()
         if (!is.matrix(x)) {
           x <- as.matrix(x)
         }
         self$d <- ncol(x)
         self$n <- nrow(x)
+        if (!is.null(unit_id_input)) {
+          if (length(unit_id_input) != self$n) {
+            stop("Argument 'unit.id' must have length equal to nrow(x).")
+          }
+          self$unit_id <- as.character(unit_id_input)
+        } else {
+          self$unit_id <- NULL
+        }
 
         self$adapt <- match.arg(adapt)
         self$probability_measure <- isTRUE(probability.measure)
@@ -821,6 +851,7 @@ Measure_ <- R6::R6Class(
 #' @param adapt Should we try to adapt the data ("x"), the weights ("weights"), or neither ("none"). Default is "none".
 #' @param balance.functions A matrix of functions of the covariates to target for mean balance. If NULL and `target.values` are provided, will use the data in `x`.
 #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
+#' @param unit.id Optional unit identifiers. If NULL, non-automatic row names from `x` are used when available.
 #' @param dtype The torch_tensor dtype or NULL.
 #' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL.
 #' @return Returns a `Measure` object
@@ -832,6 +863,7 @@ Measure <- function(
   adapt = c("none", "weights", "x"),
   balance.functions = NA_real_,
   target.values = NA_real_,
+  unit.id = NULL,
   dtype = NULL,
   device = NULL
 ) {
@@ -842,6 +874,7 @@ Measure <- function(
     adapt = adapt,
     balance.functions = balance.functions,
     target.values = target.values,
+    unit.id = unit.id,
     dtype = dtype,
     device = device
   ))
@@ -862,202 +895,6 @@ oop_loss_select <- function(ot) {
     return(inf_sinkhorn_dist(ot))
   }
 }
-
-cot_selector_loo_convention <- "self_and_cross_overlap_renormalized_empty_minus_inf"
-
-cot_safe_log_weights <- function(weights) {
-  log_weights <- log(as.numeric(weights))
-  log_weights[!is.finite(log_weights)] <- -Inf
-  log_weights
-}
-
-cot_to_numeric_vector <- function(x) {
-  if (inherits(x, "torch_tensor")) {
-    return(as.numeric(x$to(device = "cpu")))
-  }
-  as.numeric(x)
-}
-
-cot_to_numeric_matrix <- function(x) {
-  if (inherits(x, "costTensor")) {
-    x <- x$data
-  }
-  if (inherits(x, "torch_tensor")) {
-    return(as.matrix(x$to(device = "cpu")))
-  }
-  as.matrix(x)
-}
-
-cot_log_mixture <- function(cost, log_weights, lambda) {
-  cost <- cot_to_numeric_matrix(cost)
-  log_weights <- cot_to_numeric_vector(log_weights)
-  stopifnot(is.matrix(cost))
-  stopifnot(length(log_weights) == ncol(cost))
-  stopifnot(
-    is.numeric(lambda),
-    length(lambda) == 1L,
-    is.finite(lambda),
-    lambda > 0
-  )
-
-  matrixStats::rowLogSumExps(
-    sweep(-cost / lambda, 2, log_weights, `+`)
-  )
-}
-
-cot_loo_log_mixture <- function(cost, log_weights, weights, lambda) {
-  cost <- cot_to_numeric_matrix(cost)
-  log_weights <- cot_to_numeric_vector(log_weights)
-  weights <- cot_to_numeric_vector(weights)
-  stopifnot(is.matrix(cost))
-  stopifnot(nrow(cost) == ncol(cost))
-  stopifnot(length(log_weights) == ncol(cost))
-  stopifnot(length(weights) == nrow(cost))
-  stopifnot(
-    is.numeric(lambda),
-    length(lambda) == 1L,
-    is.finite(lambda),
-    lambda > 0
-  )
-
-  loo_mix <- sweep(-cost / lambda, 2, log_weights, `+`)
-  diag(loo_mix) <- -Inf
-  loo_mix <- matrixStats::rowLogSumExps(loo_mix)
-
-  remaining_mass <- pmax(1.0 - weights, 0.0)
-  valid <- remaining_mass > sqrt(.Machine$double.eps)
-  loo_mix[valid] <- loo_mix[valid] - log(remaining_mass[valid])
-  loo_mix[!valid] <- -Inf
-
-  loo_mix
-}
-
-cot_cross_loo_log_mixture <- function(cost, log_weights, weights, lambda) {
-  cost <- cot_to_numeric_matrix(cost)
-  log_weights <- cot_to_numeric_vector(log_weights)
-  weights <- cot_to_numeric_vector(weights)
-  stopifnot(is.matrix(cost))
-  stopifnot(nrow(cost) == ncol(cost))
-  stopifnot(length(log_weights) == nrow(cost))
-  stopifnot(length(weights) == nrow(cost))
-  stopifnot(
-    is.numeric(lambda),
-    length(lambda) == 1L,
-    is.finite(lambda),
-    lambda > 0
-  )
-
-  loo_mix <- sweep(-cost / lambda, 1, log_weights, `+`)
-  diag(loo_mix) <- -Inf
-  loo_mix <- matrixStats::colLogSumExps(loo_mix)
-
-  remaining_mass <- pmax(1.0 - weights, 0.0)
-  valid <- remaining_mass > sqrt(.Machine$double.eps)
-  loo_mix[valid] <- loo_mix[valid] - log(remaining_mass[valid])
-  loo_mix[!valid] <- -Inf
-
-  loo_mix
-}
-
-cot_cross_masked_log_mixture <- function(
-  cost,
-  log_weights,
-  weights,
-  lambda,
-  exclude
-) {
-  cost <- cot_to_numeric_matrix(cost)
-  log_weights <- cot_to_numeric_vector(log_weights)
-  weights <- cot_to_numeric_vector(weights)
-  exclude <- as.matrix(exclude)
-  stopifnot(is.matrix(cost))
-  stopifnot(all(dim(exclude) == dim(cost)))
-  stopifnot(length(log_weights) == nrow(cost))
-  stopifnot(length(weights) == nrow(cost))
-  stopifnot(
-    is.numeric(lambda),
-    length(lambda) == 1L,
-    is.finite(lambda),
-    lambda > 0
-  )
-
-  masked_mix <- sweep(-cost / lambda, 1, log_weights, `+`)
-  masked_mix[exclude] <- -Inf
-  masked_mix <- matrixStats::colLogSumExps(masked_mix)
-
-  excluded_mass <- as.numeric(crossprod(weights, exclude))
-  remaining_mass <- pmax(1.0 - excluded_mass, 0.0)
-  valid <- remaining_mass > sqrt(.Machine$double.eps)
-  masked_mix[valid] <- masked_mix[valid] - log(remaining_mass[valid])
-  masked_mix[!valid] <- -Inf
-
-  masked_mix
-}
-
-cot_overlap_exclusion_mask <- function(
-  source_x,
-  target_x,
-  tol = sqrt(.Machine$double.eps)
-) {
-  source_x <- cot_to_numeric_matrix(source_x)
-  target_x <- cot_to_numeric_matrix(target_x)
-  stopifnot(ncol(source_x) == ncol(target_x))
-
-  out <- matrix(FALSE, nrow(source_x), nrow(target_x))
-  for (j in seq_len(nrow(target_x))) {
-    diffs <- abs(sweep(source_x, 2, target_x[j, ], `-`))
-    out[, j] <- rowSums(diffs > tol) == 0L
-  }
-
-  out
-}
-
-cot_sym_evidence <- function(
-  cross_cost,
-  self_a_cost,
-  self_w_cost,
-  cross_exclude = NULL,
-  w,
-  a,
-  lambda
-) {
-  cross_logmix <- if (!is.null(cross_exclude)) {
-    cot_cross_masked_log_mixture(
-      cross_cost,
-      log_weights = log_weights(w),
-      weights = w,
-      lambda = lambda,
-      exclude = cross_exclude
-    )
-  } else {
-    cot_log_mixture(
-      t(cross_cost),
-      log_weights = log_weights(w),
-      lambda = lambda
-    )
-  }
-  self_a_logmix <- cot_loo_log_mixture(
-    self_a_cost,
-    log_weights = log_weights(a),
-    weights = a,
-    lambda = lambda
-  )
-  self_w_logmix <- cot_loo_log_mixture(
-    self_w_cost,
-    log_weights = log_weights(w),
-    weights = w,
-    lambda = lambda
-  )
-
-  cross_idx <- a > 0
-  self_a_idx <- a > 0
-  self_w_idx <- w > 0
-
-  sum(a[cross_idx] * cross_logmix[cross_idx]) -
-    0.5 * sum(a[self_a_idx] * self_a_logmix[self_a_idx]) -
-    0.5 * sum(w[self_w_idx] * self_w_logmix[self_w_idx])
-}
-
 
 #' OTProblem
 #'
@@ -1728,6 +1565,10 @@ OTProblem_ <- R6::R6Class(
       #' @param n_boot_lambda The number of bootstrap iterations to run when selecting lambda
       #' @param n_boot_delta The number of bootstrap iterations to run when selecting delta
       #' @param lambda_bootstrap The penalty parameter to use when selecting lambda. Higher numbers run faster.
+      #' @param lambda.selector Lambda selection rule to apply across the
+      #'   fitted lambda grid.
+      #' @param lambda.selector.control Optional list of controls for the
+      #'   selected lambda selector.
       #' @return returns the object invisibly
       #'
       #' @examples
@@ -1751,15 +1592,31 @@ OTProblem_ <- R6::R6Class(
         n_boot_lambda = 100L,
         n_boot_delta = 1000L,
         lambda_bootstrap = Inf,
-        lambda.selector = c("sym_evidence", "bootstrap_legacy")
+        lambda.selector = c(
+          "sym_evidence",
+          "profile_symmetric_loo",
+          "profile_marginal_loo",
+          "symmetric_loo",
+          "marginal_loo",
+          "mass_bootstrap_symmetric",
+          "bootstrap_legacy",
+          "legacy_bootstrap_balance",
+          "kfold_symmetric"
+        ),
+        lambda.selector.control = list()
       ) {
         # check arguments
         stopifnot("n_boot_lambda must be >= 0" = n_boot_lambda >= 0)
         stopifnot("n_boot_delta must be >= 0" = n_boot_delta >= 0)
         stopifnot("lambda_bootstrap must be > 0" = lambda_bootstrap > 0)
-        lambda.selector <- match.arg(
-          lambda.selector,
-          c("sym_evidence", "bootstrap_legacy")
+        if (missing(lambda.selector)) {
+          lambda.selector <- "sym_evidence"
+        } else if (length(lambda.selector) > 1L) {
+          lambda.selector <- lambda.selector[[1L]]
+        }
+        lambda.selector <- cot_normalize_lambda_selector(lambda.selector)
+        lambda.selector.control <- cot_normalize_lambda_selector_control(
+          lambda.selector.control
         )
 
         # alter lists if needed for inherited classes
@@ -1897,6 +1754,7 @@ OTProblem_ <- R6::R6Class(
           lambda_values = lambda_values,
           lambda_input_values = lambda_input_values,
           lambda_selector = lambda.selector,
+          lambda_selector_control = lambda.selector.control,
           n_boot_lambda = n_boot_lambda,
           lambda_bootstrap = lambda_bootstrap
         )
@@ -1905,6 +1763,9 @@ OTProblem_ <- R6::R6Class(
         private$weights_metrics$lambda.selector <- lambda_selection$selector
         private$weights_metrics$lambda.loo <- lambda_selection$loo
         private$weights_metrics$lambda.note <- lambda_selection$note
+        if (!is.null(lambda_selection$details)) {
+          private$weights_metrics$lambda.details <- lambda_selection$details
+        }
 
         if (n_lambda > 1) {
           weights_list <- weights_list[[lambda_selection$selected_index]]
@@ -3071,14 +2932,27 @@ OTProblem_ <- R6::R6Class(
 
         source_x <- private$measures[[source_add]]$x$detach()
         target_x <- private$measures[[target_add]]$x$detach()
+        source_unit_id <- private$measures[[source_add]]$unit_id
+        target_unit_id <- private$measures[[target_add]]$unit_id
 
         list(
           supported = TRUE,
           problem_name = problem_name,
           source_add = source_add,
           target_add = target_add,
+          source_n = nrow(source_x),
+          target_n = nrow(target_x),
+          source_unit_id = source_unit_id,
+          target_unit_id = target_unit_id,
+          target_weights = cot_to_numeric_vector(
+            private$measures[[target_add]]$init_weights$detach()
+          ),
           cross_exclude = {
-            exclude <- cot_overlap_exclusion_mask(source_x, target_x)
+            exclude <- if (!is.null(source_unit_id) && !is.null(target_unit_id)) {
+              cot_unit_exclusion_mask(source_unit_id, target_unit_id)
+            } else {
+              cot_overlap_exclusion_mask(source_x, target_x)
+            }
             if (any(exclude)) exclude else NULL
           },
           cross_cost = private$tensor_cost_matrix(ot$C_xy, ot$C_xy),
@@ -3098,9 +2972,6 @@ OTProblem_ <- R6::R6Class(
       },
       eval_lambda_sym_evidence = function(wts, lambda, state) {
         w <- cot_to_numeric_vector(wts[[state$source_add]]$detach())
-        a <- cot_to_numeric_vector(
-          private$measures[[state$target_add]]$init_weights$detach()
-        )
 
         cot_sym_evidence(
           cross_cost = state$cross_cost,
@@ -3108,7 +2979,42 @@ OTProblem_ <- R6::R6Class(
           self_w_cost = state$self_w_cost,
           cross_exclude = state$cross_exclude,
           w = w,
-          a = a,
+          a = state$target_weights,
+          lambda = lambda
+        )
+      },
+      eval_lambda_profile_marginal_loo = function(wts, lambda, state) {
+        w <- cot_to_numeric_vector(wts[[state$source_add]]$detach())
+
+        cot_marginal_evidence(
+          cross_cost = state$cross_cost,
+          cross_exclude = state$cross_exclude,
+          w = w,
+          a = state$target_weights,
+          lambda = lambda
+        )
+      },
+      eval_lambda_fixed_symmetric_loo = function(pilot_weights, lambda, state) {
+        cot_sym_evidence(
+          cross_cost = state$cross_cost,
+          self_a_cost = state$self_a_cost,
+          self_w_cost = state$self_w_cost,
+          cross_exclude = state$cross_exclude,
+          w = pilot_weights,
+          a = state$target_weights,
+          lambda = lambda
+        )
+      },
+      eval_lambda_fixed_marginal_loo = function(
+        pilot_weights,
+        lambda,
+        state
+      ) {
+        cot_marginal_evidence(
+          cross_cost = state$cross_cost,
+          cross_exclude = state$cross_exclude,
+          w = pilot_weights,
+          a = state$target_weights,
           lambda = lambda
         )
       },
@@ -3118,9 +3024,21 @@ OTProblem_ <- R6::R6Class(
         lambda_values,
         lambda_input_values,
         lambda_selector,
+        lambda_selector_control,
         n_boot_lambda,
         lambda_bootstrap
       ) {
+        selector_label <- switch(
+          lambda_selector,
+          "profile_symmetric_loo" = "profile symmetric leave-one-out evidence",
+          "profile_marginal_loo" = "profile marginal leave-one-out evidence",
+          "symmetric_loo" = "fixed-pilot symmetric leave-one-out evidence",
+          "marginal_loo" = "fixed-pilot marginal leave-one-out evidence",
+          "mass_bootstrap_symmetric" = "mass-bootstrap symmetric evidence",
+          "bootstrap_legacy" = "legacy bootstrap selector",
+          lambda_selector
+        )
+
         n_lambda <- length(lambda_values)
         lambda_input_values <- as.numeric(lambda_input_values)
         lambda_metrics <- rep(NA_real_, n_lambda)
@@ -3128,6 +3046,7 @@ OTProblem_ <- R6::R6Class(
           metrics = lambda_metrics,
           note = NA_character_,
           loo = NA_character_,
+          details = NULL,
           selected_index = 1L,
           selected_lambda = lambda_input_values[[1L]],
           selector = "fixed"
@@ -3136,62 +3055,209 @@ OTProblem_ <- R6::R6Class(
         eligible_lambda <- is.finite(lambda_input_values) &
           (lambda_input_values > 0)
         finite_index <- which(eligible_lambda)
+        use_path_weights <- lambda_selector %in% c(
+          "profile_symmetric_loo",
+          "profile_marginal_loo",
+          "mass_bootstrap_symmetric"
+        )
+        use_selector_state <- lambda_selector %in% c(
+          "profile_symmetric_loo",
+          "profile_marginal_loo",
+          "symmetric_loo",
+          "marginal_loo",
+          "mass_bootstrap_symmetric"
+        )
 
-        if (lambda_selector == "sym_evidence" && length(finite_index) > 0L) {
+        if (use_selector_state && length(finite_index) > 0L) {
           sym_state <- private$get_sym_evidence_state()
           if (
-            isTRUE(sym_state$supported) && all(weights_converged[finite_index])
+            isTRUE(sym_state$supported) &&
+              (!use_path_weights || all(weights_converged[finite_index]))
           ) {
-            for (idx in finite_index) {
-              lambda_metrics[[idx]] <- private$eval_lambda_sym_evidence(
-                weights_list[[idx]],
-                lambda = lambda_input_values[[idx]],
-                state = sym_state
+            if (lambda_selector == "profile_symmetric_loo") {
+              for (idx in finite_index) {
+                lambda_metrics[[idx]] <- private$eval_lambda_sym_evidence(
+                  weights_list[[idx]],
+                  lambda = lambda_input_values[[idx]],
+                  state = sym_state
+                )
+              }
+              out$note <- paste(
+                "Profile symmetric leave-one-out evidence uses stored fitted COT path weights.",
+                "Boundary lambdas are excluded from selection."
+              )
+              out$loo <- cot_selector_loo_convention
+            } else if (lambda_selector == "profile_marginal_loo") {
+              for (idx in finite_index) {
+                lambda_metrics[[idx]] <- private$eval_lambda_profile_marginal_loo(
+                  weights_list[[idx]],
+                  lambda = lambda_input_values[[idx]],
+                  state = sym_state
+                )
+              }
+              out$note <- paste(
+                "Profile marginal leave-one-out evidence scores target masses under the stored fitted donor path.",
+                "Boundary lambdas are excluded from selection."
+              )
+              out$loo <- cot_selector_marginal_loo_convention
+            } else if (lambda_selector == "symmetric_loo") {
+              pilot_weights <- cot_resolve_pilot_weights(
+                lambda_selector_control$pilot.weights,
+                sym_state$source_n
+              )
+              for (idx in finite_index) {
+                lambda_metrics[[idx]] <- private$eval_lambda_fixed_symmetric_loo(
+                  pilot_weights = pilot_weights,
+                  lambda = lambda_input_values[[idx]],
+                  state = sym_state
+                )
+              }
+              out$note <- paste(
+                "Fixed-pilot symmetric leave-one-out evidence uses donor pilot masses and does not inspect stored fitted path weights.",
+                "Boundary lambdas are excluded from selection."
+              )
+              out$loo <- cot_selector_loo_convention
+              if (isTRUE(lambda_selector_control$details)) {
+                out$details <- list(pilot.weights = pilot_weights)
+              }
+            } else if (lambda_selector == "marginal_loo") {
+              pilot_weights <- cot_resolve_pilot_weights(
+                lambda_selector_control$pilot.weights,
+                sym_state$source_n
+              )
+              for (idx in finite_index) {
+                lambda_metrics[[idx]] <- private$eval_lambda_fixed_marginal_loo(
+                  pilot_weights = pilot_weights,
+                  lambda = lambda_input_values[[idx]],
+                  state = sym_state
+                )
+              }
+              out$note <- paste(
+                "Fixed-pilot marginal leave-one-out evidence uses donor pilot masses and does not inspect stored fitted path weights.",
+                "Boundary lambdas are excluded from selection."
+              )
+              out$loo <- cot_selector_marginal_loo_convention
+              if (isTRUE(lambda_selector_control$details)) {
+                out$details <- list(pilot.weights = pilot_weights)
+              }
+            } else if (lambda_selector == "mass_bootstrap_symmetric") {
+              if (n_boot_lambda < 1L) {
+                stop(
+                  "lambda.selector = 'mass_bootstrap_symmetric' requires n_boot_lambda >= 1."
+                )
+              }
+
+              score_matrix <- matrix(
+                NA_real_,
+                nrow = n_boot_lambda,
+                ncol = n_lambda,
+                dimnames = list(
+                  NULL,
+                  as.character(lambda_input_values)
+                )
+              )
+              for (boot_i in seq_len(n_boot_lambda)) {
+                a_boot <- cot_draw_bootstrap_mass(
+                  sym_state$target_weights,
+                  size = sym_state$target_n
+                )
+                for (idx in finite_index) {
+                  w <- cot_to_numeric_vector(
+                    weights_list[[idx]][[sym_state$source_add]]$detach()
+                  )
+                  w_boot <- cot_draw_bootstrap_mass(
+                    w,
+                    size = sym_state$source_n
+                  )
+                  score_matrix[boot_i, idx] <- cot_sym_evidence(
+                    cross_cost = sym_state$cross_cost,
+                    self_a_cost = sym_state$self_a_cost,
+                    self_w_cost = sym_state$self_w_cost,
+                    cross_exclude = sym_state$cross_exclude,
+                    w = w_boot,
+                    a = a_boot,
+                    lambda = lambda_input_values[[idx]]
+                  )
+                }
+              }
+              lambda_metrics[finite_index] <- cot_summarize_bootstrap_curve(
+                score_matrix[, finite_index, drop = FALSE],
+                summary = lambda_selector_control$mass.bootstrap.summary,
+                quantile = lambda_selector_control$mass.bootstrap.quantile,
+                kappa = lambda_selector_control$mass.bootstrap.kappa
+              )
+              out$note <- paste(
+                "Mass-bootstrap symmetric evidence resamples donor and target masses without refitting the stored COT path.",
+                "Boundary lambdas are excluded from selection."
+              )
+              out$loo <- cot_selector_loo_convention
+              if (isTRUE(lambda_selector_control$details)) {
+                out$details <- list(
+                  bootstrap.scores = score_matrix,
+                  mass.bootstrap.summary = lambda_selector_control$mass.bootstrap.summary,
+                  mass.bootstrap.quantile = lambda_selector_control$mass.bootstrap.quantile,
+                  mass.bootstrap.kappa = lambda_selector_control$mass.bootstrap.kappa
+                )
+              }
+            }
+
+            out$metrics <- lambda_metrics
+            finite_metrics <- lambda_metrics[finite_index]
+            if (any(is.finite(finite_metrics))) {
+              out$selected_index <- finite_index[which.max(finite_metrics)]
+            } else {
+              out$selected_index <- finite_index[[1L]]
+              out$note <- paste(
+                out$note,
+                "All eligible selector scores were non-finite; defaulted to the first eligible finite positive lambda."
               )
             }
-            out$metrics <- lambda_metrics
-            out$note <- paste(
-              "Symmetric evidence values are comparable only within a fixed problem.",
-              "Boundary lambdas are excluded from symmetric evidence selection."
-            )
-            out$loo <- cot_selector_loo_convention
-            out$selected_index <- finite_index[which.max(lambda_metrics[
-              finite_index
-            ])]
             out$selected_lambda <- lambda_input_values[[out$selected_index]]
-            out$selector <- "sym_evidence"
+            out$selector <- lambda_selector
+
+            if (length(finite_index) == 1L) {
+              out$note <- paste(
+                out$note,
+                "Only one eligible finite positive lambda candidate was available."
+              )
+            }
             return(out)
           }
 
-          if (identical(sym_state$reason, "online")) {
-            warning(
-              "lambda.selector = 'sym_evidence' is not implemented for online costs yet; falling back to 'bootstrap_legacy'."
-            )
-          }
           if (
-            isTRUE(sym_state$supported) && !all(weights_converged[finite_index])
+            isTRUE(sym_state$supported) &&
+              use_path_weights &&
+              !all(weights_converged[finite_index])
           ) {
             out$note <- paste(
-              "Fell back to bootstrap_legacy because at least one eligible finite-lambda fit was not converged."
+              "Fell back to bootstrap_legacy because at least one eligible finite-lambda fit needed by",
+              selector_label,
+              "was not converged."
             )
           } else if (identical(sym_state$reason, "online")) {
             out$note <- paste(
-              "Fell back to bootstrap_legacy because online evidence is not implemented yet."
+              "Fell back to bootstrap_legacy because",
+              selector_label,
+              "is not implemented for online costs yet."
             )
           } else if (identical(sym_state$reason, "structure")) {
             out$note <- paste(
-              "Fell back to bootstrap_legacy because symmetric evidence currently supports only single-problem weight-fitting COT paths."
+              "Fell back to bootstrap_legacy because",
+              selector_label,
+              "currently supports only single-problem weight-fitting tensorized COT paths."
             )
           } else {
             out$note <- paste(
-              "Fell back to bootstrap_legacy because symmetric evidence was not available for this problem."
+              "Fell back to bootstrap_legacy because",
+              selector_label,
+              "was not available for this problem."
             )
           }
-        } else if (
-          lambda_selector == "sym_evidence" && length(finite_index) == 0L
-        ) {
+        } else if (use_selector_state && length(finite_index) == 0L) {
           out$note <- paste(
-            "Fell back to bootstrap_legacy because no finite positive lambda candidates were available for symmetric evidence."
+            "Fell back to bootstrap_legacy because no finite positive lambda candidates were available for",
+            selector_label,
+            "."
           )
         }
 

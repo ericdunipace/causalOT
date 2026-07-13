@@ -71,6 +71,7 @@ Collate:
     'cost_functions.R'
     'scmClass.R'
     'gridSearch.R'
+    'lambdaSelectors.R'
     'cotClass.R'
     'cotOOP.R'
     'cotCCPTrain.R'

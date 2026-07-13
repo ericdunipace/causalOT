@@ -8,7 +8,9 @@ cotOptions(
   lambda = NULL,
   delta = NULL,
   opt.direction = c("dual", "primal"),
+  dual.solver = c("joint", "fixed_point_joint", "entropy"),
   debias = TRUE,
+  solver = c("lbfgs", "mirror"),
   p = 2,
   cost.function = NULL,
   cost.online = "auto",
@@ -21,6 +23,18 @@ cotOptions(
   niter = 2000,
   nboot = 100L,
   lambda.bootstrap = 0.05,
+  lambda.selector = c(
+    "sym_evidence",
+    "profile_symmetric_loo",
+    "profile_marginal_loo",
+    "symmetric_loo",
+    "marginal_loo",
+    "mass_bootstrap_symmetric",
+    "bootstrap_legacy",
+    "legacy_bootstrap_balance",
+    "kfold_symmetric"
+  ),
+  lambda.selector.control = list(),
   tol = 1e-04,
   device = NULL,
   dtype = NULL,
@@ -34,7 +48,11 @@ cotOptions(
 
 \item{opt.direction}{Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.}
 
+\item{dual.solver}{Solver to use when \code{opt.direction = "dual"}.}
+
 \item{debias}{Should debiased optimal transport be used? TRUE or FALSE.}
+
+\item{solver}{Solver to use for COT weight optimization.}
 
 \item{p}{The power of the cost function to use for the cost.}
 
@@ -59,6 +77,10 @@ cotOptions(
 \item{nboot}{The number of iterations for the bootstrap to select the final penalty parameters.}
 
 \item{lambda.bootstrap}{The penalty parameter to use for the bootstrap hyperparameter selection of lambda.}
+
+\item{lambda.selector}{How to select lambda among the fitted grid. Supported canonical values are \code{"profile_symmetric_loo"}, \code{"profile_marginal_loo"}, \code{"symmetric_loo"}, \code{"marginal_loo"}, \code{"mass_bootstrap_symmetric"}, and \code{"bootstrap_legacy"}. \code{"sym_evidence"} is retained as an alias for \code{"profile_symmetric_loo"}, and \code{"legacy_bootstrap_balance"} is retained as an alias for \code{"bootstrap_legacy"}.}
+
+\item{lambda.selector.control}{Optional list of controls for lambda selection. Supported entries are \code{pilot.weights}, \code{details}, \code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile}, and \code{mass.bootstrap.kappa}.}
 
 \item{tol}{The tolerance for convergence}
 
@@ -90,6 +112,8 @@ A list of class \code{cotOptions} with the following slots
 \item \code{niter} The number of iterations to run the solver
 \item \code{nboot} The number of bootstrap samples
 \item \code{lambda.bootstrap} The penalty parameter to use for the bootstrap hyperparameter selection.
+\item \code{lambda.selector} The normalized lambda selection rule used after fitting the lambda grid.
+\item \code{lambda.selector.control} The lambda selector control list.
 \item \code{tol} The tolerance for convergence.
 \item \code{device} An object of class \code{torch_device}.
 \item \code{dtype} An object of class \code{torch_dtype}.
