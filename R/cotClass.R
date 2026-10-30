@@ -293,7 +293,7 @@ COT <- R6::R6Class(
 #'
 #' @param lambda The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.
 #' @param delta The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.
-#' @param opt.direction Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.
+#' @param opt.direction Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "primal" (LBFGS solver) until the mirror solver supports multiple lambdas.
 #' @param dual.solver Solver to use when `opt.direction = "dual"`. `"fixed_point_joint"` uses the joint KL forward with fixed-point updates on the source log-weights, `"joint"` uses alternating torch optimization over the dual potential and source log-weights, while `"entropy"` uses the legacy entropy-implied weight update path.
 #' @param debias Should debiased optimal transport be used? TRUE or FALSE.
 #' @param solver Solver to use for COT weight optimization. For `opt.direction = "primal"`, solver options are `"lbfgs"` uses LBFGS optimization on the weights directly. `"mirror"` runs a mirror descent solver, which is typically faster.
@@ -458,7 +458,7 @@ cotOptions <- function(
   }
 
   if (missing(opt.direction) || arg_not_used(opt.direction)) {
-    output[["opt.direction"]] <- "dual"
+    output[["opt.direction"]] <- "primal"
   } else {
     output[["opt.direction"]] <- match.arg(opt.direction, c("dual", "primal"))
   }

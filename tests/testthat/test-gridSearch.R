@@ -113,7 +113,8 @@ testthat::test_that("gridSearch COT", {
   options = list(niter = 2L,
                  nboot = 2,
                  debias = TRUE,
-                 torch.optimizer = torch::optim_lbfgs)
+                 torch.optimizer = torch::optim_lbfgs,
+                 opt.direction = "dual")
   
   # by function
   gs <- testthat::expect_warning(causalOT:::gridSearch(data = data,
@@ -162,7 +163,8 @@ testthat::test_that("gridSearch NNM", {
   options = list(niter = 2L,
                  nboot = 2,
                  debias = TRUE,
-                 torch.optimizer = torch::optim_lbfgs)
+                 torch.optimizer = torch::optim_lbfgs,
+                 opt.direction = "dual")
   
   # by function
   gs <- testthat::expect_warning(causalOT:::gridSearch(data = data,

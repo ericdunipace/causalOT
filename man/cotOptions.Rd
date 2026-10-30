@@ -38,7 +38,7 @@ cotOptions(
 
 \item{delta}{The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.}
 
-\item{opt.direction}{Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.}
+\item{opt.direction}{Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "primal" (LBFGS solver) until the mirror solver supports multiple lambdas.}
 
 \item{dual.solver}{Solver to use when \code{opt.direction = "dual"}. \code{"fixed_point_joint"} uses the joint KL forward with fixed-point updates on the source log-weights, \code{"joint"} uses alternating torch optimization over the dual potential and source log-weights, while \code{"entropy"} uses the legacy entropy-implied weight update path.}
 

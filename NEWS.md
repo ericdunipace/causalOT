@@ -1,6 +1,4 @@
-# causalOT
-
-# causalOT (development version)
+# causalOT 1.1
 
 ## Breaking changes
 * `vcov()` for `causalEffect` objects now computes the variance from the full
@@ -9,11 +7,13 @@
   outcome-model fits. Standard errors and confidence intervals will differ
   from earlier versions. `vcov(object, type = "components")` gives the
   previous three-component calculation.
-<!-- TODO: settle the default solver before release. Note that
-     solver = "mirror" requires a single lambda and no balance constraints,
-     so it cannot be the default for grid searches. -->
+* The default `opt.direction` for `cotOptions()` is now `"primal"`, using the
+  LBFGS solver. The previous default was `opt.direction = "dual"`, which
+  remains available. The dual solver default is still
+  `dual.solver = "fixed_point_joint"`.
+<!-- TODO: revisit the default solver once solver = "mirror" supports
+     multiple lambdas and balance constraints. -->
 * The default dual solver for `"COT"` is now `dual.solver = "fixed_point_joint"`.
-  The previous algorithm is available as `dual.solver = "entropy"`.
 
 ## New features
 * `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
