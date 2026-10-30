@@ -1,6 +1,6 @@
 #### Quadratic-truth coverage comparison for squared-IF variance ####
 
-library(causalOT)
+pkgload::load_all(".")
 
 env_int <- function(name, default) {
   value <- Sys.getenv(name, unset = NA_character_)
@@ -81,7 +81,7 @@ run_one <- function(seed, n, overlap, lambda, level) {
 
 nsims <- env_int("QUADRATIC_COVERAGE_NSIMS", 100L)
 base_seed <- env_int("QUADRATIC_COVERAGE_SEED", 20260708L)
-n_grid <- env_int_vec("QUADRATIC_COVERAGE_N", 512L)
+n_grid <- env_int_vec("QUADRATIC_COVERAGE_N", c(512L, 1024L, 2048L, 4096L))
 overlap_grid <- env_chr_vec(
   "QUADRATIC_COVERAGE_OVERLAP",
   c("high", "medium", "low")

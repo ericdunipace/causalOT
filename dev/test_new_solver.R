@@ -49,7 +49,7 @@ opt2 <- cotOptions(
 cot2 <- causalOT:::COT$new(source = x, target = y, options = opt2)
 suppressWarnings(cot2$solve())
 
-pkgload::load_all(".")
+# pkgload::load_all(".")
 opt3 <- cotOptions(
   lambda = lambda,
   opt.direction = "dual",

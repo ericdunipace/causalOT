@@ -1,5 +1,42 @@
 # causalOT
 
+# causalOT (development version)
+
+## Breaking changes
+* `vcov()` for `causalEffect` objects now computes the variance from the full
+  plug-in influence function, including the cross terms that the previous
+  calculation left out. The sandwich estimator is no longer used for
+  outcome-model fits. Standard errors and confidence intervals will differ
+  from earlier versions. `vcov(object, type = "components")` gives the
+  previous three-component calculation.
+<!-- TODO: settle the default solver before release. Note that
+     solver = "mirror" requires a single lambda and no balance constraints,
+     so it cannot be the default for grid searches. -->
+* The default dual solver for `"COT"` is now `dual.solver = "fixed_point_joint"`.
+  The previous algorithm is available as `dual.solver = "entropy"`.
+
+## New features
+* `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
+  descent solver for debiased COT weights. It requires a single finite
+  `lambda` and does not yet support balance constraints.
+* New dual solvers `dual.solver = "fixed_point_joint"` and `"joint"`. Their
+  tuning parameters (`fixed_point_eta`, `n_potential_steps`, etc.) can be
+  passed through `cotOptions(...)`.
+* `cotOptions()` gains `lambda.selector` and `lambda.selector.control` for
+  choosing how lambda is selected from the fitted grid. The default,
+  `"bootstrap_legacy"`, is the same bootstrap used in earlier versions.
+  Leave-one-out and mass-bootstrap selectors are available as experimental
+  alternatives.
+* The lambda grid, selection scores, and selected value are stored in
+  `causalWeights@info$metric`.
+* `Measure()` gains a `unit.id` argument.
+* `cotOptions()` now accepts `ot_niter` and `ot_tol` to control the inner
+  Sinkhorn iterations.
+
+## Minor improvements and fixes
+* `cotOptions()` now warns about arguments in `...` that no solver uses.
+  Previously, misspelled arguments were silently ignored.
+
 # causalOT 1.0.4
 
 ## Minor improvements and fixes

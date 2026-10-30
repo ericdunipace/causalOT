@@ -1593,13 +1593,13 @@ OTProblem_ <- R6::R6Class(
         n_boot_delta = 1000L,
         lambda_bootstrap = Inf,
         lambda.selector = c(
+          "bootstrap_legacy",
           "sym_evidence",
           "profile_symmetric_loo",
           "profile_marginal_loo",
           "symmetric_loo",
           "marginal_loo",
           "mass_bootstrap_symmetric",
-          "bootstrap_legacy",
           "legacy_bootstrap_balance",
           "kfold_symmetric"
         ),
@@ -1610,7 +1610,7 @@ OTProblem_ <- R6::R6Class(
         stopifnot("n_boot_delta must be >= 0" = n_boot_delta >= 0)
         stopifnot("lambda_bootstrap must be > 0" = lambda_bootstrap > 0)
         if (missing(lambda.selector)) {
-          lambda.selector <- "sym_evidence"
+          lambda.selector <- "bootstrap_legacy"
         } else if (length(lambda.selector) > 1L) {
           lambda.selector <- lambda.selector[[1L]]
         }

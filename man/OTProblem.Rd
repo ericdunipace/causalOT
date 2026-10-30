@@ -741,13 +741,13 @@ Selects the hyperparameter values through a bootstrap algorithm
   n_boot_delta = 1000L,
   lambda_bootstrap = Inf,
   lambda.selector = c(
+    "bootstrap_legacy",
     "sym_evidence",
     "profile_symmetric_loo",
     "profile_marginal_loo",
     "symmetric_loo",
     "marginal_loo",
     "mass_bootstrap_symmetric",
-    "bootstrap_legacy",
     "legacy_bootstrap_balance",
     "kfold_symmetric"
   ),

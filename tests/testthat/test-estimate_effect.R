@@ -826,7 +826,7 @@ testthat::test_that("ATT give proper var lm", {
   v1 <- sum((w1 * n1 * (y - mu1)[z == 1])^2) / n1
   v0 <- sum((w0 * n1 * (y - mu0)[z == 0])^2) / n1
   vm <- sum(((mu1 - mu0 - coef(ee)) * z)^2) / n1
-  components <- causalOT:::semiparm_eff_components(ee)
+  components <- causalOT:::semiparam_eff_components(ee)
   legacy_components <- (v0 + v1 + vm) / n1
   cross_terms <- sum(
     components$measure *
@@ -860,7 +860,7 @@ testthat::test_that("ATE influence-function variance includes residual heterogen
   weights <- calc_weight(original, estimand = estimand, method = "NNM")
 
   ee <- estimate_effect(weights, model.function = lm, augment.estimate = TRUE)
-  components <- causalOT:::semiparm_eff_components(ee)
+  components <- causalOT:::semiparam_eff_components(ee)
 
   squared_if <- as.numeric(vcov(ee))
   component_var <- as.numeric(vcov(ee, type = "components"))
@@ -963,7 +963,7 @@ testthat::test_that("ATC give proper var lm", {
   v1 <- sum((w1 * n0 * (y - mu1)[z == 1])^2) / n0
   v0 <- sum((w0 * n0 * (y - mu0)[z == 0])^2) / n0
   vm <- sum(((mu1 - mu0 - coef(ee)) * (1 - z))^2) / n0
-  components <- causalOT:::semiparm_eff_components(ee)
+  components <- causalOT:::semiparam_eff_components(ee)
   legacy_components <- (v0 + v1 + vm) / n0
   cross_terms <- sum(
     components$measure *

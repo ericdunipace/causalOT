@@ -74,6 +74,20 @@ testthat::test_that("COT objects form", {
   )
   testthat::expect_true(inherits(
     cot$.__enclos_env__$private$optimizer,
+    "cotDualFixedPointJointTrain"
+  ))
+  testthat::expect_silent(
+    cot <- causalOT:::COT$new(
+      source = x,
+      target = y,
+      options = list(
+        debias = TRUE,
+        dual.solver = "joint"
+      )
+    )
+  )
+  testthat::expect_true(inherits(
+    cot$.__enclos_env__$private$optimizer,
     "cotDualTrain"
   ))
   testthat::expect_silent(
@@ -96,7 +110,12 @@ testthat::test_that("COT objects form", {
       target = y,
       options = list(
         debias = TRUE,
-        dual.solver = "fixed_point_joint"
+        dual.solver = "fixed_point_joint",
+        fixed_point_eta = 1,
+        fixed_point_beta = 0.25,
+        fixed_point_weight_floor = 1e-6,
+        fixed_point_eta_anneal_every = 5L,
+        fixed_point_eta_min = 0.1
       )
     )
   )
@@ -104,6 +123,22 @@ testthat::test_that("COT objects form", {
     cot$.__enclos_env__$private$optimizer,
     "cotDualFixedPointJointTrain"
   ))
+  testthat::expect_equal(
+    cot$.__enclos_env__$private$solve_args$fixed_point_eta,
+    1
+  )
+  testthat::expect_equal(
+    cot$.__enclos_env__$private$solve_args$fixed_point_beta,
+    0.25
+  )
+  testthat::expect_equal(
+    cot$.__enclos_env__$private$solve_args$fixed_point_eta_anneal_every,
+    5L
+  )
+  testthat::expect_equal(
+    cot$.__enclos_env__$private$solve_args$fixed_point_eta_min,
+    0.1
+  )
 
   # debias without torch optim should throw error
   testthat::expect_silent(
@@ -462,7 +497,7 @@ testthat::test_that("NNM works", {
     options = list(balance.formula = "~.", lambda = 0)
   )
   testthat::expect_true(
-    inherits(cot$.__enclos_env__$private$optimizer, "cotDualTrain")
+    inherits(cot$.__enclos_env__$private$optimizer, "cotDualFixedPointJointTrain")
   )
 
   testthat::expect_silent(
@@ -524,7 +559,7 @@ testthat::test_that("NNM works", {
     options = list(balance.formula = "~.", cost.online = "online", lambda = 0)
   )
   testthat::expect_true(
-    inherits(cot$.__enclos_env__$private$optimizer, "cotDualTrain")
+    inherits(cot$.__enclos_env__$private$optimizer, "cotDualFixedPointJointTrain")
   )
 
   testthat::expect_silent(
@@ -631,4 +666,33 @@ testthat::test_that("cotOptions error checking works", {
   testthat::expect_error(opt <- cotOptions(torch.scheduler = sum))
   opt <- cotOptions(debias = FALSE, opt.direction = "dual")
   testthat::expect_true(opt$opt.direction == "primal")
+})
+
+testthat::test_that("cotOptions warns about unused arguments", {
+  testthat::skip_on_cran()
+  causalOT:::torch_check()
+
+  testthat::expect_warning(
+    opt <- cotOptions(lambda = 1, dual.sover = "mirror"),
+    "dual.sover"
+  )
+  testthat::expect_equal(opt$dual.solver, "fixed_point_joint")
+
+  # arguments used by the torch optimizer are passed through quietly
+  testthat::expect_silent(opt <- cotOptions(lambda = 1, lr = 0.01))
+  testthat::expect_equal(opt$solver.options$lr, 0.01)
+
+  # inner Sinkhorn controls reach the optimizer setup
+  testthat::expect_silent(
+    opt <- cotOptions(lambda = 1, ot_niter = 50L, ot_tol = 1e-5)
+  )
+  testthat::expect_equal(opt$ot_niter, 50L)
+  testthat::expect_equal(opt$ot_tol, 1e-5)
+})
+
+testthat::test_that("cotOptions defaults to the bootstrap lambda selector", {
+  testthat::skip_on_cran()
+  causalOT:::torch_check()
+
+  testthat::expect_equal(cotOptions()$lambda.selector, "bootstrap_legacy")
 })

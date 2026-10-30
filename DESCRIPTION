@@ -40,6 +40,9 @@ LinkingTo:
     torch
 Suggests: 
     data.table (>= 1.12.8),
+    future,
+    future.apply,
+    progressr,
     testthat (>= 2.1.0),
     knitr,
     reticulate,

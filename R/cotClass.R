@@ -65,24 +65,40 @@ COT <- R6::R6Class(
         # osqp_args = NULL,
         # quick.balance.function = TRUE
         if (identical(private$solver, "mirror")) {
-          private$optimizer$solve(
-            niter = self$niter,
-            tol = self$tol,
-            osqp_args = private$osqp_args,
-            quick.balance.function = private$quick.balance.function,
-            ...
+          solve_args <- c(
+            list(
+              niter = self$niter,
+              tol = self$tol,
+              osqp_args = private$osqp_args,
+              quick.balance.function = private$quick.balance.function
+            ),
+            private$solve_args,
+            list(...)
+          )
+          solve_args <- solve_args[!duplicated(names(solve_args), fromLast = TRUE)]
+          do.call(
+            private$optimizer$solve,
+            solve_args
           )
         } else {
-          private$optimizer$solve(
-            niter = self$niter,
-            tol = self$tol,
-            optimizer = "torch",
-            torch_optim = private$torch_optim,
-            torch_scheduler = private$torch_sched,
-            torch_args = private$torch_optim_args,
-            osqp_args = private$osqp_args,
-            quick.balance.function = private$quick.balance.function,
-            ...
+          solve_args <- c(
+            list(
+              niter = self$niter,
+              tol = self$tol,
+              optimizer = "torch",
+              torch_optim = private$torch_optim,
+              torch_scheduler = private$torch_sched,
+              torch_args = private$torch_optim_args,
+              osqp_args = private$osqp_args,
+              quick.balance.function = private$quick.balance.function
+            ),
+            private$solve_args,
+            list(...)
+          )
+          solve_args <- solve_args[!duplicated(names(solve_args), fromLast = TRUE)]
+          do.call(
+            private$optimizer$solve,
+            solve_args
           )
         }
         if (
@@ -216,6 +232,10 @@ COT <- R6::R6Class(
           options$scheduler.options
         )
         private$osqp_args <- options$osqp.options
+        solve_arg_names <- names(formals(private$optimizer$solve))
+        private$solve_args <- options$solve.options[
+          names(options$solve.options) %in% solve_arg_names
+        ]
 
         names_args <- names(options)
         optim_args_names <- names(formals(private$optimizer$setup_arguments))
@@ -260,6 +280,7 @@ COT <- R6::R6Class(
       torch_optim = "torch_optim",
       torch_sched = "torch_sched",
       torch_optim_args = "list",
+      solve_args = "list",
       solver = "character"
     )
   }
@@ -273,7 +294,7 @@ COT <- R6::R6Class(
 #' @param lambda The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.
 #' @param delta The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.
 #' @param opt.direction Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.
-#' @param dual.solver Solver to use when `opt.direction = "dual"`. `"joint"` uses alternating torch optimization over the dual potential and source log-weights, `"fixed_point_joint"` uses the joint KL forward with fixed-point updates on the source log-weights, while `"entropy"` uses the legacy entropy-implied weight update path.
+#' @param dual.solver Solver to use when `opt.direction = "dual"`. `"fixed_point_joint"` uses the joint KL forward with fixed-point updates on the source log-weights, `"joint"` uses alternating torch optimization over the dual potential and source log-weights, while `"entropy"` uses the legacy entropy-implied weight update path.
 #' @param debias Should debiased optimal transport be used? TRUE or FALSE.
 #' @param solver Solver to use for COT weight optimization. For `opt.direction = "primal"`, solver options are `"lbfgs"` uses LBFGS optimization on the weights directly. `"mirror"` runs a mirror descent solver, which is typically faster.
 #' @param p The power of the cost function to use for the cost.
@@ -288,10 +309,11 @@ COT <- R6::R6Class(
 #' @param niter The number of iterations to run the solver
 #' @param nboot The number of iterations for the bootstrap to select the final penalty parameters.
 #' @param lambda.bootstrap The penalty parameter to use for the bootstrap hyperparameter selection of lambda.
-#' @param lambda.selector How to select lambda among the fitted grid.
-#'   Supported values are `"profile_symmetric_loo"`, `"profile_marginal_loo"`,
-#'   `"symmetric_loo"`, `"marginal_loo"`, `"mass_bootstrap_symmetric"`, and
-#'   `"bootstrap_legacy"`. `"sym_evidence"` is retained as a
+#' @param lambda.selector How to select lambda among the fitted grid. The
+#'   default, `"bootstrap_legacy"`, is the bootstrap selector used in previous
+#'   versions of the package. The experimental alternatives are
+#'   `"profile_symmetric_loo"`, `"profile_marginal_loo"`, `"symmetric_loo"`,
+#'   `"marginal_loo"`, and `"mass_bootstrap_symmetric"`. `"sym_evidence"` is retained as a
 #'   backward-compatible alias for `"profile_symmetric_loo"`, and
 #'   `"legacy_bootstrap_balance"` is retained as an alias for
 #'   `"bootstrap_legacy"`.
@@ -302,7 +324,8 @@ COT <- R6::R6Class(
 #' @param tol The tolerance for convergence
 #' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
-#' @param ... Arguments passed to the solvers. See details
+#' @param ... Arguments passed to the solvers. See details. Named arguments
+#'   not used by any solver produce a warning.
 #'
 #' @return A list of class `cotOptions` with the following slots
 #' \itemize{
@@ -364,7 +387,7 @@ cotOptions <- function(
   lambda = NULL,
   delta = NULL,
   opt.direction = c("dual", "primal"),
-  dual.solver = c("joint", "fixed_point_joint", "entropy"),
+  dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
   p = 2.0,
@@ -380,13 +403,13 @@ cotOptions <- function(
   nboot = 100L,
   lambda.bootstrap = 0.05,
   lambda.selector = c(
+    "bootstrap_legacy",
     "sym_evidence",
     "profile_symmetric_loo",
     "profile_marginal_loo",
     "symmetric_loo",
     "marginal_loo",
     "mass_bootstrap_symmetric",
-    "bootstrap_legacy",
     "legacy_bootstrap_balance",
     "kfold_symmetric"
   ),
@@ -440,11 +463,11 @@ cotOptions <- function(
     output[["opt.direction"]] <- match.arg(opt.direction, c("dual", "primal"))
   }
   if (missing(dual.solver) || arg_not_used(dual.solver)) {
-    output[["dual.solver"]] <- "joint"
+    output[["dual.solver"]] <- "fixed_point_joint"
   } else {
     output[["dual.solver"]] <- match.arg(
       dual.solver,
-      c("joint", "fixed_point_joint", "entropy")
+      c("fixed_point_joint", "joint", "entropy")
     )
   }
 
@@ -590,7 +613,7 @@ cotOptions <- function(
   }
 
   if (missing(lambda.selector) || arg_not_used(lambda.selector)) {
-    output$lambda.selector <- cot_normalize_lambda_selector("sym_evidence")
+    output$lambda.selector <- cot_normalize_lambda_selector("bootstrap_legacy")
   } else {
     output$lambda.selector <- cot_normalize_lambda_selector(lambda.selector)
   }
@@ -623,6 +646,32 @@ cotOptions <- function(
   output$osqp.options <- list(...)[
     ...names() %in% methods::formalArgs(osqp::osqpSettings)
   ]
+
+  solve_option_names <- c(
+    "joint_optimize_weights",
+    "n_potential_steps",
+    "n_weight_steps",
+    "a_log_lr_mult",
+    "a_log_momentum",
+    "fixed_point_eta",
+    "fixed_point_beta",
+    "fixed_point_weight_floor",
+    "fixed_point_objective_check_every",
+    "fixed_point_objective_bad_limit",
+    "fixed_point_objective_eta_decay",
+    "fixed_point_eta_anneal_every",
+    "fixed_point_eta_anneal_factor",
+    "fixed_point_eta_min",
+    "fixed_point_eta_anneal_tol",
+    "debug_joint"
+  )
+  output$solve.options <- list(...)[
+    ...names() %in% solve_option_names
+  ]
+
+  # inner Sinkhorn iterations, passed on to the optimizer's setup_arguments
+  ot_option_names <- c("ot_niter", "ot_tol")
+  output <- c(output, list(...)[...names() %in% ot_option_names])
 
   # if(output$debias && output$penalty.function == "L2") {
   #   warning("No debias options with L2 penalty. Defaulting to debias=FALSE")
@@ -662,10 +711,10 @@ cotOptions <- function(
   }
   if (output$solver == "mirror") {
     if (output$opt.direction != "primal") {
-      stop("solver = 'ccp' is only available with opt.direction = 'primal'.")
+      stop("solver = 'mirror' is only available with opt.direction = 'primal'.")
     }
     if (!isTRUE(output$debias)) {
-      stop("solver = 'ccp' is only available with debias = TRUE.")
+      stop("solver = 'mirror' is only available with debias = TRUE.")
     }
     if (
       is.null(output$lambda) ||
@@ -673,10 +722,37 @@ cotOptions <- function(
         !is.finite(output$lambda) ||
         output$lambda <= 0
     ) {
-      stop("solver = 'ccp' requires a single finite positive lambda.")
+      stop("solver = 'mirror' requires a single finite positive lambda.")
     }
     if (!is.null(output$delta) || !is.null(output$balance.formula)) {
-      stop("solver = 'ccp' does not yet support balance constraints.")
+      stop("solver = 'mirror' does not yet support balance constraints.")
+    }
+  }
+
+  # warn about arguments in ... that no solver will use
+  dot_names <- ...names()
+  if (!is.null(dot_names)) {
+    known_dot_names <- c(
+      if (!is.null(output$torch.optimizer)) {
+        methods::formalArgs(output$torch.optimizer)
+      },
+      if (!is.null(output$torch.scheduler)) {
+        methods::formalArgs(output$torch.scheduler)
+      },
+      methods::formalArgs(osqp::osqpSettings),
+      solve_option_names,
+      ot_option_names
+    )
+    unused_dots <- dot_names[!(dot_names %in% known_dot_names)]
+    if (length(unused_dots) > 0L) {
+      unused_dots[unused_dots == ""] <- "<unnamed>"
+      warning(
+        sprintf(
+          "Ignoring unused arguments passed to cotOptions(): %s",
+          paste(sprintf("'%s'", unique(unused_dots)), collapse = ", ")
+        ),
+        call. = FALSE
+      )
     }
   }
 

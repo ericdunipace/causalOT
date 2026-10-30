@@ -8,7 +8,7 @@ cotOptions(
   lambda = NULL,
   delta = NULL,
   opt.direction = c("dual", "primal"),
-  dual.solver = c("joint", "fixed_point_joint", "entropy"),
+  dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
   p = 2,
@@ -23,17 +23,9 @@ cotOptions(
   niter = 2000,
   nboot = 100L,
   lambda.bootstrap = 0.05,
-  lambda.selector = c(
-    "sym_evidence",
-    "profile_symmetric_loo",
-    "profile_marginal_loo",
-    "symmetric_loo",
-    "marginal_loo",
-    "mass_bootstrap_symmetric",
-    "bootstrap_legacy",
-    "legacy_bootstrap_balance",
-    "kfold_symmetric"
-  ),
+  lambda.selector = c("bootstrap_legacy", "sym_evidence", "profile_symmetric_loo",
+    "profile_marginal_loo", "symmetric_loo", "marginal_loo", "mass_bootstrap_symmetric",
+    "legacy_bootstrap_balance", "kfold_symmetric"),
   lambda.selector.control = list(),
   tol = 1e-04,
   device = NULL,
@@ -48,11 +40,11 @@ cotOptions(
 
 \item{opt.direction}{Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.}
 
-\item{dual.solver}{Solver to use when \code{opt.direction = "dual"}.}
+\item{dual.solver}{Solver to use when \code{opt.direction = "dual"}. \code{"fixed_point_joint"} uses the joint KL forward with fixed-point updates on the source log-weights, \code{"joint"} uses alternating torch optimization over the dual potential and source log-weights, while \code{"entropy"} uses the legacy entropy-implied weight update path.}
 
 \item{debias}{Should debiased optimal transport be used? TRUE or FALSE.}
 
-\item{solver}{Solver to use for COT weight optimization.}
+\item{solver}{Solver to use for COT weight optimization. For \code{opt.direction = "primal"}, solver options are \code{"lbfgs"} uses LBFGS optimization on the weights directly. \code{"mirror"} runs a mirror descent solver, which is typically faster.}
 
 \item{p}{The power of the cost function to use for the cost.}
 
@@ -68,9 +60,9 @@ cotOptions(
 
 \item{grid.length}{The number of penalty parameters to explore in a grid search if none are provided in arguments \code{lambda} or \code{delta}.}
 
-\item{torch.optimizer}{The torch optimizer to use for methods using debiased entropy penalized optimal transport. If \code{debiased} is FALSE or \code{opt.direction} is "primal", will default to \code{\link[torch:optim_lbfgs]{torch::optim_lbfgs()}}. Otherwise \code{\link[torch:optim_rmsprop]{torch::optim_rmsprop()}} is used.}
+\item{torch.optimizer}{The torch optimizer to use for methods using debiased entropy penalized optimal transport. If \code{debiased} is FALSE or \code{opt.direction} is "primal", will default to \code{\link[torch:optim_lbfgs]{torch::optim_lbfgs()}}. Otherwise \code{\link[torch:optim_rmsprop]{torch::optim_rmsprop()}} is used for the dual potential block. Joint dual solvers use an internal RMSprop optimizer for the trainable log-weight block.}
 
-\item{torch.scheduler}{The scheduler for the optimizer. Defaults to \code{\link[torch:lr_multiplicative]{torch::lr_multiplicative()}}.}
+\item{torch.scheduler}{The scheduler for the optimizer. Defaults to \code{\link[torch:lr_multiplicative]{torch::lr_multiplicative()}} for RMSprop-based dual solvers and \code{\link[torch:lr_reduce_on_plateau]{torch::lr_reduce_on_plateau()}} for LBFGS.}
 
 \item{niter}{The number of iterations to run the solver}
 
@@ -78,9 +70,19 @@ cotOptions(
 
 \item{lambda.bootstrap}{The penalty parameter to use for the bootstrap hyperparameter selection of lambda.}
 
-\item{lambda.selector}{How to select lambda among the fitted grid. Supported canonical values are \code{"profile_symmetric_loo"}, \code{"profile_marginal_loo"}, \code{"symmetric_loo"}, \code{"marginal_loo"}, \code{"mass_bootstrap_symmetric"}, and \code{"bootstrap_legacy"}. \code{"sym_evidence"} is retained as an alias for \code{"profile_symmetric_loo"}, and \code{"legacy_bootstrap_balance"} is retained as an alias for \code{"bootstrap_legacy"}.}
+\item{lambda.selector}{How to select lambda among the fitted grid. The
+default, \code{"bootstrap_legacy"}, is the bootstrap selector used in previous
+versions of the package. The experimental alternatives are
+\code{"profile_symmetric_loo"}, \code{"profile_marginal_loo"}, \code{"symmetric_loo"},
+\code{"marginal_loo"}, and \code{"mass_bootstrap_symmetric"}. \code{"sym_evidence"} is retained as a
+backward-compatible alias for \code{"profile_symmetric_loo"}, and
+\code{"legacy_bootstrap_balance"} is retained as an alias for
+\code{"bootstrap_legacy"}.}
 
-\item{lambda.selector.control}{Optional list of controls for lambda selection. Supported entries are \code{pilot.weights}, \code{details}, \code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile}, and \code{mass.bootstrap.kappa}.}
+\item{lambda.selector.control}{Optional list of controls for lambda
+selection. Supported entries are \code{pilot.weights}, \code{details},
+\code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile}, and
+\code{mass.bootstrap.kappa}.}
 
 \item{tol}{The tolerance for convergence}
 
@@ -88,7 +90,8 @@ cotOptions(
 
 \item{dtype}{An object of class \code{torch_dtype} that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.}
 
-\item{...}{Arguments passed to the solvers. See details}
+\item{...}{Arguments passed to the solvers. See details. Named arguments
+not used by any solver produce a warning.}
 }
 \value{
 A list of class \code{cotOptions} with the following slots
@@ -96,6 +99,8 @@ A list of class \code{cotOptions} with the following slots
 \item \code{lambda}The penalty parameter for the optimal transport distance
 \item \code{delta}The constraint for the balancing functions
 \item \code{opt.direction} Whether to solve the primal or dual optimization problems
+\item \code{dual.solver} Solver used for dual optimization problems.
+\item \code{solver} Solver used for the selected optimization direction.
 \item \code{debias}TRUE or FALSE if debiased optimal transport distances are used
 \item \code{balance.formula} The formula giving how to generate the balancing functions.
 \item \code{quick.balance.function} TRUE or FALSE whether quick balance functions will be run.
@@ -131,7 +136,7 @@ The optimal transport problem solved is \eqn{min_w OT_\lambda(w,b) } where \deqn
 
 \subsection{Sinkhorn Divergences}{
 
-The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the \code{torch} package in \code{R} and by default will use the \code{optim_rmsprop} solver. Your desired \code{torch} optimizer can be passed via \code{torch.optimizer} with a scheduler passed via \code{torch.scheduler}. GPU support is available as detailed in the \code{torch} package. Additional arguments in \code{...} are passed as extra arguments to the \code{torch} optimizer and schedulers as appropriate.
+The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the \code{torch} package in \code{R}. Dual solvers default to \code{optim_rmsprop} for the potential block. Joint dual solvers additionally use an internal RMSprop optimizer for the trainable log-weight block. Your desired \code{torch} optimizer can be passed via \code{torch.optimizer} with a scheduler passed via \code{torch.scheduler}. GPU support is available as detailed in the \code{torch} package. Additional arguments in \code{...} are passed as extra arguments to the \code{torch} optimizer and schedulers as appropriate.
 }
 }
 
