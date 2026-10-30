@@ -38,3 +38,5 @@ inst/Meta
 **/.DS_Store
 inst/Reproduce/code/original_sim/.DS_Store
 cran-comments.md
+dev/
+plans/
