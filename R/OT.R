@@ -1488,6 +1488,36 @@ cot_init_semirelaxed <- function(C, b, lambda) {
   cot_tilted_softmax_weights(C = C, b = b, lambda = lambda)
 }
 
+# b' g_yy, the y self term of the Sinkhorn divergence. The CCP solver skips it
+# (it is constant in the weights), so its loss is offset by this amount. It is
+# usually much larger than the divergence itself, hence the tight tolerance.
+cot_ccp_y_self_term <- function(ot, niter = 1000L, tol = 1e-10) {
+  ot_private <- ot$.__enclos_env__$private
+  # sinkhorn_self_loop updates a stored g_yy in place, so run it on a copy
+  g_yy_stored <- ot_private$pot$g_yy
+  if (!is.null(g_yy_stored)) {
+    ot_private$pot$g_yy <- g_yy_stored$detach()$clone()
+    on.exit(ot_private$pot$g_yy <- g_yy_stored, add = TRUE)
+  }
+  torch::with_no_grad({
+    g_yy <- ot_private$sinkhorn_self_loop("y", niter, tol)
+    ot$b$detach()$dot(g_yy)$item()
+  })
+}
+
+# Absolute scale for the stopping tests of the weight solvers. When the
+# weighted sample nearly matches the target the divergence approaches zero, and
+# tests relative to it ask for changes below floating point resolution of the
+# loss, whose terms are of the order of the cost. The cost diameter is the
+# scale of those terms.
+cot_conv_scale <- function(ot) {
+  diameter <- suppressWarnings(as.numeric(ot$diameter))
+  if (length(diameter) == 1L && is.finite(diameter) && diameter > 0) {
+    return(diameter)
+  }
+  max(as.numeric(ot$penalty), .Machine$double.eps)
+}
+
 cot_ccp_kkt <- function(ot, support.tol = 1e-10) {
   if (!inherits(ot, "OT")) {
     stop("Must provide an OT object.")
@@ -1512,7 +1542,8 @@ cot_ccp_kkt <- function(ot, support.tol = 1e-10) {
   } else {
     NA_real_
   }
-  list(kkt_constant = kappa, kkt_max_deviation = kkt_dev)
+  fw_gap <- (w$dot(kkt) - kkt$min())$item()
+  list(kkt_constant = kappa, kkt_max_deviation = kkt_dev, fw_gap = fw_gap)
 }
 
 cot_ccp_diagnostics <- function(ot, support.tol = 1e-10) {
@@ -1531,10 +1562,15 @@ cot_ccp_diagnostics <- function(ot, support.tol = 1e-10) {
   }
   kkt <- cot_ccp_kkt(ot, support.tol = support.tol)
   plan <- ot$primal()$xy$detach()
+  objective <- (ot$a$dot(pot$f_xy) + ot$b$dot(pot$g_yx) -
+    ot$a$dot(pot$f_xx))$detach()$item() - cot_ccp_y_self_term(ot)
   list(
-    objective = sinkhorn_dist(ot)$detach()$item(),
+    objective = objective,
     kkt_constant = kkt$kkt_constant,
     kkt_max_deviation = kkt$kkt_max_deviation,
+    fw_gap = kkt$fw_gap,
+    relative_fw_gap = kkt$fw_gap /
+      max(abs(objective), cot_conv_scale(ot)),
     row_marginal_max_error = (plan$sum(2) - ot$a)$abs()$max()$item(),
     column_marginal_max_error = (plan$sum(1) - ot$b)$abs()$max()$item()
   )

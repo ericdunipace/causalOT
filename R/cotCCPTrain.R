@@ -6,6 +6,15 @@ ccp_forward_code_tensorized <- "
  def ccp_candidate_weights(log_w: Tensor, direction: Tensor, tau: float):
    return (log_w + direction / tau).log_softmax(0).exp()
 
+ def ccp_model_terms(w_new: Tensor, w: Tensor, log_w: Tensor,
+                     direction: Tensor):
+   # linear term <grad, w_new - w> and Bregman term KL(w_new || w) of the
+   # relative smoothness upper model; direction is the negative gradient
+   log_new = torch.clamp(torch.log(w_new), min=-100000.0)
+   lin = -direction.dot(w_new - w)
+   kl = (w_new * (log_new - log_w)).sum()
+   return {'lin' : lin, 'kl' : kl}
+
  def ccp_kkt(w: Tensor, f_xy: Tensor, f_xx: Tensor, support_tol: float):
    kkt = f_xy - f_xx
    active = w > support_tol
@@ -17,7 +26,11 @@ ccp_forward_code_tensorized <- "
    else:
      kappa = torch.tensor(float('nan'), dtype=w.dtype, device=w.device)
      max_deviation = torch.tensor(float('nan'), dtype=w.dtype, device=w.device)
-   return {'kkt_constant' : kappa, 'kkt_max_deviation' : max_deviation}
+   # Frank-Wolfe gap: covers both KKT conditions (equal gradient on the
+   # support, no smaller gradient off it) and bounds f(w) - f(w*) by convexity
+   fw_gap = w.dot(kkt) - kkt.min()
+   return {'kkt_constant' : kappa, 'kkt_max_deviation' : max_deviation,
+           'fw_gap' : fw_gap}
 
 "
 
@@ -65,6 +78,11 @@ cotCCPTrain <- R6::R6Class(
     ccp_tau_grow = "numeric",
     ccp_tau_multipliers = "numeric",
     ccp_backtracking = "logical",
+    ccp_step_rule = "character",
+    ccp_prev_log_x = NULL,
+    ccp_prev_x = NULL,
+    ccp_momentum_t = "numeric",
+    ccp_tau_factor = "numeric",
     ccp_diagnostics_every = "integer",
     ccp_iter = "integer",
     ccp_state_ready = "logical",
@@ -73,6 +91,8 @@ cotCCPTrain <- R6::R6Class(
     ccp_log_w = "torch_tensor",
     ccp_direction = "torch_tensor",
     ccp_loss = "numeric",
+    ccp_loss_offset = "numeric",
+    ccp_conv_scale = "numeric",
     ccp_potentials = "list",
     ccp_candidate_w = "torch_tensor",
     ccp_candidate_loss = "numeric",
@@ -118,7 +138,10 @@ cotCCPTrain <- R6::R6Class(
       private$ccp_ot_name <- ot_name
       private$ccp_adapt_address <- problem[[which(adapt == "weights")]]
       lambda <- private$ot_objects[[ot_name]]$penalty
-      private$ccp_tau_min <- lambda / 10.0
+      if (!is.numeric(private$ccp_tau_factor)) {
+        private$ccp_tau_factor <- 0.1
+      }
+      private$ccp_tau_min <- lambda * private$ccp_tau_factor
       private$ccp_tau_max <- lambda * 10.0
       private$ccp_tau <- private$ccp_tau_min
       private$ccp_tau_shrink <- 1.5
@@ -127,6 +150,16 @@ cotCCPTrain <- R6::R6Class(
       if (!is.logical(private$ccp_backtracking)) {
         private$ccp_backtracking <- FALSE
       }
+      if (
+        !isTRUE(
+          private$ccp_step_rule %in% c("fixed", "adaptive", "accelerated")
+        )
+      ) {
+        private$ccp_step_rule <- "fixed"
+      }
+      private$ccp_prev_log_x <- NULL
+      private$ccp_prev_x <- NULL
+      private$ccp_momentum_t <- 1.0
       if (!is.numeric(private$ccp_diagnostics_every)) {
         private$ccp_diagnostics_every <- 10L
       }
@@ -277,6 +310,100 @@ cotCCPTrain <- R6::R6Class(
       private$ccp_state_ready <- TRUE
     },
 
+    # Bregman proximal gradient with backtracking on relative smoothness:
+    # accept tau if F(w+) <= F(w) + <g, w+ - w> + tau * KL(w+ || w), else
+    # double tau. After an accepted step, halve tau so the step can grow
+    # again, so the step size tracks the local curvature rather than lambda.
+    ccp_step_adaptive = function(ot, max_backtracks = 30L) {
+      if (private$ccp_iter <= 1L) {
+        # first step moves log weights by at most one unit
+        g_range <- (private$ccp_direction$max() -
+          private$ccp_direction$min())$item()
+        private$ccp_tau <- max(g_range, .Machine$double.eps)
+      }
+      eps <- if (identical(ot$a$dtype, torch::torch_float32())) {
+        1.2e-7
+      } else {
+        .Machine$double.eps
+      }
+      tau <- private$ccp_tau
+      accepted <- FALSE
+      for (k in seq_len(max_backtracks)) {
+        private$ccp_try_candidate(ot, tau)
+        terms <- private$ccp_ts$ccp_model_terms(
+          private$ccp_candidate_w,
+          private$ccp_w,
+          private$ccp_log_w,
+          private$ccp_direction
+        )
+        bound <- private$ccp_loss +
+          terms$lin$item() +
+          tau * terms$kl$item()
+        slack <- 10 * eps * max(abs(private$ccp_loss), 1)
+        if (
+          is.finite(private$ccp_candidate_loss) &&
+            private$ccp_candidate_loss <= bound + slack
+        ) {
+          accepted <- TRUE
+          break
+        }
+        tau <- tau * 2.0
+      }
+      if (accepted) {
+        private$ccp_tau <- tau / 2.0
+        private$ccp_accept_candidate(ot)
+      } else {
+        private$ccp_tau <- tau
+        private$ccp_candidate_loss <- private$ccp_loss
+      }
+    },
+
+    # FISTA-type momentum on the log weights with gradient restart
+    # (O'Donoghue & Candes, 2015). The current state (ccp_w, ccp_direction,
+    # ccp_loss) is the extrapolated point y_k where the gradient is evaluated;
+    # x_{k+1} is the mirror step from y_k and y_{k+1} extrapolates x_{k+1}.
+    # Uses only gradients, so it is not affected by noise in the loss values.
+    ccp_step_accelerated = function(ot) {
+      tau <- private$ccp_tau
+      log_x <- (private$ccp_log_w + private$ccp_direction / tau)$log_softmax(1)
+      x <- log_x$exp()
+      t_old <- private$ccp_momentum_t
+      if (!is.null(private$ccp_prev_x)) {
+        # restart when the step from y_k goes uphill relative to x_k
+        uphill <- (-private$ccp_direction$dot(x - private$ccp_prev_x))$item()
+        if (uphill > 0) {
+          t_old <- 1.0
+        }
+      }
+      t_new <- (1 + sqrt(1 + 4 * t_old^2)) / 2
+      beta <- if (is.null(private$ccp_prev_log_x)) 0 else (t_old - 1) / t_new
+      if (beta > 0) {
+        y <- (log_x + beta * (log_x - private$ccp_prev_log_x))$log_softmax(1)$exp()
+      } else {
+        y <- x
+      }
+      private$ccp_prev_log_x <- log_x
+      private$ccp_prev_x <- x
+      private$ccp_momentum_t <- t_new
+
+      private$ccp_candidate_count <- private$ccp_candidate_count + 1L
+      ot$a <- y
+      eval <- private$ccp_eval_sinkhorn(ot)
+      private$ccp_candidate_tau <- tau
+      private$ccp_candidate_w <- y
+      private$ccp_candidate_loss <- eval$loss$detach()$to(device = "cpu")$item()
+      weights <- rlang::env()
+      class(weights) <- c("weightEnv", class(weights))
+      weights[[private$ccp_adapt_address]] <- y
+      private$parameters_get_set(weights)
+      private$weights <- weights
+      private$ccp_w <- y$detach()
+      private$ccp_log_w <- private$ccp_ts$ccp_log_weights(private$ccp_w)
+      private$ccp_loss <- private$ccp_candidate_loss
+      private$ccp_direction <- eval$direction$detach()
+      private$ccp_state_ready <- TRUE
+    },
+
     ccp_should_run_diagnostics = function(iter, niter, converged = FALSE) {
       isTRUE(converged) ||
         iter >= niter ||
@@ -284,12 +411,20 @@ cotCCPTrain <- R6::R6Class(
     },
 
     ccp_compute_kkt = function(ot) {
-      private$ccp_kkt_resid <- private$ccp_ts$ccp_kkt(
+      # relative Frank-Wolfe gap, (<g, w> - min g) / max(|loss|, scale), with
+      # the loss corrected for the omitted y self term so it is the actual
+      # divergence; the floor keeps the test attainable as the divergence -> 0
+      fw_gap <- private$ccp_ts$ccp_kkt(
         ot$a$detach(),
         ot$potentials$f_xy$detach(),
         ot$potentials$f_xx$detach(),
         torch::jit_scalar(1e-10)
-      )$kkt_max_deviation$item()
+      )$fw_gap$item()
+      private$ccp_kkt_resid <- fw_gap /
+        max(
+          abs(private$ccp_loss - private$ccp_loss_offset),
+          private$ccp_conv_scale
+        )
     },
 
     iterate_over_lambda = function(niter, tol) {
@@ -309,7 +444,11 @@ cotCCPTrain <- R6::R6Class(
       ot <- private$ot_objects[[private$ccp_ot_name]]
       torch::with_no_grad({
         private$ccp_set_current_state(ot)
-        if (isTRUE(private$ccp_backtracking)) {
+        if (identical(private$ccp_step_rule, "adaptive")) {
+          private$ccp_step_adaptive(ot)
+        } else if (identical(private$ccp_step_rule, "accelerated")) {
+          private$ccp_step_accelerated(ot)
+        } else if (isTRUE(private$ccp_backtracking)) {
           private$ccp_backtracking_search(ot)
           private$ccp_accept_candidate(ot)
         } else {
@@ -326,6 +465,9 @@ cotCCPTrain <- R6::R6Class(
 
     optimization_loop = function(niter, tol) {
       ot <- private$ot_objects[[private$ccp_ot_name]]
+      # computed here, after set_lambda(), since it depends on the penalty
+      private$ccp_loss_offset <- cot_ccp_y_self_term(ot)
+      private$ccp_conv_scale <- cot_conv_scale(ot)
       torch::with_no_grad({
         private$ccp_set_current_state(ot)
       })
@@ -344,12 +486,23 @@ cotCCPTrain <- R6::R6Class(
         check <- private$lr_reduce(loss)
 
         kkt_tol <- max(tol, 1e-6)
-        loss_converged <- (i > 1) && converged(loss, loss_old, tol)
+        # relative change of the divergence, not of the offset CCP loss
+        loss_converged <- (i > 1) &&
+          converged(
+            loss - private$ccp_loss_offset,
+            loss_old - private$ccp_loss_offset,
+            tol,
+            scale = private$ccp_conv_scale
+          )
         if (private$ccp_should_run_diagnostics(i, niter, loss_converged)) {
           private$ccp_compute_kkt(private$ot_objects[[private$ccp_ot_name]])
         }
-        kkt_ok <- is.finite(private$ccp_kkt_resid) &&
-          private$ccp_kkt_resid <= kkt_tol
+        # the debiased divergence is nonnegative, so it bounds f(w) - f(w*) as
+        # well; it is the tighter bound when the optimum is near zero and the
+        # Frank-Wolfe gap decays slowly
+        kkt_ok <- (is.finite(private$ccp_kkt_resid) &&
+          private$ccp_kkt_resid <= kkt_tol) ||
+          (loss - private$ccp_loss_offset) <= kkt_tol * private$ccp_conv_scale
         if (check && loss_converged && kkt_ok) {
           converged_flag <- TRUE
           break

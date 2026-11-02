@@ -33,8 +33,8 @@ testthat::test_that("COT objects form", {
     )
   )
   testthat::expect_true(inherits(
-    cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$nn_holder,
-    "cotDualBfOpt"
+    cot$.__enclos_env__$private$optimizer,
+    "OTProblem"
   ))
 
   testthat::expect_silent(
@@ -69,12 +69,11 @@ testthat::test_that("COT objects form", {
     )
   )
   testthat::expect_true(
-    "bf" %in%
-      names(cot$.__enclos_env__$private$optimizer$.__enclos_env__$private)
+    length(cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$target_objects) == 1L
   )
   testthat::expect_true(inherits(
     cot$.__enclos_env__$private$optimizer,
-    "cotDualFixedPointJointTrain"
+    "OTProblem"
   ))
   testthat::expect_silent(
     cot <- causalOT:::COT$new(
@@ -82,6 +81,7 @@ testthat::test_that("COT objects form", {
       target = y,
       options = list(
         debias = TRUE,
+        opt.direction = "dual",
         dual.solver = "joint"
       )
     )
@@ -96,6 +96,7 @@ testthat::test_that("COT objects form", {
       target = y,
       options = list(
         debias = TRUE,
+        opt.direction = "dual",
         dual.solver = "entropy"
       )
     )
@@ -110,6 +111,7 @@ testthat::test_that("COT objects form", {
       target = y,
       options = list(
         debias = TRUE,
+        opt.direction = "dual",
         dual.solver = "fixed_point_joint",
         fixed_point_eta = 1,
         fixed_point_beta = 0.25,

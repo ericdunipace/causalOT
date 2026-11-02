@@ -1,6 +1,12 @@
-converged <- function(new, old, tol) {
+# scale is an absolute floor on the denominator of the relative check, so a
+# loss near zero is compared against tol * scale rather than tol * |loss|
+converged <- function(new, old, tol, scale = 0) {
   diff <- abs(old - new)
-  error <- diff / abs(old + .Machine$double.eps)
+  error <- if (scale > 0) {
+    diff / pmax(abs(old), scale)
+  } else {
+    diff / abs(old + .Machine$double.eps)
+  }
   rel_conv <- as.logical(as_numeric(sum(error)) < tol)
   abs_conv <- as.logical(as_numeric(sum(diff)) < tol * tol)
   conv_check <- rel_conv || abs_conv

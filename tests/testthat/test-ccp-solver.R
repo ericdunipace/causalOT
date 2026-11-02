@@ -72,8 +72,10 @@ testthat::test_that("ccp solver runs fixed lambda primal tensorized COT", {
   testthat::expect_lt(diag$column_marginal_max_error, 1e-5)
   testthat::expect_equal(
     cot$.__enclos_env__$private$optimizer$.__enclos_env__$private$ccp_kkt_resid,
-    diag$kkt_max_deviation,
-    tolerance = 1e-12
+    diag$relative_fw_gap,
+    # the divergence is a small difference of large terms, so the relative
+    # gap only matches up to cancellation error
+    tolerance = 1e-2
   )
 })
 
@@ -152,6 +154,7 @@ testthat::test_that("ccp solve carries updated weights across iterations", {
       lambda = 100.0,
       opt.direction = "primal",
       solver = "mirror",
+      polish = "none",
       cost.online = "tensorized",
       niter = niter,
       ot_niter = 100L,
@@ -222,8 +225,10 @@ testthat::test_that("ccp sparse KKT diagnostic matches post-hoc diagnostic", {
   diag <- causalOT:::cot_ccp_diagnostics(ot)
   testthat::expect_equal(
     priv$ccp_kkt_resid,
-    diag$kkt_max_deviation,
-    tolerance = 1e-12
+    diag$relative_fw_gap,
+    # the divergence is a small difference of large terms, so the relative
+    # gap only matches up to cancellation error
+    tolerance = 1e-2
   )
 })
 
@@ -303,4 +308,49 @@ testthat::test_that("ccp tilted update is scale invariant", {
   w2 <- causalOT:::cot_tilted_softmax_weights(C * 7.0, b, 700.0, tilt * 7.0)
 
   testthat::expect_equal(as.numeric(w1), as.numeric(w2), tolerance = 1e-10)
+})
+
+testthat::test_that("converged scale floors the relative check near zero", {
+  # a loss near zero needs an impossibly small change without the floor
+  testthat::expect_false(causalOT:::converged(1e-5 + 1e-9, 1e-5, 1e-6))
+  testthat::expect_true(
+    causalOT:::converged(1e-5 + 1e-9, 1e-5, 1e-6, scale = 1)
+  )
+  # away from zero the floor does not loosen the relative check
+  testthat::expect_false(causalOT:::converged(10.1, 10, 1e-6, scale = 1))
+})
+
+testthat::test_that("lbfgs uses the optimality test for a single divergence", {
+  testthat::skip_on_cran()
+  causalOT:::torch_check()
+  set.seed(2141)
+  n <- 20
+  d <- 2
+  y <- matrix(stats::rnorm(n * d), n, d)
+  # the source contains the target, so the optimal divergence is near zero
+  x <- rbind(y, matrix(stats::rnorm(n * d), n, d))
+
+  opt <- cotOptions(
+    lambda = 10,
+    opt.direction = "primal",
+    solver = "lbfgs",
+    line_search_fn = "strong_wolfe",
+    niter = 200L,
+    ot_niter = 500L,
+    ot_tol = 1e-6,
+    tol = 1e-6
+  )
+  cot <- causalOT:::COT$new(source = x, target = y, options = opt)
+  priv <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private
+  cot$solve()
+
+  testthat::expect_true(priv$optimality_check_eligible())
+  testthat::expect_true(isTRUE(as.logical(utils::tail(
+    unlist(priv$converged_run),
+    1L
+  ))))
+  testthat::expect_lt(
+    as.numeric(utils::tail(unlist(priv$iterations_run), 1L)),
+    200
+  )
 })

@@ -321,6 +321,36 @@ COT <- R6::R6Class(
 #'   selection. Supported entries are `pilot.weights`, `details`,
 #'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`, and
 #'   `mass.bootstrap.kappa`.
+#' @param polish Primal weight refinement: `"auto"` uses exact Newton up to
+#'   `polish.control$max_free` (2000), then L-BFGS; `"osqp"` uses a constrained
+#'   quadratic model. `"none"` disables refinement. Applies to a single debiased
+#'   OT problem with one adapted source weight measure and no balance constraints.
+#'   Standard online costs use chunked CPU evaluation and L-BFGS in auto mode.
+#'   Unsupported configurations are skipped, with the reason in `info()$polish`.
+#' @param polish.control Named list of refinement controls: `maxit` (20),
+#'   `tol` (1e-8, independent of the solver), `sinkhorn_tol` (1e-13),
+#'   `sinkhorn_niter` (10000), `max_free` (2000), `armijo` (1e-4),
+#'   `alpha_min` (1e-8), `zero_tol` (1e-12), `release_margin` (0),
+#'   `release_max` (NULL), `lbfgs_m` (10), `osqp` (list of OSQP overrides),
+#'   `block_size` (512), `active_tol` (NULL, epsilon cap 0.01/n),
+#'   `roundoff` (64), and `resolution_tol` (1e-4). `converged` requires an FW
+#'   gap at most `tol` times the nonnegative divergence. When improvement
+#'   cannot be verified, `converged_resolution` accepts an FW gap bounded by
+#'   `resolution_tol * max(divergence, weight_roundoff_floor)` or the double
+#'   precision evaluator floor, whichever is larger. Both statuses count as
+#'   converged for lambda selection. The weight floor scales with the returned
+#'   dtype epsilon; float32 parameter readback accounts for casting, log ratios,
+#'   softmax, and normalization. Diagnostics expose both gap thresholds.
+#'   Sinkhorn tolerance is floored at eight double epsilons times lambda.
+#'   The target self term is cold-evaluated once. Near-zero active coordinates
+#'   retain their mass in the current iterate; only their Hessian columns are
+#'   approximated by zero. There is no cold sparse-model evaluation. Epsilon
+#'   shrinks with the projected-gradient residual, and the free candidate count
+#'   controls the cap. Newton resumes when that count falls below it.
+#'   Cold line searches never increase the loss; equal-loss steps must reduce
+#'   the FW gap. The first L-BFGS step is scaled to the mean weight.
+#'   Stalled solves stop early; a gap above both thresholds remains unconverged.
+#'   Evaluator failures retain the phase-1 weights.
 #' @param tol The tolerance for convergence
 #' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
@@ -390,6 +420,8 @@ cotOptions <- function(
   dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
+  polish = c("auto", "exact", "osqp", "lbfgs", "none"),
+  polish.control = list(),
   p = 2.0,
   cost.function = NULL,
   cost.online = "auto",
@@ -484,6 +516,10 @@ cotOptions <- function(
   } else {
     output[["solver"]] <- match.arg(solver, c("lbfgs", "mirror"))
   }
+
+  output$polish <- match.arg(polish)
+  if (!is.list(polish.control)) stop("polish.control must be a list")
+  output$polish.control <- do.call(cot_polish_control, polish.control)
 
   if (missing(balance.formula) || arg_not_used(balance.formula)) {
     output["balance.formula"] <- list(NULL)

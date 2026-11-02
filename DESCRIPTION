@@ -1,13 +1,13 @@
 Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
-Version: 1.0.4
-Date: 2026-03-07
+Version: 1.1
+Date: 2026-10-31
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
         role = c("aut", "cre"),
-        email = "edunipace@mail.harvard.edu",
+        email = "edunipace@post.harvard.edu",
         comment = c(ORCID = "0000-0001-8909-213X"))
 Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
 Description: Uses optimal transport distances to find probabilistic 
@@ -75,6 +75,7 @@ Collate:
     'scmClass.R'
     'gridSearch.R'
     'lambdaSelectors.R'
+    'cotNewtonPolish.R'
     'cotClass.R'
     'cotOOP.R'
     'cotCCPTrain.R'

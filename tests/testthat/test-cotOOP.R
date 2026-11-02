@@ -269,7 +269,7 @@ testthat::test_that("weights adapatiation", {
   info <- ot$info()
   testthat::expect_named(info)
   testthat::expect_true(all(names(info) %in% c("loss", "hyperparam.metrics", 
-                                               "iterations", "balance.function.differences")))
+                                               "iterations", "balance.function.differences", "polish")))
   testthat::expect_true(all(info$iterations==1))
   
   #### with targets ####
@@ -328,7 +328,7 @@ testthat::test_that("weights adapatiation", {
   info <- ot$info()
   testthat::expect_named(info)
   testthat::expect_true(all(names(info) %in% c("loss", "hyperparam.metrics", 
-                                               "iterations", "balance.function.differences")))
+                                               "iterations", "balance.function.differences", "polish")))
   testthat::expect_true(all(info$iterations==1))
   
   testthat::expect_warning(ot$choose_hyperparameters(n_boot_lambda = 1L))
@@ -353,7 +353,7 @@ testthat::test_that("weights adapatiation", {
   info <- ot$info()
   testthat::expect_named(info)
   testthat::expect_true(all(names(info) %in% c("loss", "hyperparam.metrics", 
-                                               "iterations", "balance.function.differences")))
+                                               "iterations", "balance.function.differences", "polish")))
   testthat::expect_true(all(info$iterations==1))
 })
 

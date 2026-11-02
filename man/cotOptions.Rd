@@ -11,6 +11,8 @@ cotOptions(
   dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
+  polish = c("auto", "exact", "osqp", "lbfgs", "none"),
+  polish.control = list(),
   p = 2,
   cost.function = NULL,
   cost.online = "auto",
@@ -45,6 +47,39 @@ cotOptions(
 \item{debias}{Should debiased optimal transport be used? TRUE or FALSE.}
 
 \item{solver}{Solver to use for COT weight optimization. For \code{opt.direction = "primal"}, solver options are \code{"lbfgs"} uses LBFGS optimization on the weights directly. \code{"mirror"} runs a mirror descent solver, which is typically faster.}
+
+\item{polish}{Primal weight refinement: \code{"auto"} uses exact Newton up to
+\code{polish.control$max_free} (2000), then L-BFGS; \code{"osqp"} uses a constrained
+quadratic model. \code{"none"} disables refinement. Applies to a single debiased
+OT problem with one adapted source weight measure and no balance constraints.
+Standard online costs use chunked CPU evaluation and L-BFGS in auto mode.
+Unsupported configurations are skipped, with the reason in \code{info()$polish}.}
+
+\item{polish.control}{Named list of refinement controls: \code{maxit} (20),
+\code{tol} (1e-8, independent of the solver), \code{sinkhorn_tol} (1e-13),
+\code{sinkhorn_niter} (10000), \code{max_free} (2000), \code{armijo} (1e-4),
+\code{alpha_min} (1e-8), \code{zero_tol} (1e-12), \code{release_margin} (0),
+\code{release_max} (NULL), \code{lbfgs_m} (10), \code{osqp} (list of OSQP overrides),
+\code{block_size} (512), \code{active_tol} (NULL, epsilon cap 0.01/n),
+\code{roundoff} (64), and \code{resolution_tol} (1e-4). \code{converged} requires an FW
+gap at most \code{tol} times the nonnegative divergence. When improvement
+cannot be verified, \code{converged_resolution} accepts an FW gap bounded by
+\code{resolution_tol * max(divergence, weight_roundoff_floor)} or the double
+precision evaluator floor, whichever is larger. Both statuses count as
+converged for lambda selection. The weight floor scales with the returned
+dtype epsilon; float32 parameter readback accounts for casting, log ratios,
+softmax, and normalization. Diagnostics expose both gap thresholds.
+Sinkhorn tolerance is floored at eight double epsilons times lambda.
+The target self term is cold-evaluated once. Near-zero active coordinates
+retain their mass in the current iterate; only their Hessian columns are
+approximated by zero. There is no cold sparse-model evaluation. Epsilon
+shrinks with the projected-gradient residual, and the free candidate count
+controls the cap. Newton resumes when that count falls below it.
+Cold line searches never increase the loss; equal-loss steps must reduce
+the FW gap. The first L-BFGS step is scaled to the mean weight.
+Stalled solves stop early; a gap above both thresholds remains unconverged.
+Evaluator failures retain the phase-1 weights.}
+
 
 \item{p}{The power of the cost function to use for the cost.}
 

@@ -1267,6 +1267,8 @@ OTProblem_ <- R6::R6Class(
       #'  ot <- OTProblem(m1, m2)
       #'  ot$setup_arguments(lambda = 1000)
       #' }
+      #' @param polish Primal weight refinement method; see [cotOptions()].
+      #' @param polish.control Named refinement controls; see [cotOptions()].
       setup_arguments = function(
         lambda,
         delta,
@@ -1277,8 +1279,14 @@ OTProblem_ <- R6::R6Class(
         debias = TRUE,
         diameter = NULL,
         ot_niter = 1000L,
-        ot_tol = 1e-3
+        ot_tol = 1e-3,
+        polish = c("auto", "exact", "osqp", "lbfgs", "none"),
+        polish.control = list()
       ) {
+        private$polish_method <- match.arg(polish)
+        private$polish_control <- do.call(cot_polish_control, polish.control)
+        private$polish_info <- list()
+        private$converged_run <- private$iterations_run <- private$final_loss <- private$weights_list <- list()
         prob_names <- ls(private$problems)
         if (private$args_set) {
           warning(
@@ -1796,7 +1804,9 @@ OTProblem_ <- R6::R6Class(
       #' \item `loss` the final loss values
       #' \item `iterations` The number of iterations run for each combination of parameters
       #' \item `balance.function.differences` The final differences in the balance functions
-      #' \item `hyperparam.metrics` A list of the bootstrap evaluation for delta and lambda values}
+      #' \item `hyperparam.metrics` A list of the bootstrap evaluation for delta and lambda values
+      #' \item `polish` Per-lambda and per-delta refinement diagnostics, including skip reasons.
+      #' Both `converged` and `converged_resolution` count as converged for lambda selection.}
       #' @examples
       #' if (torch::torch_is_installed()) {
       #'   ot$info()
@@ -1828,7 +1838,8 @@ OTProblem_ <- R6::R6Class(
           loss = losses,
           iterations = iter,
           balance.function.differences = bal,
-          hyperparam.metrics = metrics
+          hyperparam.metrics = metrics,
+          polish = private$polish_info
         ))
       }
     )
@@ -1850,6 +1861,9 @@ OTProblem_ <- R6::R6Class(
   private = {
     list(
       # objects
+      polish_method = "none",
+      polish_control = NULL,
+      polish_info = list(),
       args_set = "logical",
       converged_run = "list",
       final_loss = "list",
@@ -2377,6 +2391,161 @@ OTProblem_ <- R6::R6Class(
         return(out)
       },
 
+      polish_eligible = function() {
+        if (identical(private$polish_method, "none")) return("disabled")
+        if (!private$optimality_check_eligible()) return("requires one debiased primal source-weight problem without balance constraints")
+        ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
+        if (!is.finite(ot$penalty) || ot$penalty <= 0) return("requires a finite positive lambda")
+        if (!ot$tensorized && (identical(ot$C_xy$algorithm, "user") || identical(ot$C_xx$algorithm, "user"))) return("custom online costs are unsupported")
+        TRUE
+      },
+
+      polish_set_weights = function(ot, w) {
+        name <- ls(private$ot_objects)[[1L]]
+        address <- private$problems[[name]][[1L]]
+        # A zero first weight makes first-coordinate log ratios about 758 in
+        # float32 and destroys precision in the nonzero weights. Use a positive
+        # reference only when installing polished weights / their warm starts.
+        # The parameter tensor object and dimension stay fixed; optimizers see the same
+        # differentiable simplex map, with coordinates restored to source order.
+        if (self$dtype != torch::torch_float64()) {
+          measure_private <- private$measures[[address]]$.__enclos_env__$private
+          reference <- which.max(as.numeric(w$to(device = "cpu")))
+          keep <- setdiff(seq_len(length(w)), reference)
+          restore <- order(c(reference, keep))
+          measure_private$inv_transform_ <- function(value) {
+            logs <- torch::torch_log(value / value$sum())
+            logs <- logs$clamp(min = round(log(.Machine$double.xmin)) - 50)
+            logs[keep] - logs[reference]
+          }
+          measure_private$transform_ <- function(value) {
+            full <- torch::torch_cat(list(torch::torch_zeros(1L, dtype = value$dtype, device = value$device), value))
+            full$log_softmax(1)$exp()[restore]
+          }
+        }
+        weights <- rlang::env()
+        class(weights) <- c("weightEnv", class(weights))
+        weights[[address]] <- w
+        private$parameters_get_set(weights)
+        private$weights <- weights
+        ot$a <- w
+      },
+
+      polish_mix_start = function() {
+        ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
+        torch::with_no_grad({
+          private$polish_set_weights(ot, (1 - 1e-3) * ot$a + 1e-3 / length(ot$a))
+        })
+        private$torch_optim_reset()
+      },
+
+      polish_result = function(res, tol, delta) {
+        eligibility <- private$polish_eligible()
+        name <- ls(private$ot_objects)[[1L]]
+        ot <- private$ot_objects[[name]]
+        key <- as.character(ot$penalty)
+        save_info <- function(info) {
+          private$polish_info[[key]][[paste(delta)]] <- info
+        }
+        if (!isTRUE(eligibility)) {
+          save_info(list(status = "skipped", reason = eligibility))
+          return(res)
+        }
+        control <- private$polish_control
+        control$conv_scale <- cot_conv_scale(ot)
+        control$weight_eps <- if (self$dtype == torch::torch_float64()) .Machine$double.eps else 2^-23
+        control$osqp <- utils::modifyList(as.list(private$osqp_args), control$osqp)
+        direction <- private$polish_method
+        if (direction == "auto") direction <- if (ot$tensorized) "exact" else "lbfgs"
+        # Refresh phase-1 weights without changing its solver trajectory.
+        address <- private$problems[[name]][[1L]]
+        measure_private <- private$measures[[address]]$.__enclos_env__$private
+        old_mass <- measure_private$mass_$detach()$clone()
+        old_inverse <- measure_private$inv_transform_
+        old_transform <- measure_private$transform_
+        private$ot_update(use_grad = FALSE)
+        result <- tryCatch(torch::with_no_grad({
+          cot_newton_polish(ot$a, ot$b, ot$C_xy, ot$C_xx, ot$penalty,
+            direction = direction, control = control, C_yy = ot$C_yy)
+        }), error = function(e) list(status = "no_improvement", reason = conditionMessage(e)))
+        info <- result[setdiff(names(result), c("weights", "solver_weights"))]
+        if (!is.null(result$weights) && (result$loss < result$loss_start ||
+            (cot_polish_is_converged(result$status) && result$fw_gap < result$fw_gap_start))) {
+          refreshed <- tryCatch(torch::with_no_grad({
+            w <- torch::torch_tensor(result$solver_weights, dtype = self$dtype, device = self$device)
+            # Validate the dtype round trip with the same cold evaluator used
+            # for the baseline. Small float32 rounding gains must not be
+            # mistaken for a certified improvement.
+            private$polish_set_weights(ot, w)
+            address <- private$problems[[name]][[1L]]
+            installed <- private$measures[[address]]$weights$detach()
+            private$weights[[address]] <- installed
+            ot$a <- installed
+            rounded <- as.numeric(installed$to(device = "cpu"))
+            rounded <- rounded / sum(rounded)
+            rounded_ev <- cot_polish_eval(rounded, as.numeric(ot$b$to(device = "cpu")),
+              ot$C_xy, ot$C_xx, ot$penalty, control)
+            rounded_gap <- max(0, sum(rounded * rounded_ev$grad) - min(rounded_ev$grad))
+            if (rounded_ev$loss > result$loss_start ||
+                (rounded_ev$loss == result$loss_start && rounded_gap >= result$fw_gap_start))
+              stop("No improvement after restoring the solver dtype")
+            result$loss <- rounded_ev$loss
+            info$loss <- rounded_ev$loss
+            info$fw_gap <- rounded_gap
+            info$divergence <- rounded_ev$loss - result$y_self
+            info$nnz <- sum(rounded > control$zero_tol)
+            info$fw_threshold <- cot_polish_threshold(info$loss, result$y_self, result$conv_scale, control)
+            # Returned weights pass through cast, log ratios, softmax and
+            # normalization. Account for these four single-precision stages,
+            # rather than claiming the cast-only floor certifies the measure.
+            returned_control <- control
+            info$weight_rounding_stages <- if (control$weight_eps > .Machine$double.eps) 4L else 1L
+            returned_control$weight_eps <- control$weight_eps * info$weight_rounding_stages
+            info$weight_roundoff_floor <- control$roundoff * returned_control$weight_eps * result$conv_scale
+            info$resolution_threshold <- cot_polish_resolution_threshold(info$loss, result$y_self, result$conv_scale, returned_control)
+            resolution <- result$loss_resolution || control$weight_eps > .Machine$double.eps || cot_polish_is_converged(result$status)
+            certified <- cot_polish_convergence(info$fw_gap, info$loss, result$y_self, result$conv_scale, returned_control, resolution)
+            if (!is.null(certified)) {
+              info$status <- certified
+            } else if (cot_polish_is_converged(info$status)) {
+              info$status <- "stalled_resolution"
+              info$reason <- "Restored weights exceed both the relative and resolution FW thresholds"
+            }
+            if (ot$tensorized) {
+              ev <- ot$sinkhorn_ccp_eval(niter = private$ot_niter, tol = private$ot_tol)
+              if (inherits(self, "cotCCPTrain")) {
+                private$ccp_capture_state(ot, ev)
+                private$ccp_compute_kkt(ot)
+              }
+            } else {
+              eval(private$objective)
+            }
+            TRUE
+          }), error = function(e) {
+            info$reason <<- conditionMessage(e)
+            FALSE
+          })
+          if (refreshed) {
+            res$loss <- if (inherits(self, "cotCCPTrain")) result$loss else info$divergence
+            res$polished <- TRUE
+          } else {
+            measure_private$inv_transform_ <- old_inverse
+            measure_private$transform_ <- old_transform
+            torch::with_no_grad({measure_private$mass_$copy_(old_mass)})
+            private$ot_update(use_grad = FALSE)
+            info$status <- "no_improvement"
+            info$loss <- result$loss_start
+            info$fw_gap <- result$fw_gap_start
+            info$divergence <- result$divergence_start
+            info$fw_threshold <- result$fw_threshold_start
+            info$resolution_threshold <- result$resolution_threshold_start
+          }
+        }
+        if (!is.null(info$fw_gap)) res$converged <- cot_polish_is_converged(info$status)
+        save_info(info)
+        res
+      },
+
       iterate_over_delta = function(niter, tol) {
         # counter for delta
         n_delta <- length(private$penalty_list$delta)
@@ -2397,6 +2566,7 @@ OTProblem_ <- R6::R6Class(
 
           # run inner loop that actually optimizes
           res <- private$optimization_loop(niter, tol)
+          res <- private$polish_result(res, tol, d)
 
           # copy estimated weights to weights_delta holder
           weights_delta[[paste(d)]] <- private$parameters_get_set(clone = TRUE)
@@ -2405,6 +2575,13 @@ OTProblem_ <- R6::R6Class(
           losses_delta[[paste(d)]] <- res$loss
           iter_delta[[paste(d)]] <- res$iter
           converged_delta[[paste(d)]] <- res$converged
+
+          # Store exact zeros above; interiorize only the next warm start.
+          if (isTRUE(res$polished) &&
+              (!identical(d, utils::tail(private$penalty_list$delta, 1L)) ||
+               private$ot_objects[[ls(private$ot_objects)[[1L]]]]$penalty != utils::tail(private$penalty_list$lambda, 1L))) {
+            private$polish_mix_start()
+          }
         }
 
         return(list(
@@ -2516,6 +2693,60 @@ OTProblem_ <- R6::R6Class(
       # holder variable for selected optimization method
       optimization_step = "function",
 
+      # absolute floor for the convergence tests, so a loss near zero is not
+      # held to a change below floating point resolution
+      convergence_scale = function() {
+        max(vapply(
+          as.list(private$ot_objects),
+          cot_conv_scale,
+          numeric(1L)
+        ))
+      },
+
+      # the optimality test applies when the objective is a single debiased
+      # Sinkhorn divergence in the weights of its first measure
+      optimality_check_eligible = function() {
+        if (
+          length(private$ot_objects) != 1L ||
+            length(private$target_objects) != 0L
+        ) {
+          return(FALSE)
+        }
+        ot_name <- ls(private$ot_objects)[[1L]]
+        ot <- private$ot_objects[[ot_name]]
+        single_term <- rlang::expr(
+          oop_loss_select(private$ot_objects[[!!ot_name]])
+        )
+        if (
+          !isTRUE(ot$debias) ||
+            !is.finite(ot$penalty) ||
+            !identical(private$objective, single_term)
+        ) {
+          return(FALSE)
+        }
+        adapt <- vapply(
+          private$problems[[ot_name]],
+          function(add) private$measures[[add]]$adapt,
+          character(1L)
+        )
+        identical(unname(adapt), c("weights", "none"))
+      },
+
+      # same test as the CCP solver: the relative Frank-Wolfe gap, or the
+      # divergence itself since it is nonnegative, bounds f(w) - f(w*)
+      optimality_ok = function(tol, scale) {
+        ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
+        kkt_tol <- max(tol, 1e-6)
+        torch::with_no_grad({
+          # refreshes the potentials at the current weights
+          divergence <- self$loss$detach()$to(device = "cpu")$item()
+          fw_gap <- cot_ccp_kkt(ot)$fw_gap
+        })
+        resid <- fw_gap / max(abs(divergence), scale)
+        (is.finite(resid) && resid <= kkt_tol) ||
+          divergence <= kkt_tol * scale
+      },
+
       # optimization inner loop
       optimization_loop = function(niter, tol) {
         # set initial loss
@@ -2524,6 +2755,8 @@ OTProblem_ <- R6::R6Class(
         # check convergence variable initialization
         check <- TRUE
         converged_flag <- FALSE
+        scale <- private$convergence_scale()
+        check_optimality <- private$optimality_check_eligible()
 
         # run optimization steps for given penalties
         for (i in 1:niter) {
@@ -2538,9 +2771,16 @@ OTProblem_ <- R6::R6Class(
           check <- private$lr_reduce(loss)
           # check <- lr_reduce(opt_sched, loss$detach())
 
-          # see if converged
-          if (check && (i > 1) && converged(loss, loss_old, tol)) {
-            converged_flag <- TRUE
+          # see if converged. Once the loss stalls the optimizer makes no
+          # further progress, so stop either way, but only report convergence
+          # if the weights also pass the optimality test
+          if (
+            check &&
+              (i > 1) &&
+              converged(loss, loss_old, tol, scale = scale)
+          ) {
+            converged_flag <- !check_optimality ||
+              private$optimality_ok(tol, scale)
             break
           }
 

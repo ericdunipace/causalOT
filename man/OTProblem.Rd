@@ -611,7 +611,9 @@ Sets up the OT problems for the \code{OTProblem} object. This should be run befo
   debias = TRUE,
   diameter = NULL,
   ot_niter = 1000L,
-  ot_tol = 0.001
+  ot_tol = 0.001,
+  polish = c("auto", "exact", "osqp", "lbfgs", "none"),
+  polish.control = list()
 )}\if{html}{\out{</div>}}
 }
 
@@ -637,6 +639,10 @@ Sets up the OT problems for the \code{OTProblem} object. This should be run befo
 \item{\code{ot_niter}}{Number of iterations to run the solver}
 
 \item{\code{ot_tol}}{The tolerance for convergence of the objective function}
+
+\item{\code{polish}}{Primal weight refinement method; see \code{\link[=cotOptions]{cotOptions()}}.}
+
+\item{\code{polish.control}}{Named refinement controls; see \code{\link[=cotOptions]{cotOptions()}}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -812,7 +818,9 @@ a list with slots
 \item \code{loss} the final loss values
 \item \code{iterations} The number of iterations run for each combination of parameters
 \item \code{balance.function.differences} The final differences in the balance functions
-\item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values}
+\item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values
+\item \code{polish} Per-lambda and per-delta refinement diagnostics, including skip reasons.
+Both \code{converged} and \code{converged_resolution} count as converged for lambda selection.}
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
