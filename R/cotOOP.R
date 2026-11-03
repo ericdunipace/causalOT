@@ -2555,22 +2555,21 @@ OTProblem_ <- R6::R6Class(
           cache$y_self <- new.env(parent = emptyenv())
           result
         }
-        phase1_result <- function(reason = NULL, evaluated = NULL) {
-          # A rejected polish still measured the retained starting point cold.
-          cold <- !is.null(evaluated)
-          gap <- if (cold) evaluated$fw_gap_start else if (is.null(res$fw_gap)) NA_real_ else res$fw_gap
-          divergence <- if (cold) evaluated$divergence_start else if (is.null(res$divergence)) NA_real_ else res$divergence
-          atol <- if (cold) polish_atol(evaluated$conv_scale) else private$ot_tol
-          stopped <- cold || isTRUE(res$stopped_by_rule)
-          res$converged <- stopped && cot_converged(gap, divergence, atol, tol)
+        phase1_result <- function(reason = NULL, info = NULL) {
+          gap <- if (is.null(res$fw_gap)) NA_real_ else res$fw_gap
+          divergence <- if (is.null(res$divergence)) NA_real_ else res$divergence
+          stopped <- isTRUE(res$stopped_by_rule)
+          res$converged <- stopped && cot_converged(gap, divergence, private$ot_tol, tol)
           res$reason <- if (res$converged) "ok" else if (!is.null(reason)) paste0("polish error: ", reason) else
             if (!stopped) "niter" else if (!is.finite(gap) || !is.finite(divergence)) "gap unavailable" else "gap above tolerance"
-          save_info(list(status = if (cold) "no_improvement" else "skipped", reason = res$reason,
-            polish_error = reason,
-            convergence = list(phase = if (cold) "polish" else "phase1", gap = gap,
-              D = divergence, atol = atol, tol = tol), fw_gap = gap,
-            divergence = divergence, cost_source = if (cold) C$source else "solver_rounded",
-            time = proc.time()[["elapsed"]] - started))
+          if (is.null(info)) info <- list(status = "skipped", cost_source = "solver_rounded")
+          info$reason <- res$reason
+          info$polish_error <- reason
+          info$convergence <- list(phase = "phase1", gap = gap,
+            D = divergence, atol = private$ot_tol, tol = tol)
+          info$fw_gap <- gap; info$divergence <- divergence
+          info$time <- proc.time()[["elapsed"]] - started
+          save_info(info)
           res
         }
         polish_atol <- function(scale) {
@@ -2616,7 +2615,9 @@ OTProblem_ <- R6::R6Class(
             }
             info$timings["dtype_recheck"] <- proc.time()[["elapsed"]] - t0
             if (rounded_loss > result$loss_start ||
-                (rounded_loss == result$loss_start && rounded_gap >= result$fw_gap_start)) stop("No improvement after restoring the solver dtype")
+                (rounded_loss == result$loss_start && rounded_gap >= result$fw_gap_start)) {
+              stop(errorCondition("No improvement after restoring the solver dtype", class = "cot_polish_rejected"))
+            }
             info$loss <- rounded_loss; info$fw_gap <- rounded_gap
             info$divergence <- rounded_loss - result$y_self
             info$nnz <- sum(rounded > control$zero_tol)
@@ -2632,7 +2633,11 @@ OTProblem_ <- R6::R6Class(
             } else info$loss_device <- eval(private$objective)$item()
             info$timings["device_refresh"] <- proc.time()[["elapsed"]] - t0
             cot_fit_valid(installed, info$loss)
-          }), error = function(e) {info$reason <<- conditionMessage(e); FALSE})
+          }), error = function(e) {
+            if (inherits(e, "cot_polish_rejected")) info$rejection_reason <<- conditionMessage(e) else
+              info$polish_error <<- conditionMessage(e)
+            FALSE
+          })
           if (refreshed) {
             res$loss <- if (inherits(self, "cotCCPTrain")) info$loss else info$divergence
             res$polished <- TRUE
@@ -2641,11 +2646,15 @@ OTProblem_ <- R6::R6Class(
             torch::with_no_grad(measure_private$mass_$copy_(old_mass))
             private$ot_update(use_grad = FALSE)
             info$status <- "no_improvement"
-            return(phase1_result(info$reason, evaluated = result))
+            if (!is.null(info$polish_error)) return(phase1_result(info$polish_error, info))
           }
         }
-        # No installed improvement: judge the retained weights at the cold start.
-        if (!isTRUE(res$polished)) return(phase1_result(evaluated = result))
+        # Keep all refinement diagnostics, including already_optimal, timings,
+        # and accepted steps. A rejected polish measured the retained start cold.
+        if (!isTRUE(res$polished)) {
+          info$fw_gap <- result$fw_gap_start
+          info$divergence <- result$divergence_start
+        }
         atol <- polish_atol(result$conv_scale)
         res$converged <- cot_converged(info$fw_gap, info$divergence, atol, tol)
         res$reason <- if (res$converged) "ok" else if (!is.finite(info$fw_gap) || !is.finite(info$divergence))

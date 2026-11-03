@@ -26,6 +26,13 @@
 * The default dual solver for `"COT"` is now `dual.solver = "fixed_point_joint"`.
 
 ## Bug fixes
+* Blocked R polish evaluators preserve float64 lambda precision in cold,
+  warm, and target-self arithmetic. Hessian and ridge scaling use the same
+  tensor-left scalar dispatch to avoid implicit float32 rounding.
+* Polish retains its full diagnostics when no weights are installed, including
+  `already_optimal` for a zero-step optimal result. A rejected dtype round-trip
+  reports the cold-start gap outcome, with details in `rejection_reason`,
+  instead of being labelled a polish error.
 * Polishing moves MPS/CUDA tensors to CPU before converting to float64.
 * Unpolished convergence means accuracy to about `ot_tol` in absolute terms;
   use the polish for `tol` relative accuracy. No additional Sinkhorn solve is run.

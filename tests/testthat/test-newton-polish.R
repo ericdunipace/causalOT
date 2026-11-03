@@ -326,6 +326,6 @@ test_that('failed float32 installation restores the original parameterization ex
   expect_identical(failed$weights, baseline$weights)
   info <- failed$.__enclos_env__$private$optimizer$info()$polish[[1]][[1]]
   expect_identical(info$status, 'no_improvement')
-  expect_match(info$polish_error, 'No improvement')
+  expect_match(info$rejection_reason, 'No improvement')
   expect_identical(info$convergence$phase, 'polish')
 })

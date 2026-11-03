@@ -101,7 +101,7 @@ test_that('rejected polish judges the cold starting point regardless of phase-1 
       cot$solve()
     })
     info <- convergence_optimizer(cot)$info(); diag <- info$polish[[1]][[1]]
-    expect_identical(diag$status, 'no_improvement')
+    expect_identical(diag$status, 'maxit')
     expect_identical(diag$convergence$phase, 'polish')
     expect_equal(diag$convergence$gap, if (passes) 1e-6 else 1e-2)
     expect_equal(diag$convergence$D, 1)
@@ -153,4 +153,95 @@ test_that('a normally stopped phase-1 fit reports unavailable non-finite gap', {
   cot$solve(); info <- convergence_optimizer(cot)$info()
   expect_false(info$converged[[1]][[1]])
   expect_identical(info$reason[[1]][[1]],'gap unavailable')
+})
+
+test_that('a zero-step optimal polish retains all refinement diagnostics', {
+  cot <- convergence_fit('auto')
+  testthat::local_mocked_bindings(cot_newton_polish=function(a,...) {
+    list(weights=as.numeric(a),solver_weights=as.numeric(a),status='certified',
+      n_accepted=0L,nnz=length(a),iter=0L,loss=1,loss_start=1,fw_gap=0,fw_gap_start=0,
+      divergence=1,divergence_start=1,conv_scale=10,timings=c(start=.01,other=0),
+      line_search_evals=0L,direction='exact')
+  },.package='causalOT')
+  cot$solve(); info <- convergence_optimizer(cot)$info(); diag <- info$polish[[1]][[1]]
+  expect_identical(diag$status,'already_optimal')
+  expect_identical(diag$n_accepted,0L)
+  expect_identical(diag$iter,0L)
+  expect_identical(diag$nnz,12L)
+  expect_identical(diag$line_search_evals,0L)
+  expect_identical(diag$direction,'exact')
+  expect_equal(diag$timings[['start']],.01)
+  expect_true(all(c('dtype_recheck','device_refresh','other') %in% names(diag$timings)))
+  expect_true(info$converged[[1]][[1]])
+  expect_identical(info$reason[[1]][[1]],'ok')
+  expect_identical(diag$convergence$phase,'polish')
+})
+
+test_that('rejected float32 dtype round-trip retains diagnostics and is not a polish error', {
+  for(passes in c(FALSE,TRUE)) {
+    causalOT:::torch_check()
+    # Use the actual float32 weight installation and rounding rejection path.
+    cot <- causalOT:::COT$new(source=matrix(seq_len(24)/10,12,2),target=matrix(seq_len(30)/10,15,2),
+      options=cotOptions(lambda=2,solver='lbfgs',line_search_fn='strong_wolfe',polish='auto',
+        niter=2L,nboot=0,cost.online='tensorized',dtype=torch::torch_float32(),device=torch::torch_device('cpu')))
+    p <- convergence_private(cot)
+    baseline <- as.numeric(p$ot_objects[[ls(p$ot_objects)[[1]]]]$a)
+    unlockBinding('optimization_loop',p)
+    p$optimization_loop <- function(...) list(loss=1,iter=2L,converged=FALSE,
+      stopped_by_rule=FALSE,fw_gap=.5,divergence=1)
+    lockBinding('optimization_loop',p)
+    local({
+      testthat::local_mocked_bindings(cot_newton_polish=function(a,...) {
+        list(weights=as.numeric(a),solver_weights=as.numeric(a),status='maxit',
+          n_accepted=1L,nnz=length(a),iter=1L,loss=.5,loss_start=1,fw_gap=0,
+          fw_gap_start=if(passes) 1e-6 else .01,divergence=.5,divergence_start=1,
+          y_self=0,conv_scale=10,timings=c(start=.01,other=0),line_search_evals=2L)
+      },cot_polish_eval=function(...) list(loss=2,grad=rep(0,12)),.package='causalOT')
+      cot$solve()
+    })
+    info <- convergence_optimizer(cot)$info(); diag <- info$polish[[1]][[1]]
+    expect_equal(cot$weights,baseline,tolerance=0)
+    expect_identical(diag$status,'no_improvement')
+    expect_match(diag$rejection_reason,'No improvement after restoring the solver dtype',fixed=TRUE)
+    expect_null(diag$polish_error)
+    expect_identical(diag$n_accepted,1L)
+    expect_identical(diag$nnz,12L)
+    expect_identical(diag$line_search_evals,2L)
+    expect_equal(diag$timings[['start']],.01)
+    expect_equal(diag$fw_gap,if(passes) 1e-6 else .01)
+    expect_equal(diag$divergence,1)
+    expect_identical(diag$convergence$phase,'polish')
+    expect_identical(info$converged[[1]][[1]],passes)
+    expect_identical(info$reason[[1]][[1]],if(passes) 'ok' else 'gap above tolerance')
+  }
+})
+
+test_that('a real dtype evaluator error still falls back to the phase-1 rule', {
+  for(passes in c(FALSE,TRUE)) {
+    causalOT:::torch_check()
+    cot <- causalOT:::COT$new(source=matrix(seq_len(24)/10,12,2),target=matrix(seq_len(30)/10,15,2),
+      options=cotOptions(lambda=2,solver='lbfgs',line_search_fn='strong_wolfe',polish='auto',niter=2L,nboot=0,
+        cost.online='tensorized',dtype=torch::torch_float32(),device=torch::torch_device('cpu')))
+    p <- convergence_private(cot); before <- as.numeric(cot$weights)
+    unlockBinding('optimization_loop',p)
+    p$optimization_loop <- function(...) list(loss=1,iter=1L,converged=TRUE,
+      stopped_by_rule=TRUE,fw_gap=if(passes) 1e-4 else .1,divergence=1)
+    lockBinding('optimization_loop',p)
+    local({
+      testthat::local_mocked_bindings(cot_newton_polish=function(a,...) {
+        list(weights=as.numeric(a),solver_weights=as.numeric(a),status='maxit',n_accepted=1L,
+          nnz=length(a),loss=.5,loss_start=1,fw_gap=0,fw_gap_start=0,divergence=1,
+          divergence_start=1,conv_scale=10,timings=c(other=0))
+      },cot_polish_eval=function(...) stop('dtype evaluator failed'),.package='causalOT')
+      cot$solve()
+    })
+    info <- convergence_optimizer(cot)$info();diag <- info$polish[[1]][[1]]
+    expect_equal(cot$weights,before,tolerance=0)
+    expect_identical(info$converged[[1]][[1]],passes)
+    expect_identical(info$reason[[1]][[1]],if(passes) 'ok' else 'polish error: dtype evaluator failed')
+    expect_identical(diag$convergence$phase,'phase1')
+    expect_identical(diag$polish_error,'dtype evaluator failed')
+    expect_null(diag$rejection_reason)
+    expect_identical(diag$n_accepted,1L)
+  }
 })

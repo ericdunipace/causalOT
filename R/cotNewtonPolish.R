@@ -76,7 +76,8 @@ cot_polish_softmin <- function(cost, h, eps, transpose = FALSE) {
       v <- ((h[jj]$view(c(1L, -1L)) - C) / eps)$logsumexp(2)
       acc <- torch::torch_logaddexp(acc, v)
     }
-    out[ii] <- -eps * acc
+    # Keep the tensor on the left: numeric-left dispatch can round eps to float32.
+    out[ii] <- -acc * eps
   }
   out
 }
@@ -297,7 +298,7 @@ cot_polish_self <- function(b, C_yy, lambda, control) {
     for (eps in path) {
       final <- eps == lambda
       for (it in seq_len(if (final) control$sinkhorn_niter else 5L)) {
-        fn <- (f + cot_polish_softmin(yy, f + eps * lb, eps)) / 2
+        fn <- (f + cot_polish_softmin(yy, f + lb * eps, eps)) / 2
         done <- final && (fn - f)$abs()$max()$item() <= control$sinkhorn_tol
         f <- fn
         if (done) break
@@ -341,15 +342,15 @@ cot_polish_eval <- function(a, b, C_xy, C_xx, lambda, control = cot_polish_contr
     cross_done <- self_done <- FALSE
     for (it in seq_len(if (final) control$sinkhorn_niter else 5L)) {
       if (!cross_done) {
-        fn <- cot_polish_softmin(xy, g + eps * lb, eps)
+        fn <- cot_polish_softmin(xy, g + lb * eps, eps)
         fn <- fn - a$dot(fn)
-        gn <- cot_polish_softmin(xy, fn + eps * la, eps, TRUE)
+        gn <- cot_polish_softmin(xy, fn + la * eps, eps, TRUE)
         err <- (fn - f)$abs()$max()$item()
         f <- fn; g <- gn
         cross_done <- final && err <= control$sinkhorn_tol
       }
       if (!self_done) {
-        sn <- (s + cot_polish_softmin(xx, s + eps * la, eps)) / 2
+        sn <- (s + cot_polish_softmin(xx, s + la * eps, eps)) / 2
         err <- (sn - s)$abs()$max()$item()
         s <- sn
         self_done <- final && err <= control$sinkhorn_tol
@@ -384,7 +385,7 @@ cot_polish_hessian <- function(a, b, C_xy, C_xx, lambda, pot, candidates = seq_a
     X <- torch::torch_cat(list(XS, R[zi, , drop = FALSE] - (-R[zi, si, drop = FALSE] * av + av)$matmul(XS)), dim = 1L)
     Y <- torch::torch_cat(list(YS, Kxx[zi, , drop = FALSE] - (Kxx[zi, si, drop = FALSE] * av)$matmul(YS)), dim = 1L)
   }
-  H <- lambda * (X + Y); H <- (H + H$t()) / 2
+  H <- (X + Y) * lambda; H <- (H + H$t()) / 2
   idx <- match(candidates, C)
   H[idx, idx, drop = FALSE]
 }
@@ -663,7 +664,7 @@ cot_newton_polish <- function(a, b, C_xy, C_xx, lambda, potentials = NULL,
       hscale <- max(abs(as.numeric(H$diag())), .Machine$double.eps)
       repeat {
         max_shift <- max(max_shift, shift)
-        HH <- H + shift * torch::torch_eye(length(C), dtype = torch::torch_float64())
+        HH <- H + torch::torch_eye(length(C), dtype = torch::torch_float64()) * shift
         dc <- tryCatch({
           if (direction == "exact") cot_polish_exact(HH, centered_g, (a[C] + base[C]), control$zero_tol, qp_state) else {
             P <- Matrix::forceSymmetric(Matrix::Matrix(as.matrix(HH), sparse = TRUE), uplo = "U")
@@ -834,13 +835,13 @@ cot_polish_warm <- function(a, b, xy, xx, lambda, potentials, control = cot_poli
     f <- potentials$f_xy; g <- potentials$g_yx; s <- potentials$f_xx
     la <- a$log(); lb <- b$log(); done <- FALSE
     for (it in seq_len(control$sinkhorn_niter)) {
-      f <- cot_polish_softmin(xy, g + lambda * lb, lambda); f <- f - a$dot(f)
-      g <- cot_polish_softmin(xy, f + lambda * la, lambda, TRUE)
-      row <- cot_polish_softmin(xy, g + lambda * lb, lambda)
-      col <- cot_polish_softmin(xy, f + lambda * la, lambda, TRUE)
+      f <- cot_polish_softmin(xy, g + lb * lambda, lambda); f <- f - a$dot(f)
+      g <- cot_polish_softmin(xy, f + la * lambda, lambda, TRUE)
+      row <- cot_polish_softmin(xy, g + lb * lambda, lambda)
+      col <- cot_polish_softmin(xy, f + la * lambda, lambda, TRUE)
       err <- ((a * ((f - row) / lambda)$exp() - a)$abs()$sum() +
         (b * ((g - col) / lambda)$exp() - b)$abs()$sum())$item()
-      target <- cot_polish_softmin(xx, s + lambda * la, lambda)
+      target <- cot_polish_softmin(xx, s + la * lambda, lambda)
       self_err <- (target - s)$abs()$max()$item()
       s <- if (lambda >= cot_polish_diameter(xx) / 4) target + a$dot(s - target) / 2 else (s + target) / 2
       if (err <= control$marginal_tol && self_err <= max(control$sinkhorn_tol, 8 * .Machine$double.eps * lambda)) {done <- TRUE; break}
