@@ -333,9 +333,9 @@ COT <- R6::R6Class(
 #'   `alpha_min` (1e-8), `zero_tol` (1e-12), `release_margin` (0),
 #'   `release_max` (NULL), `lbfgs_m` (10), `osqp` (list of OSQP overrides),
 #'   `block_size` (512), `active_tol` (NULL, epsilon cap 0.01/n),
-#'   `roundoff` (64), and `resolution_tol` (1e-4). `converged` requires an FW
+#'   `roundoff` (64), and `resolution_tol` (1e-4). `certified` requires an FW
 #'   gap at most `tol` times the nonnegative divergence. When improvement
-#'   cannot be verified, `converged_resolution` accepts an FW gap bounded by
+#'   cannot be verified, `certified_resolution` accepts an FW gap bounded by
 #'   `resolution_tol * max(divergence, weight_roundoff_floor)` or the double
 #'   precision evaluator floor, whichever is larger. Both statuses count as
 #'   converged for lambda selection. The weight floor scales with the returned
@@ -347,10 +347,24 @@ COT <- R6::R6Class(
 #'   approximated by zero. There is no cold sparse-model evaluation. Epsilon
 #'   shrinks with the projected-gradient residual, and the free candidate count
 #'   controls the cap. Newton resumes when that count falls below it.
-#'   Cold line searches never increase the loss; equal-loss steps must reduce
+#'   Line searches never increase the loss; equal-loss steps must reduce
 #'   the FW gap. The first L-BFGS step is scaled to the mean weight.
 #'   Stalled solves stop early; a gap above both thresholds remains unconverged.
-#'   Evaluator failures retain the phase-1 weights.
+#'   `warm_start` (TRUE) enables marginal-certified line-search probes;
+#'   `marginal_tol` defaults to 1e-13. Final polish certification remains cold.
+#'   With `polish = "none"`, certification uses phase 1's existing FW gap and
+#'   full debiased divergence, without an extra solve. It requires stopping by
+#'   the phase-1 rule and gap <= solver `tol` times divergence, with only the
+#'   double-arithmetic floor and no loose resolution tier. Evaluator errors
+#'   retain valid weights and fall back to these phase-1 diagnostics.
+#'   `polish.control$certify` has been removed. `info()$fit_status` contains `certified`, `certified_resolution`,
+#'   `uncertified`, `failed`, or `not_applicable`. `converged` is TRUE only for
+#'   the two certificate statuses; out-of-scope fits keep their solver flag.
+#'   Failed numerical fits store NA weights and are excluded from all selectors.
+#'   Selection errors if every fit failed; selecting an uncertified fit warns.
+#'   Float32 fits rebuild float64 costs from the pre-cast data when supported;
+#'   diagnostics record `cost_source`, fallback reasons, and `loss_device`.
+#'   The phase-1 stopping rule and the default `polish = "auto"` are unchanged.
 #' @param tol The tolerance for convergence
 #' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.

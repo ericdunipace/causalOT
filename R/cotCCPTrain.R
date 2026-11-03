@@ -61,7 +61,9 @@ cotCCPTrain <- R6::R6Class(
       private$optimizer_name <- "mirror"
       private$optimization_step <- private$ccp_step
       private$ccp_setup()
+      private$fit_status_run <- list()
       private$iterate_over_lambda(niter, tol)
+      private$check_fit_path()
 
       return(invisible(self))
     }
@@ -420,6 +422,8 @@ cotCCPTrain <- R6::R6Class(
         ot$potentials$f_xx$detach(),
         torch::jit_scalar(1e-10)
       )$fw_gap$item()
+      private$phase1_cert <- list(fw_gap = fw_gap,
+        divergence = private$ccp_loss - private$ccp_loss_offset)
       private$ccp_kkt_resid <- fw_gap /
         max(
           abs(private$ccp_loss - private$ccp_loss_offset),
@@ -437,6 +441,7 @@ cotCCPTrain <- R6::R6Class(
         private$iterations_run[[as.character(l)]] <- res$iter
         private$final_loss[[as.character(l)]] <- res$loss
         private$converged_run[[as.character(l)]] <- res$converged
+        private$fit_status_run[[as.character(l)]] <- res$fit_status
       }
     },
 
@@ -474,6 +479,7 @@ cotCCPTrain <- R6::R6Class(
       loss_old <- private$ccp_loss
       check <- TRUE
       converged_flag <- FALSE
+      private$phase1_cert <- list(fw_gap = NA_real_, divergence = NA_real_)
 
       for (i in 1:niter) {
         private$ccp_iter <- i
@@ -514,7 +520,9 @@ cotCCPTrain <- R6::R6Class(
       private$torch_optim_reset()
       private$lbfgs_count <- private$lbfgs_reset <- 0L
 
-      return(list(loss = loss, iter = i, converged = converged_flag))
+      return(list(loss = loss, iter = i, converged = converged_flag,
+        stopped_by_rule = converged_flag, fw_gap = private$phase1_cert$fw_gap,
+        divergence = private$phase1_cert$divergence))
     }
   )
 )

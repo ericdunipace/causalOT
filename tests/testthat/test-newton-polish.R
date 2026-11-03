@@ -66,7 +66,7 @@ test_that('Newton polish is monotone, sparse, and releases missing support', {
   expect_identical(restored$weights > 1e-8, ans$weights > 1e-8)
   expect_equal(restored$loss, ans$loss, tolerance = 1e-10)
   again <- polish_run(f, a = ans$weights, tol = 1e-8)
-  expect_identical(again$status, 'converged')
+  expect_true(again$status %in% c('certified', 'certified_resolution'))
   expect_lte(again$loss, ans$loss)
   expect_equal(again$weights, ans$weights, tolerance = 1e-7)
 })
@@ -123,7 +123,7 @@ test_that('mirror and two-lambda primal paths save polished weights and diagnost
     expect_true(any(cot$weights == 0))
     for (l in names(info)) {
       expect_lte(info[[l]][[1]]$loss, info[[l]][[1]]$loss_start)
-      expect_identical(info[[l]][[1]]$status, 'converged')
+      expect_identical(info[[l]][[1]]$certification$status, 'certified')
     }
     expect_equal(cot$weights, polish_run(f, tol = 1e-11)$weights, tolerance = 1e-6)
     if (solver == 'lbfgs') {
@@ -175,10 +175,10 @@ test_that('polish has its own divergence-relative default tolerance', {
   ans <- polish_run(f)
   expect_equal(ans$divergence, ans$loss - ans$y_self, tolerance = 1e-14)
   expect_equal(ans$fw_threshold, 1e-8 * max(0, ans$divergence))
-  if (ans$status == 'converged') expect_lte(ans$fw_gap, ans$fw_threshold)
+  if (ans$status == 'certified') expect_lte(ans$fw_gap, ans$fw_threshold)
   # Near-zero divergence uses arithmetic precision, never the solver tolerance.
   near <- causalOT:::cot_newton_polish(f$a, f$a, f$xx, f$xx, f$lambda, C_yy = f$xx)
-  expect_true(near$status %in% c('converged', 'converged_resolution'))
+  expect_true(near$status %in% c('certified', 'certified_resolution'))
   expect_lte(near$fw_gap, near$roundoff_floor)
   expect_identical(near$n_accepted, 0L)
   expect_equal(near$weights, f$a, tolerance = 1e-15)
@@ -237,16 +237,17 @@ test_that('default mirror polishing does not certify a diameter-sized FW gap', {
     expect_identical(opts$polish.control$tol, 1e-8)
     expect_lte(info$loss, info$loss_start)
     expect_equal(info$fw_threshold, 1e-8 * max(0, info$divergence))
-    expect_identical(optimizer$.__enclos_env__$private$converged_run[[1]][[1]], info$status %in% c('converged', 'converged_resolution'))
+    expect_identical(optimizer$.__enclos_env__$private$converged_run[[1]][[1]], info$certification$status %in% c('certified', 'certified_resolution'))
     expect_true(optimizer$.__enclos_env__$private$converged_run[[1]][[1]])
-    if (info$status == 'converged_resolution') expect_lte(info$fw_gap, info$resolution_threshold)
-    if (info$status == 'converged') expect_lte(info$fw_gap, info$fw_threshold)
-    if (mult == 5 && dtype == torch::torch_double()) expect_identical(info$nnz, 34L)
+    if (info$certification$status == 'certified_resolution') expect_lte(info$fw_gap, info$resolution_threshold)
+    if (info$certification$status == 'certified') expect_lte(info$fw_gap, info$fw_threshold)
+    expect_identical(info$nnz, c('1'=39L,'5'=34L,'25'=31L)[[as.character(mult)]])
     if (mult == 25 && dtype == torch::torch_float32()) expect_lt(info$iter, opts$polish.control$maxit)
     ots <- optimizer$.__enclos_env__$private$ot_objects
     ot <- ots[[ls(ots)[[1L]]]]
     returned <- cot$weights / sum(cot$weights)
-    actual <- causalOT:::cot_polish_eval(returned, ot$b, ot$C_xy, ot$C_xx, ot$penalty)
+    C <- optimizer$.__enclos_env__$private$polish_cache$costs
+    actual <- causalOT:::cot_polish_eval(returned, ot$b, C$xy, C$xx, ot$penalty)
     returned_gap <- max(0, sum(returned * actual$grad) - min(actual$grad))
     expect_equal(info$fw_gap, returned_gap, tolerance = 1e-11)
     expect_lte(returned_gap, max(info$fw_threshold, info$resolution_threshold))
@@ -258,11 +259,11 @@ test_that('resolution convergence requires a stalled solve and a bounded gap', {
   ctl <- causalOT:::cot_polish_control()
   classify <- causalOT:::cot_polish_convergence
   expect_null(classify(2e-11, 1e-6, 0, 31, ctl, FALSE))
-  expect_identical(classify(2e-11, 1e-6, 0, 31, ctl, TRUE), 'converged_resolution')
+  expect_identical(classify(2e-11, 1e-6, 0, 31, ctl, TRUE), 'certified_resolution')
   expect_null(classify(1e-8, 1e-6, 0, 31, ctl, TRUE))
   expect_null(classify(1e-8, 0, 0, 31, ctl, TRUE))
   ctl$weight_eps <- 2^-23
-  expect_identical(classify(1e-8, 0, 0, 31, ctl, TRUE), 'converged_resolution')
+  expect_identical(classify(1e-8, 0, 0, 31, ctl, TRUE), 'certified_resolution')
   expect_null(classify(1e-5, 0, 0, 31, ctl, TRUE))
 })
 
@@ -317,13 +318,13 @@ test_that('failed float32 installation restores the original parameterization ex
   original <- causalOT:::cot_newton_polish
   testthat::local_mocked_bindings(cot_newton_polish = function(a,b,C_xy,C_xx,lambda,...) {
     result <- original(a,b,C_xy,C_xx,lambda,...)
-    bad <- numeric(length(a)); bad[which.max(rowMeans(as.matrix(C_xy$data)))] <- 1
+    bad <- numeric(length(a)); bad[which.max(rowMeans(as.matrix(C_xy$get(seq_len(C_xy$nrow), seq_len(C_xy$ncol)))))] <- 1
     result$solver_weights <- result$weights <- bad
     result
   }, .package = 'causalOT')
   failed <- run('auto')
   expect_identical(failed$weights, baseline$weights)
   info <- failed$.__enclos_env__$private$optimizer$info()$polish[[1]][[1]]
-  expect_identical(info$status, 'no_improvement')
+  expect_identical(info$status, 'skipped')
   expect_match(info$reason, 'No improvement')
 })

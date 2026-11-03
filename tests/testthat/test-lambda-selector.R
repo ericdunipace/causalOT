@@ -899,7 +899,7 @@ testthat::test_that("profile selectors fall back explicitly when eligible path p
   testthat::expect_equal(res$selector, "bootstrap_legacy")
   testthat::expect_equal(res$metrics, c(3, 1))
   testthat::expect_equal(res$selected_lambda, 0.5)
-  testthat::expect_match(res$note, "not converged")
+  testthat::expect_match(res$note, "uncertified by certification.*0.5")
 })
 
 testthat::test_that("profile symmetric selector reports explicit unsupported fallback reasons", {

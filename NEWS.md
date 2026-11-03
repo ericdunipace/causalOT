@@ -1,6 +1,14 @@
 # causalOT 1.1
 
 ## Breaking changes
+* Eligible fits now report a common FW-gap certificate through `converged`,
+  including with `polish = "none"`. Previously converged unpolished fits may
+  now be uncertified, changing the lambda selector fallback. Phase-1 stopping
+  and the default `polish = "auto"` are unchanged.
+* Numerically failed fits store NA weights and are excluded from every lambda
+  selector. Fits error when all candidates fail; selecting an uncertified
+  candidate warns once. `info()$fit_status` distinguishes failure from a
+  usable but uncertified fit.
 * `vcov()` for `causalEffect` objects now computes the variance from the full
   plug-in influence function, including the cross terms that the previous
   calculation left out. The sandwich estimator is no longer used for
@@ -15,7 +23,24 @@
      multiple lambdas and balance constraints. -->
 * The default dual solver for `"COT"` is now `dual.solver = "fixed_point_joint"`.
 
+## Bug fixes
+* Polishing moves MPS/CUDA tensors to CPU before converting to float64.
+* Unpolished fits use phase-1 diagnostics without additional Sinkhorn solves.
+  Certification requires the phase-1 stopping rule and a strict relative gap;
+  only the double-arithmetic floor is retained. The `certify` control is removed.
+* Polish/evaluator errors retain valid phase-1 weights and diagnostics instead
+  of marking those fits failed. Polished fits expose their one final certificate
+  in `info()$polish[[lambda]][[delta]]$certification`, separately from refinement status.
+
 ## New features
+* Float32 polishing reconstructs float64 costs in blocks from pre-cast points,
+  with a diagnosed fallback for unsupported user costs. Cost normalization
+  uses a dtype-matched scalar, avoiding float32 rounding of 1/p on float64 inputs.
+  Final weight rounding
+  is certified against the same costs. Diagnostics include the device loss.
+* Polish caches target self terms and cost diameters, avoids redundant float64
+  readback solves, and uses marginal residuals for warm line-search probes.
+  Final certification remains cold; stage and individual probe timings are exposed.
 * Eligible primal COT fits now receive a monotone Newton polish by default.
   `cotOptions(polish = "auto")` uses an exact Hessian up to 2,000 candidate
   weights and L-BFGS above that cap or with standard online costs. Explicit
@@ -27,7 +52,7 @@
   the phase-1 tolerance is independent. Epsilon-active weights can be omitted
   from reduced Hessians, cap fallback is reversible, and initial L-BFGS steps
   are scaled to probability-mass units. Fits that reach loss or returned-weight
-  resolution report `converged_resolution` and remain eligible for path-based
+  resolution report `certified_resolution` and remain eligible for path-based
   lambda selection; float32 floors include the full parameter round trip.
   A positive log-ratio reference avoids loss of float32 accuracy when the first
   polished weight is zero.

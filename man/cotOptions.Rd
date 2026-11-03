@@ -61,9 +61,9 @@ Unsupported configurations are skipped, with the reason in \code{info()$polish}.
 \code{alpha_min} (1e-8), \code{zero_tol} (1e-12), \code{release_margin} (0),
 \code{release_max} (NULL), \code{lbfgs_m} (10), \code{osqp} (list of OSQP overrides),
 \code{block_size} (512), \code{active_tol} (NULL, epsilon cap 0.01/n),
-\code{roundoff} (64), and \code{resolution_tol} (1e-4). \code{converged} requires an FW
+\code{roundoff} (64), and \code{resolution_tol} (1e-4). \code{certified} requires an FW
 gap at most \code{tol} times the nonnegative divergence. When improvement
-cannot be verified, \code{converged_resolution} accepts an FW gap bounded by
+cannot be verified, \code{certified_resolution} accepts an FW gap bounded by
 \code{resolution_tol * max(divergence, weight_roundoff_floor)} or the double
 precision evaluator floor, whichever is larger. Both statuses count as
 converged for lambda selection. The weight floor scales with the returned
@@ -75,11 +75,24 @@ retain their mass in the current iterate; only their Hessian columns are
 approximated by zero. There is no cold sparse-model evaluation. Epsilon
 shrinks with the projected-gradient residual, and the free candidate count
 controls the cap. Newton resumes when that count falls below it.
-Cold line searches never increase the loss; equal-loss steps must reduce
+Line searches never increase the loss; equal-loss steps must reduce
 the FW gap. The first L-BFGS step is scaled to the mean weight.
 Stalled solves stop early; a gap above both thresholds remains unconverged.
-Evaluator failures retain the phase-1 weights.}
-
+\code{warm_start} (TRUE) enables marginal-certified line-search probes;
+\code{marginal_tol} defaults to 1e-13. Final polish certification remains cold.
+With \code{polish = "none"}, certification uses phase 1's existing FW gap and
+full debiased divergence without an extra solve. It requires stopping by the
+phase-1 rule and gap <= solver \code{tol} times divergence, with only the
+double-arithmetic floor and no loose resolution tier. Evaluator errors retain
+valid weights and fall back to these phase-1 diagnostics.
+\code{polish.control$certify} has been removed. \code{info()$fit_status} contains \code{certified}, \code{certified_resolution},
+\code{uncertified}, \code{failed}, or \code{not_applicable}. \code{converged} is TRUE only for
+the two certificate statuses; out-of-scope fits keep their solver flag.
+Failed numerical fits store NA weights and are excluded from all selectors.
+Selection errors if every fit failed; selecting an uncertified fit warns.
+Float32 fits rebuild float64 costs from the pre-cast data when supported;
+diagnostics record \code{cost_source}, fallback reasons, and \code{loss_device}.
+The phase-1 stopping rule and the default \code{polish = "auto"} are unchanged.}
 
 \item{p}{The power of the cost function to use for the cost.}
 

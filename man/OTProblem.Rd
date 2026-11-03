@@ -820,7 +820,15 @@ a list with slots
 \item \code{balance.function.differences} The final differences in the balance functions
 \item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values
 \item \code{polish} Per-lambda and per-delta refinement diagnostics, including skip reasons.
-Both \code{converged} and \code{converged_resolution} count as converged for lambda selection.}
+\item \code{fit_status} Per-lambda and per-delta status: \code{certified},
+\code{certified_resolution}, \code{uncertified}, \code{failed}, or \code{not_applicable}.
+\item \code{converged} TRUE for either certificate status: the FW gap is at most
+ the certification tolerance times the divergence, or at evaluator resolution
+ at most 1e-4 times the divergence with dtype-aware floors. Unpolished fits use
+ the solver tolerance and existing phase-1 diagnostics, requiring its stopping
+ rule and strict relative gap with only the double-arithmetic floor and no extra
+ solve. Ineligible configurations retain the solver flag.
+ Failed fits store NA weights and are excluded from selection.}
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}

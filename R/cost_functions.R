@@ -40,9 +40,10 @@ costTensor <- R6::R6Class("costTensor",
                  if(!inherits(x2, "torch_tensor")) {
                    x2 <- torch::torch_tensor(x2, dtype = torch::torch_double())
                  }
-                 ((1/p) * torch::torch_cdist(x1 = x1, 
-                                             x2 = x2, 
-                                             p = p)^p)$contiguous()
+                 # Explicit tensor scalar avoids rounding 1/p to float32
+                 # when the points and costs are evaluated in float64.
+                 denominator <- torch::torch_tensor(p, dtype = x1$dtype, device = x1$device)
+                 (torch::torch_cdist(x1 = x1, x2 = x2, p = p)^p / denominator)$contiguous()
                }
                if( p  == 1) {
                  self$algorithm = "L1"

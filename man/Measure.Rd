@@ -91,6 +91,8 @@ m$grad
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
+\item{\code{x_float64}}{Float64 CPU points retained before casting for certification.}
+
 \item{\code{balance_functions}}{the functions of the data that
 we want to adjust towards the targets}
 
