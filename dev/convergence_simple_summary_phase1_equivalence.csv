@@ -1,0 +1,7 @@
+"profile","method","identical"
+"default","mirror",TRUE
+"default","lbfgs",TRUE
+"default","ccp_accelerated",TRUE
+"cpu_float64","mirror",TRUE
+"cpu_float64","lbfgs",TRUE
+"cpu_float64","ccp_accelerated",TRUE

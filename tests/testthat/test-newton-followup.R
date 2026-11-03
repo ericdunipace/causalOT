@@ -65,10 +65,10 @@ test_that('data costs preserve float64 inputs and bound memory', {
   expect_error(causalOT:::cot_polish_data_cost(user,x,y), 'intentional')
 })
 
-test_that('none is certified without changing phase-1 stopping and selected uncertified fits warn once', {
+test_that('none preserves phase-1 stopping and selected fits that are not converged warn once', {
   cot <- followup_fit(lambda=c(4,2)); cot$solve()
   priv <- followup_private(cot)
-  expect_true(all(unlist(priv$fit_status_run) == 'uncertified'))
+  expect_true(all(unlist(priv$reason_run) == 'niter'))
   expect_false(any(unlist(priv$converged_run)))
   optimizer <- cot$.__enclos_env__$private$optimizer
   warnings <- character()
@@ -78,7 +78,7 @@ test_that('none is certified without changing phase-1 stopping and selected unce
     })
   expect_length(warnings,1L)
   expect_match(warnings,'niter')
-  expect_match(optimizer$info()$hyperparam.metrics$lambda.note,'certification.*lambda')
+  expect_match(optimizer$info()$hyperparam.metrics$lambda.note,'not converged.*lambda')
   expect_identical(optimizer$info()$hyperparam.metrics$lambda.selector,'bootstrap_legacy')
   # Identical source/target measures have a zero FW gap and certify without refinement.
   f <- followup_fixture()
@@ -92,7 +92,7 @@ test_that('none is certified without changing phase-1 stopping and selected unce
   p$optimization_loop <- function(niter,tol) list(loss=0,iter=1L,converged=TRUE,stopped_by_rule=TRUE,fw_gap=0,divergence=0)
   lockBinding('optimization_loop',p)
   same$solve()
-  expect_true(all(unlist(followup_private(same)$fit_status_run) == 'certified'))
+  expect_true(all(unlist(followup_private(same)$reason_run) == 'ok'))
 })
 
 test_that('numerical failures store NA and are excluded; optimization errors propagate', {
@@ -109,7 +109,7 @@ test_that('numerical failures store NA and are excluded; optimization errors pro
   }
   lockBinding('optimization_loop',priv)
   cot$solve()
-  expect_identical(priv$fit_status_run[['4']][[1]],'failed')
+  expect_match(priv$reason_run[['4']][[1]],'^error: ')
   saved <- priv$weights_list[['4']][[1]]
   expect_true(all(is.na(as.numeric(saved[[ls(saved)[[1]]]]))))
   optimizer <- cot$.__enclos_env__$private$optimizer
@@ -145,7 +145,7 @@ test_that('ineligible configurations retain the stopping flag but numerical fail
   p$optimization_loop <- function(niter,tol) {r <- original(niter,tol); r$converged <- TRUE; r}
   lockBinding('optimization_loop',p)
   cot$solve()
-  expect_identical(p$fit_status_run[[1]][[1]],'not_applicable')
+  expect_identical(p$reason_run[[1]][[1]],'gap unavailable')
   expect_true(p$converged_run[[1]][[1]])
   unlockBinding('optimization_loop',p)
   p$optimization_loop <- function(niter,tol) list(loss=NaN,iter=1L,converged=TRUE)
@@ -202,7 +202,7 @@ test_that('polish evaluator failure preserves valid phase-1 fits', {
   testthat::local_mocked_bindings(cot_polish_eval=function(...) stop('cold evaluator failed'),.package='causalOT')
   cot$solve()
   p <- followup_private(cot)
-  expect_identical(p$fit_status_run[[1]][[1]],'uncertified')
+  expect_match(p$reason_run[[1]][[1]],'^polish error: cold evaluator failed$')
   expect_identical(cot$weights,baseline$weights)
   saved <- p$weights_list[[1]][[1]]
   expect_true(all(is.finite(as.numeric(saved[[ls(saved)[[1]]]]))))
@@ -232,7 +232,7 @@ test_that('cold probes reuse the final evaluation', {
   expect_equal(ans$timings[['readback']],0,tolerance=.01)
 })
 
-test_that('unpolished certification performs no Sinkhorn solves after phase 1', {
+test_that('unpolished convergence performs no Sinkhorn solves after phase 1', {
   cot <- followup_fit(); p <- followup_private(cot)
   in_hook <- FALSE; calls <- c(eval=0L,self=0L,y_self=0L); phase_time <- 0
   original_hook <- p$polish_result; original_loop <- p$optimization_loop
@@ -248,28 +248,28 @@ test_that('unpolished certification performs no Sinkhorn solves after phase 1', 
   cot$solve()
   expect_equal(unname(calls),c(0L,0L,0L))
   info <- cot$.__enclos_env__$private$optimizer$info()$polish[[1]][[1]]
-  expect_identical(info$certification$source,'phase1')
+  expect_identical(info$convergence$phase,'phase1')
   expect_lte(info$time,.05*phase_time+.02)
 })
 
-test_that('phase-1 certification requires its stop rule and has no loose resolution tier', {
+test_that('phase-1 convergence requires normal stopping and uses ot_tol', {
   for(stopped in c(FALSE,TRUE)) {
     cot <- followup_fit(); p <- followup_private(cot)
     unlockBinding('optimization_loop',p)
     p$optimization_loop <- function(niter,tol) list(loss=0,iter=1L,converged=TRUE,
       stopped_by_rule=stopped,fw_gap=1e-10,divergence=1e-5)
     lockBinding('optimization_loop',p)
-    # Set a strict solver tolerance while leaving polish disabled.
     cot$tol <- 1e-8
     cot$solve()
-    expect_identical(p$fit_status_run[[1]][[1]],'uncertified')
+    expect_identical(p$converged_run[[1]][[1]],stopped)
+    expect_identical(p$reason_run[[1]][[1]],if(stopped) 'ok' else 'niter')
     diag <- cot$.__enclos_env__$private$optimizer$info()$polish[[1]][[1]]
-    expect_match(diag$reason,if(stopped) 'gap above' else 'niter')
+    expect_identical(diag$convergence$atol,1e-3)
   }
   expect_error(cotOptions(polish.control=list(certify='float64')),'Unknown polish control')
 })
 
-test_that('bootstrap pool includes uncertified fits alongside certified fits', {
+test_that('bootstrap pool includes fits regardless of convergence', {
   cot <- followup_fit(lambda=c(4,2)); p <- followup_private(cot)
   unlockBinding('optimization_loop',p)
   p$optimization_loop <- function(niter,tol) {
@@ -279,7 +279,7 @@ test_that('bootstrap pool includes uncertified fits alongside certified fits', {
   }
   lockBinding('optimization_loop',p)
   cot$solve()
-  expect_identical(unname(unlist(p$fit_status_run)),c('uncertified','certified'))
+  expect_identical(unname(unlist(p$reason_run)),c('gap above tolerance','ok'))
   calls <- 0L
   unlockBinding('draw_boot_measure',p); unlockBinding('eval_lambda',p)
   p$draw_boot_measure <- function() NULL
@@ -292,7 +292,7 @@ test_that('bootstrap pool includes uncertified fits alongside certified fits', {
   expect_equal(calls,2L)
   expect_equal(optimizer$selected_lambda,4)
   expect_length(warnings,1L)
-  expect_match(warnings,'uncertified')
+  expect_match(warnings,'not converged')
 })
 
 test_that('default accelerator fits actually refine using float64 data costs', {

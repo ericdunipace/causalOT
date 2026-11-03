@@ -496,8 +496,14 @@ cot_polish_resolution_threshold <- function(loss, y_self, scale, control) {
       control$resolution_tol * max(0, loss - y_self, control$roundoff * control$weight_eps * scale))
 }
 
-# Shared certificate for phase 1 and refinement. A resolution certificate needs
-# evidence of a stalled evaluator, except at the double arithmetic floor.
+# Final fit convergence uses the user's absolute-plus-relative tolerance.
+cot_converged <- function(gap, D, atol, tol) {
+  values <- list(gap, D, atol, tol)
+  if (any(lengths(values) != 1L) || any(!is.finite(unlist(values)))) return(FALSE)
+  gap <= atol + tol * max(0, D)
+}
+
+# Internal polish stopping classifier; independent of final fit convergence.
 cot_certify <- function(gap, divergence, scale, weight_eps, tol, resolution = FALSE, roundoff = 64, resolution_tol = 1e-4) {
   if (any(!is.finite(c(gap, divergence, scale, weight_eps, tol))) || gap < 0)
     return("uncertified")

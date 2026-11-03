@@ -820,15 +820,19 @@ a list with slots
 \item \code{balance.function.differences} The final differences in the balance functions
 \item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values
 \item \code{polish} Per-lambda and per-delta refinement diagnostics, including skip reasons.
-\item \code{fit_status} Per-lambda and per-delta status: \code{certified},
-\code{certified_resolution}, \code{uncertified}, \code{failed}, or \code{not_applicable}.
-\item \code{converged} TRUE for either certificate status: the FW gap is at most
- the certification tolerance times the divergence, or at evaluator resolution
- at most 1e-4 times the divergence with dtype-aware floors. Unpolished fits use
- the solver tolerance and existing phase-1 diagnostics, requiring its stopping
- rule and strict relative gap with only the double-arithmetic floor and no extra
- solve. Ineligible configurations retain the solver flag.
- Failed fits store NA weights and are excluded from selection.}
+Each entry's \code{convergence} records \code{phase}, \code{gap}, \code{D}, \code{atol}, and \code{tol}.
+\item \code{converged} Per-lambda and per-delta logical outcome. Eligible fits
+pass \code{gap <= atol + tol * max(0, D)}, using the user's solver \code{tol}.
+Unpolished fits also require normal stopping and use \code{atol = ot_tol},
+without an extra solve. Polished fits use a cold float64 gap and an
+absolute tolerance of \code{64 * eps64 * scale} for float64 weights or
+\code{eps32 * scale} for float32 weights. Their phase-1 iteration cap does
+not affect convergence. Out-of-scope fits retain the solver flag.
+\item \code{reason} Per-lambda and per-delta outcome message: \code{ok}, \code{niter},
+\verb{gap above tolerance}, \verb{gap unavailable}, \verb{polish error: <msg>}, or
+\verb{error: <msg>}. Polish errors fall back to valid phase-1 weights and
+their convergence test. Numerical failures store NA weights and are
+excluded from selection. Selecting a fit that is not converged warns.}
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}

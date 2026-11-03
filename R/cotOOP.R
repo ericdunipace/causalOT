@@ -1290,7 +1290,7 @@ OTProblem_ <- R6::R6Class(
         private$polish_method <- match.arg(polish)
         private$polish_control <- do.call(cot_polish_control, polish.control)
         private$polish_cache <- new.env(parent = emptyenv())
-        private$fit_status_run <- list()
+        private$reason_run <- list()
         private$polish_info <- list()
         private$converged_run <- private$iterations_run <- private$final_loss <- private$weights_list <- list()
         prob_names <- ls(private$problems)
@@ -1569,7 +1569,7 @@ OTProblem_ <- R6::R6Class(
           setNames(as.character(private$penalty_list$lambda))
 
         # optimize over lambda values
-        private$fit_status_run <- list()
+        private$reason_run <- list()
         private$iterate_over_lambda(niter, tol)
         private$check_fit_path()
         torch_cubic_reassign()
@@ -1814,13 +1814,13 @@ OTProblem_ <- R6::R6Class(
 
         selected_key <- lambda_keys[[lambda_selection$selected_index]]
         d_index <- if (n_delta > 1L) match(self$selected_delta, delta_values) else 1L
-        selected_status <- if (length(private$fit_status_run[[selected_key]])) private$fit_status_run[[selected_key]][[d_index]] else NULL
-        if (identical(selected_status, "uncertified")) {
-          diag <- private$polish_info[[selected_key]][[d_index]]
-          reason <- if (!is.null(diag$reason)) diag$reason else "gap above certification threshold"
+        selected_converged <- private$converged_run[[selected_key]][[d_index]]
+        diag <- private$polish_info[[selected_key]][[d_index]]
+        if (identical(selected_converged, FALSE) && is.null(diag$skip_reason)) {
+          reason <- private$reason_run[[selected_key]][[d_index]]
           ratio <- diag$fw_gap / max(diag$divergence, .Machine$double.xmin)
           detail <- if (length(ratio) == 1L && is.finite(ratio)) sprintf("; gap/D = %.6g", ratio) else ""
-          warning(sprintf("Selected lambda %s is uncertified (%s%s); use polish = 'auto' or a larger niter.",
+          warning(sprintf("Selected lambda %s is not converged (%s%s); use polish = 'auto' or a larger niter.",
             lambda_selection$selected_lambda, reason, detail), call. = FALSE)
         }
         # set weights back to the measures
@@ -1838,15 +1838,19 @@ OTProblem_ <- R6::R6Class(
       #' \item `balance.function.differences` The final differences in the balance functions
       #' \item `hyperparam.metrics` A list of the bootstrap evaluation for delta and lambda values
       #' \item `polish` Per-lambda and per-delta refinement diagnostics, including skip reasons.
-      #' \item `fit_status` Per-lambda and per-delta status: `certified`,
-      #' `certified_resolution`, `uncertified`, `failed`, or `not_applicable`.
-      #' \item `converged` TRUE for either certificate status: the FW gap is at most
-      #' the certification tolerance times the divergence, or at evaluator resolution
-      #' at most 1e-4 times the divergence with dtype-aware floors. Unpolished fits
-      #' use phase 1's existing diagnostics and require its stopping rule and strict
-      #' relative gap (plus only the double-arithmetic floor), without an extra solve.
-      #' Ineligible configurations retain the solver flag.
-      #' Failed fits store NA weights and are excluded from selection.}
+      #' Each entry's `convergence` records `phase`, `gap`, `D`, `atol`, and `tol`.
+      #' \item `converged` Per-lambda and per-delta logical outcome. Eligible fits
+      #' pass `gap <= atol + tol * max(0, D)`, using the user's solver `tol`.
+      #' Unpolished fits also require normal stopping and use `atol = ot_tol`,
+      #' without an extra solve. Polished fits use a cold float64 gap and an
+      #' absolute tolerance of `64 * eps64 * scale` for float64 weights or
+      #' `eps32 * scale` for float32 weights. Their phase-1 iteration cap does
+      #' not affect convergence. Out-of-scope fits retain the solver flag.
+      #' \item `reason` Per-lambda and per-delta outcome message: `ok`, `niter`,
+      #' `gap above tolerance`, `gap unavailable`, `polish error: <msg>`, or
+      #' `error: <msg>`. Polish errors fall back to valid phase-1 weights and
+      #' their convergence test. Numerical failures store NA weights and are
+      #' excluded from selection. Selecting a fit that is not converged warns.}
       #' @examples
       #' if (torch::torch_is_installed()) {
       #'   ot$info()
@@ -1879,7 +1883,7 @@ OTProblem_ <- R6::R6Class(
           iterations = iter,
           balance.function.differences = bal,
           hyperparam.metrics = metrics,
-          fit_status = private$fit_status_run,
+          reason = private$reason_run,
           converged = private$converged_run,
           polish = private$polish_info
         ))
@@ -1907,7 +1911,7 @@ OTProblem_ <- R6::R6Class(
       polish_control = NULL,
       polish_info = list(),
       polish_cache = NULL,
-      fit_status_run = list(),
+      reason_run = list(),
       phase1_cert = list(fw_gap = NA_real_, divergence = NA_real_),
       args_set = "logical",
       converged_run = "list",
@@ -2437,7 +2441,7 @@ OTProblem_ <- R6::R6Class(
       },
 
       polish_eligible = function() {
-        if (inherits(self, "cotDualLegacyTrain")) return("dual solvers are outside certification scope")
+        if (inherits(self, "cotDualLegacyTrain")) return("dual solvers are outside gap convergence scope")
         if (!private$optimality_check_eligible()) return("requires one debiased primal source-weight problem without balance constraints")
         ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
         if (!is.finite(ot$penalty) || ot$penalty <= 0) return("requires a finite positive lambda")
@@ -2485,7 +2489,7 @@ OTProblem_ <- R6::R6Class(
       },
 
       check_fit_path = function() {
-        if (length(private$fit_status_run) && all(unlist(private$fit_status_run) == "failed")) {
+        if (length(private$reason_run) && all(startsWith(unlist(private$reason_run), "error"))) {
           reasons <- unique(unlist(lapply(private$polish_info, function(path) lapply(path, function(x) x$reason))))
           stop("All lambda fits failed: ", paste(reasons, collapse = "; "))
         }
@@ -2507,14 +2511,17 @@ OTProblem_ <- R6::R6Class(
             cot_fit_valid(weights[[k]], res$loss)
         }, logical(1)))
         fail <- function(reason) {
-          res$fit_status <- "failed"; res$converged <- FALSE
-          save_info(list(status = "failed", reason = reason))
+          res$reason <- paste0("error: ", reason); res$converged <- FALSE
+          save_info(list(status = "failed", reason = res$reason))
           res
         }
         if (!valid) return(fail("Phase-1 weights or loss are non-finite or invalid"))
         if (!isTRUE(eligibility)) {
-          res$fit_status <- "not_applicable"
-          save_info(list(status = "skipped", reason = eligibility))
+          res$reason <- "gap unavailable"
+          res$converged <- isTRUE(res$converged)
+          save_info(list(status = "skipped", reason = res$reason, skip_reason = eligibility,
+            convergence = list(phase = "phase1", gap = NA_real_, D = NA_real_,
+              atol = NA_real_, tol = tol)))
           return(res)
         }
         control <- private$polish_control
@@ -2548,25 +2555,26 @@ OTProblem_ <- R6::R6Class(
           cache$y_self <- new.env(parent = emptyenv())
           result
         }
-        phase1_result <- function(reason = NULL) {
-          gap <- if (is.null(res$fw_gap)) NA_real_ else res$fw_gap
-          divergence <- if (is.null(res$divergence)) NA_real_ else res$divergence
-          stopped <- isTRUE(res$stopped_by_rule)
-          status <- if (stopped) cot_certify(max(0, gap), divergence, control$conv_scale,
-            .Machine$double.eps, tol, resolution = FALSE, roundoff = control$roundoff,
-            resolution_tol = control$resolution_tol) else "uncertified"
-          # A double-arithmetic floor is not evidence of stalled refinement.
-          if (identical(status, "certified_resolution")) status <- "certified"
-          phase_reason <- if (!stopped) "phase 1 reached niter" else if (!is.finite(gap) || !is.finite(divergence))
-            "phase 1 certificate unavailable" else if (status == "uncertified") "gap above tol * D" else NULL
-          res$fit_status <- status; res$converged <- identical(status, "certified")
-          cert <- list(status = status, fw_gap = gap, divergence = divergence,
-            threshold = tol * max(0, divergence), source = "phase1")
-          save_info(list(status = "skipped", reason = if (is.null(reason)) phase_reason else reason,
-            phase1_reason = phase_reason, certification = cert, fw_gap = gap,
-            divergence = divergence, cost_source = "solver_rounded",
+        phase1_result <- function(reason = NULL, evaluated = NULL) {
+          # A rejected polish still measured the retained starting point cold.
+          cold <- !is.null(evaluated)
+          gap <- if (cold) evaluated$fw_gap_start else if (is.null(res$fw_gap)) NA_real_ else res$fw_gap
+          divergence <- if (cold) evaluated$divergence_start else if (is.null(res$divergence)) NA_real_ else res$divergence
+          atol <- if (cold) polish_atol(evaluated$conv_scale) else private$ot_tol
+          stopped <- cold || isTRUE(res$stopped_by_rule)
+          res$converged <- stopped && cot_converged(gap, divergence, atol, tol)
+          res$reason <- if (res$converged) "ok" else if (!is.null(reason)) paste0("polish error: ", reason) else
+            if (!stopped) "niter" else if (!is.finite(gap) || !is.finite(divergence)) "gap unavailable" else "gap above tolerance"
+          save_info(list(status = if (cold) "no_improvement" else "skipped", reason = res$reason,
+            polish_error = reason,
+            convergence = list(phase = if (cold) "polish" else "phase1", gap = gap,
+              D = divergence, atol = atol, tol = tol), fw_gap = gap,
+            divergence = divergence, cost_source = if (cold) C$source else "solver_rounded",
             time = proc.time()[["elapsed"]] - started))
           res
+        }
+        polish_atol <- function(scale) {
+          if (device_eps == .Machine$double.eps) 64 * device_eps * scale else device_eps * scale
         }
         if (private$polish_method == "none") return(phase1_result())
         C <- tryCatch(costs(), error = identity)
@@ -2613,11 +2621,6 @@ OTProblem_ <- R6::R6Class(
             info$divergence <- rounded_loss - result$y_self
             info$nnz <- sum(rounded > control$zero_tol)
             info$fw_threshold <- cot_polish_threshold(info$loss, result$y_self, result$conv_scale, control)
-            returned_control <- control
-            info$weight_rounding_stages <- if (device_eps > .Machine$double.eps) 4L else 1L
-            returned_control$weight_eps <- device_eps * info$weight_rounding_stages
-            info$weight_roundoff_floor <- control$roundoff * returned_control$weight_eps * result$conv_scale
-            info$resolution_threshold <- cot_polish_resolution_threshold(info$loss, result$y_self, result$conv_scale, returned_control)
             t0 <- proc.time()[["elapsed"]]
             if (ot$tensorized) {
               ev <- ot$sinkhorn_ccp_eval(niter = private$ot_niter, tol = private$ot_tol)
@@ -2638,15 +2641,18 @@ OTProblem_ <- R6::R6Class(
             torch::with_no_grad(measure_private$mass_$copy_(old_mass))
             private$ot_update(use_grad = FALSE)
             info$status <- "no_improvement"
-            return(phase1_result(info$reason))
+            return(phase1_result(info$reason, evaluated = result))
           }
         }
-        res$fit_status <- cot_certify(info$fw_gap, info$divergence, result$conv_scale,
-          device_eps * if (isTRUE(res$polished)) info$weight_rounding_stages else 1,
-          control$tol, result$loss_resolution || (isTRUE(res$polished) && device_eps > .Machine$double.eps) || cot_polish_is_converged(result$status), control$roundoff, control$resolution_tol)
-        res$converged <- cot_polish_is_converged(res$fit_status)
-        info$certification <- list(status = res$fit_status, fw_gap = info$fw_gap,
-          divergence = info$divergence, threshold = info$fw_threshold, source = "polish")
+        # No installed improvement: judge the retained weights at the cold start.
+        if (!isTRUE(res$polished)) return(phase1_result(evaluated = result))
+        atol <- polish_atol(result$conv_scale)
+        res$converged <- cot_converged(info$fw_gap, info$divergence, atol, tol)
+        res$reason <- if (res$converged) "ok" else if (!is.finite(info$fw_gap) || !is.finite(info$divergence))
+          "gap unavailable" else "gap above tolerance"
+        info$reason <- res$reason
+        info$convergence <- list(phase = "polish", gap = info$fw_gap,
+          D = info$divergence, atol = atol, tol = tol)
         info$time <- proc.time()[["elapsed"]] - started
         info$timings["other"] <- info$timings["other"] + max(0, info$time - sum(info$timings))
         save_info(info)
@@ -2664,7 +2670,7 @@ OTProblem_ <- R6::R6Class(
 
         iter_delta <- vector("numeric", n_delta) |> setNames(names_delta)
         losses_delta <- vector("numeric", n_delta) |> setNames(names_delta)
-        status_delta <- setNames(rep("not_applicable", n_delta), names_delta)
+        reason_delta <- setNames(rep("gap unavailable", n_delta), names_delta)
         converged_delta <- vector("logical", n_delta) |> setNames(names_delta)
 
         # run loop over delta values
@@ -2680,12 +2686,11 @@ OTProblem_ <- R6::R6Class(
           # copy estimated weights to weights_delta holder
           weights_delta[[paste(d)]] <- private$parameters_get_set(clone = TRUE)
 
-          status_delta[[paste(d)]] <- if (is.null(res$fit_status)) "not_applicable" else res$fit_status
-          if (identical(res$fit_status, "failed")) {
+          reason_delta[[paste(d)]] <- if (is.null(res$reason)) "gap unavailable" else res$reason
+          if (startsWith(reason_delta[[paste(d)]], "error")) {
             w <- weights_delta[[paste(d)]]
             for (k in ls(w)) {
               w[[k]] <- torch::torch_full_like(w[[k]], NA_real_)
-              attr(w[[k]], "fit_status") <- "failed"
             }
             # Do not let a failed warm start contaminate the remaining path.
             # The failed fit stays failed; the next fit starts at the last
@@ -2711,7 +2716,7 @@ OTProblem_ <- R6::R6Class(
         return(list(
           loss = losses_delta,
           iter = iter_delta,
-          fit_status = status_delta,
+          reason = reason_delta,
           converged = converged_delta,
           weights = weights_delta
         ))
@@ -2742,7 +2747,7 @@ OTProblem_ <- R6::R6Class(
           # save final loss
           private$final_loss[[as.character(l)]] <- res$loss
 
-          private$fit_status_run[[as.character(l)]] <- res$fit_status
+          private$reason_run[[as.character(l)]] <- res$reason
           private$converged_run[[as.character(l)]] <- res$converged
         }
       },
@@ -2858,8 +2863,8 @@ OTProblem_ <- R6::R6Class(
         identical(unname(adapt), c("weights", "none"))
       },
 
-      # same test as the CCP solver: the relative Frank-Wolfe gap, or the
-      # divergence itself since it is nonnegative, bounds f(w) - f(w*)
+      # Legacy stall test shared with CCP. This only decides when to stop;
+      # polish_result judges convergence of the returned weights.
       optimality_ok = function(tol, scale) {
         ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
         kkt_tol <- max(tol, 1e-6)
@@ -2900,9 +2905,8 @@ OTProblem_ <- R6::R6Class(
           check <- private$lr_reduce(loss)
           # check <- lr_reduce(opt_sched, loss$detach())
 
-          # see if converged. Once the loss stalls the optimizer makes no
-          # further progress, so stop either way, but only report convergence
-          # if the weights also pass the optimality test
+          # Once the loss stalls, stop either way. stopped_by_rule means
+          # stopped; polish_result separately judges convergence.
           if (
             check &&
               (i > 1) &&
@@ -3608,7 +3612,7 @@ OTProblem_ <- R6::R6Class(
             out$note <- paste(
               "Fell back to bootstrap_legacy because at least one eligible finite-lambda fit needed by",
               selector_label,
-              paste0("was uncertified by certification: lambda ", paste(lambda_input_values[finite_index[!weights_converged[finite_index]]], collapse = ", "), ".")
+              paste0("was not converged: lambda ", paste(lambda_input_values[finite_index[!weights_converged[finite_index]]], collapse = ", "), ".")
             )
           } else if (identical(sym_state$reason, "online")) {
             out$note <- paste(

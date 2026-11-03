@@ -123,7 +123,7 @@ test_that('mirror and two-lambda primal paths save polished weights and diagnost
     expect_true(any(cot$weights == 0))
     for (l in names(info)) {
       expect_lte(info[[l]][[1]]$loss, info[[l]][[1]]$loss_start)
-      expect_identical(info[[l]][[1]]$certification$status, 'certified')
+      expect_true(optimizer$info()$converged[[l]][[1]])
     }
     expect_equal(cot$weights, polish_run(f, tol = 1e-11)$weights, tolerance = 1e-6)
     if (solver == 'lbfgs') {
@@ -158,7 +158,8 @@ test_that('none preserves phase-1 results and unsupported refinement records a r
   unsupported <- run('auto', FALSE)
   info <- unsupported$.__enclos_env__$private$optimizer$info()$polish[[1]][[1]]
   expect_identical(info$status, 'skipped')
-  expect_match(info$reason, 'debiased')
+  expect_identical(info$reason, 'gap unavailable')
+  expect_match(info$skip_reason, 'debiased')
 })
 
 test_that('polish options validate controls', {
@@ -237,10 +238,9 @@ test_that('default mirror polishing does not certify a diameter-sized FW gap', {
     expect_identical(opts$polish.control$tol, 1e-8)
     expect_lte(info$loss, info$loss_start)
     expect_equal(info$fw_threshold, 1e-8 * max(0, info$divergence))
-    expect_identical(optimizer$.__enclos_env__$private$converged_run[[1]][[1]], info$certification$status %in% c('certified', 'certified_resolution'))
+    expect_identical(optimizer$.__enclos_env__$private$converged_run[[1]][[1]], causalOT:::cot_converged(info$convergence$gap, info$convergence$D, info$convergence$atol, info$convergence$tol))
     expect_true(optimizer$.__enclos_env__$private$converged_run[[1]][[1]])
-    if (info$certification$status == 'certified_resolution') expect_lte(info$fw_gap, info$resolution_threshold)
-    if (info$certification$status == 'certified') expect_lte(info$fw_gap, info$fw_threshold)
+    expect_lte(info$fw_gap, info$convergence$atol + opts$tol * max(0, info$divergence))
     expect_identical(info$nnz, c('1'=39L,'5'=34L,'25'=31L)[[as.character(mult)]])
     if (mult == 25 && dtype == torch::torch_float32()) expect_lt(info$iter, opts$polish.control$maxit)
     ots <- optimizer$.__enclos_env__$private$ot_objects
@@ -250,7 +250,7 @@ test_that('default mirror polishing does not certify a diameter-sized FW gap', {
     actual <- causalOT:::cot_polish_eval(returned, ot$b, C$xy, C$xx, ot$penalty)
     returned_gap <- max(0, sum(returned * actual$grad) - min(actual$grad))
     expect_equal(info$fw_gap, returned_gap, tolerance = 1e-11)
-    expect_lte(returned_gap, max(info$fw_threshold, info$resolution_threshold))
+    expect_lte(returned_gap, info$convergence$atol + info$convergence$tol * max(0, info$convergence$D))
 
   }
 })
@@ -325,6 +325,7 @@ test_that('failed float32 installation restores the original parameterization ex
   failed <- run('auto')
   expect_identical(failed$weights, baseline$weights)
   info <- failed$.__enclos_env__$private$optimizer$info()$polish[[1]][[1]]
-  expect_identical(info$status, 'skipped')
-  expect_match(info$reason, 'No improvement')
+  expect_identical(info$status, 'no_improvement')
+  expect_match(info$polish_error, 'No improvement')
+  expect_identical(info$convergence$phase, 'polish')
 })

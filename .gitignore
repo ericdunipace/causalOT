@@ -46,3 +46,7 @@ dev/*
 !dev/newton_polish_followup_results.md
 !dev/newton_polish_bugfix_validate.R
 !dev/newton_polish_bugfix_results.md
+
+!dev/convergence_simple_validate.R
+!dev/convergence_simple_results.md
+!dev/convergence_simple_summary_*.csv

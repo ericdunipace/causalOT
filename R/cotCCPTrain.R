@@ -61,7 +61,7 @@ cotCCPTrain <- R6::R6Class(
       private$optimizer_name <- "mirror"
       private$optimization_step <- private$ccp_step
       private$ccp_setup()
-      private$fit_status_run <- list()
+      private$reason_run <- list()
       private$iterate_over_lambda(niter, tol)
       private$check_fit_path()
 
@@ -441,7 +441,7 @@ cotCCPTrain <- R6::R6Class(
         private$iterations_run[[as.character(l)]] <- res$iter
         private$final_loss[[as.character(l)]] <- res$loss
         private$converged_run[[as.character(l)]] <- res$converged
-        private$fit_status_run[[as.character(l)]] <- res$fit_status
+        private$reason_run[[as.character(l)]] <- res$reason
       }
     },
 
@@ -506,10 +506,10 @@ cotCCPTrain <- R6::R6Class(
         # the debiased divergence is nonnegative, so it bounds f(w) - f(w*) as
         # well; it is the tighter bound when the optimum is near zero and the
         # Frank-Wolfe gap decays slowly
-        kkt_ok <- (is.finite(private$ccp_kkt_resid) &&
+        stall_ok <- (is.finite(private$ccp_kkt_resid) &&
           private$ccp_kkt_resid <= kkt_tol) ||
           (loss - private$ccp_loss_offset) <= kkt_tol * private$ccp_conv_scale
-        if (check && loss_converged && kkt_ok) {
+        if (check && loss_converged && stall_ok) {
           converged_flag <- TRUE
           break
         }
@@ -520,6 +520,7 @@ cotCCPTrain <- R6::R6Class(
       private$torch_optim_reset()
       private$lbfgs_count <- private$lbfgs_reset <- 0L
 
+      # stopped_by_rule means stopped, not necessarily converged.
       return(list(loss = loss, iter = i, converged = converged_flag,
         stopped_by_rule = converged_flag, fw_gap = private$phase1_cert$fw_gap,
         divergence = private$phase1_cert$divergence))

@@ -1,14 +1,16 @@
 # causalOT 1.1
 
 ## Breaking changes
-* Eligible fits now report a common FW-gap certificate through `converged`,
-  including with `polish = "none"`. Previously converged unpolished fits may
-  now be uncertified, changing the lambda selector fallback. Phase-1 stopping
-  and the default `polish = "auto"` are unchanged.
+* Eligible fits report `converged` and `reason` using one tolerance test:
+  `gap <= atol + tol * max(0, D)`, with the user's `tol` in both phases.
+  Unpolished fits require normal stopping and use `atol = ot_tol` without
+  extra solves. Polished fits use a cold float64 gap, with `atol` equal to
+  `64 * eps64 * scale` for float64 weights or `eps32 * scale` for float32.
+  Phase-1 stopping and the default `polish = "auto"` are unchanged.
 * Numerically failed fits store NA weights and are excluded from every lambda
-  selector. Fits error when all candidates fail; selecting an uncertified
-  candidate warns once. `info()$fit_status` distinguishes failure from a
-  usable but uncertified fit.
+  selector. Fits error when all candidates fail; selecting a candidate that
+  is not converged warns once. `info()$reason` distinguishes errors from
+  usable fits that did not meet tolerance.
 * `vcov()` for `causalEffect` objects now computes the variance from the full
   plug-in influence function, including the cross terms that the previous
   calculation left out. The sandwich estimator is no longer used for
@@ -25,12 +27,13 @@
 
 ## Bug fixes
 * Polishing moves MPS/CUDA tensors to CPU before converting to float64.
-* Unpolished fits use phase-1 diagnostics without additional Sinkhorn solves.
-  Certification requires the phase-1 stopping rule and a strict relative gap;
-  only the double-arithmetic floor is retained. The `certify` control is removed.
-* Polish/evaluator errors retain valid phase-1 weights and diagnostics instead
-  of marking those fits failed. Polished fits expose their one final certificate
-  in `info()$polish[[lambda]][[delta]]$certification`, separately from refinement status.
+* Unpolished convergence means accuracy to about `ot_tol` in absolute terms;
+  use the polish for `tol` relative accuracy. No additional Sinkhorn solve is run.
+* Polish/evaluator errors retain valid phase-1 weights and use their convergence
+  test. Rejected polish uses the cold gap and divergence at the retained start.
+  Diagnostics are numeric `phase`, `gap`, `D`, `atol`, and `tol` fields in
+  `info()$polish[[lambda]][[delta]]$convergence`; the unpublished `fit_status`
+  and `certification` fields have been removed.
 
 ## New features
 * Float32 polishing reconstructs float64 costs in blocks from pre-cast points,
@@ -52,8 +55,7 @@
   the phase-1 tolerance is independent. Epsilon-active weights can be omitted
   from reduced Hessians, cap fallback is reversible, and initial L-BFGS steps
   are scaled to probability-mass units. Fits that reach loss or returned-weight
-  resolution report `certified_resolution` and remain eligible for path-based
-  lambda selection; float32 floors include the full parameter round trip.
+  resolution stop refining; final convergence uses the common tolerance test.
   A positive log-ratio reference avoids loss of float32 accuracy when the first
   polished weight is zero.
 * `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror

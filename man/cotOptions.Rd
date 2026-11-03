@@ -61,14 +61,11 @@ Unsupported configurations are skipped, with the reason in \code{info()$polish}.
 \code{alpha_min} (1e-8), \code{zero_tol} (1e-12), \code{release_margin} (0),
 \code{release_max} (NULL), \code{lbfgs_m} (10), \code{osqp} (list of OSQP overrides),
 \code{block_size} (512), \code{active_tol} (NULL, epsilon cap 0.01/n),
-\code{roundoff} (64), and \code{resolution_tol} (1e-4). \code{certified} requires an FW
-gap at most \code{tol} times the nonnegative divergence. When improvement
-cannot be verified, \code{certified_resolution} accepts an FW gap bounded by
-\code{resolution_tol * max(divergence, weight_roundoff_floor)} or the double
-precision evaluator floor, whichever is larger. Both statuses count as
-converged for lambda selection. The weight floor scales with the returned
-dtype epsilon; float32 parameter readback accounts for casting, log ratios,
-softmax, and normalization. Diagnostics expose both gap thresholds.
+\code{roundoff} (64), and \code{resolution_tol} (1e-4). These last two controls
+set precision floors for the polish's internal stopping rule; they do
+not determine final fit convergence. The polish uses its own tighter
+\code{tol} to decide when to stop refining. Final fit convergence uses the
+user's solver \code{tol} and the precision of the returned weights.
 Sinkhorn tolerance is floored at eight double epsilons times lambda.
 The target self term is cold-evaluated once. Near-zero active coordinates
 retain their mass in the current iterate; only their Hessian columns are
@@ -77,19 +74,18 @@ shrinks with the projected-gradient residual, and the free candidate count
 controls the cap. Newton resumes when that count falls below it.
 Line searches never increase the loss; equal-loss steps must reduce
 the FW gap. The first L-BFGS step is scaled to the mean weight.
-Stalled solves stop early; a gap above both thresholds remains unconverged.
+Stalled solves stop refining when further improvement cannot be verified.
 \code{warm_start} (TRUE) enables marginal-certified line-search probes;
-\code{marginal_tol} defaults to 1e-13. Final polish certification remains cold.
-With \code{polish = "none"}, certification uses phase 1's existing FW gap and
-full debiased divergence without an extra solve. It requires stopping by the
-phase-1 rule and gap <= solver \code{tol} times divergence, with only the
-double-arithmetic floor and no loose resolution tier. Evaluator errors retain
-valid weights and fall back to these phase-1 diagnostics.
-\code{polish.control$certify} has been removed. \code{info()$fit_status} contains \code{certified}, \code{certified_resolution},
-\code{uncertified}, \code{failed}, or \code{not_applicable}. \code{converged} is TRUE only for
-the two certificate statuses; out-of-scope fits keep their solver flag.
+\code{marginal_tol} defaults to 1e-13. Final polish gap evaluation remains cold.
+With \code{polish = "none"}, convergence uses phase 1's existing FW gap and
+full debiased divergence, without an extra solve, and requires normal
+stopping. Evaluator errors retain valid weights and fall back to the
+phase-1 convergence test. \code{info()$converged} and \code{info()$reason} report
+outcomes; \code{info()$polish[[lambda]][[delta]]$convergence} records the
+diagnostic numbers \code{phase}, \code{gap}, \code{D}, \code{atol}, and \code{tol}.
+Out-of-scope fits keep their solver flag with reason \verb{gap unavailable}.
 Failed numerical fits store NA weights and are excluded from all selectors.
-Selection errors if every fit failed; selecting an uncertified fit warns.
+Selection errors if every fit failed; selecting a fit that is not converged warns.
 Float32 fits rebuild float64 costs from the pre-cast data when supported;
 diagnostics record \code{cost_source}, fallback reasons, and \code{loss_device}.
 The phase-1 stopping rule and the default \code{polish = "auto"} are unchanged.}
@@ -132,7 +128,18 @@ selection. Supported entries are \code{pilot.weights}, \code{details},
 \code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile}, and
 \code{mass.bootstrap.kappa}.}
 
-\item{tol}{The tolerance for convergence}
+\item{tol}{Relative tolerance for final fit convergence (default 1e-4),
+shared by phase 1 and polish: \code{gap <= atol + tol * max(0, D)}, where
+\code{D} is the debiased divergence. Unpolished fits use \code{atol = ot_tol}
+(default 1e-3) and must stop normally rather than reach \code{niter}.
+Thus unpolished \code{converged} means accurate to about \code{ot_tol} in absolute
+terms; when \code{D} is much smaller than \code{ot_tol}, even a large gap/D can pass.
+Lower \code{ot_tol} for more phase-1 accuracy, or use the polish for \code{tol}
+relative accuracy. Polished fits use a cold float64 evaluator with
+\code{atol = 64 * eps64 * scale} for float64 weights or \code{eps32 * scale} for
+float32 weights, where \code{scale} is the cost scale. Their gap test applies
+regardless of phase-1 or polish iteration caps. The separate
+\code{polish.control$tol} (default 1e-8) only controls refinement stopping.}
 
 \item{device}{An object of class \code{torch_device} denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.}
 
