@@ -8,12 +8,9 @@
 
 ## New features
 * Updated convergence criterion to prevent needless long runs
-* Argument
 * COT fits now receive a monotone Newton polish by default.
-  `cotOptions(polish = "auto")` uses an exact Hessian up to 2,000 candidate
-  weights and L-BFGS above that cap or with standard online costs. Explicit
-  `"exact"`, `"osqp"`, `"lbfgs"`, and `"none"` choices and `polish.control`
-  controls are available. Diagnostics are exposed through `info()$polish`.
+  `cotOptions(polish = "auto")` uses an exact Hessian up to 2,000 free
+  weights and L-BFGS above that cap or with standard online costs.
 * `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
   descent solver for debiased COT weights
 * New dual solvers `dual.solver = "fixed_point_joint"` and `"joint"`. Their

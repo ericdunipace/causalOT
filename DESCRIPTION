@@ -9,7 +9,7 @@ Authors@R:
         role = c("aut", "cre"),
         email = "edunipace@post.harvard.edu",
         comment = c(ORCID = "0000-0001-8909-213X"))
-Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
+Maintainer: Eric Dunipace <edunipace@post.harvard.edu>
 Description: Uses optimal transport distances to find probabilistic 
     matching estimators for causal inference.
     These methods are described in Dunipace, Eric (2021) <doi:10.48550/arXiv.2109.01991>.
