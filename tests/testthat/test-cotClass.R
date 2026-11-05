@@ -201,7 +201,7 @@ testthat::test_that("ent works", {
   testthat::expect_true(
     inherits(cot$.__enclos_env__$private$torch_optim, "optim_lbfgs")
   )
-  testthat::expect_warning(cot$solve())
+  testthat::expect_no_warning(cot$solve())
   cot <- causalOT:::COT$new(
     source = x,
     target = y,
@@ -226,7 +226,7 @@ testthat::test_that("ent works", {
     )
   )
 
-  osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
+  osqpout <- testthat::capture_output(testthat::expect_no_warning(cot$solve()))
 
   testthat::expect_true(
     as_numeric((cot$.__enclos_env__$private$source$balance_functions$transpose(
@@ -252,7 +252,7 @@ testthat::test_that("ent works", {
       )
     )
   )
-  osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
+  osqpout <- testthat::capture_output(testthat::expect_no_warning(cot$solve()))
   testthat::expect_true(
     as_numeric((cot$.__enclos_env__$private$source$balance_functions$transpose(
       2,
@@ -513,7 +513,7 @@ testthat::test_that("NNM works", {
     class(cot$.__enclos_env__$private$optimizer),
     c("OTProblem", "R6")
   )
-  osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
+  osqpout <- testthat::capture_output(testthat::expect_no_warning(cot$solve()))
 
   #### keops ####
   causalOT:::rkeops_check()

@@ -11,8 +11,7 @@ cotOptions(
   dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
-  polish = c("auto", "exact", "osqp", "lbfgs", "none"),
-  polish.control = list(),
+  polish = c("auto", "none"),
   p = 2,
   cost.function = NULL,
   cost.online = "auto",
@@ -48,47 +47,13 @@ cotOptions(
 
 \item{solver}{Solver to use for COT weight optimization. For \code{opt.direction = "primal"}, solver options are \code{"lbfgs"} uses LBFGS optimization on the weights directly. \code{"mirror"} runs a mirror descent solver, which is typically faster.}
 
-\item{polish}{Primal weight refinement: \code{"auto"} uses exact Newton up to
-\code{polish.control$max_free} (2000), then L-BFGS; \code{"osqp"} uses a constrained
-quadratic model. \code{"none"} disables refinement. Applies to a single debiased
-OT problem with one adapted source weight measure and no balance constraints.
-Standard online costs use chunked CPU evaluation and L-BFGS in auto mode.
-Unsupported configurations are skipped, with the reason in \code{info()$polish}.}
-
-\item{polish.control}{Named list of refinement controls: \code{maxit} (20),
-\code{tol} (1e-8, independent of the solver), \code{sinkhorn_tol} (1e-13),
-\code{sinkhorn_niter} (10000), \code{max_free} (2000), \code{armijo} (1e-4),
-\code{alpha_min} (1e-8), \code{zero_tol} (1e-12), \code{release_margin} (0),
-\code{release_max} (NULL), \code{lbfgs_m} (10), \code{osqp} (list of OSQP overrides),
-\code{block_size} (512), \code{active_tol} (NULL, epsilon cap 0.01/n),
-\code{roundoff} (64), and \code{resolution_tol} (1e-4). These last two controls
-set precision floors for the polish's internal stopping rule; they do
-not determine final fit convergence. The polish uses its own tighter
-\code{tol} to decide when to stop refining. Final fit convergence uses the
-user's solver \code{tol} and the precision of the returned weights.
-Sinkhorn tolerance is floored at eight double epsilons times lambda.
-The target self term is cold-evaluated once. Near-zero active coordinates
-retain their mass in the current iterate; only their Hessian columns are
-approximated by zero. There is no cold sparse-model evaluation. Epsilon
-shrinks with the projected-gradient residual, and the free candidate count
-controls the cap. Newton resumes when that count falls below it.
-Line searches never increase the loss; equal-loss steps must reduce
-the FW gap. The first L-BFGS step is scaled to the mean weight.
-Stalled solves stop refining when further improvement cannot be verified.
-\code{warm_start} (TRUE) enables marginal-certified line-search probes;
-\code{marginal_tol} defaults to 1e-13. Final polish gap evaluation remains cold.
-With \code{polish = "none"}, convergence uses phase 1's existing FW gap and
-full debiased divergence, without an extra solve, and requires normal
-stopping. Evaluator errors retain valid weights and fall back to the
-phase-1 convergence test. \code{info()$converged} and \code{info()$reason} report
-outcomes; \code{info()$polish[[lambda]][[delta]]$convergence} records the
-diagnostic numbers \code{phase}, \code{gap}, \code{D}, \code{atol}, and \code{tol}.
-Out-of-scope fits keep their solver flag with reason \verb{gap unavailable}.
-Failed numerical fits store NA weights and are excluded from all selectors.
-Selection errors if every fit failed; selecting a fit that is not converged warns.
-Float32 fits rebuild float64 costs from the pre-cast data when supported;
-diagnostics record \code{cost_source}, fallback reasons, and \code{loss_device}.
-The phase-1 stopping rule and the default \code{polish = "auto"} are unchanged.}
+\item{polish}{Primal weight refinement, \code{"auto"} (default) or \code{"none"}.
+\code{"auto"} refines the phase-1 weights in float64 on the CPU with Newton
+steps, or L-BFGS steps when more than 2,000 weights are free, and returns
+float64 weights. It applies to a single debiased OT problem with one
+adapted source weight measure, no balance constraints, and a finite lambda;
+other configurations are skipped. \code{info()$polish} records each fit's
+\code{status} and \code{iterations}.}
 
 \item{p}{The power of the cost function to use for the cost.}
 
@@ -135,11 +100,12 @@ shared by phase 1 and polish: \code{gap <= atol + tol * max(0, D)}, where
 Thus unpolished \code{converged} means accurate to about \code{ot_tol} in absolute
 terms; when \code{D} is much smaller than \code{ot_tol}, even a large gap/D can pass.
 Lower \code{ot_tol} for more phase-1 accuracy, or use the polish for \code{tol}
-relative accuracy. Polished fits use a cold float64 evaluator with
-\code{atol = 64 * eps64 * scale} for float64 weights or \code{eps32 * scale} for
-float32 weights, where \code{scale} is the cost scale. Their gap test applies
-regardless of phase-1 or polish iteration caps. The separate
-\code{polish.control$tol} (default 1e-8) only controls refinement stopping.}
+relative accuracy. Polished fits use \code{atol = 64 * eps64 * scale} plus 16
+times the polish's Sinkhorn tolerance (1e-13), where \code{scale} is the cost
+scale, regardless of phase-1 iteration caps. \code{ot_tol} is also the inner
+Sinkhorn tolerance: iterations stop once the largest change in the
+potentials is below \code{ot_tol * lambda}, that is, once the log marginal
+violation is below \code{ot_tol}.}
 
 \item{device}{An object of class \code{torch_device} denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.}
 

@@ -75,9 +75,6 @@ Measure_ <- R6::R6Class(
       #' @field balance_target the values the balance_functions are targeting
       balance_target = "vector",
 
-      #' @field x_float64 Float64 CPU points retained before casting for certification.
-      x_float64 = NULL,
-
       # values
       #' @field adapt What aspect of the data will be adapted. One of "none","weights", or "x".
       adapt = "character",
@@ -371,7 +368,6 @@ Measure_ <- R6::R6Class(
         # stopifnot("Argument 'dtype' must be of class 'torch_dtype'. Please see '?torch_dtype' for more info." = torch::is_torch_dtype(dtype))
         #
         # set data
-        if (self$dtype != torch::torch_float64()) self$x_float64 <- cot_polish_tensor(x)$clone()
         private$data_ <- torch::torch_tensor(
           x,
           dtype = self$dtype,
@@ -972,6 +968,10 @@ OTProblem_ <- R6::R6Class(
       #' @field selected_lambda the lambda value selected after `choose_hyperparameters`
       selected_lambda = "numeric", # final lambda
 
+      #' @field polished_weights Float64 source weights of the selected fit when
+      #' it was polished, otherwise `NULL`.
+      polished_weights = NULL,
+
       #' @description
       #' adds `o2` to the `OTProblem`
       #' @param o2 A number or object of class `OTProblem`
@@ -1253,7 +1253,8 @@ OTProblem_ <- R6::R6Class(
       #' @param debias Should debiased a debiased `OTProblem` be used? Defaults to TRUE
       #' @param diameter Diameter of the cost function.
       #' @param ot_niter Number of iterations to run the solver
-      #' @param ot_tol The tolerance for convergence of the objective function
+      #' @param ot_tol Sinkhorn tolerance: iterations stop once the largest change
+      #' in the potentials is below `ot_tol * lambda`.
       #' @return returns the object invisibly
       #'
       #' @examples
@@ -1271,8 +1272,7 @@ OTProblem_ <- R6::R6Class(
       #'  ot <- OTProblem(m1, m2)
       #'  ot$setup_arguments(lambda = 1000)
       #' }
-      #' @param polish Primal weight refinement method; see [cotOptions()].
-      #' @param polish.control Named refinement controls; see [cotOptions()].
+      #' @param polish Primal weight refinement, `"auto"` or `"none"`; see [cotOptions()].
       setup_arguments = function(
         lambda,
         delta,
@@ -1284,14 +1284,13 @@ OTProblem_ <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-3,
-        polish = c("auto", "exact", "osqp", "lbfgs", "none"),
-        polish.control = list()
+        polish = c("auto", "none")
       ) {
         private$polish_method <- match.arg(polish)
-        private$polish_control <- do.call(cot_polish_control, polish.control)
         private$polish_cache <- new.env(parent = emptyenv())
         private$reason_run <- list()
-        private$polish_info <- list()
+        private$polish_info <- private$polish_gap <- private$polish_weights <- list()
+        self$polished_weights <- NULL
         private$converged_run <- private$iterations_run <- private$final_loss <- private$weights_list <- list()
         prob_names <- ls(private$problems)
         if (private$args_set) {
@@ -1815,10 +1814,14 @@ OTProblem_ <- R6::R6Class(
         selected_key <- lambda_keys[[lambda_selection$selected_index]]
         d_index <- if (n_delta > 1L) match(self$selected_delta, delta_values) else 1L
         selected_converged <- private$converged_run[[selected_key]][[d_index]]
-        diag <- private$polish_info[[selected_key]][[d_index]]
-        if (identical(selected_converged, FALSE) && is.null(diag$skip_reason)) {
+        status <- c(private$polish_info[[selected_key]][[d_index]]$status, "")[[1L]]
+        gap <- c(private$polish_gap[[selected_key]][[d_index]], gap = NA_real_, D = NA_real_)
+        polished <- private$polish_weights[[selected_key]]
+        self$polished_weights <- if (length(polished) && !is.null(names(private$polish_info[[selected_key]])))
+          polished[[names(private$polish_info[[selected_key]])[[d_index]]]] else NULL
+        if (identical(selected_converged, FALSE) && !startsWith(status, "skipped")) {
           reason <- private$reason_run[[selected_key]][[d_index]]
-          ratio <- diag$fw_gap / max(diag$divergence, .Machine$double.xmin)
+          ratio <- gap[["gap"]] / max(gap[["D"]], .Machine$double.xmin)
           detail <- if (length(ratio) == 1L && is.finite(ratio)) sprintf("; gap/D = %.6g", ratio) else ""
           warning(sprintf("Selected lambda %s is not converged (%s%s); use polish = 'auto' or a larger niter.",
             lambda_selection$selected_lambda, reason, detail), call. = FALSE)
@@ -1837,15 +1840,13 @@ OTProblem_ <- R6::R6Class(
       #' \item `iterations` The number of iterations run for each combination of parameters
       #' \item `balance.function.differences` The final differences in the balance functions
       #' \item `hyperparam.metrics` A list of the bootstrap evaluation for delta and lambda values
-      #' \item `polish` Per-lambda and per-delta refinement diagnostics, including skip reasons.
-      #' Each entry's `convergence` records `phase`, `gap`, `D`, `atol`, and `tol`.
+      #' \item `polish` Per-lambda and per-delta polish `status` and `iterations`.
       #' \item `converged` Per-lambda and per-delta logical outcome. Eligible fits
       #' pass `gap <= atol + tol * max(0, D)`, using the user's solver `tol`.
-      #' Unpolished fits also require normal stopping and use `atol = ot_tol`,
-      #' without an extra solve. Polished fits use a cold float64 gap and an
-      #' absolute tolerance of `64 * eps64 * scale` for float64 weights or
-      #' `eps32 * scale` for float32 weights. Their phase-1 iteration cap does
-      #' not affect convergence. Out-of-scope fits retain the solver flag.
+      #' Unpolished fits also require normal stopping and use `atol = ot_tol`.
+      #' Polished fits use `atol = 64 * eps64 * scale` plus 16 times the polish's
+      #' Sinkhorn tolerance, where `scale` is the cost scale. Out-of-scope fits
+      #' retain the solver flag.
       #' \item `reason` Per-lambda and per-delta outcome message: `ok`, `niter`,
       #' `gap above tolerance`, `gap unavailable`, `polish error: <msg>`, or
       #' `error: <msg>`. Polish errors fall back to valid phase-1 weights and
@@ -1908,8 +1909,9 @@ OTProblem_ <- R6::R6Class(
     list(
       # objects
       polish_method = "none",
-      polish_control = NULL,
       polish_info = list(),
+      polish_gap = list(),
+      polish_weights = list(),
       polish_cache = NULL,
       reason_run = list(),
       phase1_cert = list(fw_gap = NA_real_, divergence = NA_real_),
@@ -2450,28 +2452,7 @@ OTProblem_ <- R6::R6Class(
       },
 
       polish_set_weights = function(ot, w) {
-        name <- ls(private$ot_objects)[[1L]]
-        address <- private$problems[[name]][[1L]]
-        # A zero first weight makes first-coordinate log ratios about 758 in
-        # float32 and destroys precision in the nonzero weights. Use a positive
-        # reference only when installing polished weights / their warm starts.
-        # The parameter tensor object and dimension stay fixed; optimizers see the same
-        # differentiable simplex map, with coordinates restored to source order.
-        if (self$dtype != torch::torch_float64()) {
-          measure_private <- private$measures[[address]]$.__enclos_env__$private
-          reference <- which.max(as.numeric(w$to(device = "cpu")))
-          keep <- setdiff(seq_len(length(w)), reference)
-          restore <- order(c(reference, keep))
-          measure_private$inv_transform_ <- function(value) {
-            logs <- torch::torch_log(value / value$sum())
-            logs <- logs$clamp(min = round(log(.Machine$double.xmin)) - 50)
-            logs[keep] - logs[reference]
-          }
-          measure_private$transform_ <- function(value) {
-            full <- torch::torch_cat(list(torch::torch_zeros(1L, dtype = value$dtype, device = value$device), value))
-            full$log_softmax(1)$exp()[restore]
-          }
-        }
+        address <- private$problems[[ls(private$ot_objects)[[1L]]]][[1L]]
         weights <- rlang::env()
         class(weights) <- c("weightEnv", class(weights))
         weights[[address]] <- w
@@ -2489,182 +2470,88 @@ OTProblem_ <- R6::R6Class(
       },
 
       check_fit_path = function() {
-        if (length(private$reason_run) && all(startsWith(unlist(private$reason_run), "error"))) {
-          reasons <- unique(unlist(lapply(private$polish_info, function(path) lapply(path, function(x) x$reason))))
-          stop("All lambda fits failed: ", paste(reasons, collapse = "; "))
+        reasons <- unlist(private$reason_run)
+        if (length(reasons) && all(startsWith(reasons, "error"))) {
+          stop("All lambda fits failed: ", paste(unique(reasons), collapse = "; "))
         }
       },
 
       polish_result = function(res, tol, delta) {
-        started <- proc.time()[["elapsed"]]
-        eligibility <- private$polish_eligible()
         name <- ls(private$ot_objects)[[1L]]
         ot <- private$ot_objects[[name]]
-        key <- as.character(ot$penalty)
-        save_info <- function(info) {
-          private$polish_info[[key]][[paste(delta)]] <- info
+        key <- as.character(ot$penalty); dkey <- paste(delta)
+        save <- function(status, iterations = 0L, gap = NA_real_, D = NA_real_) {
+          private$polish_info[[key]][[dkey]] <- list(status = status, iterations = iterations)
+          private$polish_gap[[key]][[dkey]] <- c(gap = gap, D = D)
         }
+        if (!is.null(private$polish_weights[[key]])) private$polish_weights[[key]][[dkey]] <- NULL
+        self$polished_weights <- NULL
         private$ot_update(use_grad = FALSE)
         weights <- private$parameters_get_set(clone = TRUE)
         valid <- is.finite(as.numeric(res$loss)) && all(vapply(ls(weights), function(k) {
           if (private$measures[[k]]$adapt == "x") all(is.finite(as.numeric(weights[[k]]$to(device = "cpu")))) else
             cot_fit_valid(weights[[k]], res$loss)
         }, logical(1)))
-        fail <- function(reason) {
-          res$reason <- paste0("error: ", reason); res$converged <- FALSE
-          save_info(list(status = "failed", reason = res$reason))
-          res
+        if (!valid) {
+          res$reason <- "error: Phase-1 weights or loss are non-finite or invalid"; res$converged <- FALSE
+          save("failed")
+          return(res)
         }
-        if (!valid) return(fail("Phase-1 weights or loss are non-finite or invalid"))
+        eligibility <- private$polish_eligible()
         if (!isTRUE(eligibility)) {
           res$reason <- "gap unavailable"
           res$converged <- isTRUE(res$converged)
-          save_info(list(status = "skipped", reason = res$reason, skip_reason = eligibility,
-            convergence = list(phase = "phase1", gap = NA_real_, D = NA_real_,
-              atol = NA_real_, tol = tol)))
+          save(paste("skipped:", eligibility))
           return(res)
         }
-        control <- private$polish_control
-        control$conv_scale <- cot_conv_scale(ot)
-        device_eps <- if (self$dtype == torch::torch_float64()) .Machine$double.eps else 2^-23
-        control$weight_eps <- device_eps
-        control$osqp <- utils::modifyList(as.list(private$osqp_args), control$osqp)
-        # Cache only immutable costs for this problem and lambda-dependent y_self.
-        cache <- private$polish_cache
-        costs <- function() {
-          if (!is.null(cache$costs)) return(cache$costs)
-          addresses <- private$problems[[name]]
-          x <- private$measures[[addresses[[1L]]]]
-          y <- private$measures[[addresses[[2L]]]]
-          result <- list(xy = ot$C_xy, xx = ot$C_xx, yy = ot$C_yy,
-            source = "solver_rounded", reason = NULL)
-          if (!is.null(x$x_float64) && !is.null(y$x_float64)) {
-            rebuilt <- tryCatch(list(
-              xy = cot_polish_data_cost(ot$C_xy, x$x_float64, y$x_float64, control$block_size),
-              xx = cot_polish_data_cost(ot$C_xx, x$x_float64, x$x_float64, control$block_size),
-              yy = cot_polish_data_cost(ot$C_yy, y$x_float64, y$x_float64, control$block_size)), error = identity)
-            if (inherits(rebuilt, "error")) result$reason <- conditionMessage(rebuilt) else {
-              result[names(rebuilt)] <- rebuilt; result$source <- "data_float64"
-            }
-          }
-          for (nm in c("xy", "xx", "yy")) {
-            result[[nm]] <- cot_polish_cost(result[[nm]], control$block_size)
-            result[[nm]]$diameter <- cot_polish_diameter(result[[nm]])
-          }
-          cache$costs <- result
-          cache$y_self <- new.env(parent = emptyenv())
-          result
-        }
-        phase1_result <- function(reason = NULL, info = NULL) {
+        # Unpolished fits are judged on phase 1's own gap and divergence.
+        phase1 <- function(status, error = NULL) {
           gap <- if (is.null(res$fw_gap)) NA_real_ else res$fw_gap
-          divergence <- if (is.null(res$divergence)) NA_real_ else res$divergence
+          D <- if (is.null(res$divergence)) NA_real_ else res$divergence
           stopped <- isTRUE(res$stopped_by_rule)
-          res$converged <- stopped && cot_converged(gap, divergence, private$ot_tol, tol)
-          res$reason <- if (res$converged) "ok" else if (!is.null(reason)) paste0("polish error: ", reason) else
-            if (!stopped) "niter" else if (!is.finite(gap) || !is.finite(divergence)) "gap unavailable" else "gap above tolerance"
-          if (is.null(info)) info <- list(status = "skipped", cost_source = "solver_rounded")
-          info$reason <- res$reason
-          info$polish_error <- reason
-          info$convergence <- list(phase = "phase1", gap = gap,
-            D = divergence, atol = private$ot_tol, tol = tol)
-          info$fw_gap <- gap; info$divergence <- divergence
-          info$time <- proc.time()[["elapsed"]] - started
-          save_info(info)
+          res$converged <- stopped && cot_converged(gap, D, private$ot_tol, tol)
+          res$reason <- if (res$converged) "ok" else if (!is.null(error)) paste0("polish error: ", error) else
+            if (!stopped) "niter" else if (!is.finite(gap) || !is.finite(D)) "gap unavailable" else "gap above tolerance"
+          save(status, gap = gap, D = D)
           res
         }
-        polish_atol <- function(scale) {
-          if (device_eps == .Machine$double.eps) 64 * device_eps * scale else device_eps * scale
-        }
-        if (private$polish_method == "none") return(phase1_result())
-        C <- tryCatch(costs(), error = identity)
-        if (inherits(C, "error")) return(phase1_result(conditionMessage(C)))
-        direction <- private$polish_method
-        if (direction == "auto") direction <- if (ot$tensorized) "exact" else "lbfgs"
-        address <- private$problems[[name]][[1L]]
-        measure_private <- private$measures[[address]]$.__enclos_env__$private
-        old_mass <- measure_private$mass_$detach()$clone()
-        old_inverse <- measure_private$inv_transform_; old_transform <- measure_private$transform_
-        # Optimize the well-defined float64 problem before the final dtype check.
-        optimization_control <- control
-        if (C$source == "data_float64") optimization_control$weight_eps <- .Machine$double.eps
-        result <- tryCatch(torch::with_no_grad(cot_newton_polish(ot$a, ot$b, C$xy, C$xx, ot$penalty,
-          direction = direction, control = optimization_control, C_yy = C$yy, cache = cache$y_self)), error = identity)
-        if (inherits(result, "error")) return(phase1_result(conditionMessage(result)))
-        info <- result[setdiff(names(result), c("weights", "solver_weights"))]
-        info$status <- if (cot_polish_is_converged(result$status)) {
-          if (result$n_accepted > 0L) "refined" else "already_optimal"
-        } else result$status
-        info$cost_source <- C$source; info$cost_fallback_reason <- C$reason
-        info$timings <- c(info$timings, dtype_recheck = 0, device_refresh = 0)
-        if (!is.null(result$weights) && (result$loss < result$loss_start ||
-            (cot_polish_is_converged(result$status) && result$fw_gap < result$fw_gap_start))) {
-          refreshed <- tryCatch(torch::with_no_grad({
-            private$polish_set_weights(ot, torch::torch_tensor(result$solver_weights, dtype = self$dtype, device = self$device))
-            installed <- private$measures[[address]]$weights$detach()
-            private$weights[[address]] <- installed; ot$a <- installed
-            rounded <- as.numeric(installed$to(device = "cpu")); rounded <- rounded / sum(rounded)
-            t0 <- proc.time()[["elapsed"]]
-            if (device_eps == .Machine$double.eps) {
-              rounded_loss <- result$loss; rounded_gap <- result$fw_gap
-              info$dtype_recheck_skipped <- TRUE
-            } else {
-              rounded_ev <- cot_polish_eval(rounded, ot$b, C$xy, C$xx, ot$penalty, control)
-              rounded_loss <- rounded_ev$loss
-              rounded_gap <- max(0, sum(rounded * rounded_ev$grad) - min(rounded_ev$grad))
-              info$dtype_recheck_skipped <- FALSE
-            }
-            info$timings["dtype_recheck"] <- proc.time()[["elapsed"]] - t0
-            if (rounded_loss > result$loss_start ||
-                (rounded_loss == result$loss_start && rounded_gap >= result$fw_gap_start)) {
-              stop(errorCondition("No improvement after restoring the solver dtype", class = "cot_polish_rejected"))
-            }
-            info$loss <- rounded_loss; info$fw_gap <- rounded_gap
-            info$divergence <- rounded_loss - result$y_self
-            info$nnz <- sum(rounded > control$zero_tol)
-            info$fw_threshold <- cot_polish_threshold(info$loss, result$y_self, result$conv_scale, control)
-            t0 <- proc.time()[["elapsed"]]
+        if (private$polish_method == "none") return(phase1("none"))
+        result <- tryCatch(torch::with_no_grad({
+          cache <- private$polish_cache
+          if (is.null(cache$costs)) {
+            # Stored costs are recomputed from float64 copies of the points, so
+            # matching source and target points get identical costs.
+            measures <- lapply(private$problems[[name]], function(k) private$measures[[k]])
+            x <- cot_polish_tensor(measures[[1L]]$x); y <- cot_polish_tensor(measures[[2L]]$x)
+            rebuild <- function(C, u, v) if (inherits(C, "costTensor")) C$fun(u, v, C$p) else C
+            cache$costs <- list(xy = cot_polish_cost(rebuild(ot$C_xy, x, y)),
+              xx = cot_polish_cost(rebuild(ot$C_xx, x, x), symmetric = TRUE),
+              yy = cot_polish_cost(rebuild(ot$C_yy, y, y), symmetric = TRUE))
+            cache$y_self <- new.env(parent = emptyenv())
+          }
+          C <- cache$costs
+          cot_newton_polish(ot$a, ot$b, C$xy, C$xx, C$yy, ot$penalty,
+            scale = cot_conv_scale(ot), cache = cache$y_self)
+        }), error = identity)
+        if (inherits(result, "error")) return(phase1("error", conditionMessage(result)))
+        if (result$changed) {
+          # The model keeps a copy in its own dtype as the warm start for the
+          # next fit; the float64 weights are what the fit returns.
+          torch::with_no_grad({
+            private$polish_set_weights(ot, torch::torch_tensor(result$weights, dtype = self$dtype, device = self$device))
             if (ot$tensorized) {
               ev <- ot$sinkhorn_ccp_eval(niter = private$ot_niter, tol = private$ot_tol)
-              pot <- ot$potentials
-              info$loss_device <- (ot$a$dot(ev$f_xy - ev$f_xx) + ot$b$dot(pot$g_yx))$item() -
-                (if (inherits(self, "cotCCPTrain")) private$ccp_loss_offset else
-                  ot$b$dot(pot$g_yy)$item())
               if (inherits(self, "cotCCPTrain")) {private$ccp_capture_state(ot, ev); private$ccp_compute_kkt(ot)}
-            } else info$loss_device <- eval(private$objective)$item()
-            info$timings["device_refresh"] <- proc.time()[["elapsed"]] - t0
-            cot_fit_valid(installed, info$loss)
-          }), error = function(e) {
-            if (inherits(e, "cot_polish_rejected")) info$rejection_reason <<- conditionMessage(e) else
-              info$polish_error <<- conditionMessage(e)
-            FALSE
+            }
           })
-          if (refreshed) {
-            res$loss <- if (inherits(self, "cotCCPTrain")) info$loss else info$divergence
-            res$polished <- TRUE
-          } else {
-            measure_private$inv_transform_ <- old_inverse; measure_private$transform_ <- old_transform
-            torch::with_no_grad(measure_private$mass_$copy_(old_mass))
-            private$ot_update(use_grad = FALSE)
-            info$status <- "no_improvement"
-            if (!is.null(info$polish_error)) return(phase1_result(info$polish_error, info))
-          }
+          private$polish_weights[[key]][[dkey]] <- self$polished_weights <- result$weights
+          res$loss <- if (inherits(self, "cotCCPTrain")) result$loss else result$divergence
+          res$polished <- TRUE
         }
-        # Keep all refinement diagnostics, including already_optimal, timings,
-        # and accepted steps. A rejected polish measured the retained start cold.
-        if (!isTRUE(res$polished)) {
-          info$fw_gap <- result$fw_gap_start
-          info$divergence <- result$divergence_start
-        }
-        atol <- polish_atol(result$conv_scale)
-        res$converged <- cot_converged(info$fw_gap, info$divergence, atol, tol)
-        res$reason <- if (res$converged) "ok" else if (!is.finite(info$fw_gap) || !is.finite(info$divergence))
+        res$converged <- cot_converged(result$gap, result$divergence, result$atol, tol)
+        res$reason <- if (res$converged) "ok" else if (!is.finite(result$gap) || !is.finite(result$divergence))
           "gap unavailable" else "gap above tolerance"
-        info$reason <- res$reason
-        info$convergence <- list(phase = "polish", gap = info$fw_gap,
-          D = info$divergence, atol = atol, tol = tol)
-        info$time <- proc.time()[["elapsed"]] - started
-        info$timings["other"] <- info$timings["other"] + max(0, info$time - sum(info$timings))
-        save_info(info)
+        save(result$status, result$iterations, result$gap, result$divergence)
         res
       },
 
@@ -2694,6 +2581,11 @@ OTProblem_ <- R6::R6Class(
 
           # copy estimated weights to weights_delta holder
           weights_delta[[paste(d)]] <- private$parameters_get_set(clone = TRUE)
+          if (isTRUE(res$polished)) {
+            ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
+            address <- private$problems[[ls(private$ot_objects)[[1L]]]][[1L]]
+            weights_delta[[paste(d)]][[address]] <- ot$a$detach()$clone()
+          }
 
           reason_delta[[paste(d)]] <- if (is.null(res$reason)) "gap unavailable" else res$reason
           if (startsWith(reason_delta[[paste(d)]], "error")) {
@@ -4023,7 +3915,8 @@ NNM <- R6::R6Class(
         debias = TRUE,
         diameter = NULL,
         ot_niter = 1000L,
-        ot_tol = 1e-5
+        ot_tol = 1e-5,
+        polish = c("auto", "none")
       ) {
         super$setup_arguments(
           lambda = 0,
@@ -4035,7 +3928,8 @@ NNM <- R6::R6Class(
           debias = FALSE,
           diameter = diameter,
           ot_niter = ot_niter,
-          ot_tol = ot_tol
+          ot_tol = ot_tol,
+          polish = polish
         )
         ot <- private$ot_objects[[ls(private$ot_objects)[[1]]]]
         # private$device <- ot$device
@@ -4797,7 +4691,8 @@ cotDualLegacyTrain <- R6::R6Class(
         debias = TRUE,
         diameter = NULL,
         ot_niter = 1000L,
-        ot_tol = 1e-5
+        ot_tol = 1e-5,
+        polish = c("auto", "none")
       ) {
         super$setup_arguments(
           lambda,
@@ -4809,7 +4704,8 @@ cotDualLegacyTrain <- R6::R6Class(
           debias,
           diameter,
           ot_niter,
-          ot_tol
+          ot_tol,
+          polish = polish
         )
 
         m_add <- ls(private$measures)
@@ -5528,7 +5424,8 @@ cotDualTrain <- R6::R6Class(
         debias = TRUE,
         diameter = NULL,
         ot_niter = 1000L,
-        ot_tol = 1e-5
+        ot_tol = 1e-5,
+        polish = c("auto", "none")
       ) {
         super$setup_arguments(
           lambda,
@@ -5540,7 +5437,8 @@ cotDualTrain <- R6::R6Class(
           debias,
           diameter,
           ot_niter,
-          ot_tol
+          ot_tol,
+          polish = polish
         )
 
         m_add <- ls(private$measures)

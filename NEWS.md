@@ -1,83 +1,24 @@
 # causalOT 1.1
 
 ## Breaking changes
-* Eligible fits report `converged` and `reason` using one tolerance test:
-  `gap <= atol + tol * max(0, D)`, with the user's `tol` in both phases.
-  Unpolished fits require normal stopping and use `atol = ot_tol` without
-  extra solves. Polished fits use a cold float64 gap, with `atol` equal to
-  `64 * eps64 * scale` for float64 weights or `eps32 * scale` for float32.
-  Phase-1 stopping and the default `polish = "auto"` are unchanged.
-* Numerically failed fits store NA weights and are excluded from every lambda
-  selector. Fits error when all candidates fail; selecting a candidate that
-  is not converged warns once. `info()$reason` distinguishes errors from
-  usable fits that did not meet tolerance.
 * `vcov()` for `causalEffect` objects now computes the variance from the full
-  plug-in influence function, including the cross terms that the previous
-  calculation left out. The sandwich estimator is no longer used for
-  outcome-model fits. Standard errors and confidence intervals will differ
+  plug-in influence function. Standard errors and confidence intervals will differ
   from earlier versions. `vcov(object, type = "components")` gives the
-  previous three-component calculation.
-* The default `opt.direction` for `cotOptions()` is now `"primal"`, using the
-  LBFGS solver. The previous default was `opt.direction = "dual"`, which
-  remains available. The dual solver default is still
-  `dual.solver = "fixed_point_joint"`.
-<!-- TODO: revisit the default solver once solver = "mirror" supports
-     multiple lambdas and balance constraints. -->
-* The default dual solver for `"COT"` is now `dual.solver = "fixed_point_joint"`.
-
-## Bug fixes
-* Blocked R polish evaluators preserve float64 lambda precision in cold,
-  warm, and target-self arithmetic. Hessian and ridge scaling use the same
-  tensor-left scalar dispatch to avoid implicit float32 rounding.
-* Polish retains its full diagnostics when no weights are installed, including
-  `already_optimal` for a zero-step optimal result. A rejected dtype round-trip
-  reports the cold-start gap outcome, with details in `rejection_reason`,
-  instead of being labelled a polish error.
-* Polishing moves MPS/CUDA tensors to CPU before converting to float64.
-* Unpolished convergence means accuracy to about `ot_tol` in absolute terms;
-  use the polish for `tol` relative accuracy. No additional Sinkhorn solve is run.
-* Polish/evaluator errors retain valid phase-1 weights and use their convergence
-  test. Rejected polish uses the cold gap and divergence at the retained start.
-  Diagnostics are numeric `phase`, `gap`, `D`, `atol`, and `tol` fields in
-  `info()$polish[[lambda]][[delta]]$convergence`; the unpublished `fit_status`
-  and `certification` fields have been removed.
+  previous calculation.
 
 ## New features
-* Float32 polishing reconstructs float64 costs in blocks from pre-cast points,
-  with a diagnosed fallback for unsupported user costs. Cost normalization
-  uses a dtype-matched scalar, avoiding float32 rounding of 1/p on float64 inputs.
-  Final weight rounding
-  is certified against the same costs. Diagnostics include the device loss.
-* Polish caches target self terms and cost diameters, avoids redundant float64
-  readback solves, and uses marginal residuals for warm line-search probes.
-  Final certification remains cold; stage and individual probe timings are exposed.
-* Eligible primal COT fits now receive a monotone Newton polish by default.
+* Updated convergence criterion to prevent needless long runs
+* Argument
+* COT fits now receive a monotone Newton polish by default.
   `cotOptions(polish = "auto")` uses an exact Hessian up to 2,000 candidate
   weights and L-BFGS above that cap or with standard online costs. Explicit
   `"exact"`, `"osqp"`, `"lbfgs"`, and `"none"` choices and `polish.control`
   controls are available. Diagnostics are exposed through `info()$polish`.
-  Polished weights can contain exact zeros; lambda paths save those zeros
-  and mix the next warm start with a small uniform component. Polishing has
-  its own divergence-relative tolerance (1e-8) and a machine-precision floor;
-  the phase-1 tolerance is independent. Epsilon-active weights can be omitted
-  from reduced Hessians, cap fallback is reversible, and initial L-BFGS steps
-  are scaled to probability-mass units. Fits that reach loss or returned-weight
-  resolution stop refining; final convergence uses the common tolerance test.
-  A positive log-ratio reference avoids loss of float32 accuracy when the first
-  polished weight is zero.
 * `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
-  descent solver for debiased COT weights. It requires a single finite
-  `lambda` and does not yet support balance constraints. It reports
-  convergence only when the weights pass an optimality check based on the
-  Frank-Wolfe gap.
+  descent solver for debiased COT weights
 * New dual solvers `dual.solver = "fixed_point_joint"` and `"joint"`. Their
   tuning parameters (`fixed_point_eta`, `n_potential_steps`, etc.) can be
   passed through `cotOptions(...)`.
-* `cotOptions()` gains `lambda.selector` and `lambda.selector.control` for
-  choosing how lambda is selected from the fitted grid. The default,
-  `"bootstrap_legacy"`, is the same bootstrap used in earlier versions.
-  Leave-one-out and mass-bootstrap selectors are available as experimental
-  alternatives.
 * The lambda grid, selection scores, and selected value are stored in
   `causalWeights@info$metric`.
 * `Measure()` gains a `unit.id` argument.
@@ -87,14 +28,9 @@
 ## Minor improvements and fixes
 * `cotOptions()` now warns about arguments in `...` that no solver uses.
   Previously, misspelled arguments were silently ignored.
-* The convergence checks for COT weights no longer fail when the weighted
-  sample nearly matches the target. Changes in the loss are now measured
-  relative to the cost diameter when the loss is close to zero. Previously,
-  these fits could run to `niter` without converging.
-* The primal LBFGS solver now checks that the weights are optimal, using the
-  Frank-Wolfe gap or the divergence, before it reports convergence. A fit that
-  stalls before the optimum still stops, but is now reported as not
-  converged.
+
+## Miscellaneous
+* Updated maintainer e-mail address
 
 # causalOT 1.0.4
 

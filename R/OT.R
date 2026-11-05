@@ -243,17 +243,13 @@ OT <- R6::R6Class(
       private$pot <- vector("list", 0)
 
       if (self$tensorized) {
-        torch_tens <- torch::torch_zeros_like(self$b, dtype = self$dtype)
-        pen <- torch::torch_tensor(self$penalty, dtype = self$dtype)
-        softmin_jit <- torch::jit_compile(
-          "def softmin(eps: float, C_xy: Tensor, y_potential: Tensor, b_log: Tensor):
-            return -eps * (y_potential/eps + b_log - C_xy/eps).logsumexp(1)
-          "
-        )
-
-        # assignInNamespace("softmin_jit", softmin_jit, "causalOT")
         self$softmin <- function(eps, C_xy, y_potential, b_log) {
-          softmin_jit$softmin(eps, C_xy$data, y_potential, b_log)
+          sinkhorn_compiled()$softmin(
+            torch::jit_scalar(eps),
+            C_xy$data,
+            y_potential,
+            b_log
+          )
         }
       }
 
@@ -268,6 +264,8 @@ OT <- R6::R6Class(
       }
       if (is.null(value)) {
         private$pot <- list()
+        private$pot_eps <- NULL
+        private$g_yy_key <- NULL
         return(invisible(self))
       }
       if (all(is.character(names(value)))) {
@@ -313,6 +311,8 @@ OT <- R6::R6Class(
         pot <- c(pot, list(f_xx = f_xx, g_yy = g_yy))
       }
       private$pot <- pot
+      private$pot_eps <- as.numeric(self$penalty)
+      private$g_yy_key <- NULL
       return(invisible(self))
     },
     a = function(value) {
@@ -354,7 +354,11 @@ OT <- R6::R6Class(
       if (inherits(value, "torch_tensor")) {
         private$b_ <- value$to(device = private$b_$device)
       } else {
-        private$b_ <- torch::torch_tensor(value, dtype = private$b_$device)
+        private$b_ <- torch::torch_tensor(
+          value,
+          dtype = self$dtype,
+          device = private$b_$device
+        )
       }
       private$b_log <- log_weights(private$b_$detach())$to(
         device = private$b_$device
@@ -367,6 +371,8 @@ OT <- R6::R6Class(
     a_log = "torch_tensor",
     b_log = "torch_tensor",
     pot = "list",
+    pot_eps = NULL, # epsilon at which the stored potentials were computed
+    g_yy_key = NULL, # inputs of the stored g_yy, see g_yy_current
     # softmin_jit = "script_function",
     is_tensorized = function(tensorized, x, y) {
       # browser()
@@ -498,22 +504,43 @@ softmin_tensorized <- function(eps, C_xy, y_potential, b_log) {
 softmin_online <- function(eps, C_xy, y_potential, b_log) {
   x <- C_xy$data$x
   y <- C_xy$data$y
+  m <- C_xy$mats
+  if (x$requires_grad || y$requires_grad) {
+    m <- list(x = as_matrix(x), y = as_matrix(y))
+  } else if (is.null(m) || !identical(m$src_x, x) || !identical(m$src_y, y)) {
+    m <- C_xy$mats <- list(
+      src_x = x,
+      src_y = y,
+      x = as_matrix(x),
+      y = as_matrix(y)
+    )
+  }
   out <- softmin_keops(
     eps,
     x,
     y,
     y_potential$detach(),
     b_log$detach(),
-    C_xy$reduction
+    C_xy$reduction,
+    m$x,
+    m$y
   )
 
   return(out)
 }
 
 softmin_keops <- torch::autograd_function(
-  forward = function(ctx, eps, x, y, y_potential, b_log, reduction) {
-    xmat <- as_matrix(x)
-    ymat <- as_matrix(y)
+  forward = function(
+    ctx,
+    eps,
+    x,
+    y,
+    y_potential,
+    b_log,
+    reduction,
+    xmat,
+    ymat
+  ) {
     G <- as_numeric(b_log + y_potential / eps)
     one_over_eps <- as_numeric(1.0 / eps)
     sums <- reduction(input = list(X = xmat, Y = ymat, G = G, P = one_over_eps))
@@ -567,29 +594,184 @@ softmin_keops <- torch::autograd_function(
   }
 )
 
-epsilon_select <- function(diameter, eps, tot_iter, cur_iter) {
-  if (eps$item() > diameter$item()) {
-    return(eps)
+# Epsilon scaling: geometric decrease from `start` to `eps`, one iteration per
+# level, then iterations at `eps` up to `tot_iter` in total. The levels are
+# clamped so the schedule reaches `eps` exactly.
+epsilon_trajectory <- function(start, eps, tot_iter) {
+  path <- if (start > eps) {
+    pmax(start * exp(-0.9 * (0:ceiling(log(start / eps) / 0.9))), eps)
+  } else {
+    eps
   }
-
-  if (tot_iter == cur_iter) {
-    return(eps)
-  }
-
-  eps_new <- (diameter - eps) * exp(-0.9 * (cur_iter - 1)) + eps
-
-  return(eps_new)
+  c(path, rep(eps, max(0L, tot_iter - length(path))))
 }
 
-epsilon_trajectory <- function(diameter, eps, tot_iter) {
-  if (eps > diameter) {
-    return(rep(eps, tot_iter))
+# Where a solve starts: cold starts anneal from the diameter; warm starts
+# resume from the epsilon of the stored potentials, or at `eps` if that was
+# smaller (a larger epsilon is the easier problem).
+sinkhorn_start <- function(warm, pot_eps, diameter, eps) {
+  if (!warm) {
+    return(max(diameter, eps))
   }
-
-  eps_new <- (diameter - eps) * exp(-0.9 * (1:tot_iter - 1)) + eps
-
-  return(eps_new)
+  if (is.null(pot_eps) || !is.finite(pot_eps)) {
+    return(max(diameter, eps))
+  }
+  max(pot_eps, eps)
 }
+
+sinkhorn_usable <- function(...) {
+  all(vapply(
+    list(...),
+    function(p) !is.null(p) && !as.logical(p$isnan()$any()$to(device = "cpu")),
+    logical(1)
+  ))
+}
+
+# Whether a softmin over this cost can record gradients. Only the cost can:
+# the log weights and the potentials enter the softmin detached.
+cost_requires_grad <- function(C) {
+  d <- C$data
+  if (inherits(d, "torch_tensor")) {
+    return(d$requires_grad)
+  }
+  any(vapply(
+    d,
+    function(t) inherits(t, "torch_tensor") && t$requires_grad,
+    logical(1)
+  ))
+}
+
+# Anderson memory for the compiled Sinkhorn loops (0 = plain Sinkhorn). The
+# x-y loop gains roughly 10-20x at small epsilon. The self loop converges in
+# about 15 damped sweeps at any epsilon, so it gains nothing and stays plain.
+sinkhorn_anderson_m_xy <- 5L
+sinkhorn_anderson_m_xx <- 0L
+
+# Compiled Sinkhorn loops for tensorized costs. They are compiled once per
+# session, on first use. The rules match the R loops below: g is updated
+# first, potentials are centered, and the stopping test is relative to epsilon.
+sinkhorn_compiled <- local({
+  compiled <- NULL
+  function() {
+    if (is.null(compiled)) {
+      compiled <<- torch::jit_compile(
+        "
+def softmin_fixed_K(eps: float, K_xy: Tensor, y_potential: Tensor, b_log: Tensor):
+            return -eps * (y_potential/eps + b_log - K_xy).logsumexp(1)
+
+def softmin(eps: float, C_xy: Tensor, y_potential: Tensor, b_log: Tensor):
+            return -eps * (y_potential/eps + b_log - C_xy/eps).logsumexp(1)
+
+def sinkhorn_sweep(e: float, K_xy: Tensor, K_yx: Tensor, f_xy: Tensor,
+                   a_log: Tensor, b_log: Tensor, b: Tensor) -> Tuple[Tensor, Tensor]:
+    g_yx = softmin_fixed_K(e, K_yx, f_xy, a_log)
+    g_yx = g_yx - b.dot(g_yx)
+    return softmin_fixed_K(e, K_xy, g_yx, b_log), g_yx
+
+def ridge_for(A: Tensor) -> float:
+    # Relative ridge for the Anderson solve, a few orders above machine
+    # epsilon. A ridge of 1e-10 vanishes below float32 resolution (~1.2e-7).
+    if A.element_size() == 8:  # float64
+        return 1e-10
+    return 1e-5
+
+def anderson_step(Tf: Tensor, r: Tensor, F_hist: List[Tensor], R_hist: List[Tensor],
+                  m: int) -> Tensor:
+    F_hist.append(Tf) # f potentials
+    R_hist.append(r) # diff between iteration n and n+1
+    if len(R_hist) > m + 1: # remove history 
+        F_hist.pop(0)
+        R_hist.pop(0)
+    n_hist = len(R_hist)
+    if n_hist == 1:
+        return Tf
+    dR = torch.stack([R_hist[j] - R_hist[j - 1] for j in range(1, n_hist)], 1)
+    dF = torch.stack([F_hist[j] - F_hist[j - 1] for j in range(1, n_hist)], 1)
+    A = dR.t().matmul(dR)
+    scale = float(A.diagonal().max())
+    if not (scale > 0.0):  # residuals stopped changing (or NaN): nothing to extrapolate
+        return Tf
+    A.diagonal().add_(ridge_for(A) * scale) #small ridge for stability
+    gamma = torch.linalg_solve(A, dR.t().matmul(r))
+    return Tf - dF.matmul(gamma)
+
+def sinkhorn_xy(C_xy: Tensor, C_yx: Tensor, a_log: Tensor, b_log: Tensor, b: Tensor,
+                f_xy: Tensor, g_yx: Tensor, eps_path: Tensor, eps: float, tol: float, m: int):
+    # Annealing levels use plain sweeps. At the final epsilon, Anderson with
+    # memory m extrapolates; m = 0 gives plain Sinkhorn. The stopping test is
+    # on a plain sweep, and the returned f is that sweep's T(f), so it pairs
+    # with the returned g whether or not the loop converged.
+    e_prev = -1.0
+    K_xy = C_xy
+    K_yx = C_yx
+    iterations = 0
+    converged = False
+    F_hist: List[Tensor] = []
+    R_hist: List[Tensor] = []
+    viol_prev = -1.0
+    Tf = f_xy
+    for k in range(eps_path.numel()):
+        e = float(eps_path[k])
+        if e != e_prev:
+            K_xy = C_xy / e
+            K_yx = C_yx / e
+            e_prev = e
+        Tf, g_yx = sinkhorn_sweep(e, K_xy, K_yx, f_xy, a_log, b_log, b)
+        iterations += 1
+        r = Tf - f_xy
+        viol = float(r.abs().max()) / e
+        if e == eps and viol < tol:
+            converged = True
+            break
+        if e != eps or m == 0:
+            f_xy = Tf
+            continue
+        if viol_prev >= 0.0 and viol > 2.0 * viol_prev:
+            F_hist.clear()
+            R_hist.clear()
+        viol_prev = viol
+        f_xy = anderson_step(Tf, r, F_hist, R_hist, m)
+    return {'f': Tf, 'g': g_yx, 'iterations': torch.tensor(iterations), 'converged': torch.tensor(converged)}
+
+def sinkhorn_xx(C_xx: Tensor, a_log: Tensor, f_xx: Tensor, eps_path: Tensor, eps: float, tol: float, m: int):
+    # Symmetric (self) potential with the damped update f -> (f + T(f)) / 2.
+    # Same structure as sinkhorn_xy; the returned f is the last damped sweep.
+    e_prev = -1.0
+    K_xx = C_xx
+    iterations = 0
+    converged = False
+    F_hist: List[Tensor] = []
+    R_hist: List[Tensor] = []
+    viol_prev = -1.0
+    Tf = f_xx
+    for k in range(eps_path.numel()):
+        e = float(eps_path[k])
+        if e != e_prev:
+            K_xx = C_xx / e
+            e_prev = e
+        Tf = 0.5 * (f_xx + softmin_fixed_K(e, K_xx, f_xx, a_log))
+        iterations += 1
+        r = Tf - f_xx
+        viol = float(r.abs().max()) / e
+        if e == eps and viol < tol:
+            converged = True
+            break
+        if e != eps or m == 0:
+            f_xx = Tf
+            continue
+        if viol_prev >= 0.0 and viol > 2.0 * viol_prev:
+            F_hist.clear()
+            R_hist.clear()
+        viol_prev = viol
+        f_xx = anderson_step(Tf, r, F_hist, R_hist, m)
+    return {'f': Tf, 'iterations': torch.tensor(iterations), 'converged': torch.tensor(converged)}
+"
+      )
+    }
+    compiled
+  }
+})
+
 
 OT$set("public", "sinkhorn_opt", function(niter = 1e3, tol = 1e-7) {
   if (is.finite(self$penalty)) {
@@ -597,19 +779,51 @@ OT$set("public", "sinkhorn_opt", function(niter = 1e3, tol = 1e-7) {
 
     if (self$debias) {
       f_xx <- private$sinkhorn_self_loop("x", niter, tol)
-      g_yy <- private$sinkhorn_self_loop("y", niter, tol)
+      g_yy <- if (private$g_yy_current()) {
+        private$pot$g_yy
+      } else {
+        private$sinkhorn_self_loop("y", niter, tol)
+      }
       self$potentials <- list(
         f_xy = fg_list$f_xy,
         g_yx = fg_list$g_yx,
         f_xx = f_xx,
         g_yy = g_yy
       )
+      private$g_yy_key <- private$g_yy_inputs()
     } else {
       self$potentials <- list(f_xy = fg_list$f_xy, g_yx = fg_list$g_yx)
     }
   }
 
   return(invisible(self))
+})
+
+# g_yy depends only on b, C_yy and epsilon. When the target weights are fixed
+# (the usual case), it need not be recomputed at each evaluation. The key holds
+# b, the C_yy tensor itself (update_cost replaces it rather than modifying it)
+# and epsilon at the last computation; the potentials setter clears it.
+OT$set("private", "g_yy_inputs", function() {
+  if (cost_requires_grad(self$C_yy) || private$b_$requires_grad) {
+    return(NULL)
+  }
+  list(
+    b = private$b_$detach()$clone(),
+    C = self$C_yy$data,
+    eps = as.numeric(self$penalty)
+  )
+})
+OT$set("private", "g_yy_current", function() {
+  key <- private$g_yy_key
+  if (is.null(key) || !sinkhorn_usable(private$pot$g_yy)) {
+    return(FALSE)
+  }
+  if (cost_requires_grad(self$C_yy) || private$b_$requires_grad) {
+    return(FALSE)
+  }
+  identical(key$C, self$C_yy$data) &&
+    identical(key$eps, as.numeric(self$penalty)) &&
+    torch::torch_equal(key$b, private$b_$detach())
 })
 
 OT$set("public", "sinkhorn_cot", function(niter = 1e3, tol = 1e-7) {
@@ -699,223 +913,136 @@ OT$set(
     if (!self$debias) {
       stop("Self potentials can only be run if debias == TRUE")
     }
-    # torch::autograd_set_grad_mode(enabled = FALSE)
-
     which.margin <- match.arg(which.margin, c("x", "y"))
     if (which.margin == "x") {
       f_xx <- private$pot$f_xx
       C_xx <- self$C_xx
-      a <- private$a_$detach()
       a_log <- private$a_log$detach()
-    } else if (which.margin == "y") {
+    } else {
       f_xx <- private$pot$g_yy
       C_xx <- self$C_yy
-      a <- private$b_$detach()
       a_log <- private$b_log$detach()
-    } else {
-      stop("Wrong margin given. Must be one of x or y")
     }
-    eps <- torch::jit_scalar(self$penalty)
-    diameter <- torch::jit_scalar(self$diameter)
+    eps <- as.numeric(self$penalty)
     softmin <- self$softmin
-    n <- length(a)
-
-    print_period <- 1L
-
-    eps_log_switch <- diameter / round(log(.Machine$double.xmax))
+    warm <- sinkhorn_usable(f_xx)
+    epsilons <- epsilon_trajectory(
+      sinkhorn_start(warm, private$pot_eps, as.numeric(self$diameter), eps),
+      eps,
+      niter
+    )
 
     torch::with_no_grad({
-      if (is.null(f_xx)) {
-        f_xx <- torch::torch_zeros_like(a_log, dtype = self$dtype)
-        if (as.logical(eps > diameter)) {
-          f_xx <- softmin(eps, C_xx, f_xx, a_log)
-        } else {
-          f_xx <- softmin(diameter, C_xx, f_xx, a_log)
-        }
+      f_xx <- if (warm) {
+        f_xx$detach()$clone()
+      } else {
+        torch::torch_zeros_like(a_log, dtype = self$dtype)
       }
-
-      loss <- loss_1 <- loss_2 <- a$dot(f_xx)$item() * 2.0
-      ft_1 <- f_xx$detach()$clone()
-      ft_2 <- f_xx$detach()$clone()
-      f_xx2 <- f_xx$detach()$clone()
-      # f_01 <- f_02 <- f_xx
-      # f_1 <- f_2 <- f_xx
-
-      epsilons <- epsilon_trajectory(diameter, eps, niter)
-      eps_cur <- NULL
-
-      for (eps_cur in epsilons) {
-        # eps_cur = epsilons[i]
-        # eps_cur = epsilon_select(diameter, eps, niter, i)
-        # ft_1 = softmin(eps_cur, C_xx, f_2,  a_log)
-        # ft_2 = softmin(eps_cur, C_xx, ft_1, a_log)
-
-        if (eps_cur > eps_log_switch) {
-          # Anderson acceleration
-          ft_1 <- softmin(torch::jit_scalar(eps_cur), C_xx, f_xx2, a_log)
-          f_xx$add_(ft_1)$mul_(0.5) #OT(a,a)
-          #f_xx = ft_1 + f_xx; f_xx = f_xx * 0.5;  # OT(a,a)
-
-          ft_2 <- softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
-          f_xx2$add_(ft_2)$mul_(0.5) #OT(a,a)
-        } else {
-          f_xx <- softmin(torch::jit_scalar(eps_cur), C_xx, f_xx2, a_log)
-          f_xx2 <- softmin(torch::jit_scalar(eps_cur), C_xx, f_xx, a_log)
+      if (self$tensorized) {
+        out <- sinkhorn_compiled()$sinkhorn_xx(
+          C_xx$data,
+          a_log,
+          f_xx,
+          torch::torch_tensor(epsilons, dtype = torch::torch_double()),
+          torch::jit_scalar(eps),
+          torch::jit_scalar(tol),
+          torch::jit_scalar(sinkhorn_anderson_m_xx)
+        )
+        f_xx <- out$f
+        iterations <- out$iterations$item()
+      } else {
+        iterations <- 0L
+        for (e in epsilons) {
+          f_old <- f_xx
+          f_xx <- (f_xx + softmin(torch::jit_scalar(e), C_xx, f_xx, a_log)) *
+            0.5
+          change <- (f_xx - f_old)$abs()$max()$item()
+          iterations[[1L]] <- iterations[[1L]] + 1L
+          if (e == eps && change < tol * eps) break
         }
-        f_xx$add_(f_xx2)$mul_(0.5)
-        f_xx2 <- f_xx$clone()
-
-        # loss = sum((f_1 + f_2) * a)
-        loss <- a$dot(f_xx)$item() * 2.0
-        # if ((i %% print_period) == 0) {
-        if (abs(loss - loss_1) < tol) {
-          break
-        }
-        if (abs(loss - loss_2) < tol) {
-          break
-        }
-        # }
-
-        loss_2 <- loss_1
-        loss_1 <- loss
       }
     })
-    # ft_1 = softmin(eps, C_xx, f_2, a_log)
-    # ft_2 = softmin(eps, C_xx, f_1, a_log)
-    # f_xx = 0.5 * ft_1 + 0.5 * ft_2
-    # torch::autograd_set_grad_mode(enabled = TRUE) # get last step for grad if needed
-    f_xx <- softmin(eps, C_xx, f_xx$detach(), a_log)
-    return(f_xx)
+    # if (iterations == niter) {
+    #   warning("Max OT iterations hit")
+    # }
+    # record grads if needed
+    if (!cost_requires_grad(C_xx)) {
+      return(f_xx)
+    }
+    softmin(
+      eps,
+      C_xx,
+      f_xx$detach(),
+      a_log
+    )
   }
 )
 
 OT$set("private", "sinkhorn_loop", function(niter, tol) {
-  # ttorch::autograd_set_grad_mode(enabled = FALSE)
-
-  # extract variables needed
-  eps <- torch::jit_scalar(self$penalty)
-  diameter <- torch::jit_scalar(self$diameter)
+  eps <- as.numeric(self$penalty)
   softmin <- self$softmin
-  a <- private$a_$detach()
   b <- private$b_$detach()
   a_log <- private$a_log$detach()
   b_log <- private$b_log$detach()
   C_xy <- self$C_xy
   C_yx <- self$C_yx
-  n <- self$n
-  m <- self$m
   f_xy <- private$pot$f_xy
   g_yx <- private$pot$g_yx
+  warm <- sinkhorn_usable(f_xy, g_yx)
+  epsilons <- epsilon_trajectory(
+    sinkhorn_start(warm, private$pot_eps, as.numeric(self$diameter), eps),
+    eps,
+    niter
+  )
 
-  print_period <- 1L
-
-  eps_log_switch <- diameter / round(log(.Machine$double.xmax))
-  missing_pot <- is.null(f_xy) || is.null(g_yx)
-  nan_f <- nan_g <- FALSE
-  if (!missing_pot) {
-    nan_f <- as.logical(f_xy$isnan()$any()$to(device = "cpu"))
-    nan_g <- as.logical(g_yx$isnan()$any()$to(device = "cpu"))
-  }
-
-  # turn off grad so doesn't record all of the iterations
   torch::with_no_grad({
-    # intialize variables if needed
-    if (missing_pot || nan_f || nan_g) {
-      if (as.logical(eps > diameter)) {
-        f_xy <- softmin(
-          eps,
-          C_xy,
-          torch::torch_zeros_like(b_log, dtype = self$dtype),
-          b_log
-        )
-        g_yx <- softmin(
-          eps,
-          C_yx,
-          torch::torch_zeros_like(a_log, dtype = self$dtype),
-          a_log
-        )
-      } else {
-        f_xy <- softmin(
-          diameter,
-          C_xy,
-          torch::torch_zeros_like(b_log, dtype = self$dtype),
-          b_log
-        )
-        g_yx <- softmin(
-          diameter,
-          C_yx,
-          torch::torch_zeros_like(a_log, dtype = self$dtype),
-          a_log
-        )
+    if (warm) {
+      f_xy <- f_xy$detach()$clone()
+      g_yx <- g_yx$detach()$clone()
+    } else {
+      f_xy <- torch::torch_zeros_like(a_log, dtype = self$dtype)
+      g_yx <- torch::torch_zeros_like(b_log, dtype = self$dtype)
+    }
+    if (self$tensorized) {
+      out <- sinkhorn_compiled()$sinkhorn_xy(
+        C_xy$data,
+        C_yx$data,
+        a_log,
+        b_log,
+        b,
+        f_xy,
+        g_yx,
+        torch::torch_tensor(epsilons, dtype = torch::torch_double()),
+        torch::jit_scalar(eps),
+        torch::jit_scalar(tol),
+        torch::jit_scalar(sinkhorn_anderson_m_xy)
+      )
+      f_xy <- out$f
+      g_yx <- out$g
+    } else {
+      for (e in epsilons) {
+        g_yx <- softmin(torch::jit_scalar(e), C_yx, f_xy, a_log) # OT(b,a)
+        f_new <- softmin(torch::jit_scalar(e), C_xy, g_yx, b_log) # OT(a,b)
+        # center the potentials
+        norm <- (b * g_yx)$sum()
+        g_yx$sub_(norm)
+        f_new$add_(norm)
+        change <- (f_new - f_xy)$abs()$max()$item()
+        f_xy <- f_new
+        if (e == eps && change < tol * eps) break
       }
     }
 
-    # setup variables needed in for loop
-    norm <- (g_yx * b)$sum()
-    f_xy$add_(norm)
-    g_yx$sub_(norm)
-    loss <- loss_0 <- ((a * f_xy)$sum() + (g_yx * b)$sum())$item()
-
-    ft <- f_xy$detach()$clone()
-    gt <- g_yx$detach()$clone()
-    epsilons <- epsilon_trajectory(diameter, eps, niter)
-    eps_cur <- NULL
-
-    # optimization iterations
-    for (e in epsilons) {
-      eps_cur <- torch::jit_scalar(e)
-      # eps_cur = epsilons[i]
-      # eps_cur = epsilon_select(diameter, eps, niter, i)
-
-      # uses acceleration for larger epsilon values
-      if (eps_cur > eps_log_switch) {
-        #softmin step
-        ft <- softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
-        gt <- softmin(eps_cur, C_yx, f_xy, a_log) # OT(b,a)
-
-        # center gt
-        norm <- (b * gt)$sum()
-        gt$sub_(norm)
-        ft$add_(norm)
-
-        # Anderson acceleration
-        #f_xy = f_xy + ft;  f_xy = f_xy * 0.5; # OT(a,b)
-        # equiv of f_xy_{iter + 1} = 0.5 * f_xy_{iter}+ 0.5 * ft
-        f_xy$add_(ft)$mul_(0.5) # OT(a,b)
-
-        #g_yx = g_yx + gt;  g_yx = g_yx * 0.5;  # OT(b,a)
-        # equiv of g_yx_{iter + 1} = 0.5 * g_yx_{iter}+ 0.5 * gt
-        g_yx$add_(gt)$mul_(0.5) # OT(b,a)
-      } else {
-        # regular softmin steps
-        f_xy <- softmin(eps_cur, C_xy, g_yx, b_log) # OT(a,b)
-        g_yx <- softmin(eps_cur, C_yx, f_xy, a_log) # OT(b,a)
-      }
-
-      # center the g parameteres
-      norm <- (b * g_yx)$sum()
-      g_yx$sub_(norm)
-      f_xy$add_(norm)
-
-      # record loss and check for convergence
-      loss <- (f_xy * a)$sum()$item() #+ (g_yx * b)$sum()$item()
-      # cat(paste0(loss$item(),", "))
-      # if ( (i %% print_period) == 0 ) {
-      if (abs(loss - loss_0) < tol) {
-        break
-      }
-      # }
-
-      # saves old loss
-      loss_0 <- loss
-    }
-
-    # get copies of potentials without gradients for final step
     gt <- g_yx$detach()$clone()
     ft <- f_xy$detach()$clone()
   })
 
-  # this step records gradients if active and returns values
+  # A final step records gradients through the cost; without them it would
+  # only recompute what the loop has.
+  if (!cost_requires_grad(C_xy) && !cost_requires_grad(C_yx)) {
+    return(list(f_xy = ft, g_yx = gt))
+  }
+  eps <- torch::jit_scalar(eps)
   return(list(
     f_xy = softmin(eps, C_xy, gt, b_log),
     g_yx = softmin(eps, C_yx, ft, a_log)
@@ -1562,8 +1689,10 @@ cot_ccp_diagnostics <- function(ot, support.tol = 1e-10) {
   }
   kkt <- cot_ccp_kkt(ot, support.tol = support.tol)
   plan <- ot$primal()$xy$detach()
-  objective <- (ot$a$dot(pot$f_xy) + ot$b$dot(pot$g_yx) -
-    ot$a$dot(pot$f_xx))$detach()$item() - cot_ccp_y_self_term(ot)
+  objective <- (ot$a$dot(pot$f_xy) +
+    ot$b$dot(pot$g_yx) -
+    ot$a$dot(pot$f_xx))$detach()$item() -
+    cot_ccp_y_self_term(ot)
   list(
     objective = objective,
     kkt_constant = kkt$kkt_constant,

@@ -253,6 +253,8 @@ COT <- R6::R6Class(
       },
       weights = function(value) {
         if (missing(value)) {
+          polished <- private$optimizer$polished_weights
+          if (is.numeric(polished)) return(polished)
           as.numeric(private$source$weights$to(device = "cpu"))
         } else {
           private$source$weights <- value
@@ -321,46 +323,13 @@ COT <- R6::R6Class(
 #'   selection. Supported entries are `pilot.weights`, `details`,
 #'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`, and
 #'   `mass.bootstrap.kappa`.
-#' @param polish Primal weight refinement: `"auto"` uses exact Newton up to
-#'   `polish.control$max_free` (2000), then L-BFGS; `"osqp"` uses a constrained
-#'   quadratic model. `"none"` disables refinement. Applies to a single debiased
-#'   OT problem with one adapted source weight measure and no balance constraints.
-#'   Standard online costs use chunked CPU evaluation and L-BFGS in auto mode.
-#'   Unsupported configurations are skipped, with the reason in `info()$polish`.
-#' @param polish.control Named list of refinement controls: `maxit` (20),
-#'   `tol` (1e-8, independent of the solver), `sinkhorn_tol` (1e-13),
-#'   `sinkhorn_niter` (10000), `max_free` (2000), `armijo` (1e-4),
-#'   `alpha_min` (1e-8), `zero_tol` (1e-12), `release_margin` (0),
-#'   `release_max` (NULL), `lbfgs_m` (10), `osqp` (list of OSQP overrides),
-#'   `block_size` (512), `active_tol` (NULL, epsilon cap 0.01/n),
-#'   `roundoff` (64), and `resolution_tol` (1e-4). These last two controls
-#'   set precision floors for the polish's internal stopping rule; they do
-#'   not determine final fit convergence. The polish uses its own tighter
-#'   `tol` to decide when to stop refining. Final fit convergence uses the
-#'   user's solver `tol` and the precision of the returned weights.
-#'   Sinkhorn tolerance is floored at eight double epsilons times lambda.
-#'   The target self term is cold-evaluated once. Near-zero active coordinates
-#'   retain their mass in the current iterate; only their Hessian columns are
-#'   approximated by zero. There is no cold sparse-model evaluation. Epsilon
-#'   shrinks with the projected-gradient residual, and the free candidate count
-#'   controls the cap. Newton resumes when that count falls below it.
-#'   Line searches never increase the loss; equal-loss steps must reduce
-#'   the FW gap. The first L-BFGS step is scaled to the mean weight.
-#'   Stalled solves stop refining when further improvement cannot be verified.
-#'   `warm_start` (TRUE) enables marginal-certified line-search probes;
-#'   `marginal_tol` defaults to 1e-13. Final polish gap evaluation remains cold.
-#'   With `polish = "none"`, convergence uses phase 1's existing FW gap and
-#'   full debiased divergence, without an extra solve, and requires normal
-#'   stopping. Evaluator errors retain valid weights and fall back to the
-#'   phase-1 convergence test. `info()$converged` and `info()$reason` report
-#'   outcomes; `info()$polish[[lambda]][[delta]]$convergence` records the
-#'   diagnostic numbers `phase`, `gap`, `D`, `atol`, and `tol`.
-#'   Out-of-scope fits keep their solver flag with reason `gap unavailable`.
-#'   Failed numerical fits store NA weights and are excluded from all selectors.
-#'   Selection errors if every fit failed; selecting a fit that is not converged warns.
-#'   Float32 fits rebuild float64 costs from the pre-cast data when supported;
-#'   diagnostics record `cost_source`, fallback reasons, and `loss_device`.
-#'   The phase-1 stopping rule and the default `polish = "auto"` are unchanged.
+#' @param polish Primal weight refinement, `"auto"` (default) or `"none"`.
+#'   `"auto"` refines the phase-1 weights in float64 on the CPU with Newton
+#'   steps, or L-BFGS steps when more than 2,000 weights are free, and returns
+#'   float64 weights. It applies to a single debiased OT problem with one
+#'   adapted source weight measure, no balance constraints, and a finite lambda;
+#'   other configurations are skipped. `info()$polish` records each fit's
+#'   `status` and `iterations`.
 #' @param tol Relative tolerance for final fit convergence (default 1e-4),
 #'   shared by phase 1 and polish: `gap <= atol + tol * max(0, D)`, where
 #'   `D` is the debiased divergence. Unpolished fits use `atol = ot_tol`
@@ -368,11 +337,12 @@ COT <- R6::R6Class(
 #'   Thus unpolished `converged` means accurate to about `ot_tol` in absolute
 #'   terms; when `D` is much smaller than `ot_tol`, even a large gap/D can pass.
 #'   Lower `ot_tol` for more phase-1 accuracy, or use the polish for `tol`
-#'   relative accuracy. Polished fits use a cold float64 evaluator with
-#'   `atol = 64 * eps64 * scale` for float64 weights or `eps32 * scale` for
-#'   float32 weights, where `scale` is the cost scale. Their gap test applies
-#'   regardless of phase-1 or polish iteration caps. The separate
-#'   `polish.control$tol` (default 1e-8) only controls refinement stopping.
+#'   relative accuracy. Polished fits use `atol = 64 * eps64 * scale` plus 16
+#'   times the polish's Sinkhorn tolerance (1e-13), where `scale` is the cost
+#'   scale, regardless of phase-1 iteration caps. `ot_tol` is also the inner
+#'   Sinkhorn tolerance: iterations stop once the largest change in the
+#'   potentials is below `ot_tol * lambda`, that is, once the log marginal
+#'   violation is below `ot_tol`.
 #' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
 #' @param ... Arguments passed to the solvers. See details. Named arguments
@@ -441,8 +411,7 @@ cotOptions <- function(
   dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
-  polish = c("auto", "exact", "osqp", "lbfgs", "none"),
-  polish.control = list(),
+  polish = c("auto", "none"),
   p = 2.0,
   cost.function = NULL,
   cost.online = "auto",
@@ -539,8 +508,6 @@ cotOptions <- function(
   }
 
   output$polish <- match.arg(polish)
-  if (!is.list(polish.control)) stop("polish.control must be a list")
-  output$polish.control <- do.call(cot_polish_control, polish.control)
 
   if (missing(balance.formula) || arg_not_used(balance.formula)) {
     output["balance.formula"] <- list(NULL)
@@ -622,6 +589,13 @@ cotOptions <- function(
     output$solver.options <- list(...)[
       ...names() %in% methods::formalArgs(output$torch.optimizer)
     ]
+  }
+
+  # Without a line search, torch's LBFGS takes full steps, which can collapse
+  # the weights onto a single point. Use strong Wolfe unless the user chose.
+  if (inherits(output$torch.optimizer, "optim_lbfgs") &&
+      !("line_search_fn" %in% names(list(...)))) {
+    output$solver.options$line_search_fn <- "strong_wolfe"
   }
 
   if (missing(torch.scheduler) && missing(torch.optimizer)) {

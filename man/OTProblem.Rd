@@ -301,6 +301,9 @@ if (torch::torch_is_installed()) {
 \item{\code{selected_delta}}{the delta value selected after \code{choose_hyperparameters}}
 
 \item{\code{selected_lambda}}{the lambda value selected after \code{choose_hyperparameters}}
+
+\item{\code{polished_weights}}{Float64 source weights of the selected fit when
+it was polished, otherwise \code{NULL}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -612,8 +615,7 @@ Sets up the OT problems for the \code{OTProblem} object. This should be run befo
   diameter = NULL,
   ot_niter = 1000L,
   ot_tol = 0.001,
-  polish = c("auto", "exact", "osqp", "lbfgs", "none"),
-  polish.control = list()
+  polish = c("auto", "none")
 )}\if{html}{\out{</div>}}
 }
 
@@ -638,11 +640,10 @@ Sets up the OT problems for the \code{OTProblem} object. This should be run befo
 
 \item{\code{ot_niter}}{Number of iterations to run the solver}
 
-\item{\code{ot_tol}}{The tolerance for convergence of the objective function}
+\item{\code{ot_tol}}{Sinkhorn tolerance: iterations stop once the largest change
+in the potentials is below \code{ot_tol * lambda}.}
 
-\item{\code{polish}}{Primal weight refinement method; see \code{\link[=cotOptions]{cotOptions()}}.}
-
-\item{\code{polish.control}}{Named refinement controls; see \code{\link[=cotOptions]{cotOptions()}}.}
+\item{\code{polish}}{Primal weight refinement, \code{"auto"} or \code{"none"}; see \code{\link[=cotOptions]{cotOptions()}}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -819,15 +820,13 @@ a list with slots
 \item \code{iterations} The number of iterations run for each combination of parameters
 \item \code{balance.function.differences} The final differences in the balance functions
 \item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values
-\item \code{polish} Per-lambda and per-delta refinement diagnostics, including skip reasons.
-Each entry's \code{convergence} records \code{phase}, \code{gap}, \code{D}, \code{atol}, and \code{tol}.
+\item \code{polish} Per-lambda and per-delta polish \code{status} and \code{iterations}.
 \item \code{converged} Per-lambda and per-delta logical outcome. Eligible fits
 pass \code{gap <= atol + tol * max(0, D)}, using the user's solver \code{tol}.
-Unpolished fits also require normal stopping and use \code{atol = ot_tol},
-without an extra solve. Polished fits use a cold float64 gap and an
-absolute tolerance of \code{64 * eps64 * scale} for float64 weights or
-\code{eps32 * scale} for float32 weights. Their phase-1 iteration cap does
-not affect convergence. Out-of-scope fits retain the solver flag.
+Unpolished fits also require normal stopping and use \code{atol = ot_tol}.
+Polished fits use \code{atol = 64 * eps64 * scale} plus 16 times the polish's
+Sinkhorn tolerance, where \code{scale} is the cost scale. Out-of-scope fits
+retain the solver flag.
 \item \code{reason} Per-lambda and per-delta outcome message: \code{ok}, \code{niter},
 \verb{gap above tolerance}, \verb{gap unavailable}, \verb{polish error: <msg>}, or
 \verb{error: <msg>}. Polish errors fall back to valid phase-1 weights and

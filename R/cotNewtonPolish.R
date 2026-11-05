@@ -1,103 +1,65 @@
 # Float64 CPU refinement of a single, unconstrained primal COT problem.
-# All tensors are detached; neither the evaluator nor the optimizer mutates OT.
-cot_polish_control <- function(...) {
-  defaults <- list(max_free = 2000L, maxit = 20L, tol = 1e-8,
-    sinkhorn_tol = 1e-13, sinkhorn_niter = 10000L, armijo = 1e-4,
-    alpha_min = 1e-8, zero_tol = 1e-12, release_margin = 0,
-    release_max = NULL, lbfgs_m = 10L, osqp = list(), block_size = 512L,
-    conv_scale = NULL, active_tol = NULL, roundoff = 64,
-    resolution_tol = 1e-4, weight_eps = .Machine$double.eps,
-    warm_start = TRUE, marginal_tol = 1e-13)
-  args <- list(...)
-  if (length(args) && (is.null(names(args)) || anyNA(names(args)) || any(!nzchar(names(args))) || anyDuplicated(names(args))))
-    stop("Polish controls must have unique, nonempty names")
-  unknown <- setdiff(names(args), names(defaults))
-  if (length(unknown)) stop("Unknown polish control: ", paste(unknown, collapse = ", "))
-  defaults[names(args)] <- args
-  for (nm in c("max_free", "maxit", "sinkhorn_niter", "lbfgs_m", "block_size")) {
-    x <- defaults[[nm]]
-    if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 1 || x != floor(x))
-      stop("polish.control$", nm, " must be a positive integer")
-  }
-  for (nm in c("sinkhorn_tol", "armijo", "alpha_min", "zero_tol", "release_margin", "tol", "conv_scale", "release_max", "active_tol", "roundoff", "resolution_tol", "weight_eps")) {
-    x <- defaults[[nm]]
-    if (!is.null(x) && (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0))
-      stop("polish.control$", nm, " must be a finite nonnegative scalar")
-  }
-  if (defaults$armijo <= 0 || defaults$armijo >= 1 || defaults$alpha_min <= 0 || defaults$alpha_min > 1 || defaults$sinkhorn_tol <= 0 || defaults$zero_tol >= 1)
-    stop("Invalid polish line-search or Sinkhorn controls")
-  if (!is.null(defaults$release_max) && defaults$release_max != floor(defaults$release_max)) stop("release_max must be an integer")
-  if (is.null(defaults$tol)) defaults$tol <- 1e-8
-  if (defaults$weight_eps < .Machine$double.eps) stop("weight_eps must be at least double precision epsilon")
-  if (defaults$roundoff < 1) stop("roundoff must be at least one")
-  if (!is.logical(defaults$warm_start) || length(defaults$warm_start) != 1L || is.na(defaults$warm_start)) stop("warm_start must be TRUE or FALSE")
-  if (!is.numeric(defaults$marginal_tol) || length(defaults$marginal_tol) != 1L || !is.finite(defaults$marginal_tol) || defaults$marginal_tol <= 0) stop("marginal_tol must be positive")
-  if (!is.list(defaults$osqp)) stop("polish.control$osqp must be a list")
-  defaults
-}
+# Weights and costs are converted to float64 on the CPU once, and the polished
+# weights are returned in float64. All tensors are detached; nothing here
+# mutates the OT object.
+
+# Internal constants; these are not user settings.
+cot_polish_ctl <- list(maxit = 20L, tol = 1e-8, sinkhorn_tol = 1e-13,
+  sinkhorn_niter = 10000L, max_free = 2000L, armijo = 1e-4, alpha_min = 1e-8,
+  zero_tol = 1e-12, lbfgs_m = 10L, block_size = 512L, marginal_tol = 1e-13,
+  warm_start = TRUE)
 
 cot_polish_tensor <- function(x) {
+  # MPS has no float64, so move to the CPU before changing dtype.
   if (inherits(x, "torch_tensor")) return(x$detach()$to(device = "cpu")$to(dtype = torch::torch_float64()))
   torch::torch_tensor(x, dtype = torch::torch_float64(), device = "cpu")
 }
 
-# Cost accessors avoid a full CPU copy of a GPU matrix and materialization of
-# online costs. Online custom KeOps expressions are deliberately unsupported.
-cot_polish_cost <- function(x, block_size = 512L) {
+# Stored costs become one dense float64 CPU matrix. Online costs keep float64
+# copies of their points and are evaluated in blocks. Self costs computed in
+# float32 can be slightly asymmetric, which breaks the debiased gradient, so
+# `symmetric = TRUE` averages a stored matrix with its transpose.
+cot_polish_cost <- function(x, block_size = cot_polish_ctl$block_size, symmetric = FALSE) {
   if (inherits(x, "cot_polish_cost")) return(x)
-  online <- NULL
   if (inherits(x, "costOnline")) {
     if (identical(x$algorithm, "user")) stop("Custom online cost expressions are not supported by polish")
-    xx <- cot_polish_tensor(x$data$x); yy <- cot_polish_tensor(x$data$y); p <- x$p
-    online <- list(x = xx, y = yy, p = as.numeric(p))
-    nr <- nrow(xx); nc <- nrow(yy)
+    xx <- cot_polish_tensor(x$data$x); yy <- cot_polish_tensor(x$data$y); p <- as.numeric(x$p)
     get <- function(i, j) torch::torch_cdist(xx[i, , drop = FALSE], yy[j, , drop = FALSE], p = p)^p / p
+    cost <- list(nrow = nrow(xx), ncol = nrow(yy), get = get, dense = NULL,
+      online = list(x = xx, y = yy, p = p))
   } else {
     if (inherits(x, "costTensor")) x <- x$data
-    nr <- nrow(x); nc <- ncol(x)
-    if (is.null(nr) || is.null(nc)) stop("Polish costs must be matrices or cost objects")
-    get <- function(i, j) cot_polish_tensor(x[i, j, drop = FALSE])
+    dense <- cot_polish_tensor(x)
+    if (length(dim(dense)) != 2L) stop("Polish costs must be matrices or cost objects")
+    if (symmetric) dense <- (dense + dense$t()) / 2
+    cost <- list(nrow = nrow(dense), ncol = ncol(dense),
+      get = function(i, j) dense[i, j, drop = FALSE], dense = dense, online = NULL)
   }
-  dense <- if (!inherits(x, "costOnline") && max(nr, nc) <= block_size) get(seq_len(nr), seq_len(nc)) else NULL
-  structure(list(nrow = nr, ncol = nc, get = get, block_size = block_size, dense = dense, online = online), class = "cot_polish_cost")
-}
-
-cot_polish_softmin <- function(cost, h, eps, transpose = FALSE) {
-  nr <- if (transpose) cost$ncol else cost$nrow
-  nc <- if (transpose) cost$nrow else cost$ncol
-  out <- torch::torch_empty(nr, dtype = torch::torch_float64())
-  for (lo in seq.int(1L, nr, by = cost$block_size)) {
-    ii <- lo:min(nr, lo + cost$block_size - 1L)
-    # Chunk both axes: memory stays bounded even for a very wide target.
-    acc <- torch::torch_full(length(ii), -Inf, dtype = torch::torch_float64())
-    for (lj in seq.int(1L, nc, by = cost$block_size)) {
-      jj <- lj:min(nc, lj + cost$block_size - 1L)
-      C <- if (transpose) cost$get(jj, ii)$t() else cost$get(ii, jj)
-      v <- ((h[jj]$view(c(1L, -1L)) - C) / eps)$logsumexp(2)
-      acc <- torch::torch_logaddexp(acc, v)
-    }
-    # Keep the tensor on the left: numeric-left dispatch can round eps to float32.
-    out[ii] <- -acc * eps
-  }
-  out
+  cost$block_size <- block_size
+  cost <- structure(cost, class = "cot_polish_cost")
+  cost$diameter <- cot_polish_diameter(cost)
+  cost
 }
 
 cot_polish_diameter <- function(cost) {
   if (!is.null(cost$diameter)) return(cost$diameter)
+  blocks <- if (is.null(cost$dense)) {
+    bs <- cost$block_size
+    rows <- lapply(seq.int(1L, cost$nrow, by = bs), function(lo) lo:min(cost$nrow, lo + bs - 1L))
+    cols <- lapply(seq.int(1L, cost$ncol, by = bs), function(lo) lo:min(cost$ncol, lo + bs - 1L))
+    unlist(lapply(rows, function(i) lapply(cols, function(j) list(i, j))), recursive = FALSE)
+  } else list(NULL)
   ans <- 0
-  for (lo in seq.int(1L, cost$nrow, by = cost$block_size)) {
-    for (lj in seq.int(1L, cost$ncol, by = cost$block_size)) {
-      C <- cost$get(lo:min(cost$nrow, lo + cost$block_size - 1L), lj:min(cost$ncol, lj + cost$block_size - 1L))
-      if (!all(is.finite(as.numeric(C)))) stop("Polish costs must be finite")
-      ans <- max(ans, C$max()$item())
-    }
+  for (ij in blocks) {
+    C <- if (is.null(ij)) cost$dense else cost$get(ij[[1L]], ij[[2L]])
+    if (!torch::torch_isfinite(C)$all()$item()) stop("Polish costs must be finite")
+    ans <- max(ans, C$max()$item())
   }
   ans
 }
 
-# Compile the small dense evaluator once. Keeping the inner Sinkhorn loop in
-# torch avoids an R/C++ round trip for every update; large/online costs retain
-# the bounded-memory block evaluator below.
+# Compiled evaluators. Keeping the inner Sinkhorn loop in TorchScript avoids an
+# R/C++ round trip for every update. Online costs are evaluated in blocks.
 cot_polish_dense <- local({
   compiled <- NULL
   function() {
@@ -278,95 +240,75 @@ def polish_dense(a: Tensor, b: Tensor, C: Tensor, D: Tensor, path: Tensor, tol: 
   }
 })
 
-# The target-only constant is solved once, in the same float64 arithmetic as
-# the weight objective. It cannot be inferred from arbitrary cross costs.
-cot_polish_self <- function(b, C_yy, lambda, control) {
-  b <- cot_polish_tensor(b)
-  yy <- cot_polish_cost(C_yy, control$block_size)
-  diameter <- cot_polish_diameter(yy)
-  control$sinkhorn_tol <- max(control$sinkhorn_tol, 8 * .Machine$double.eps * lambda)
-  path <- if (lambda >= diameter) lambda else unique(pmax(c(diameter * exp(-0.9 * (0:ceiling(log(diameter / lambda) / 0.9))), lambda), lambda))
-  if (!is.null(yy$dense)) {
-    f <- cot_polish_dense()$polish_self_dense(b, yy$dense, cot_polish_tensor(path),
-      torch::jit_scalar(control$sinkhorn_tol), torch::jit_scalar(as.integer(control$sinkhorn_niter)))
-  } else if (!is.null(yy$online) && identical(as.matrix(yy$online$x), as.matrix(yy$online$y))) {
-    f <- cot_polish_dense()$polish_self_online(b, yy$online$x, torch::jit_scalar(yy$online$p),
-      cot_polish_tensor(path), torch::jit_scalar(control$sinkhorn_tol),
-      torch::jit_scalar(as.integer(control$sinkhorn_niter)), torch::jit_scalar(as.integer(control$block_size)))
-  } else {
-    f <- torch::torch_zeros_like(b); lb <- b$log(); done <- FALSE
-    for (eps in path) {
-      final <- eps == lambda
-      for (it in seq_len(if (final) control$sinkhorn_niter else 5L)) {
-        fn <- (f + cot_polish_softmin(yy, f + lb * eps, eps)) / 2
-        done <- final && (fn - f)$abs()$max()$item() <= control$sinkhorn_tol
-        f <- fn
-        if (done) break
-      }
-    }
-    if (!done) stop("Polish target self evaluator did not converge")
-  }
+cot_polish_path <- function(lambda, diameter) {
+  if (lambda >= diameter) return(lambda)
+  unique(pmax(c(diameter * exp(-0.9 * (0:ceiling(log(diameter / lambda) / 0.9))), lambda), lambda))
+}
+
+cot_polish_sinkhorn_tol <- function(lambda, ctl) max(ctl$sinkhorn_tol, 8 * .Machine$double.eps * lambda)
+
+cot_polish_value <- function(a, b, pot) {
+  grad <- pot$f_xy - pot$f_xx
+  list(loss = (a$dot(grad) + b$dot(pot$g_yx))$item(), grad = as.numeric(grad),
+    pot = pot[c("f_xy", "g_yx", "f_xx")])
+}
+
+cot_polish_online <- function(xy, xx) {
+  if (!is.null(xy$dense) && !is.null(xx$dense)) return(FALSE)
+  if (!is.null(xy$online) && !is.null(xx$online)) return(TRUE)
+  stop("Polish costs must be all stored or all online")
+}
+
+# The target-only constant is solved once per lambda, in the same float64
+# arithmetic as the weight objective.
+cot_polish_self <- function(b, yy, lambda, ctl = cot_polish_ctl) {
+  b <- cot_polish_tensor(b); yy <- cot_polish_cost(yy, ctl$block_size)
+  path <- cot_polish_tensor(cot_polish_path(lambda, yy$diameter))
+  tol <- torch::jit_scalar(cot_polish_sinkhorn_tol(lambda, ctl))
+  niter <- torch::jit_scalar(as.integer(ctl$sinkhorn_niter))
+  f <- if (is.null(yy$dense)) {
+    cot_polish_dense()$polish_self_online(b, yy$online$x, torch::jit_scalar(yy$online$p),
+      path, tol, niter, torch::jit_scalar(as.integer(yy$block_size)))
+  } else cot_polish_dense()$polish_self_dense(b, yy$dense, path, tol, niter)
   b$dot(f)$item()
 }
 
-cot_polish_eval <- function(a, b, C_xy, C_xx, lambda, control = cot_polish_control(), diameter = NULL) {
+# Cold evaluation with epsilon scaling from the cost diameter.
+cot_polish_eval <- function(a, b, xy, xx, lambda, ctl = cot_polish_ctl) {
   a <- cot_polish_tensor(a); b <- cot_polish_tensor(b)
   a <- a / a$sum(); b <- b / b$sum()
-  xy <- cot_polish_cost(C_xy, control$block_size); xx <- cot_polish_cost(C_xx, control$block_size)
-  if (is.null(diameter)) diameter <- max(cot_polish_diameter(xy), cot_polish_diameter(xx))
-  control$sinkhorn_tol <- max(control$sinkhorn_tol, 8 * .Machine$double.eps * lambda)
-  path <- if (lambda >= diameter) lambda else unique(pmax(c(diameter * exp(-0.9 * (0:ceiling(log(diameter / lambda) / 0.9))), lambda), lambda))
-  if (!is.null(xy$online) && !is.null(xx$online) &&
-      identical(xy$online$p, xx$online$p) &&
-      identical(as.matrix(xy$online$x), as.matrix(xx$online$x)) &&
-      identical(as.matrix(xx$online$x), as.matrix(xx$online$y))) {
-    pot <- cot_polish_dense()$polish_online(a, b, xy$online$x, xy$online$y,
-      torch::jit_scalar(xy$online$p), cot_polish_tensor(path),
-      torch::jit_scalar(control$sinkhorn_tol), torch::jit_scalar(as.integer(control$sinkhorn_niter)),
-      torch::jit_scalar(as.integer(control$block_size)))
-    grad <- pot$f_xy - pot$f_xx
-    return(list(loss = (a$dot(grad) + b$dot(pot$g_yx))$item(), grad = as.numeric(grad), pot = pot, iterations = as.integer(pot$iterations)))
-  }
-  if (!is.null(xy$dense) && !is.null(xx$dense)) {
-    pot <- cot_polish_dense()$polish_dense(a, b, xy$dense, xx$dense,
-      cot_polish_tensor(path), torch::jit_scalar(control$sinkhorn_tol),
-      torch::jit_scalar(as.integer(control$sinkhorn_niter)))
-    grad <- pot$f_xy - pot$f_xx
-    return(list(loss = (a$dot(grad) + b$dot(pot$g_yx))$item(),
-      grad = as.numeric(grad), pot = pot, iterations = as.integer(pot$iterations)))
-  }
-  la <- a$log(); lb <- b$log()
-  f <- torch::torch_zeros_like(a); g <- torch::torch_zeros_like(b); s <- torch::torch_zeros_like(a)
-  for (eps in path) {
-    final <- eps == lambda
-    cross_done <- self_done <- FALSE
-    for (it in seq_len(if (final) control$sinkhorn_niter else 5L)) {
-      if (!cross_done) {
-        fn <- cot_polish_softmin(xy, g + lb * eps, eps)
-        fn <- fn - a$dot(fn)
-        gn <- cot_polish_softmin(xy, fn + la * eps, eps, TRUE)
-        err <- (fn - f)$abs()$max()$item()
-        f <- fn; g <- gn
-        cross_done <- final && err <= control$sinkhorn_tol
-      }
-      if (!self_done) {
-        sn <- (s + cot_polish_softmin(xx, s + la * eps, eps)) / 2
-        err <- (sn - s)$abs()$max()$item()
-        s <- sn
-        self_done <- final && err <= control$sinkhorn_tol
-      }
-      if (cross_done && self_done) break
-    }
-  }
-  if (!cross_done || !self_done) stop("Polish Sinkhorn evaluator did not converge")
-  list(loss = (a$dot(f - s) + b$dot(g))$item(), grad = as.numeric(f - s),
-       pot = list(f_xy = f, g_yx = g, f_xx = s))
+  path <- cot_polish_tensor(cot_polish_path(lambda, max(xy$diameter, xx$diameter)))
+  tol <- torch::jit_scalar(cot_polish_sinkhorn_tol(lambda, ctl))
+  niter <- torch::jit_scalar(as.integer(ctl$sinkhorn_niter))
+  pot <- if (cot_polish_online(xy, xx)) {
+    cot_polish_dense()$polish_online(a, b, xy$online$x, xy$online$y,
+      torch::jit_scalar(xy$online$p), path, tol, niter, torch::jit_scalar(as.integer(xy$block_size)))
+  } else cot_polish_dense()$polish_dense(a, b, xy$dense, xx$dense, path, tol, niter)
+  cot_polish_value(a, b, pot)
+}
+
+# Warm evaluation for line-search probes, started from the current potentials
+# and stopped on marginal residuals.
+cot_polish_warm <- function(a, b, xy, xx, lambda, pot, ctl = cot_polish_ctl) {
+  a <- cot_polish_tensor(a); b <- cot_polish_tensor(b)
+  a <- a / a$sum(); b <- b / b$sum()
+  tol <- torch::jit_scalar(ctl$marginal_tol)
+  residual <- torch::jit_scalar(cot_polish_sinkhorn_tol(lambda, ctl))
+  accelerate <- torch::jit_scalar(lambda >= xx$diameter / 4)
+  eps <- torch::jit_scalar(lambda); maxit <- torch::jit_scalar(as.integer(ctl$sinkhorn_niter))
+  out <- if (cot_polish_online(xy, xx)) {
+    cot_polish_dense()$polish_warm_online(a, b, xy$online$x, xy$online$y,
+      torch::jit_scalar(xy$online$p), torch::jit_scalar(as.integer(xy$block_size)), eps,
+      pot$f_xy, pot$g_yx, pot$f_xx, tol, residual, maxit, accelerate)
+  } else cot_polish_dense()$polish_warm_dense(a, b, xy$dense, xx$dense, eps,
+      pot$f_xy, pot$g_yx, pot$f_xx, tol, residual, maxit, accelerate)
+  cot_polish_value(a, b, out)
 }
 
 # Exact candidate block. S includes every strictly positive mass so the block
 # triangular identity remains exact even below the support selection tolerance.
-cot_polish_hessian <- function(a, b, C_xy, C_xx, lambda, pot, candidates = seq_along(a), block_size = 512L, support = which(a > 0)) {
-  xy <- cot_polish_cost(C_xy, block_size); xx <- cot_polish_cost(C_xx, block_size)
+cot_polish_hessian <- function(a, b, xy, xx, lambda, pot, candidates = seq_along(a), support = which(a > 0)) {
+  block_size <- xy$block_size
   S <- support; C <- unique(c(S, candidates)); ns <- length(S); n <- length(C)
   R <- torch::torch_zeros(c(n, n), dtype = torch::torch_float64())
   for (lo in seq.int(1L, xy$ncol, by = block_size)) {
@@ -398,13 +340,18 @@ cot_polish_basis <- function(n) {
   Q[, -1L, drop = FALSE]
 }
 
-# Feasible QP on the epsilon-free model. Retain its binding set across
-# Levenberg shifts and outer steps instead of restarting each factorization.
+# Active-set solve of the simplex QP min d'Hd/2 + g'd, sum(d) = 0, a + d >= 0.
+# The binding set is retained across Levenberg shifts and outer steps.
 cot_polish_exact <- function(H, g, a, zero_tol, state = new.env(parent = emptyenv())) {
   n <- length(a)
   binding <- if (length(state$active) == n) state$active else a <= zero_tol & g > sum(a * g) / sum(a)
   if (all(binding)) binding[which.min(g)] <- FALSE
   kkt_tol <- 128 * .Machine$double.eps * max(1, max(abs(g)))
+  reduced_step <- function(F, rhs) {
+    Z <- cot_polish_tensor(cot_polish_basis(length(F)))
+    L <- torch::linalg_cholesky(Z$t()$matmul(H[F, F, drop = FALSE])$matmul(Z))
+    as.numeric(Z$matmul(torch::torch_cholesky_solve(-Z$t()$matmul(cot_polish_tensor(rhs)$view(c(-1L, 1L))), L)))
+  }
   seen <- character()
   for (attempt in seq_len(20L)) {
     key <- paste(which(binding), collapse = ",")
@@ -414,13 +361,8 @@ cot_polish_exact <- function(H, g, a, zero_tol, state = new.env(parent = emptyen
     F <- which(!binding)
     if (!length(F)) {binding[which.min(g)] <- FALSE; next}
     trial <- -a; trial[F] <- sum(a[binding]) / length(F)
-    if (length(F) > 1L) {
-      Z <- cot_polish_tensor(cot_polish_basis(length(F)))
-      L <- torch::linalg_cholesky(Z$t()$matmul(H[F, F, drop = FALSE])$matmul(Z))
-      rhs <- -Z$t()$matmul(cot_polish_tensor(g[F] + as.numeric(H[F, , drop = FALSE]$matmul(cot_polish_tensor(trial))))$view(c(-1L, 1L)))
-      trial[F] <- trial[F] + as.numeric(Z$matmul(torch::torch_cholesky_solve(rhs, L)))
-      state$n_factor <- if (is.null(state$n_factor)) 1L else state$n_factor + 1L
-    }
+    if (length(F) > 1L)
+      trial[F] <- trial[F] + reduced_step(F, g[F] + as.numeric(H[F, , drop = FALSE]$matmul(cot_polish_tensor(trial))))
     negative <- F[a[F] + trial[F] < -1e-12]
     if (length(negative)) {binding[negative] <- TRUE; next}
     q <- g + as.numeric(H$matmul(cot_polish_tensor(trial)))
@@ -443,13 +385,7 @@ cot_polish_exact <- function(H, g, a, zero_tol, state = new.env(parent = emptyen
       next
     }
     p <- numeric(n)
-    if (length(F) > 1L) {
-      Z <- cot_polish_tensor(cot_polish_basis(length(F)))
-      L <- torch::linalg_cholesky(Z$t()$matmul(H[F, F, drop = FALSE])$matmul(Z))
-      rhs <- -Z$t()$matmul(cot_polish_tensor(q[F])$view(c(-1L, 1L)))
-      p[F] <- as.numeric(Z$matmul(torch::torch_cholesky_solve(rhs, L)))
-      state$n_factor <- if (is.null(state$n_factor)) 1L else state$n_factor + 1L
-    }
+    if (length(F) > 1L) p[F] <- reduced_step(F, q[F])
     if (max(abs(p)) <= .Machine$double.eps) stop("Polish QP needs a larger Levenberg shift")
     hits <- which(p < 0 & !binding)
     ratios <- (a[hits] + d[hits]) / -p[hits]
@@ -464,37 +400,21 @@ cot_polish_exact <- function(H, g, a, zero_tol, state = new.env(parent = emptyen
   stop("Polish QP needs a larger Levenberg shift")
 }
 
-cot_polish_sets <- function(a, g, gap, control, scale = 1) {
-  S <- which(a > control$zero_tol)
+# Free and binding coordinates. Bertsekas' epsilon shrinks with the
+# projected-gradient residual; the inverse cost scale makes the gradient step
+# dimensionless on the simplex.
+cot_polish_sets <- function(a, g, scale, ctl = cot_polish_ctl) {
+  S <- which(a > ctl$zero_tol)
   nu <- sum(a[S] * g[S]) / sum(a[S])
-  epsilon_max <- if (is.null(control$active_tol)) 1e-2 / length(a) else control$active_tol
-  # Bertsekas' epsilon shrinks with the projected-gradient residual. The
-  # inverse cost scale gives a dimensionless gradient step on the simplex.
   v <- a - (g - nu) / max(scale, .Machine$double.eps)
   u <- sort(v, decreasing = TRUE)
   theta <- (cumsum(u) - 1) / seq_along(u)
-  rho <- max(which(u > theta))
-  projected <- pmax(v - theta[rho], 0)
-  epsilon <- min(epsilon_max, sqrt(sum((a - projected)^2)))
+  projected <- pmax(v - theta[max(which(u > theta))], 0)
+  epsilon <- min(1e-2 / length(a), sqrt(sum((a - projected)^2)))
   # Avoid declaring a small optimal weight binding because of potential noise.
-  margin <- 8 * control$sinkhorn_tol
-  binding <- which(a <= epsilon & g > nu + margin)
-  zeros <- which(a <= control$zero_tol & g < nu - control$release_margin * gap)
-  zeros <- zeros[order(g[zeros])]
-  if (!is.null(control$release_max)) zeros <- utils::head(zeros, control$release_max)
-  free <- sort(unique(c(setdiff(which(a > 0), binding), zeros)))
-  # The iterate and its potentials retain ALL current mass. Bound coordinates
-  # are held out of the Hessian; they may move only in the projected step.
-  list(free = free, binding = binding, weights = a, nu = nu)
-}
-
-cot_polish_threshold <- function(loss, y_self, scale, control) {
-  control$tol * max(0, loss - y_self)
-}
-
-cot_polish_resolution_threshold <- function(loss, y_self, scale, control) {
-  max(control$roundoff * .Machine$double.eps * scale,
-      control$resolution_tol * max(0, loss - y_self, control$roundoff * control$weight_eps * scale))
+  binding <- which(a <= epsilon & g > nu + 8 * ctl$sinkhorn_tol)
+  zeros <- which(a <= ctl$zero_tol & g < nu)
+  list(free = sort(unique(c(setdiff(which(a > 0), binding), zeros))), binding = binding)
 }
 
 # Final fit convergence uses the user's absolute-plus-relative tolerance.
@@ -504,31 +424,11 @@ cot_converged <- function(gap, D, atol, tol) {
   gap <= atol + tol * max(0, D)
 }
 
-# Internal polish stopping classifier; independent of final fit convergence.
-cot_certify <- function(gap, divergence, scale, weight_eps, tol, resolution = FALSE, roundoff = 64, resolution_tol = 1e-4) {
-  if (any(!is.finite(c(gap, divergence, scale, weight_eps, tol))) || gap < 0)
-    return("uncertified")
-  if (gap <= tol * max(0, divergence)) return("certified")
-  floor <- roundoff * .Machine$double.eps * scale
-  threshold <- max(floor, resolution_tol * max(0, divergence, roundoff * weight_eps * scale))
-  if ((resolution || gap <= floor) && gap <= threshold) return("certified_resolution")
-  "uncertified"
-}
-
 cot_fit_valid <- function(weights, loss) {
   if (inherits(weights, "torch_tensor")) weights <- as.numeric(weights$detach()$to(device = "cpu"))
   length(weights) > 0L && all(is.finite(weights)) &&
     all(weights >= -64 * .Machine$double.eps) && sum(weights) > 0 &&
     length(loss) == 1L && is.finite(as.numeric(loss))
-}
-
-cot_polish_convergence <- function(gap, loss, y_self, scale, control, resolution = FALSE) {
-  status <- cot_certify(gap, loss - y_self, scale, control$weight_eps, control$tol, resolution, control$roundoff, control$resolution_tol)
-  if (status == "uncertified") NULL else status
-}
-
-cot_polish_is_converged <- function(status) {
-  status %in% c("certified", "certified_resolution")
 }
 
 cot_polish_lbfgs <- function(g, memory, mean_weight = 1 / length(g)) {
@@ -549,307 +449,149 @@ cot_polish_lbfgs <- function(g, memory, mean_weight = 1 / length(g)) {
   -r + mean(r)
 }
 
-cot_newton_polish <- function(a, b, C_xy, C_xx, lambda, potentials = NULL,
-                              direction = c("exact", "osqp", "lbfgs"), control = cot_polish_control(), C_yy = NULL, cache = NULL) {
-  requested_direction <- direction <- match.arg(direction); control <- do.call(cot_polish_control, control)
-  started <- proc.time()[["elapsed"]]
-  a <- as.numeric(cot_polish_tensor(a)); b <- as.numeric(cot_polish_tensor(b))
-  if (any(!is.finite(a)) || any(a < 0) || sum(a) <= 0 || any(!is.finite(b)) || any(b < 0) || abs(sum(b) - 1) > 1e-6 || length(lambda) != 1L || !is.finite(lambda) || lambda <= 0)
-    stop("Polish requires probability weights and a finite positive lambda")
-  solver_weights <- a
-  a <- a / sum(a); b <- b / sum(b)
-  quantize <- function(w) {
-    if (control$weight_eps > .Machine$double.eps)
-      as.numeric(torch::torch_tensor(w, dtype = torch::torch_float32())) else w
+# Newton direction on the free set, with a Levenberg shift when the reduced
+# Hessian is not usable. Falls back to the base step if no shift works.
+cot_polish_newton <- function(a, b, xy, xx, lambda, ev, base, F, state, ctl) {
+  H <- tryCatch(cot_polish_hessian(a, b, xy, xx, lambda, ev$pot, F,
+    support = intersect(which(a > 0), F)), error = function(e) NULL)
+  if (is.null(H)) return(NULL)
+  # The Hessian gauge is irrelevant on sum(d) = 0. Remove it before ridge
+  # scaling and active-set multiplier tests, especially at large lambda.
+  rows <- H$mean(dim = 2, keepdim = TRUE)
+  H <- H - rows - rows$t() + H$mean()
+  model_g <- ev$grad[F] + as.numeric(H$matmul(cot_polish_tensor(base[F])))
+  centered_g <- model_g - mean(model_g)
+  hscale <- max(abs(as.numeric(H$diag())), .Machine$double.eps)
+  eye <- torch::torch_eye(length(F), dtype = torch::torch_float64())
+  shift <- 0
+  repeat {
+    dc <- tryCatch(cot_polish_exact(H + eye * shift, centered_g, a[F] + base[F], ctl$zero_tol, state),
+      error = function(e) NULL)
+    if (!is.null(dc) && all(is.finite(dc))) {
+      d <- base; d[F] <- d[F] + dc
+      if (sum(ev$grad * d) < 0) return(d)
+    }
+    shift <- if (shift == 0) 1e-10 * hscale else shift * 10
+    if (shift > hscale * 1.01) return(base)
   }
-  # Preserve the phase-1 point exactly for the cold baseline comparison. Only
-  # proposed steps are quantized; normalizing then re-rounding the baseline
-  # itself would silently change the answer against which monotonicity is tested.
-  initial <- a; initial_solver_weights <- solver_weights
-  xy <- cot_polish_cost(C_xy, control$block_size); xx <- cot_polish_cost(C_xx, control$block_size)
-  if (xy$nrow != length(a) || xy$ncol != length(b) || xx$nrow != length(a) || xx$ncol != length(a)) stop("Incompatible polish cost dimensions")
-  xy$diameter <- cot_polish_diameter(xy); xx$diameter <- cot_polish_diameter(xx)
-  diameter <- max(xy$diameter, xx$diameter)
-  scale <- if (is.null(control$conv_scale)) max(diameter, lambda * .Machine$double.eps, .Machine$double.eps) else control$conv_scale
-  if (is.null(C_yy)) stop("C_yy is required for divergence-relative polish convergence")
-  yy <- cot_polish_cost(C_yy, control$block_size)
-  if (yy$nrow != length(b) || yy$ncol != length(b)) stop("Incompatible target self-cost dimensions")
-  yy$diameter <- cot_polish_diameter(yy)
+}
+
+# Monotone Newton polish. Uses exact Newton steps on the free set, or L-BFGS
+# when the free set exceeds max_free. Returns float64 weights; if the polish
+# cannot improve an unconverged start, the start is returned unchanged.
+cot_newton_polish <- function(a, b, C_xy, C_xx, C_yy, lambda, scale = NULL, cache = NULL, ctl = cot_polish_ctl) {
+  a <- as.numeric(cot_polish_tensor(a)); b <- as.numeric(cot_polish_tensor(b))
+  if (any(!is.finite(a)) || any(a < 0) || sum(a) <= 0 || any(!is.finite(b)) || any(b < 0) ||
+      abs(sum(b) - 1) > 1e-6 || length(lambda) != 1L || !is.finite(lambda) || lambda <= 0)
+    stop("Polish requires probability weights and a finite positive lambda")
+  a <- a / sum(a); b <- b / sum(b)
+  xy <- cot_polish_cost(C_xy, ctl$block_size); xx <- cot_polish_cost(C_xx, ctl$block_size)
+  yy <- cot_polish_cost(C_yy, ctl$block_size)
+  if (xy$nrow != length(a) || xy$ncol != length(b) || xx$nrow != length(a) || xx$ncol != length(a) ||
+      yy$nrow != length(b) || yy$ncol != length(b)) stop("Incompatible polish cost dimensions")
+  eps <- .Machine$double.eps
+  if (is.null(scale)) scale <- max(xy$diameter, xx$diameter, lambda * eps, eps)
   scale <- max(scale, yy$diameter)
-  ty <- proc.time()[["elapsed"]]
-  cache_key <- as.character(lambda)
-  y_self <- if (!is.null(cache) && !is.null(cache[[cache_key]])) cache[[cache_key]] else {
-    value <- cot_polish_self(b, yy, lambda, control)
-    if (!is.null(cache)) cache[[cache_key]] <- value
+  key <- as.character(lambda)
+  y_self <- if (!is.null(cache) && !is.null(cache[[key]])) cache[[key]] else {
+    value <- cot_polish_self(b, yy, lambda, ctl)
+    if (!is.null(cache)) cache[[key]] <- value
     value
   }
-  y_time <- proc.time()[["elapsed"]] - ty
-  threshold <- function(loss) cot_polish_threshold(loss, y_self, scale, control)
-  resolution_threshold <- function(loss) cot_polish_resolution_threshold(loss, y_self, scale, control)
-  loss_floor <- control$roundoff * .Machine$double.eps * scale
-  classify <- function(gap, loss, resolution = FALSE) cot_polish_convergence(gap, loss, y_self, scale, control, resolution)
-  evaluate <- function(w) cot_polish_eval(w, b, xy, xx, lambda, control, diameter)
-  ts <- proc.time()[["elapsed"]]
-  ev <- evaluate(a); start_ev <- ev
-  ev_is_cold <- TRUE; readback_evals <- 0L
-  start_time <- proc.time()[["elapsed"]] - ts
-  gap0 <- max(0, sum(a * ev$grad) - min(ev$grad))
-  accepted <- iter <- 0L; max_shift <- 0; status <- "maxit"
-  loss_resolution <- FALSE
-  memory <- list(); prevF <- integer(); prev_a <- prev_g <- NULL
-  osqp_model <- NULL; osqp_n <- 0L
+  # Loss resolution, and the gap resolution: a potential error of size delta
+  # moves the computed gap by up to 2 * (delta_xy + delta_xx), and each delta is
+  # about the Sinkhorn tolerance over (1 - contraction rate). 16 covers rates up
+  # to 3/4.
+  floor <- 64 * eps * scale
+  atol <- floor + 16 * cot_polish_sinkhorn_tol(lambda, ctl)
+  done <- function(gap, loss) gap <= atol + ctl$tol * max(0, loss - y_self)
+  fw_gap <- function(w, g) max(0, sum(w * g) - min(g))
+  evaluate <- function(w) cot_polish_eval(w, b, xy, xx, lambda, ctl)
+
+  initial <- a
+  start <- ev <- evaluate(a); cold <- TRUE
+  gap_start <- fw_gap(a, ev$grad)
+  status <- "maxit"; accepted <- iter <- 0L; use_warm <- ctl$warm_start
+  memory <- list(); prevF <- integer(); prev_a <- prev_g <- NULL; last_dir <- ""
   qp_state <- new.env(parent = emptyenv())
-  timings <- c(start = start_time, y_self = y_time, hessian = 0, factor = 0, line_search = 0, readback = 0)
-  probe_timings <- numeric(); probe_iterations <- integer()
-  direction_history <- character(); free_history <- integer(); binding_history <- integer()
-  use_warm <- control$warm_start
-  line_search_evals <- 0L; first_step_norm <- NA_real_
-  for (k in seq_len(control$maxit)) {
-    gap <- max(0, sum(a * ev$grad) - min(ev$grad))
-    certified <- classify(gap, ev$loss)
-    if (!is.null(certified)) {
-      if (!ev_is_cold) {
-        tr <- proc.time()[["elapsed"]]
-        ev <- evaluate(a)
-        ev_is_cold <- TRUE; readback_evals <- readback_evals + 1L
-        timings["readback"] <- timings["readback"] + proc.time()[["elapsed"]] - tr
-        use_warm <- FALSE
-        gap <- max(0, sum(a * ev$grad) - min(ev$grad))
-        certified <- classify(gap, ev$loss)
-      }
-      if (!is.null(certified)) {status <- certified; break}
+  for (k in seq_len(ctl$maxit)) {
+    gap <- fw_gap(a, ev$grad)
+    if (done(gap, ev$loss)) {
+      # Only a cold evaluation may end the polish.
+      if (!cold) {ev <- evaluate(a); cold <- TRUE; use_warm <- FALSE; gap <- fw_gap(a, ev$grad)}
+      if (done(gap, ev$loss)) break
     }
     iter <- k
-    sets <- cot_polish_sets(a, ev$grad, gap, control, scale)
-    C <- F <- sets$free
-    if (!identical(qp_state$indices, C)) {
-      qp_state$active <- NULL; qp_state$indices <- C
-    }
-    direction <- if (requested_direction != "lbfgs" && length(C) > control$max_free) "lbfgs" else requested_direction
-    if (length(direction_history) && direction != utils::tail(direction_history, 1L)) {
-      memory <- list(); prevF <- integer(); prev_a <- prev_g <- NULL
-    }
-    direction_history <- c(direction_history, direction)
-    free_history <- c(free_history, length(C)); binding_history <- c(binding_history, length(sets$binding))
+    sets <- cot_polish_sets(a, ev$grad, scale, ctl)
+    F <- sets$free
+    if (!identical(qp_state$indices, F)) {qp_state$active <- NULL; qp_state$indices <- F}
+    dir <- if (length(F) > ctl$max_free) "lbfgs" else "newton"
+    if (dir != last_dir) {memory <- list(); prevF <- integer(); prev_a <- prev_g <- NULL}
+    last_dir <- dir
     base <- numeric(length(a))
     base[sets$binding] <- -a[sets$binding]
-    base[C] <- -sum(base) / length(C)
-    d <- base; shift <- 0
-    t0 <- proc.time()[["elapsed"]]
-    if (direction == "lbfgs") {
-      if (!identical(F, prevF)) memory <- list()
-      if (identical(F, prevF) && !is.null(prev_a)) {
+    base[F] <- -sum(base) / length(F)
+    if (dir == "lbfgs") {
+      if (!identical(F, prevF)) memory <- list() else if (!is.null(prev_a)) {
         s <- a[F] - prev_a[F]; y <- ev$grad[F] - prev_g[F]
         s <- s - mean(s); y <- y - mean(y); sy <- sum(s * y)
-        if (sy > 1e-12 * sqrt(sum(s^2) * sum(y^2))) memory <- utils::tail(c(memory, list(list(s = s, y = y, sy = sy))), control$lbfgs_m)
+        if (sy > 1e-12 * sqrt(sum(s^2) * sum(y^2)))
+          memory <- utils::tail(c(memory, list(list(s = s, y = y, sy = sy))), ctl$lbfgs_m)
       }
+      d <- base
       d[F] <- d[F] + cot_polish_lbfgs(ev$grad[F], memory, mean(a))
+      # The first step is scaled to probability-mass units.
       if (!length(memory) && max(abs(d)) > mean(a)) d <- d * mean(a) / max(abs(d))
       prevF <- F; prev_a <- a; prev_g <- ev$grad
-    } else {
-      # Truncate only the tiny active columns in the Hessian operator. The
-      # gradient, potentials, line-search point and objective keep their mass.
-      # No full-source solve or extra cold sparse-model evaluation is needed.
-      H <- tryCatch(cot_polish_hessian(a, b, xy, xx, lambda, ev$pot, C,
-        control$block_size, support = intersect(which(a > 0), C)), error = function(e) NULL)
-      timings["hessian"] <- timings["hessian"] + proc.time()[["elapsed"]] - t0
-      t0 <- proc.time()[["elapsed"]]
-      if (is.null(H)) {status <- "no_descent"; break}
-      # The Hessian gauge is irrelevant on sum(d)=0. Remove it before ridge
-      # scaling and active-set multiplier tests, especially at large lambda.
-      rows <- H$mean(dim = 2, keepdim = TRUE)
-      H <- H - rows - rows$t() + H$mean()
-      model_g <- ev$grad[C] + as.numeric(H$matmul(cot_polish_tensor(base[C])))
-      centered_g <- model_g - mean(model_g)
-      hscale <- max(abs(as.numeric(H$diag())), .Machine$double.eps)
-      repeat {
-        max_shift <- max(max_shift, shift)
-        HH <- H + torch::torch_eye(length(C), dtype = torch::torch_float64()) * shift
-        dc <- tryCatch({
-          if (direction == "exact") cot_polish_exact(HH, centered_g, (a[C] + base[C]), control$zero_tol, qp_state) else {
-            P <- Matrix::forceSymmetric(Matrix::Matrix(as.matrix(HH), sparse = TRUE), uplo = "U")
-            AA <- rbind(Matrix::Matrix(1, 1, length(C), sparse = TRUE), Matrix::Diagonal(length(C)))
-            pars <- utils::modifyList(list(verbose = FALSE, eps_abs = 1e-10, eps_rel = 1e-10, polishing = TRUE, max_iter = 100000L), control$osqp)
-            modern <- utils::packageVersion("osqp") >= "1.0.0"
-            if (!modern && !is.null(pars$polishing)) {pars$polish <- pars$polishing; pars$polishing <- NULL}
-            # Reuse the model when the candidate count and sparse pattern agree.
-            pattern <- list(P@p, P@i)
-            if (is.null(osqp_model) || osqp_n != length(C) || !identical(pattern, osqp_pattern)) {
-              osqp_model <- osqp::osqp(P = P, q = centered_g, A = AA, l = c(0, -(a[C] + base[C])), u = c(0, rep(Inf, length(C))), pars = do.call(osqp::osqpSettings, pars))
-              osqp_n <- length(C); osqp_pattern <- pattern
-            } else {
-              update <- if (modern) osqp_model@Update else osqp_model$Update
-              update(Px = P@x, q = centered_g, l = c(0, -(a[C] + base[C])), u = c(0, rep(Inf, length(C))))
-            }
-            solve <- if (modern) osqp_model@Solve else osqp_model$Solve
-            ans <- solve()
-            if (!(ans$info$status_val %in% c(1L, 2L))) stop("OSQP did not solve the polish QP")
-            as.numeric(ans$x)
-          }
-        }, error = function(e) NULL)
-        trial <- base
-        if (!is.null(dc)) trial[C] <- trial[C] + dc
-        if (!is.null(dc) && all(is.finite(dc)) && sum(ev$grad * trial) < 0) {d <- trial; break}
-        shift <- if (shift == 0) 1e-10 * hscale else shift * 10
-        if (shift > hscale * 1.01) break
-      }
-    }
-    timings["factor"] <- timings["factor"] + proc.time()[["elapsed"]] - t0
-    if (!all(is.finite(d)) || sum(ev$grad * d) >= 0) {status <- "no_descent"; break}
-    if (k == 1L) first_step_norm <- max(abs(d))
-    alpha <- 1; moved <- FALSE; t0 <- proc.time()[["elapsed"]]
-    while (alpha >= control$alpha_min) {
+    } else d <- cot_polish_newton(a, b, xy, xx, lambda, ev, base, F, qp_state, ctl)
+    if (is.null(d) || !all(is.finite(d)) || sum(ev$grad * d) >= 0) {status <- "no_descent"; break}
+
+    alpha <- 1; moved <- FALSE
+    while (alpha >= ctl$alpha_min) {
       next_ev <- NULL; slope <- NA_real_
-      candidate <- pmax(a + alpha * d, 0)
-      candidate[candidate < control$zero_tol] <- 0
-      if (sum(candidate) > 0) {
-        candidate <- candidate / sum(candidate)
-        candidate_solver_weights <- quantize(candidate)
-        candidate <- candidate_solver_weights / sum(candidate_solver_weights)
-        slope <- sum(ev$grad * (candidate - a))
-        next_ev <- if (slope < 0) {
-          line_search_evals <- line_search_evals + 1L
-          tp <- proc.time()[["elapsed"]]
-          probe_is_cold <- !use_warm
-          failed_warm_work <- 0L
-          probe <- tryCatch(if (use_warm)
-            cot_polish_warm(candidate, b, xy, xx, lambda, ev$pot, control) else evaluate(candidate),
-            error = function(e) {
-              probe_is_cold <<- TRUE
-              if (grepl("Warm polish evaluator did not converge", conditionMessage(e), fixed = TRUE))
-                failed_warm_work <<- control$sinkhorn_niter
-              evaluate(candidate)
-            })
-          probe_work <- failed_warm_work + if (is.null(probe$iterations)) 0L else probe$iterations
-          # Close to resolution, the cold evaluator decides both Armijo and
-          # certification; marginal residual noise must not choose the support.
-          if (use_warm && abs(ev$loss - probe$loss) <= 1e-11 * scale) {
-            probe <- evaluate(candidate)
-            probe_work <- probe_work + if (is.null(probe$iterations)) 0L else probe$iterations
-            probe_is_cold <- TRUE
-            use_warm <- FALSE
+      cand <- pmax(a + alpha * d, 0)
+      cand[cand < ctl$zero_tol] <- 0
+      if (sum(cand) > 0) {
+        cand <- cand / sum(cand)
+        # Centered: cand - a sums to zero only up to rounding, which an
+        # uncentered gradient would turn into a slope error of about 1e-16.
+        slope <- sum((ev$grad - sum(a * ev$grad)) * (cand - a))
+        if (slope < 0) {
+          probe_cold <- !use_warm
+          if (use_warm) next_ev <- tryCatch(cot_polish_warm(cand, b, xy, xx, lambda, ev$pot, ctl), error = function(e) NULL)
+          if (is.null(next_ev)) {
+            next_ev <- evaluate(cand); probe_cold <- TRUE
+          } else if (abs(ev$loss - next_ev$loss) <= 1e-11 * scale) {
+            # Close to resolution, marginal residual noise must not choose the
+            # support: switch to cold evaluations for the rest of the polish.
+            next_ev <- evaluate(cand); probe_cold <- TRUE; use_warm <- FALSE
           }
-          probe_timings <- c(probe_timings, proc.time()[["elapsed"]] - tp)
-          probe_iterations <- c(probe_iterations, as.integer(probe_work))
-          probe
-        } else NULL
-        if (!is.null(next_ev) && is.finite(next_ev$loss) && next_ev$loss <= ev$loss &&
-            next_ev$loss <= ev$loss + control$armijo * slope &&
-            (next_ev$loss < ev$loss || sum(candidate * next_ev$grad) - min(next_ev$grad) < gap)) {moved <- TRUE; break}
+          if (is.finite(next_ev$loss) && next_ev$loss <= ev$loss &&
+              next_ev$loss <= ev$loss + ctl$armijo * slope &&
+              (next_ev$loss < ev$loss || fw_gap(cand, next_ev$grad) < gap)) {moved <- TRUE; break}
+        }
       }
       shrink <- 0.5
-      if (direction == "lbfgs" && !length(memory) && !is.null(next_ev) && is.finite(slope) && slope < 0) {
-        # A rejected cold probe also supplies a secant curvature estimate.
-        # Use it to avoid many expensive halvings on a sharply curved face.
-        curvature <- sum((next_ev$grad - ev$grad) * (candidate - a))
-        if (is.finite(curvature) && curvature > 0)
-          shrink <- max(0.05, min(0.5, -slope / curvature))
+      if (dir == "lbfgs" && !length(memory) && !is.null(next_ev) && slope < 0) {
+        # A rejected probe also supplies a secant curvature estimate, which
+        # avoids many halvings on a sharply curved face.
+        curvature <- sum((next_ev$grad - ev$grad) * (cand - a))
+        if (is.finite(curvature) && curvature > 0) shrink <- max(0.05, min(0.5, -slope / curvature))
       }
       alpha <- alpha * shrink
     }
-    timings["line_search"] <- timings["line_search"] + proc.time()[["elapsed"]] - t0
-    if (!moved) {status <- "line_search_failed"; loss_resolution <- TRUE; break}
+    if (!moved) {status <- "line_search_failed"; break}
     improvement <- ev$loss - next_ev$loss
-    a <- candidate; solver_weights <- candidate_solver_weights
-    ev <- next_ev; ev_is_cold <- probe_is_cold; accepted <- accepted + 1L
-    new_gap <- max(0, sum(a * ev$grad) - min(ev$grad))
-    precision_floor <- max(loss_floor, control$weight_eps * scale)
-    if (improvement <= loss_floor ||
-        (improvement <= precision_floor && new_gap <= resolution_threshold(ev$loss))) {
-      loss_resolution <- TRUE
-      new_gap <- max(0, sum(a * ev$grad) - min(ev$grad))
-      certified <- classify(new_gap, ev$loss, TRUE)
-      status <- if (is.null(certified)) "stalled_resolution" else certified
-      break
-    }
+    a <- cand; ev <- next_ev; cold <- probe_cold; accepted <- accepted + 1L
+    if (improvement <= floor) {status <- "stalled"; break}
   }
-  # Only a cold eps-scaled solve may certify the returned point.
-  tr <- proc.time()[["elapsed"]]
-  if (!ev_is_cold) {ev <- evaluate(a); readback_evals <- readback_evals + 1L}
-  timings["readback"] <- timings["readback"] + proc.time()[["elapsed"]] - tr
-  gap <- max(0, sum(a * ev$grad) - min(ev$grad))
-  loss_resolution <- loss_resolution || status %in% c("line_search_failed", "no_descent")
-  certified <- classify(gap, ev$loss, loss_resolution)
-  if (!is.null(certified)) status <- certified
-  noise <- 10 * .Machine$double.eps * max(scale, abs(start_ev$loss))
-  if (!cot_polish_is_converged(status) && start_ev$loss - ev$loss <= noise) {
-    a <- initial; solver_weights <- initial_solver_weights
-    ev <- start_ev; gap <- gap0; status <- "no_improvement"
+  if (!cold) ev <- evaluate(a)
+  gap <- fw_gap(a, ev$grad)
+  if (done(gap, ev$loss)) {
+    status <- if (accepted > 0L) "refined" else "already_optimal"
+  } else if (start$loss - ev$loss <= 10 * eps * max(scale, abs(start$loss))) {
+    a <- initial; ev <- start; gap <- gap_start; status <- "no_improvement"
   }
-  elapsed <- proc.time()[["elapsed"]] - started
-  timings <- c(timings, other = max(0, elapsed - sum(timings)))
-  list(weights = a, solver_weights = solver_weights, loss = ev$loss, loss_start = start_ev$loss, fw_gap_start = gap0,
-    fw_gap = gap, iter = iter, n_accepted = accepted, status = status,
-    nnz = sum(a > control$zero_tol), max_shift = max_shift, direction = direction,
-    divergence = ev$loss - y_self, divergence_start = start_ev$loss - y_self,
-    y_self = y_self, fw_threshold = threshold(ev$loss), fw_threshold_start = threshold(start_ev$loss),
-    resolution_threshold = resolution_threshold(ev$loss),
-    resolution_threshold_start = resolution_threshold(start_ev$loss),
-    loss_resolution = loss_resolution, weight_eps = control$weight_eps,
-    weight_roundoff_floor = control$roundoff * control$weight_eps * scale,
-    conv_scale = scale, roundoff_floor = loss_floor,
-    direction_history = direction_history, free_history = free_history, binding_history = binding_history,
-    line_search_evals = line_search_evals, first_step_norm = first_step_norm,
-    factorizations = if (is.null(qp_state$n_factor)) 0L else qp_state$n_factor,
-    time = elapsed, timings = timings, readback_evals = readback_evals, probe_timings = probe_timings, probe_iterations = probe_iterations)
-}
-
-# Rebuild in bounded blocks from the pre-cast points. Custom costs are checked
-# on every block; the hook falls back as a unit if any block is unsupported.
-cot_polish_data_cost <- function(C, x, y, block_size = 512L) {
-  x <- cot_polish_tensor(x); y <- cot_polish_tensor(y); p <- C$p
-  if (inherits(C, "costOnline") && identical(C$algorithm, "user"))
-    stop("Custom online cost expressions are unsupported")
-  custom <- identical(C$algorithm, "user")
-  get <- function(i, j) {
-    value <- if (custom) C$fun(x[i, , drop = FALSE], y[j, , drop = FALSE], p) else
-      torch::torch_cdist(x[i, , drop = FALSE], y[j, , drop = FALSE], p = p)^p / cot_polish_tensor(p)
-    if (!inherits(value, "torch_tensor") || value$dtype != torch::torch_float64())
-      stop("User cost did not return float64 tensors")
-    if (!identical(as.integer(dim(value)), c(length(i), length(j)))) stop("Invalid user cost dimensions")
-    value$detach()
-  }
-  cost <- structure(list(nrow = nrow(x), ncol = nrow(y), get = get,
-    block_size = block_size, dense = NULL,
-    online = if (custom) NULL else list(x = x, y = y, p = as.numeric(p))), class = "cot_polish_cost")
-  if (max(nrow(x), nrow(y)) <= block_size) cost$dense <- get(seq_len(nrow(x)), seq_len(nrow(y)))
-  cost$diameter <- cot_polish_diameter(cost)
-  cost
-}
-
-cot_polish_warm <- function(a, b, xy, xx, lambda, potentials, control = cot_polish_control()) {
-  a <- cot_polish_tensor(a); a <- a / a$sum()
-  b <- cot_polish_tensor(b); b <- b / b$sum()
-  tol <- torch::jit_scalar(control$marginal_tol)
-  residual <- torch::jit_scalar(max(control$sinkhorn_tol, 8 * .Machine$double.eps * lambda))
-  accelerate <- torch::jit_scalar(lambda >= cot_polish_diameter(xx) / 4)
-  eps <- torch::jit_scalar(lambda); maxit <- torch::jit_scalar(as.integer(control$sinkhorn_niter))
-  if (!is.null(xy$dense) && !is.null(xx$dense)) {
-    pot <- cot_polish_dense()$polish_warm_dense(a, b, xy$dense, xx$dense, eps,
-      potentials$f_xy, potentials$g_yx, potentials$f_xx, tol, residual, maxit, accelerate)
-  } else if (!is.null(xy$online) && !is.null(xx$online)) {
-    pot <- cot_polish_dense()$polish_warm_online(a, b, xy$online$x, xy$online$y,
-      torch::jit_scalar(xy$online$p), torch::jit_scalar(as.integer(control$block_size)), eps,
-      potentials$f_xy, potentials$g_yx, potentials$f_xx, tol, residual, maxit, accelerate)
-  } else {
-    f <- potentials$f_xy; g <- potentials$g_yx; s <- potentials$f_xx
-    la <- a$log(); lb <- b$log(); done <- FALSE
-    for (it in seq_len(control$sinkhorn_niter)) {
-      f <- cot_polish_softmin(xy, g + lb * lambda, lambda); f <- f - a$dot(f)
-      g <- cot_polish_softmin(xy, f + la * lambda, lambda, TRUE)
-      row <- cot_polish_softmin(xy, g + lb * lambda, lambda)
-      col <- cot_polish_softmin(xy, f + la * lambda, lambda, TRUE)
-      err <- ((a * ((f - row) / lambda)$exp() - a)$abs()$sum() +
-        (b * ((g - col) / lambda)$exp() - b)$abs()$sum())$item()
-      target <- cot_polish_softmin(xx, s + la * lambda, lambda)
-      self_err <- (target - s)$abs()$max()$item()
-      s <- if (lambda >= cot_polish_diameter(xx) / 4) target + a$dot(s - target) / 2 else (s + target) / 2
-      if (err <= control$marginal_tol && self_err <= max(control$sinkhorn_tol, 8 * .Machine$double.eps * lambda)) {done <- TRUE; break}
-    }
-    if (!done) stop("Warm polish evaluator did not converge")
-    pot <- list(f_xy = f, g_yx = g, f_xx = s, iterations = it)
-  }
-  grad <- pot$f_xy - pot$f_xx
-  list(loss = (a$dot(grad) + b$dot(pot$g_yx))$item(), grad = as.numeric(grad),
-    pot = pot[c("f_xy", "g_yx", "f_xx")], iterations = as.integer(pot$iterations))
+  list(weights = a, loss = ev$loss, divergence = ev$loss - y_self, gap = gap,
+    changed = !identical(a, initial), status = status, iterations = iter, atol = atol)
 }
