@@ -82,11 +82,13 @@ replace_private_binding <- function(env, name, value) {
 }
 
 testthat::test_that("Measure ignores automatic row names for default unit ids", {
+  causalOT:::torch_check()
   df <- data.frame(x = 1:2)
   testthat::expect_null(causalOT:::Measure(df)$unit_id)
 })
 
 testthat::test_that("Measure preserves explicit non-automatic row names as unit ids", {
+  causalOT:::torch_check()
   df <- data.frame(x = 1:2)
   rownames(df) <- c("u1", "u2")
   testthat::expect_equal(causalOT:::Measure(df)$unit_id, c("u1", "u2"))
@@ -615,6 +617,7 @@ testthat::test_that("bootstrap_legacy routes through the legacy selector", {
 })
 
 testthat::test_that("cotOptions normalizes selector aliases and rejects unsupported selectors", {
+  causalOT:::torch_check()
   opt_sym <- causalOT:::cotOptions(lambda.selector = "sym_evidence")
   opt_boot <- causalOT:::cotOptions(
     lambda.selector = "legacy_bootstrap_balance"
@@ -1282,6 +1285,7 @@ testthat::test_that("kfold selector errors through choose_hyperparameters as not
 })
 
 testthat::test_that("sym_evidence selector code stays outcome-free", {
+  causalOT:::torch_check()
   x <- matrix(0, 4, 2)
   y <- matrix(1, 5, 2)
   ot <- causalOT:::OTProblem(

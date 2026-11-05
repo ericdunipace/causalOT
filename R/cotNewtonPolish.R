@@ -569,6 +569,10 @@ cot_newton_polish <- function(a, b, C_xy, C_xx, C_yy, lambda, scale = NULL, cach
           if (is.finite(next_ev$loss) && next_ev$loss <= ev$loss &&
               next_ev$loss <= ev$loss + ctl$armijo * slope &&
               (next_ev$loss < ev$loss || fw_gap(cand, next_ev$grad) < gap)) {moved <- TRUE; break}
+          # Below loss resolution the loss cannot rank a Newton step; a cold
+          # probe that at least halves the gap is accepted on the gap alone.
+          if (probe_cold && is.finite(next_ev$loss) && next_ev$loss <= ev$loss + floor &&
+              fw_gap(cand, next_ev$grad) < 0.5 * gap) {moved <- TRUE; break}
         }
       }
       shrink <- 0.5
@@ -583,7 +587,8 @@ cot_newton_polish <- function(a, b, C_xy, C_xx, C_yy, lambda, scale = NULL, cach
     if (!moved) {status <- "line_search_failed"; break}
     improvement <- ev$loss - next_ev$loss
     a <- cand; ev <- next_ev; cold <- probe_cold; accepted <- accepted + 1L
-    if (improvement <= floor) {status <- "stalled"; break}
+    # Stalled only when neither the loss nor the gap made real progress.
+    if (improvement <= floor && !(fw_gap(a, ev$grad) < 0.5 * gap)) {status <- "stalled"; break}
   }
   if (!cold) ev <- evaluate(a)
   gap <- fw_gap(a, ev$grad)

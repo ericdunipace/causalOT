@@ -155,6 +155,7 @@ test_that('polished fits converge, keep exact zeros, and return float64 weights'
 })
 
 test_that('float32 and float64 fits agree on the support and the weights', {
+  causalOT:::torch_check()
   skip_on_cran()
   w <- lapply(c(torch::torch_double(), torch::torch_float()), function(dtype) {
     cot <- fit_cot(dtype = dtype, niter = 50L); cot$solve(); cot$grid_search()
@@ -167,6 +168,7 @@ test_that('float32 and float64 fits agree on the support and the weights', {
 })
 
 test_that('default accelerator fits are polished and return float64 weights', {
+  causalOT:::torch_check()
   skip_if_not(torch::backends_mps_is_available() || torch::cuda_is_available(), 'MPS/CUDA unavailable')
   skip_if(causalOT:::cuda_device_check(NULL)$type == 'cpu', 'Default device is CPU')
   f <- polish_fixture()
@@ -317,6 +319,7 @@ test_that('selection uses every valid fit and warns once when the selected fit i
 })
 
 test_that('only auto and none are polish options', {
+  causalOT:::torch_check()
   expect_error(cotOptions(polish = 'osqp'))
   expect_identical(cotOptions(polish = 'none')$polish, 'none')
 })
