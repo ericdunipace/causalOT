@@ -301,6 +301,9 @@ if (torch::torch_is_installed()) {
 \item{\code{selected_delta}}{the delta value selected after \code{choose_hyperparameters}}
 
 \item{\code{selected_lambda}}{the lambda value selected after \code{choose_hyperparameters}}
+
+\item{\code{polished_weights}}{Float64 source weights of the selected fit when
+it was polished, otherwise \code{NULL}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -611,7 +614,8 @@ Sets up the OT problems for the \code{OTProblem} object. This should be run befo
   debias = TRUE,
   diameter = NULL,
   ot_niter = 1000L,
-  ot_tol = 0.001
+  ot_tol = 0.001,
+  polish = c("auto", "none")
 )}\if{html}{\out{</div>}}
 }
 
@@ -636,7 +640,10 @@ Sets up the OT problems for the \code{OTProblem} object. This should be run befo
 
 \item{\code{ot_niter}}{Number of iterations to run the solver}
 
-\item{\code{ot_tol}}{The tolerance for convergence of the objective function}
+\item{\code{ot_tol}}{Sinkhorn tolerance: iterations stop once the largest change
+in the potentials is below \code{ot_tol * lambda}.}
+
+\item{\code{polish}}{Primal weight refinement, \code{"auto"} or \code{"none"}; see \code{\link[=cotOptions]{cotOptions()}}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -739,7 +746,19 @@ Selects the hyperparameter values through a bootstrap algorithm
 \if{html}{\out{<div class="r">}}\preformatted{OTProblem_$choose_hyperparameters(
   n_boot_lambda = 100L,
   n_boot_delta = 1000L,
-  lambda_bootstrap = Inf
+  lambda_bootstrap = Inf,
+  lambda.selector = c(
+    "bootstrap_legacy",
+    "sym_evidence",
+    "profile_symmetric_loo",
+    "profile_marginal_loo",
+    "symmetric_loo",
+    "marginal_loo",
+    "mass_bootstrap_symmetric",
+    "legacy_bootstrap_balance",
+    "kfold_symmetric"
+  ),
+  lambda.selector.control = list()
 )}\if{html}{\out{</div>}}
 }
 
@@ -751,6 +770,10 @@ Selects the hyperparameter values through a bootstrap algorithm
 \item{\code{n_boot_delta}}{The number of bootstrap iterations to run when selecting delta}
 
 \item{\code{lambda_bootstrap}}{The penalty parameter to use when selecting lambda. Higher numbers run faster.}
+
+\item{\code{lambda.selector}}{Lambda selection rule to apply across the fitted lambda grid.}
+
+\item{\code{lambda.selector.control}}{Optional list of controls for the selected lambda selector.}
 }
 \if{html}{\out{</div>}}
 }
@@ -796,7 +819,19 @@ a list with slots
 \item \code{loss} the final loss values
 \item \code{iterations} The number of iterations run for each combination of parameters
 \item \code{balance.function.differences} The final differences in the balance functions
-\item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values}
+\item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values
+\item \code{polish} Per-lambda and per-delta polish \code{status} and \code{iterations}.
+\item \code{converged} Per-lambda and per-delta logical outcome. Eligible fits
+pass \code{gap <= atol + tol * max(0, D)}, using the user's solver \code{tol}.
+Unpolished fits also require normal stopping and use \code{atol = ot_tol}.
+Polished fits use \code{atol = 64 * eps64 * scale} plus 16 times the polish's
+Sinkhorn tolerance, where \code{scale} is the cost scale. Out-of-scope fits
+retain the solver flag.
+\item \code{reason} Per-lambda and per-delta outcome message: \code{ok}, \code{niter},
+\verb{gap above tolerance}, \verb{gap unavailable}, \verb{polish error: <msg>}, or
+\verb{error: <msg>}. Polish errors fall back to valid phase-1 weights and
+their convergence test. Numerical failures store NA weights and are
+excluded from selection. Selecting a fit that is not converged warns.}
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}

@@ -1,4 +1,33 @@
-# causalOT
+# causalOT 1.1
+
+## Breaking changes
+* `vcov()` for `causalEffect` objects now computes the variance from the full
+  plug-in influence function. Standard errors and confidence intervals will differ
+  from earlier versions. `vcov(object, type = "components")` gives the
+  previous calculation.
+
+## New features
+* Updated convergence criterion to prevent needless long runs
+* COT fits now receive a monotone Newton polish by default.
+  `cotOptions(polish = "auto")` uses an exact Hessian up to 2,000 free
+  weights and L-BFGS above that cap or with standard online costs.
+* `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
+  descent solver for debiased COT weights
+* New dual solvers `dual.solver = "fixed_point_joint"` and `"joint"`. Their
+  tuning parameters (`fixed_point_eta`, `n_potential_steps`, etc.) can be
+  passed through `cotOptions(...)`.
+* The lambda grid, selection scores, and selected value are stored in
+  `causalWeights@info$metric`.
+* `Measure()` gains a `unit.id` argument.
+* `cotOptions()` now accepts `ot_niter` and `ot_tol` to control the inner
+  Sinkhorn iterations.
+
+## Minor improvements and fixes
+* `cotOptions()` now warns about arguments in `...` that no solver uses.
+  Previously, misspelled arguments were silently ignored.
+
+## Miscellaneous
+* Updated maintainer e-mail address
 
 # causalOT 1.0.4
 

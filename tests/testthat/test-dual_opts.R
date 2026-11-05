@@ -46,8 +46,15 @@ testthat::test_that("test forward functions", {
   
   testthat::expect_equal(a2, as.numeric(a2_script$to(device = "cpu")), label = "calc_w2")
   
-  testthat::expect_equal(gamma$dot(a1_script-a2_script)$item() * - 1,
-                         dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))$loss$item(), label = "loss calc")
+  gamma_centered <- gamma$detach() - gamma$detach()$mean()
+  testthat::expect_equal(
+    gamma_centered$dot(a1_script - a2_script)$item() * -1,
+    dual_forwards$cot_dual(
+      gamma$detach(), C_xy, C_xx, a_log, b_log,
+      torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n))
+    )$loss$item(),
+    label = "loss calc"
+  )
   
   beta1 <- torch::torch_tensor(stats::rnorm(2), 
                                device = gamma$device,
@@ -70,7 +77,7 @@ testthat::test_that("test forward functions", {
   
   res <- dual_forwards$cot_dual(gamma$detach(), C_xy, C_xx, a_log, b_log, torch::jit_scalar(lambda), torch::jit_scalar(as.integer(n)))
 
-  loss_gamma <- gamma$dot(a1_script-a2_script)$item()
+  loss_gamma <- gamma_centered$dot(a1_script - a2_script)$item()
   
   testthat::expect_equal(loss_gamma * - 1,
                          res$loss$item(), label = "loss calc",
@@ -89,9 +96,10 @@ testthat::test_that("test forward functions", {
   diff1 <- (m1$balance_functions$transpose(2,1)$matmul(a1_script) - m1$balance_target)
   beta_check1 <- diff1 * beta1$detach() - delta * beta1$detach()$abs()
 
+  loss_gamma_bf <- gamma$dot(a1_script - a2_script)$item()
   loss_beta = diff1$dot(beta1) - delta * beta1$abs()$sum()
   
-  loss <- loss_gamma + loss_beta
+  loss <- loss_gamma_bf + loss_beta
 
   loss$multiply_(-1.0) #to make min
   
@@ -105,7 +113,7 @@ testthat::test_that("test forward functions", {
                                    torch::jit_scalar(delta))
   
   testthat::expect_equal(loss$item(), res2$loss$item(), tol = 1e-4)
-  testthat::expect_equal(res2$avg_diff$item(), res$avg_diff$item())
+  testthat::expect_equal((a1_script - a2_script)$norm()$item(), res2$avg_diff$item())
   testthat::expect_equal(res2$bf_diff$item(), diff1$abs()$max()$item())
   
   
@@ -306,7 +314,7 @@ testthat::test_that("training function works for dual optimizer",{
   m1 <- Measure(x, target.values = colMeans(z), adapt = "weights")
   mt <- Measure(z)
   
-  cot <- causalOT:::cotDualTrain$new(m1,mt)
+  cot <- causalOT:::cotDualLegacyTrain$new(m1,mt)
   otp <- OTProblem(m1,mt)
   
   cot_names <- names(formals(cot$setup_arguments))
@@ -324,14 +332,14 @@ testthat::test_that("training function works for dual optimizer",{
   testthat::expect_true(length(cot$.__enclos_env__$private$nn_holder$beta) == ncol(x))
   
   # no bf, tensor
-  testthat::expect_true(inherits(causalOT:::cotDualTrain$new(Measure(x, adapt = "weights"), Measure(z))$setup_arguments()$.__enclos_env__$private$nn_holder, "cotDualOpt"))
+  testthat::expect_true(inherits(causalOT:::cotDualLegacyTrain$new(Measure(x, adapt = "weights"), Measure(z))$setup_arguments()$.__enclos_env__$private$nn_holder, "cotDualOpt"))
   
   #no bf, keops
   causalOT:::rkeops_check()
-  testthat::expect_true(inherits(causalOT:::cotDualTrain$new(Measure(x, adapt = "weights"), Measure(z))$setup_arguments(cost.online = "online")$.__enclos_env__$private$nn_holder, "cotDualOpt_keops"))
+  testthat::expect_true(inherits(causalOT:::cotDualLegacyTrain$new(Measure(x, adapt = "weights"), Measure(z))$setup_arguments(cost.online = "online")$.__enclos_env__$private$nn_holder, "cotDualOpt_keops"))
   
   #no bf, keops
-  testthat::expect_true(inherits(causalOT:::cotDualTrain$new(Measure(x, adapt = "weights", target.values = colMeans(z)), Measure(z))$setup_arguments(cost.online = "online")$.__enclos_env__$private$nn_holder, "cotDualBfOpt_keops"))
+  testthat::expect_true(inherits(causalOT:::cotDualLegacyTrain$new(Measure(x, adapt = "weights", target.values = colMeans(z)), Measure(z))$setup_arguments(cost.online = "online")$.__enclos_env__$private$nn_holder, "cotDualBfOpt_keops"))
   
   
   #### test weights function ###
@@ -353,6 +361,7 @@ testthat::test_that("training function works for dual optimizer",{
   
   testthat::expect_equal(names(cot$.__enclos_env__$private$parameters),
                          c("gamma", "beta"))
+  testthat::expect_false("a_log" %in% names(cot$.__enclos_env__$private$parameters))
   testthat::expect_equal(as.numeric(cot$.__enclos_env__$private$nn_holder$gamma$to(device = "cpu")),
                          as.numeric(cot$.__enclos_env__$private$parameters$gamma$to(device = "cpu")))
   testthat::expect_equal(rlang::obj_address(cot$.__enclos_env__$private$nn_holder$gamma),
@@ -496,7 +505,7 @@ testthat::test_that("training function works for dual optimizer",{
   
   
   # hyperparam
-  cot <- causalOT:::cotDualTrain$new(m1,mt)
+  cot <- causalOT:::cotDualLegacyTrain$new(m1,mt)
   cot$setup_arguments()
   # debugonce(cot$solve)
   cot$solve(niter = 1L, torch_optim = torch::optim_rmsprop, torch_scheduler = torch::lr_multiplicative)
@@ -512,4 +521,66 @@ testthat::test_that("training function works for dual optimizer",{
   testthat::expect_silent( cot$choose_hyperparameters(n_boot_lambda = 10, n_boot_delta = 10) )
   testthat::expect_true(is.numeric(cot$selected_delta[[1]]))
   testthat::expect_true(cot$selected_lambda < 359871.93116805560749)
+
+  set.seed(123)
+  cot_joint <- causalOT:::cotDualTrain$new(m1, mt)
+  cot_joint$setup_arguments()
+  priv_joint <- cot_joint$.__enclos_env__$private
+  gamma_init <- priv_joint$nn_holder$gamma$detach()$clone()
+  a_log_init <- priv_joint$a_log_param$detach()$clone()
+  testthat::expect_silent(
+    cot_joint$solve(
+      niter = 8L,
+      torch_optim = torch::optim_rmsprop,
+      torch_scheduler = torch::lr_multiplicative,
+      a_log_lr_mult = 0.2
+    )
+  )
+  testthat::expect_true("a_log" %in% names(priv_joint$parameters))
+  testthat::expect_true(priv_joint$a_log_param$requires_grad)
+  testthat::expect_false(is.null(priv_joint$opt_weight))
+  testthat::expect_equal(
+    priv_joint$parameters$a_log$lr,
+    priv_joint$parameters$gamma$lr * 0.2,
+    tol = 1e-10
+  )
+  testthat::expect_gt(
+    (priv_joint$nn_holder$gamma$detach() - gamma_init)$abs()$max()$item(),
+    0
+  )
+  testthat::expect_gt(
+    (priv_joint$a_log_param$detach() - a_log_init)$abs()$max()$item(),
+    0
+  )
+  joint_param_w <- priv_joint$current_weights_joint(track_grad = FALSE)$to(device = "cpu")
+  testthat::expect_true(all(is.finite(as.numeric(joint_param_w))))
+  testthat::expect_true(all(as.numeric(joint_param_w) >= 0))
+  testthat::expect_equal(sum(as.numeric(joint_param_w)), 1, tol = 1e-6)
+  joint_w <- cot_joint$weights$to(device = "cpu")
+  testthat::expect_true(all(is.finite(as.numeric(joint_w))))
+  testthat::expect_true(all(as.numeric(joint_w) >= 0))
+  testthat::expect_equal(sum(as.numeric(joint_w)), 1, tol = 1e-6)
+
+  cot_fp_joint <- causalOT:::cotDualFixedPointJointTrain$new(m1, mt)
+  cot_fp_joint$setup_arguments()
+  priv_fp_joint <- cot_fp_joint$.__enclos_env__$private
+  a_log_init_fp <- priv_fp_joint$a_log_param$detach()$clone()
+  testthat::expect_silent(
+    cot_fp_joint$solve(
+      niter = 5L,
+      torch_optim = torch::optim_rmsprop,
+      torch_scheduler = NULL,
+      fixed_point_eta = 1.1,
+      fixed_point_beta = 0.25
+    )
+  )
+  testthat::expect_false("a_log" %in% names(priv_fp_joint$parameters))
+  testthat::expect_gt(
+    (priv_fp_joint$a_log_param$detach() - a_log_init_fp)$abs()$max()$item(),
+    0
+  )
+  fp_joint_w <- cot_fp_joint$weights$to(device = "cpu")
+  testthat::expect_true(all(is.finite(as.numeric(fp_joint_w))))
+  testthat::expect_true(all(as.numeric(fp_joint_w) >= 0))
+  testthat::expect_equal(sum(as.numeric(fp_joint_w)), 1, tol = 1e-6)
 })

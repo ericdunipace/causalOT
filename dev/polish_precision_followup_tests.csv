@@ -1,0 +1,5 @@
+suite,runner,passed,failed,errors,warnings,skipped
+polish-precision,CPU sandbox,30,0,0,0,0
+convergence-simple,CPU sandbox,126,0,0,0,0
+newton-followup,MPS available,113,0,0,0,0
+newton-polish,MPS available,154,0,0,0,0

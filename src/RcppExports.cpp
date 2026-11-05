@@ -67,34 +67,34 @@ BEGIN_RCPP
 END_RCPP
 }
 // logSumExp
-double logSumExp(vector& x_);
+double logSumExp(const vector& x_);
 RcppExport SEXP _causalOT_logSumExp(SEXP x_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< vector& >::type x_(x_SEXP);
+    Rcpp::traits::input_parameter< const vector& >::type x_(x_SEXP);
     rcpp_result_gen = Rcpp::wrap(logSumExp(x_));
     return rcpp_result_gen;
 END_RCPP
 }
 // rowLogSumExp
-vector rowLogSumExp(matrix& x_);
+vector rowLogSumExp(const matrix& x_);
 RcppExport SEXP _causalOT_rowLogSumExp(SEXP x_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< matrix& >::type x_(x_SEXP);
+    Rcpp::traits::input_parameter< const matrix& >::type x_(x_SEXP);
     rcpp_result_gen = Rcpp::wrap(rowLogSumExp(x_));
     return rcpp_result_gen;
 END_RCPP
 }
 // colLogSumExp
-vector colLogSumExp(matrix& x_);
+vector colLogSumExp(const matrix& x_);
 RcppExport SEXP _causalOT_colLogSumExp(SEXP x_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< matrix& >::type x_(x_SEXP);
+    Rcpp::traits::input_parameter< const matrix& >::type x_(x_SEXP);
     rcpp_result_gen = Rcpp::wrap(colLogSumExp(x_));
     return rcpp_result_gen;
 END_RCPP

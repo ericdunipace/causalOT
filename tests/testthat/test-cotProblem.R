@@ -118,7 +118,8 @@ testthat::test_that("cotProblem COT", {
   options = list(niter = 2L,
                  nboot = 2,
                  debias = TRUE,
-                 torch.optimizer = torch::optim_lbfgs)
+                 torch.optimizer = torch::optim_lbfgs,
+                 opt.direction = "dual")
   
   testthat::expect_silent(testthat::expect_warning(gs <- causalOT:::cotProblem(data = data,
                                                       estimand = "ATT",
@@ -141,7 +142,8 @@ testthat::test_that("cotProblem NNM", {
   options = list(niter = 2L,
                  nboot = 2,
                  debias = TRUE,
-                 torch.optimizer = torch::optim_lbfgs)
+                 torch.optimizer = torch::optim_lbfgs,
+                 opt.direction = "dual")
   
   testthat::expect_warning(gs <- causalOT:::cotProblem(data = data,
                                                       estimand = "ATT",

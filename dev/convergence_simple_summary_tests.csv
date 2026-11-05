@@ -1,0 +1,7 @@
+"profile","suite","failed","errors","warnings","skipped","passed"
+"default","ccp-solver",0,0,0,0,36
+"default","convergence-simple",0,0,0,0,75
+"default","cotOOP",0,0,0,0,116
+"default","lambda-selector",0,0,0,0,135
+"default","newton-followup",0,0,0,0,113
+"default","newton-polish",0,0,0,0,154
