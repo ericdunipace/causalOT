@@ -19,18 +19,31 @@ renormalize <- function(x) {
   if (all(is.na(x))) {
     return(x)
   }
+  na_idx <- integer(0)
+  if (anyNA(x)) {
+    na_idx <- which(is.na(x))
+    x[na_idx] <- 0
+  }
 
-  if (isTRUE(any(x < 0))) {
-    warning(
-      "Negative weights found! Normalizing to sum to 1 with less accurate function. Make sure negative weights make sense for your problem"
-    )
-    return(x / sum(x, na.rm = TRUE))
+  if (isTRUE(all(as.logical(x == 0)))) {
+    return(x)
   }
-  if (isTRUE(all(x == 0))) {
-    return(rep(0, length(x)))
+  x <- x / max(x)
+  x <- x / sum(x)
+  if (length(na_idx) > 0) {
+    x[na_idx] <- NA_real_
   }
-  l_x <- log_weights(x)
-  return(exp(l_x - logSumExp(l_x)))
+  return(x)
+}
+
+renormalize_log <- function(lw) {
+  x <- if (inherits(lw, "torch_tensor")) {
+    lw$log_softmax(dim = -1)
+  } else {
+    lw - logSumExp(lw)
+  }
+
+  return(x)
 }
 
 osqp_R6_solve <- function(model, delta, delta_idx, w = NULL, normalize = TRUE) {
@@ -256,60 +269,70 @@ rkeops_installed <- function() {
   rlang::is_installed("rkeops")
 }
 
-rkeops_check <- function() {
-  testthat::skip_if_not_installed("rkeops")
-  formula <- "Sum_Reduction(Exp(-s * SqNorm2(x - y)) * b, 0)"
+eye <- function(k) torch::torch_eye(k, dtype = torch::torch_double())
 
-  # input arguments
-  args <- c(
-    "x = Vi(3)", # vector indexed by i (of dim 3)
-    "y = Vj(3)", # vector indexed by j (of dim 3)
-    "b = Vj(6)", # vector indexed by j (of dim 6)
-    "s = Pm(1)"
-  ) # parameter (scalar)
-
-  if (
-    rkeops_installed() &&
-      utils::packageVersion("rkeops") >= pkg_vers_number("2.0") &&
-      rlang::is_installed("reticulate")
-  ) {
-    nx <- 10
-    ny <- 15
-    X <- matrix(runif(nx * 3), nrow = 3, ncol = nx)
-    Y <- matrix(runif(ny * 3), nrow = 3, ncol = ny)
-    beta <- matrix(runif(ny * 3), nrow = ny, ncol = 6)
-    s <- 0.25
-    op <- tryCatch(rkeops::keops_kernel(formula, args), error = function(e) {
-      FALSE
-    })
-    if (is.logical(op) && isFALSE(op)) {
-      testthat::skip("error in compilation for rkeops")
-    }
-    res <- tryCatch(op(list(X, Y, beta, s)), error = function(e) {
-      FALSE
-    })
-    if (is.logical(res) && isFALSE(res)) {
-      testthat::skip("error in compilation for rkeops")
-    }
-  } else if (utils::packageVersion("rkeops") < pkg_vers_number("2.0")) {
-    # cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
-    #                   error = function(e) {0L}
-    # )
-    # testthat::skip("error in cmake for rkeops")
-
-    # from rkeops help pages
-
-    # compilation of the corresponding operator
-    op <- tryCatch(rkeops::keops_kernel(formula, args), error = function(e) {
-      FALSE
-    })
-
-    # if an error during compilation, skip
-    if (is.logical(op) && isFALSE(op)) {
-      testthat::skip("error in compilation for rkeops")
-    }
+as_cpu_double_tensor <- function(x) {
+  # MPS has no float64, so move to the CPU before changing dtype.
+  if (inherits(x, "torch_tensor")) {
+    return(x$detach()$to(device = "cpu")$to(dtype = torch::torch_float64()))
   }
+  torch::torch_tensor(x, dtype = torch::torch_float64(), device = "cpu")
 }
+
+# rkeops_check <- function() {
+#   testthat::skip_if_not_installed("rkeops")
+#   formula <- "Sum_Reduction(Exp(-s * SqNorm2(x - y)) * b, 0)"
+
+#   # input arguments
+#   args <- c(
+#     "x = Vi(3)", # vector indexed by i (of dim 3)
+#     "y = Vj(3)", # vector indexed by j (of dim 3)
+#     "b = Vj(6)", # vector indexed by j (of dim 6)
+#     "s = Pm(1)"
+#   ) # parameter (scalar)
+
+#   if (
+#     rkeops_installed() &&
+#       utils::packageVersion("rkeops") >= pkg_vers_number("2.0") &&
+#       rlang::is_installed("reticulate")
+#   ) {
+#     nx <- 10
+#     ny <- 15
+#     X <- matrix(runif(nx * 3), nrow = 3, ncol = nx)
+#     Y <- matrix(runif(ny * 3), nrow = 3, ncol = ny)
+#     beta <- matrix(runif(ny * 3), nrow = ny, ncol = 6)
+#     s <- 0.25
+#     op <- tryCatch(rkeops::keops_kernel(formula, args), error = function(e) {
+#       FALSE
+#     })
+#     if (is.logical(op) && isFALSE(op)) {
+#       testthat::skip("error in compilation for rkeops")
+#     }
+#     res <- tryCatch(op(list(X, Y, beta, s)), error = function(e) {
+#       FALSE
+#     })
+#     if (is.logical(res) && isFALSE(res)) {
+#       testthat::skip("error in compilation for rkeops")
+#     }
+#   } else if (utils::packageVersion("rkeops") < pkg_vers_number("2.0")) {
+#     # cmake <- tryCatch(rkeops::check_cmake(system("which cmake", intern = TRUE)),
+#     #                   error = function(e) {0L}
+#     # )
+#     # testthat::skip("error in cmake for rkeops")
+
+#     # from rkeops help pages
+
+#     # compilation of the corresponding operator
+#     op <- tryCatch(rkeops::keops_kernel(formula, args), error = function(e) {
+#       FALSE
+#     })
+
+#     # if an error during compilation, skip
+#     if (is.logical(op) && isFALSE(op)) {
+#       testthat::skip("error in compilation for rkeops")
+#     }
+#   }
+# }
 
 check_weights_torch <- function(a, x, device) {
   if (missing(a) || is.null(a) || all(is.na(a))) {
@@ -392,7 +415,7 @@ scalar_search_armijo <- function(
   alpha1 <- -(derphi0) * alpha0^2 / 2.0 / (phi_a0 - phi0 - derphi0 * alpha0)
   phi_a1 <- phi(x, dx, alpha1)
   if (
-    as.logical((phi_a1 <= (phi0 + c1 * alpha1 * derphi0))$to(device = "cpu")) &&
+    as.logical((phi_a1 <= (alpha1 * c1 * derphi0 + phi0))$to(device = "cpu")) &&
       as.logical((alpha1 >= 0)$to(device = "cpu"))
   ) {
     return(list(alpha = alpha1, phi1 = phi_a1))
@@ -423,7 +446,7 @@ scalar_search_armijo <- function(
     alpha2 <- (-b + sqrt(abs(b^2 - 3 * a * derphi0))) / (3.0 * a)
     phi_a2 <- phi(x, dx, alpha2)
     if (
-      as.logical((phi_a2 <= phi0 + c1 * alpha2 * derphi0)$to(device = "cpu")) &&
+      as.logical((phi_a2 <= alpha2 * c1 * derphi0 + phi0)$to(device = "cpu")) &&
         as.logical((alpha2 >= 0)$to(device = "cpu"))
     ) {
       return(list(alpha = alpha2, phi1 = phi_a2))
@@ -434,11 +457,11 @@ scalar_search_armijo <- function(
         as.logical(((1 - alpha2 / alpha1) < 0.96)$to(device = "cpu"))
     ) {
       alpha2 <- alpha1 / 2.0
-      alpha0 <- alpha1
-      alpha1 <- alpha2
-      phi_a0 <- phi_a1
-      phi_a1 <- phi_a2
     }
+    alpha0 <- alpha1
+    alpha1 <- alpha2
+    phi_a0 <- phi_a1
+    phi_a1 <- phi_a2
   }
 
   # ## brute force
@@ -513,6 +536,13 @@ lr_reduce <- function(sched, loss) {
   }
 
   return(check)
+}
+
+as_points <- function(z) {
+  if (inherits(z, "torch_tensor")) {
+    return(z)
+  }
+  torch::torch_tensor(as.matrix(z), dtype = torch::torch_double())
 }
 
 #' @export

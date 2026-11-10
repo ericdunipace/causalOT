@@ -4,20 +4,12 @@ cost <- function(x, y, p = 2, tensorized = TRUE, cost_function = NULL) {
     p <- 2L
   }
   cfm <- (missing(cost_function) || is.null(cost_function))
-  if (inherits(cost_function, "character")) {
-    costObj <- costOnline$new(x, y, p = p, cost_function = cost_function)
-  } else if (cfm && isTRUE(tensorized)) {
+  if (!cfm && !inherits(cost_function, "function")) {
+    stop("If supplied, `cost_function` must be a function.")
+  } else if (isTRUE(tensorized)) {
     costObj <- costTensor$new(x, y, p = p, cost_function = cost_function)
-  } else if (isFALSE(tensorized) && cfm) {
-    costObj <- costOnline$new(x, y, p = p, cost_function = cost_function)
-  } else if (inherits(cost_function, "function") && isTRUE(tensorized)) {
-    costObj <- costTensor$new(x, y, p = p, cost_function = cost_function)
-  } else if (is.function(cost_function) && isFALSE(tensorized)) {
-    stop(
-      "cost_function must be either not given or a keops recognized character of functions."
-    )
   } else {
-    stop("cost options combination not accounted for! Please report this bug.")
+    costObj <- costOnline$new(x, y, p = p, cost_function = cost_function)
   }
   return(costObj)
 }
@@ -27,9 +19,7 @@ costParent <- R6::R6Class(
     data = "torch_tensor",
     fun = "function",
     p = "numeric",
-    reduction = "function",
-    algorithm = "character",
-    mats = NULL
+    algorithm = "character"
   )
 )
 costTensor <- R6::R6Class(
@@ -54,6 +44,9 @@ costTensor <- R6::R6Class(
             dtype = x1$dtype,
             device = x1$device
           )
+          cdat <- center_package_p_costs(x1, x2, p)
+          x1 <- cdat$x
+          x2 <- cdat$y
           (torch::torch_cdist(x1 = x1, x2 = x2, p = p)^p /
             denominator)$contiguous()
         }
@@ -98,10 +91,8 @@ costOnline <- R6::R6Class(
   inherit = costParent,
   public = c(
     initialize = function(x, y, p = 2, cost_function = NULL) {
-      self$p <- p
-      if (
-        missing(cost_function) || is.null(cost_function) || is.na(cost_function)
-      ) {
+      self$p <- as.numeric(p)
+      if (missing(cost_function) || is.null(cost_function)) {
         self$algorithm <- if (p == 2) {
           "squared.euclidean"
         } else if (p == 1) {
@@ -109,28 +100,34 @@ costOnline <- R6::R6Class(
         } else {
           "other"
         }
-        cost_function <- if (p == 2) {
-          "(SqDist(X,Y) / IntCst(2))"
-        } else if (p == 1) {
-          "Sum(Abs(X-Y))"
-        } else if (is.integer(p)) {
-          paste0("(Sum(Pow(Abs(X-Y),", p, ")) /  IntCst(", p, "))")
-        } else {
-          stop("'p' must be an integer for online cost functions.")
-        }
-      } else if (!is.character(cost_function)) {
+        cost_function <-
+          function(x, y, p) {
+            denominator <- torch::torch_tensor(
+              p,
+              dtype = x$dtype,
+              device = x$device
+            )
+            (torch::torch_cdist(x1 = x, x2 = y, p = p)^p /
+              denominator)$contiguous() #"(SqDist(X,Y) / IntCst(2))"
+          }
+      } else if (!is.function(cost_function)) {
         stop(
-          "cost_function must be not provided or a keops recognized character function."
+          "cost_function must be not provided or a function."
         )
       } else {
         self$algorithm <- "user"
       }
 
+      x <- as_points(x) # convert to torch data for future code
+      y <- as_points(y)
+
+      if (!identical(self$algorithm, "user")) {
+        cdat <- center_package_p_costs(x, y, p)
+        x <- cdat$x
+        y <- cdat$y
+      }
       self$data <- list(x = x, y = y)
       self$fun <- cost_function
-      self$reduction <- function(...) {
-        NULL
-      }
     }
   ),
   active = list(
@@ -156,10 +153,8 @@ to_device <- function(cost, device) {
 # setOldClass(c("costOnline", "costParent"))
 
 to_device.costTensor <- function(cost, device) {
-  function(cost, device) {
-    cost$data <- cost$data$to(device = device)
-    return(cost)
-  }
+  cost$data <- cost$data$to(device = device)
+  return(cost)
 }
 
 # setMethod("to_device", signature(cost = "costTensor", device = "ANY"),
@@ -185,6 +180,16 @@ to_device.costOnline <- function(cost, device) {
 #           }
 # )
 
+center_package_p_costs <- function(x, y, p) {
+  if (as.numeric(p) != 2) {
+    return(list(x = x, y = y))
+  }
+  mu <- (x$detach()$sum(1, keepdim = TRUE) +
+    y$detach()$sum(1, keepdim = TRUE)) /
+    (nrow(x) + nrow(y))
+  list(x = x - mu, y = y - mu)
+}
+
 update_cost <- function(cost, x, y) {
   UseMethod("update_cost")
 }
@@ -198,6 +203,11 @@ update_cost.costOnline <- function(cost, x, y) {
     "data for cost columns has different number of rows" = (m == nrow(y))
   )
   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
+  if (!identical(cost$algorithm, "user")) {
+    cdat <- center_package_p_costs(x, y, cost$p)
+    x <- cdat$x
+    y <- cdat$y
+  }
   cost$data <- list(x = x, y = y)
 }
 # setMethod("update_cost", signature(cost = "costOnline", x = "ANY", y = "ANY"),
@@ -222,32 +232,12 @@ update_cost.costTensor <- function(cost, x, y) {
   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
   cost$data <- cost$fun(x, y, cost$p)$to(device = device, dtype = dtype)
 }
-# setMethod("update_cost", signature(cost = "costTensor", x = "ANY", y = "ANY"),
-# function(cost, x, y) {
-#   nm <- dim(cost$data)
-#   device <- cost$data$device
-#   dtype <- cost$data$dtype
-#   stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
-#   stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
-#   stopifnot("data must have same number of columns" = ncol(x) == ncol(y))
-#   cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
-# }
-# )
 
-# update_cost_col <- function(cost, x, y_vec, j) {UseMethod("update_cost")}
-# setGeneric("update_cost", function(cost, x, y) standardGeneric("update_cost"))
-#
-# update_cost_col.costOnline <- function(cost, x, y_vec, j) {
-#   stopifnot("data must have same number of columns" = ncol(x) == length(y))
-#   cost$data$y[j,] <- y_vec
-# }
-#
-# update_cost_col.costTensor <- function(cost, x, y_vec, j) {
-#   nm <- dim(cost$data)
-#   device <- cost$data$device
-#   dtype <- cost$data$dtype
-#   stopifnot("data for rows has different number of rows" = (nm[1] == nrow(x)))
-#   stopifnot("data for columns has different number of rows" = (nm[2] == nrow(y)))
-#   stopifnot("data must have same number of columns" = ncol(x) == length(y))
-#   cost$data <- cost$fun(x,y,cost$p)$to(device = device, dtype = dtype)
-# }
+
+cost_block <- function(C, i, j) {
+  if (inherits(C, "costTensor")) {
+    return(C$data[i, j, drop = FALSE])
+  }
+  p <- as.numeric(C$p)
+  C$fun(C$data$x[i, , drop = FALSE], C$data$y[j, , drop = FALSE], C$p)
+}

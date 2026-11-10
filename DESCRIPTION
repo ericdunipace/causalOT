@@ -2,7 +2,7 @@ Package: causalOT
 Type: Package
 Title: Optimal Transport Weights for Causal Inference
 Version: 1.1
-Date: 2026-10-31
+Date: 2026-11-09
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>)
 Authors@R: 
     person("Eric", "Dunipace", 
@@ -22,6 +22,7 @@ Imports:
     CBPS,
     ggplot2,
     lbfgsb3c,
+    lifecycle,
     loo,
     Matrix (>= 1.5-0),
     matrixStats,
@@ -45,18 +46,14 @@ Suggests:
     progressr,
     testthat (>= 2.1.0),
     knitr,
-    reticulate,
-    rkeops (>= 2.2.2),
     rmarkdown,
     V8,
     withr
-Additional_repositories: https://ericdunipace.github.io/drat/
 Biarch: true
 Depends: 
     R (>= 4.1.0)
 Roxygen: list(markdown = TRUE)
 Encoding: UTF-8
-RoxygenNote: 7.3.3
 LazyData: true
 VignetteBuilder: knitr, rmarkdown
 Collate: 
@@ -72,18 +69,20 @@ Collate:
     'calc_weight.R'
     'causalOT-package.R'
     'cost_functions.R'
+    'cotCCPTrain.R'
     'scmClass.R'
     'gridSearch.R'
-    'lambdaSelectors.R'
-    'cotNewtonPolish.R'
     'cotClass.R'
+    'cotNewtonPolish.R'
     'cotOOP.R'
-    'cotCCPTrain.R'
     'cot_opts.R'
+    'lambdaSelectors.R'
     'likelihoodClass.R'
     'mean_balance.R'
+    'sinkhorn_jit.R'
     'summary.R'
     'supportedMethods.R'
     'treatment_effect.R'
     'utils.R'
     'zzz.R'
+Config/roxygen2/version: 8.1.0

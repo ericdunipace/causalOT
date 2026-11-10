@@ -84,7 +84,7 @@ ot_distance(
 )
 }
 \arguments{
-\item{x1}{Either an object of class \linkS4class{causalWeights} or a matrix of the covariates in the first sample}
+\item{x1}{Either an object of class \link[=causalWeights-class]{causalWeights} or a matrix of the covariates in the first sample}
 
 \item{x2}{\code{NULL} or a matrix of the covariates in the second sample.}
 
@@ -130,13 +130,13 @@ if ( torch::torch_is_installed()) {
 x <- matrix(stats::rnorm(10*5), 10, 5)
 z <- stats::rbinom(10, 1, 0.5)
 weights <- calc_weight(x = x, z = z, method = "Logistic", estimand = "ATT")
-ot1 <- ot_distance(x1 = weights, penalty = 100, 
-p = 2, debias = TRUE, online.cost = "auto", 
+ot1 <- ot_distance(x1 = weights, penalty = 100,
+p = 2, debias = TRUE, online.cost = "auto",
 diameter = NULL)
-ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,], 
+ot2<- ot_distance(x1 = x[z==0, ], x2 = x[z == 1,],
 a= weights@w0/sum(weights@w0), b = weights@w1,
  penalty = 100, p = 2, debias = TRUE, online.cost = "auto", diameter = NULL)
 
- all.equal(ot1$post, ot2) 
+ all.equal(ot1$post, ot2)
 }
 }

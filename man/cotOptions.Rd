@@ -7,11 +7,11 @@
 cotOptions(
   lambda = NULL,
   delta = NULL,
-  opt.direction = c("dual", "primal"),
+  opt.direction = deprecated(),
   dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
-  polish = c("auto", "none"),
+  polish = c("none", "auto"),
   p = 2,
   cost.function = NULL,
   cost.online = "auto",
@@ -39,7 +39,9 @@ cotOptions(
 
 \item{delta}{The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.}
 
-\item{opt.direction}{Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "primal" (LBFGS solver) until the mirror solver supports multiple lambdas.}
+\item{opt.direction}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{solver}
+instead. Should the optimizer solve the primal or dual problems. One of
+"dual" or "primal"; "primal" is used if not supplied.}
 
 \item{dual.solver}{Solver to use when \code{opt.direction = "dual"}. \code{"fixed_point_joint"} uses the joint KL forward with fixed-point updates on the source log-weights, \code{"joint"} uses alternating torch optimization over the dual potential and source log-weights, while \code{"entropy"} uses the legacy entropy-implied weight update path.}
 
@@ -47,13 +49,11 @@ cotOptions(
 
 \item{solver}{Solver to use for COT weight optimization. For \code{opt.direction = "primal"}, solver options are \code{"lbfgs"} uses LBFGS optimization on the weights directly. \code{"mirror"} runs a mirror descent solver, which is typically faster.}
 
-\item{polish}{Primal weight refinement, \code{"auto"} (default) or \code{"none"}.
-\code{"auto"} refines the phase-1 weights in float64 on the CPU with Newton
-steps, or L-BFGS steps when more than 2,000 weights are free, and returns
-float64 weights. It applies to a single debiased OT problem with one
-adapted source weight measure, no balance constraints, and a finite lambda;
-other configurations are skipped. \code{info()$polish} records each fit's
-\code{status} and \code{iterations}.}
+\item{polish}{"none" (the default) or "auto". "auto" refines eligible
+primal fits (one debiased weight problem, no balance constraints, at most
+2000 source points) in float64 with a Newton method and reports
+convergence in info()$polish. Larger fits are skipped and keep the
+solver's own convergence flag.}
 
 \item{p}{The power of the cost function to use for the cost.}
 

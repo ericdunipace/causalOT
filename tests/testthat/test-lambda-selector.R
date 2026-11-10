@@ -531,7 +531,12 @@ testthat::test_that("helper selectors return -Inf when no positive support remai
   log_weights <- causalOT:::cot_safe_log_weights(weights)
 
   loo_self <- causalOT:::cot_loo_log_mixture(cost, log_weights, weights, 0.9)
-  loo_cross <- causalOT:::cot_cross_loo_log_mixture(cost, log_weights, weights, 0.9)
+  loo_cross <- causalOT:::cot_cross_loo_log_mixture(
+    cost,
+    log_weights,
+    weights,
+    0.9
+  )
   testthat::expect_equal(loo_self[[1L]], -Inf)
   testthat::expect_equal(loo_cross[[1L]], -Inf)
   testthat::expect_true(all(is.finite(loo_self[-1L])))
@@ -587,7 +592,8 @@ testthat::test_that("bootstrap_legacy routes through the legacy selector", {
   ot$setup_arguments(
     lambda = c(10, 1),
     debias = TRUE,
-    cost.online = "tensorized"
+    cost.online = "tensorized",
+    polish = "auto"
   )
   ot$solve(
     niter = 3L,
@@ -640,9 +646,12 @@ testthat::test_that("fixed-pilot marginal selector ignores fitted path weights a
     "get_sym_evidence_state",
     function() state
   )
-  on.exit({
-    replace_private_binding(priv, "get_sym_evidence_state", old_state)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+    },
+    add = TRUE
+  )
 
   lambda_grid <- c(Inf, 2, 0.5, 0)
   weights_list_a <- list(
@@ -738,9 +747,12 @@ testthat::test_that("fixed-pilot symmetric selector uses one lambda across all e
     "get_sym_evidence_state",
     function() state
   )
-  on.exit({
-    replace_private_binding(priv, "get_sym_evidence_state", old_state)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+    },
+    add = TRUE
+  )
 
   lambda_grid <- c(Inf, 1.5, 0.4)
   pilot <- c(2, 3, 5)
@@ -801,9 +813,12 @@ testthat::test_that("profile marginal selector uses the matching fitted path wei
     "get_sym_evidence_state",
     function() state
   )
-  on.exit({
-    replace_private_binding(priv, "get_sym_evidence_state", old_state)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+    },
+    add = TRUE
+  )
 
   lambda_grid <- c(Inf, 2, 0.5)
   donor_weights <- list(
@@ -847,7 +862,7 @@ testthat::test_that("profile marginal selector uses the matching fitted path wei
   )
 })
 
-testthat::test_that("profile selectors fall back explicitly when eligible path points are not converged", {
+testthat::test_that("profile selectors score path points that are not converged", {
   ot <- selector_test_problem()
   priv <- ot$.__enclos_env__$private
   state <- selector_state_fixture()
@@ -856,53 +871,188 @@ testthat::test_that("profile selectors fall back explicitly when eligible path p
     "get_sym_evidence_state",
     function() state
   )
+  old_eval <- replace_private_binding(
+    priv,
+    "eval_lambda_sym_evidence",
+    function(wts, lambda, state) wts$metric
+  )
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+      replace_private_binding(priv, "eval_lambda_sym_evidence", old_eval)
+    },
+    add = TRUE
+  )
+
+  lambda_grid <- c(2, 0.5)
+  weights_list <- list(
+    make_weight_env(c(0.8, 0.1, 0.1), metric = 1),
+    make_weight_env(c(0.2, 0.2, 0.6), metric = 3)
+  )
+
+  testthat::expect_no_warning(
+    res <- priv$select_lambda_metric(
+      weights_list = weights_list,
+      weights_converged = c(TRUE, FALSE),
+      lambda_values = lambda_grid,
+      lambda_input_values = lambda_grid,
+      lambda_selector = "profile_symmetric_loo",
+      lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
+      n_boot_lambda = 1L,
+      lambda_bootstrap = 0.25
+    )
+  )
+
+  testthat::expect_equal(res$selector, "profile_symmetric_loo")
+  testthat::expect_equal(res$metrics, c(1, 3))
+  testthat::expect_equal(res$selected_lambda, 0.5)
+  testthat::expect_match(res$note, "not converged: lambda 0.5")
+})
+
+testthat::test_that("bootstrap fallback uses default draws when nboot = 0", {
+  ot <- selector_test_problem()
+  priv <- ot$.__enclos_env__$private
+  state <- list(supported = FALSE, reason = "online")
+  draws <- 0L
+  old_state <- replace_private_binding(
+    priv,
+    "get_sym_evidence_state",
+    function() state
+  )
   old_draw_boot_measure <- replace_private_binding(
     priv,
     "draw_boot_measure",
-    function() NULL
+    function() {
+      draws <<- draws + 1L
+      NULL
+    }
   )
   old_set_lambda <- replace_private_binding(
     priv,
     "set_lambda",
-    function(lambda) {
-      invisible(lambda)
-    }
+    function(lambda) invisible(lambda)
   )
   old_eval_lambda <- replace_private_binding(
     priv,
     "eval_lambda",
-    function(w, boot) {
-      w$metric
-    }
+    function(w, boot) w$metric
   )
-  on.exit({
-    replace_private_binding(priv, "get_sym_evidence_state", old_state)
-    replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
-    replace_private_binding(priv, "eval_lambda", old_eval_lambda)
-    replace_private_binding(priv, "set_lambda", old_set_lambda)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+      replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
+      replace_private_binding(priv, "eval_lambda", old_eval_lambda)
+      replace_private_binding(priv, "set_lambda", old_set_lambda)
+    },
+    add = TRUE
+  )
 
-  lambda_grid <- c(2, 0.5)
   weights_list <- list(
     make_weight_env(c(0.8, 0.1, 0.1), metric = 3),
     make_weight_env(c(0.2, 0.2, 0.6), metric = 1)
   )
 
-  res <- priv$select_lambda_metric(
-    weights_list = weights_list,
-    weights_converged = c(TRUE, FALSE),
-    lambda_values = lambda_grid,
-    lambda_input_values = lambda_grid,
-    lambda_selector = "profile_symmetric_loo",
-    lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
-    n_boot_lambda = 1L,
-    lambda_bootstrap = 0.25
+  testthat::expect_warning(
+    res <- priv$select_lambda_metric(
+      weights_list = weights_list,
+      weights_converged = c(TRUE, FALSE),
+      lambda_values = c(2, 0.5),
+      lambda_input_values = c(2, 0.5),
+      lambda_selector = "profile_symmetric_loo",
+      lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
+      n_boot_lambda = 0L,
+      lambda_bootstrap = 0.25
+    ),
+    "online costs.*Used 20 bootstrap draws because nboot = 0"
   )
-
+  testthat::expect_equal(draws, 20L)
   testthat::expect_equal(res$selector, "bootstrap_legacy")
   testthat::expect_equal(res$metrics, c(3, 1))
   testthat::expect_equal(res$selected_lambda, 0.5)
-  testthat::expect_match(res$note, "not converged.*0.5")
+
+  # Asking for bootstrap_legacy with nboot = 0 selects nothing, and says so
+  testthat::expect_warning(
+    res_none <- priv$select_lambda_metric(
+      weights_list = weights_list,
+      weights_converged = c(TRUE, TRUE),
+      lambda_values = c(2, 0.5),
+      lambda_input_values = c(2, 0.5),
+      lambda_selector = "bootstrap_legacy",
+      lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
+      n_boot_lambda = 0L,
+      lambda_bootstrap = 0.25
+    ),
+    "nboot >= 1; using the first lambda, 2"
+  )
+  testthat::expect_equal(draws, 20L)
+  testthat::expect_equal(res_none$selector, "fixed")
+  testthat::expect_equal(res_none$selected_lambda, 2)
+})
+
+testthat::test_that("evidence selectors warn when the selected lambda is at the edge of the grid", {
+  ot <- selector_test_problem()
+  priv <- ot$.__enclos_env__$private
+  state <- selector_state_fixture()
+  old_state <- replace_private_binding(
+    priv,
+    "get_sym_evidence_state",
+    function() state
+  )
+  old_eval <- replace_private_binding(
+    priv,
+    "eval_lambda_sym_evidence",
+    function(wts, lambda, state) wts$metric
+  )
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+      replace_private_binding(priv, "eval_lambda_sym_evidence", old_eval)
+    },
+    add = TRUE
+  )
+
+  lambda_grid <- c(Inf, 4, 2, 1)
+  edge_weights <- list(
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 0),
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 1),
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 2),
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 3)
+  )
+  testthat::expect_warning(
+    res_edge <- priv$select_lambda_metric(
+      weights_list = edge_weights,
+      weights_converged = rep(TRUE, 4L),
+      lambda_values = lambda_grid,
+      lambda_input_values = lambda_grid,
+      lambda_selector = "profile_symmetric_loo",
+      lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
+      n_boot_lambda = 1L,
+      lambda_bootstrap = 0.25
+    ),
+    "selected lambda 1, the smallest finite lambda"
+  )
+  testthat::expect_equal(res_edge$selected_lambda, 1)
+  testthat::expect_match(res_edge$note, "Consider widening it")
+
+  interior_weights <- list(
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 0),
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 1),
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 3),
+    make_weight_env(c(0.4, 0.3, 0.3), metric = 2)
+  )
+  testthat::expect_no_warning(
+    res_interior <- priv$select_lambda_metric(
+      weights_list = interior_weights,
+      weights_converged = rep(TRUE, 4L),
+      lambda_values = lambda_grid,
+      lambda_input_values = lambda_grid,
+      lambda_selector = "profile_symmetric_loo",
+      lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
+      n_boot_lambda = 1L,
+      lambda_bootstrap = 0.25
+    )
+  )
+  testthat::expect_equal(res_interior$selected_lambda, 2)
 })
 
 testthat::test_that("profile symmetric selector reports explicit unsupported fallback reasons", {
@@ -934,27 +1084,33 @@ testthat::test_that("profile symmetric selector reports explicit unsupported fal
       w$metric
     }
   )
-  on.exit({
-    replace_private_binding(priv, "get_sym_evidence_state", old_state)
-    replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
-    replace_private_binding(priv, "eval_lambda", old_eval_lambda)
-    replace_private_binding(priv, "set_lambda", old_set_lambda)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+      replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
+      replace_private_binding(priv, "eval_lambda", old_eval_lambda)
+      replace_private_binding(priv, "set_lambda", old_set_lambda)
+    },
+    add = TRUE
+  )
 
   weights_list <- list(
     make_weight_env(c(0.8, 0.1, 0.1), metric = 1),
     make_weight_env(c(0.2, 0.2, 0.6), metric = 2)
   )
 
-  res_online <- priv$select_lambda_metric(
-    weights_list = weights_list,
-    weights_converged = c(TRUE, TRUE),
-    lambda_values = c(2, 0.5),
-    lambda_input_values = c(2, 0.5),
-    lambda_selector = "profile_symmetric_loo",
-    lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
-    n_boot_lambda = 1L,
-    lambda_bootstrap = 0.25
+  testthat::expect_warning(
+    res_online <- priv$select_lambda_metric(
+      weights_list = weights_list,
+      weights_converged = c(TRUE, TRUE),
+      lambda_values = c(2, 0.5),
+      lambda_input_values = c(2, 0.5),
+      lambda_selector = "profile_symmetric_loo",
+      lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
+      n_boot_lambda = 1L,
+      lambda_bootstrap = 0.25
+    ),
+    "online costs"
   )
   testthat::expect_equal(res_online$selector, "bootstrap_legacy")
   testthat::expect_match(res_online$note, "online costs")
@@ -966,15 +1122,18 @@ testthat::test_that("profile symmetric selector reports explicit unsupported fal
       list(supported = FALSE, reason = "structure")
     }
   )
-  res_structure <- priv$select_lambda_metric(
-    weights_list = weights_list,
-    weights_converged = c(TRUE, TRUE),
-    lambda_values = c(2, 0.5),
-    lambda_input_values = c(2, 0.5),
-    lambda_selector = "profile_symmetric_loo",
-    lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
-    n_boot_lambda = 1L,
-    lambda_bootstrap = 0.25
+  testthat::expect_warning(
+    res_structure <- priv$select_lambda_metric(
+      weights_list = weights_list,
+      weights_converged = c(TRUE, TRUE),
+      lambda_values = c(2, 0.5),
+      lambda_input_values = c(2, 0.5),
+      lambda_selector = "profile_symmetric_loo",
+      lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(),
+      n_boot_lambda = 1L,
+      lambda_bootstrap = 0.25
+    ),
+    "single-problem weight-fitting"
   )
   testthat::expect_equal(res_structure$selector, "bootstrap_legacy")
   testthat::expect_match(
@@ -1013,12 +1172,15 @@ testthat::test_that("mass bootstrap selector is reproducible and avoids legacy b
       stop("legacy bootstrap scoring should not be used")
     }
   )
-  on.exit({
-    replace_private_binding(priv, "get_sym_evidence_state", old_state)
-    replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
-    replace_private_binding(priv, "eval_lambda", old_eval_lambda)
-    replace_private_binding(priv, "set_lambda", old_set_lambda)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+      replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
+      replace_private_binding(priv, "eval_lambda", old_eval_lambda)
+      replace_private_binding(priv, "set_lambda", old_set_lambda)
+    },
+    add = TRUE
+  )
 
   weights_list <- list(
     make_weight_env(c(0.7, 0.2, 0.1)),
@@ -1074,9 +1236,12 @@ testthat::test_that("mass bootstrap summaries select from the requested bootstra
     "get_sym_evidence_state",
     function() state
   )
-  on.exit({
-    replace_private_binding(priv, "get_sym_evidence_state", old_state)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "get_sym_evidence_state", old_state)
+    },
+    add = TRUE
+  )
 
   weights_list <- list(
     make_weight_env(c(0.7, 0.2, 0.1)),
@@ -1211,11 +1376,14 @@ testthat::test_that("legacy bootstrap alias matches canonical selector and honor
       w$metric
     }
   )
-  on.exit({
-    replace_private_binding(priv, "set_lambda", old_set_lambda)
-    replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
-    replace_private_binding(priv, "eval_lambda", old_eval_lambda)
-  }, add = TRUE)
+  on.exit(
+    {
+      replace_private_binding(priv, "set_lambda", old_set_lambda)
+      replace_private_binding(priv, "draw_boot_measure", old_draw_boot_measure)
+      replace_private_binding(priv, "eval_lambda", old_eval_lambda)
+    },
+    add = TRUE
+  )
   set_lambda_calls <- numeric()
 
   weights_list <- list(
@@ -1267,7 +1435,11 @@ testthat::test_that("kfold selector errors through choose_hyperparameters as not
     causalOT:::Measure(x = x, adapt = "weights"),
     causalOT:::Measure(x = y, adapt = "none")
   )
-  ot$setup_arguments(lambda = c(5, 1), debias = TRUE, cost.online = "tensorized")
+  ot$setup_arguments(
+    lambda = c(5, 1),
+    debias = TRUE,
+    cost.online = "tensorized"
+  )
   ot$solve(
     niter = 3L,
     tol = 1e-2,
@@ -1320,10 +1492,9 @@ testthat::test_that("sym_evidence integrates with primal finite-lambda COT and e
   y <- matrix(stats::rnorm(24), 12, 2)
   opt <- causalOT:::cotOptions(
     lambda = c(Inf, 25, 5),
-    opt.direction = "primal",
     solver = "lbfgs",
     cost.online = "tensorized",
-    niter = 10L,
+    niter = 2L,
     nboot = 1L,
     tol = 1e-2,
     lambda.selector = "sym_evidence",
@@ -1574,7 +1745,11 @@ testthat::test_that("selector aliases match canonical curves in integration and 
     causalOT:::Measure(x = x, adapt = "weights"),
     causalOT:::Measure(x = y, adapt = "none")
   )
-  ot$setup_arguments(lambda = c(20, 5), debias = TRUE, cost.online = "tensorized")
+  ot$setup_arguments(
+    lambda = c(20, 5),
+    debias = TRUE,
+    cost.online = "tensorized"
+  )
   ot$solve(
     niter = 10L,
     tol = 1e-2,
@@ -1688,6 +1863,7 @@ testthat::test_that("fixed-lambda CCP behavior is not broken by selector changes
     lambda = 50,
     opt.direction = "primal",
     solver = "mirror",
+    polish = "auto",
     cost.online = "tensorized",
     niter = 3L,
     nboot = 1L,

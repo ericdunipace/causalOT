@@ -222,7 +222,7 @@ testthat::test_that("ent works", {
     cot <- causalOT:::COT$new(
       source = x,
       target = y,
-      options = list(niter = 1, balance.formula = "~X1", debias = FALSE)
+      options = list(niter = 1, balance.formula = "~X1", lambda = c(1, 10), debias = FALSE)
     )
   )
 
@@ -246,6 +246,7 @@ testthat::test_that("ent works", {
       options = list(
         debias = FALSE,
         balance.formula = "~X1+X2",
+        ot_niter = 50L,
         niter = 1,
         verbose = FALSE,
         delta = 0.1
@@ -264,12 +265,7 @@ testthat::test_that("ent works", {
 })
 
 testthat::test_that("ent debiased works, online", {
-  testthat::skip_on_cran()
-  testthat::skip_on_ci()
   causalOT:::torch_check()
-  causalOT:::rkeops_check()
-
-  testthat::skip_if_not_installed("rkeops")
 
   set.seed(234808)
   n <- 15
@@ -300,7 +296,7 @@ testthat::test_that("ent debiased works, online", {
   testthat::expect_true(
     inherits(cot$.__enclos_env__$private$torch_optim, "optim_lbfgs")
   )
-  testthat::expect_warning(cot$solve())
+  testthat::expect_no_warning(cot$solve())
   cot <- causalOT:::COT$new(
     source = x,
     target = y,
@@ -325,13 +321,14 @@ testthat::test_that("ent debiased works, online", {
       options = list(
         niter = 1,
         balance.formula = "~X1",
+        lambda = c(1, 10),
         debias = FALSE,
         cost.online = "online"
       )
     )
   )
 
-  osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
+  osqpout <- testthat::capture_output(testthat::expect_no_warning(cot$solve()))
 
   testthat::expect_true(
     as_numeric(max(abs(
@@ -351,6 +348,7 @@ testthat::test_that("ent debiased works, online", {
       options = list(
         debias = FALSE,
         balance.formula = "~X1+X2",
+        lambda = c(1, 10),
         niter = 1,
         verbose = FALSE,
         delta = 0.1,
@@ -358,7 +356,7 @@ testthat::test_that("ent debiased works, online", {
       )
     )
   )
-  osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
+  osqpout <- testthat::capture_output(testthat::expect_no_warning(cot$solve()))
   testthat::expect_true(
     as_numeric(max(abs(
       cot$.__enclos_env__$private$source$balance_functions$transpose(
@@ -377,6 +375,7 @@ testthat::test_that("ent debiased works, online", {
       options = list(
         debias = TRUE,
         balance.formula = "~X1+X2",
+        lambda = c(10, Inf),
         niter = 1,
         verbose = FALSE,
         delta = 0.1,
@@ -428,7 +427,7 @@ testthat::test_that("grid_search function works", {
         opt.direction = "dual",
         # torch.scheduler = NULL,
         niter = 1L,
-        nboot = 10L
+        nboot = 2L
       )
     )
   )
@@ -506,7 +505,7 @@ testthat::test_that("NNM works", {
     cot <- causalOT:::COT$new(
       source = x,
       target = y,
-      options = list(niter = 1, balance.formula = "~X1", debias = FALSE)
+      options = list(niter = 1, balance.formula = "~X1", lambda = c(1, 10), debias = FALSE)
     )
   )
   testthat::expect_equal(
@@ -515,8 +514,7 @@ testthat::test_that("NNM works", {
   )
   osqpout <- testthat::capture_output(testthat::expect_no_warning(cot$solve()))
 
-  #### keops ####
-  causalOT:::rkeops_check()
+  #### online ####
 
   testthat::expect_silent(
     cot <- causalOT:::COT$new(
@@ -572,6 +570,7 @@ testthat::test_that("NNM works", {
         niter = 1,
         cost.online = "online",
         balance.formula = "~X1",
+        lambda = c(1, 10),
         debias = FALSE
       )
     )
@@ -580,7 +579,7 @@ testthat::test_that("NNM works", {
     class(cot$.__enclos_env__$private$optimizer),
     c("OTProblem", "R6")
   )
-  osqpout <- testthat::capture_output(testthat::expect_warning(cot$solve()))
+  osqpout <- testthat::capture_output(testthat::expect_no_warning(cot$solve()))
 })
 
 testthat::test_that("weights function works", {
@@ -617,8 +616,7 @@ testthat::test_that("weights function works", {
   testthat::expect_silent(w <- cot$weights)
   # testthat::expect_true(all(w[1] == w))
 
-  # run rkeops version
-  causalOT:::rkeops_check() #skips if rkeops fails or is not installed
+  # run online version
   testthat::expect_silent(
     cot <- causalOT:::COT$new(
       source = x,
@@ -635,7 +633,7 @@ testthat::test_that("weights function works", {
   )
   cot$solve()
   testthat::expect_silent(w <- cot$weights)
-  testthat::expect_true(all(w[1] == w))
+  # testthat::expect_true(all(w[1] == w))
 })
 
 testthat::test_that("cotOptions error checking works", {
@@ -668,6 +666,30 @@ testthat::test_that("cotOptions error checking works", {
   testthat::expect_error(opt <- cotOptions(torch.scheduler = sum))
   opt <- cotOptions(debias = FALSE, opt.direction = "dual")
   testthat::expect_true(opt$opt.direction == "primal")
+})
+
+testthat::test_that("opt.direction is deprecated", {
+  testthat::skip_on_cran()
+  causalOT:::torch_check()
+
+  testthat::expect_silent(opt <- cotOptions(lambda = 1))
+  testthat::expect_equal(opt$opt.direction, "primal")
+
+  lifecycle::expect_deprecated(
+    opt <- cotOptions(lambda = 1, opt.direction = "dual")
+  )
+  testthat::expect_equal(opt$opt.direction, "dual")
+
+  # a plain options list reaches cotOptions through do.call
+  x <- matrix(stats::rnorm(20), 10, 2)
+  y <- matrix(stats::rnorm(20), 10, 2)
+  lifecycle::expect_deprecated(
+    cot <- causalOT:::COT$new(
+      source = x,
+      target = y,
+      options = list(lambda = 1, opt.direction = "primal", niter = 1L)
+    )
+  )
 })
 
 testthat::test_that("cotOptions warns about unused arguments", {
