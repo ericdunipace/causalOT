@@ -6,7 +6,7 @@ cot_polish_ctl <- list(
   tol = 1e-8,
   sinkhorn_tol = 1e-13,
   sinkhorn_niter = 10000L,
-  max_free = 4000L,
+  max_free = 8000L,
   armijo = 1e-4,
   alpha_min = 1e-8,
   zero_tol = 1e-12,
@@ -52,8 +52,7 @@ cot_polish_eval <- function(twin, w, ctl = cot_polish_ctl) {
   list(
     loss = (twin$a$dot(grad) + twin$b$dot(pot$g_yx))$item(),
     y_self = twin$b$dot(pot$g_yy)$item(),
-    grad = as.numeric(grad),
-    f_xx = as.numeric(pot$f_xx)
+    grad = as.numeric(grad)
   )
 }
 
@@ -133,7 +132,7 @@ cot_polish_exact <- function(H, g, a, ctl, state) {
 # Free and binding coordinates. Bertsekas' epsilon shrinks with the
 # projected-gradient residual; the inverse cost scale makes the gradient step
 # dimensionless on the simplex.
-cot_polish_sets <- function(a, g, scale, f_xx, lambda, ctl = cot_polish_ctl) {
+cot_polish_sets <- function(a, g, scale, ctl = cot_polish_ctl) {
   S <- which(a > ctl$zero_tol)
   nu <- sum(a[S] * g[S]) / sum(a[S])
   v <- a - (g - nu) / max(scale, .Machine$double.eps)
@@ -143,12 +142,7 @@ cot_polish_sets <- function(a, g, scale, f_xx, lambda, ctl = cot_polish_ctl) {
   epsilon <- min(1e-2 / length(a), sqrt(sum((a - projected)^2)))
   # Avoid declaring a small optimal weight binding because of potential noise.
   binding <- which(a <= epsilon & g > nu + ctl$sinkhorn_factor * ctl$sinkhorn_tol)
-  # A zero weight whose curvature swamps double precision can't take a Newton
-  # step, and exp(2 * f_xx / lambda) overflowing would make the Hessian NaN.
-  curvature <- lambda * exp(2 * f_xx / lambda)
-  zeros <- which(
-    a <= ctl$zero_tol & g < nu & curvature * .Machine$double.eps < 1
-  )
+  zeros <- which(a <= ctl$zero_tol & g < nu)
   list(
     free = sort(unique(c(setdiff(which(a > 0), binding), zeros))),
     binding = binding
@@ -190,10 +184,13 @@ cot_polish_newton <- function(twin, a, ev, base, F, state, ctl) {
   centered_g <- model_g - mean(model_g)
   hscale <- max(abs(as.numeric(H$diag())), .Machine$double.eps)
   eye <- torch::torch_eye(length(F), dtype = torch::torch_float64())
-  for (shift in c(0, hscale * 10^(-10:0))) {
+  shifts <- c(0, hscale * 10^(-10:0))
+  # The last shift that worked is a good guess, so only try one step below it.
+  first <- if (is.null(state$shift)) 1L else max(1L, state$shift - 1L)
+  for (i in first:length(shifts)) {
     dc <- tryCatch(
       cot_polish_exact(
-        H + eye * shift,
+        H + eye * shifts[[i]],
         centered_g,
         a[F] + base[F],
         ctl,
@@ -205,6 +202,7 @@ cot_polish_newton <- function(twin, a, ev, base, F, state, ctl) {
       d <- base
       d[F] <- d[F] + dc
       if (sum(ev$grad * d) < 0) {
+        state$shift <- i
         return(d)
       }
     }
@@ -256,7 +254,7 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
     }
 
     iter <- k
-    sets <- cot_polish_sets(a, ev$grad, scale, ev$f_xx, lambda, ctl)
+    sets <- cot_polish_sets(a, ev$grad, scale, ctl)
     F <- sets$free
     if (!identical(qp_state$indices, F)) {
       qp_state$active <- NULL
@@ -316,11 +314,7 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
         cand <- cand / sum(cand)
         slope <- sum((ev$grad - sum(a * ev$grad)) * (cand - a))
         if (slope < 0) {
-          next_ev <- tryCatch(evaluate(cand), error = function(e) NULL)
-          if (is.null(next_ev)) { # Sinkhorn failed here, so reject this step
-            alpha <- alpha * 0.5
-            next
-          }
+          next_ev <- evaluate(cand)
           new_gap <- fw_gap(cand, next_ev$grad)
           armijo_ok <- next_ev$loss <= ev$loss + ctl$armijo * slope &&
             (next_ev$loss < ev$loss - floor || new_gap < gap)

@@ -1521,7 +1521,9 @@ sinkhorn_loss <- function(OT) {
   return(loss)
 }
 
-cot_tilted_softmax_weights <- function(C, b, lambda, tilt = NULL) {
+# each target point j spreads its mass b_j over the sources by a softmin of
+# its cost column; the summed source mass is the semi-relaxed starting weight
+cot_init_semirelaxed <- function(C, b, lambda) {
   if (inherits(C, "costTensor")) {
     C <- C$data
   }
@@ -1533,38 +1535,20 @@ cot_tilted_softmax_weights <- function(C, b, lambda, tilt = NULL) {
   } else {
     b <- b$to(dtype = C$dtype, device = C$device)
   }
-  if (is.null(tilt)) {
-    tilt <- torch::torch_zeros(
-      c(dim(C)[[1L]]),
-      dtype = C$dtype,
-      device = C$device
-    )
-  } else if (!inherits(tilt, "torch_tensor")) {
-    tilt <- torch::torch_tensor(tilt, dtype = C$dtype, device = C$device)
-  } else {
-    tilt <- tilt$to(dtype = C$dtype, device = C$device)
-  }
   stopifnot(
     "lambda must be a finite positive scalar." = length(lambda) == 1L &&
       is.finite(lambda) &&
       lambda > 0
   )
   stopifnot(
-    "tilt must have one entry per source point." = length(tilt) == dim(C)[[1L]]
-  )
-  stopifnot(
     "b must have one entry per target point." = length(b) == dim(C)[[2L]]
   )
 
   log_b <- log_weights(b$detach())
-  eta <- (tilt$view(c(-1L, 1L)) - C) / lambda
+  eta <- -C / lambda
   log_col_norm <- eta$logsumexp(1)$view(c(1L, -1L))
   log_w_terms <- eta - log_col_norm + log_b$view(c(1L, -1L))
   log_w_terms$logsumexp(2)$exp()
-}
-
-cot_init_semirelaxed <- function(C, b, lambda) {
-  cot_tilted_softmax_weights(C = C, b = b, lambda = lambda)
 }
 
 # skip the b'g term of the self divergence if y is constant

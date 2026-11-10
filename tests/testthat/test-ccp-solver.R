@@ -22,21 +22,6 @@ testthat::test_that("semi-relaxed initializer is log-domain column softmax", {
   testthat::expect_equal(as.numeric(w), as.numeric(expected), tolerance = 1e-10)
 })
 
-testthat::test_that("tilted softmax is invariant to additive tilt gauges", {
-  causalOT:::torch_check()
-  C <- torch::torch_tensor(
-    matrix(stats::runif(20), nrow = 5),
-    dtype = torch::torch_double()
-  )
-  b <- torch::torch_tensor(rep(0.25, 4), dtype = torch::torch_double())
-  tilt <- torch::torch_tensor(stats::rnorm(5), dtype = torch::torch_double())
-
-  w1 <- causalOT:::cot_tilted_softmax_weights(C, b, 100.0, tilt)
-  w2 <- causalOT:::cot_tilted_softmax_weights(C, b, 100.0, tilt + 25.0)
-
-  testthat::expect_equal(as.numeric(w1), as.numeric(w2), tolerance = 1e-10)
-})
-
 testthat::test_that("ccp solver runs fixed lambda primal tensorized COT", {
   testthat::skip_on_cran()
   causalOT:::torch_check()
@@ -293,21 +278,6 @@ testthat::test_that("dual solve writes solved weights back to COT object", {
   testthat::expect_equal(cot$weights, direct_weights, tolerance = 1e-7)
   testthat::expect_equal(sum(cot$weights), 1.0, tolerance = 1e-7)
   testthat::expect_gt(max(abs(cot$weights - start_weights)), 1e-6)
-})
-
-testthat::test_that("ccp tilted update is scale invariant", {
-  causalOT:::torch_check()
-  C <- torch::torch_tensor(
-    matrix(stats::runif(24), nrow = 6),
-    dtype = torch::torch_double()
-  )
-  b <- torch::torch_tensor(rep(0.25, 4), dtype = torch::torch_double())
-  tilt <- torch::torch_tensor(stats::rnorm(6), dtype = torch::torch_double())
-
-  w1 <- causalOT:::cot_tilted_softmax_weights(C, b, 100.0, tilt)
-  w2 <- causalOT:::cot_tilted_softmax_weights(C * 7.0, b, 700.0, tilt * 7.0)
-
-  testthat::expect_equal(as.numeric(w1), as.numeric(w2), tolerance = 1e-10)
 })
 
 testthat::test_that("converged scale floors the relative check near zero", {
