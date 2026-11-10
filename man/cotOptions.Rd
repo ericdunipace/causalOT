@@ -53,7 +53,9 @@ instead. Should the optimizer solve the primal or dual problems. One of
 primal fits (one debiased weight problem, no balance constraints, at most
 2000 source points) in float64 with a Newton method and reports
 convergence in info()$polish. Larger fits are skipped and keep the
-solver's own convergence flag.}
+solver's own convergence flag. With "none", a warning is only given when
+the selected fit reached \code{niter}; the gap check is still reported in
+info()$converged and info()$reason.}
 
 \item{p}{The power of the cost function to use for the cost.}
 

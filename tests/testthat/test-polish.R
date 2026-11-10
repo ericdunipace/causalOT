@@ -470,7 +470,8 @@ test_that('numerical failures store NA, are excluded from selection, and all-fai
   expect_error(broken$solve(), 'programming error')
 })
 
-test_that('selection uses every valid fit and warns once when the selected fit is not converged', {
+test_that('unpolished selection warns only when phase 1 ran out of iterations', {
+  # gap above tolerance after phase 1 stopped by its rule: recorded, no warning
   cot <- fit_cot('none', lambda = c(4, 2))
   p <- fit_private(cot)
   replace_private(p, 'optimization_loop', function(niter, tol) {
@@ -479,6 +480,34 @@ test_that('selection uses every valid fit and warns once when the selected fit i
   })
   cot$solve()
   expect_identical(unname(unlist(p$reason_run)), c('gap above tolerance', 'ok'))
+  calls <- 0L
+  replace_private(p, 'draw_boot_measure', function() NULL)
+  replace_private(p, 'eval_lambda', function(w, boot) {
+    calls <<- calls + 1L
+    c(0, 1)[[calls]]
+  })
+  expect_no_warning(
+    fit_optimizer(cot)$choose_hyperparameters(
+      n_boot_lambda = 1,
+      n_boot_delta = 0,
+      lambda.selector = 'bootstrap_legacy'
+    )
+  )
+  expect_equal(fit_optimizer(cot)$selected_lambda, 4)
+  expect_false(fit_optimizer(cot)$info()$converged[['4']][[1]])
+
+  # phase 1 hit niter: warn once
+  cot <- fit_cot('none', lambda = c(4, 2))
+  p <- fit_private(cot)
+  replace_private(p, 'optimization_loop', function(niter, tol) {
+    lambda <- p$ot_objects[[ls(p$ot_objects)[[1L]]]]$penalty
+    fake_phase1(loss = 0, fw_gap = .1, stopped_by_rule = lambda != 4)
+  })
+  cot$solve()
+  expect_identical(
+    unname(unlist(p$reason_run)),
+    c('niter', 'gap above tolerance')
+  )
   calls <- 0L
   replace_private(p, 'draw_boot_measure', function() NULL)
   replace_private(p, 'eval_lambda', function(w, boot) {
@@ -499,7 +528,7 @@ test_that('selection uses every valid fit and warns once when the selected fit i
   )
   expect_equal(fit_optimizer(cot)$selected_lambda, 4)
   expect_length(warnings, 1L)
-  expect_match(warnings, 'not converged.*gap/D')
+  expect_match(warnings, 'not converged \\(niter.*gap/D')
 })
 
 test_that('only auto and none are polish options', {

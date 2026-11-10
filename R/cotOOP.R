@@ -1850,10 +1850,16 @@ OTProblem_ <- R6::R6Class(
         } else {
           NULL
         }
+        reason <- private$reason_run[[selected_key]][[d_index]]
+        # Without the polish, only warn when phase 1 missed its own stopping
+        # rule, like OSQP without its polish. The gap check stays in info().
+        unpolished_stopped <- identical(status, "none") &&
+          !identical(reason, "niter")
         if (
-          identical(selected_converged, FALSE) && !startsWith(status, "skipped")
+          identical(selected_converged, FALSE) &&
+            !startsWith(status, "skipped") &&
+            !unpolished_stopped
         ) {
-          reason <- private$reason_run[[selected_key]][[d_index]]
           ratio <- gap[["gap"]] / max(gap[["D"]], .Machine$double.xmin)
           detail <- if (length(ratio) == 1L && is.finite(ratio)) {
             sprintf("; gap/D = %.6g", ratio)

@@ -335,7 +335,9 @@ COT <- R6::R6Class(
 #' primal fits (one debiased weight problem, no balance constraints, at most
 #' 2000 source points) in float64 with a Newton method and reports
 #' convergence in info()$polish. Larger fits are skipped and keep the
-#' solver's own convergence flag.
+#' solver's own convergence flag. With "none", a warning is only given when
+#' the selected fit reached `niter`; the gap check is still reported in
+#' info()$converged and info()$reason.
 #' @param tol Relative tolerance for final fit convergence (default 1e-4),
 #'   shared by phase 1 and polish: `gap <= atol + tol * max(0, D)`, where
 #'   `D` is the debiased divergence. Unpolished fits use `atol = ot_tol`
