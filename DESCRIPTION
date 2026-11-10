@@ -22,6 +22,7 @@ Imports:
     CBPS,
     ggplot2,
     lbfgsb3c,
+    lifecycle,
     loo,
     Matrix (>= 1.5-0),
     matrixStats,

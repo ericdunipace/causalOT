@@ -52,6 +52,7 @@ importFrom(Rcpp,
   evalCpp,
   sourceCpp
 )
+importFrom(lifecycle,deprecated)
 importFrom(methods,
   as,
   setOldClass,

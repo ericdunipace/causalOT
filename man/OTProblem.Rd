@@ -618,7 +618,7 @@ if (torch::torch_is_installed()) {
   diameter = NULL,
   ot_niter = 1000L,
   ot_tol = 0.001,
-  polish = c("auto", "none")
+  polish = c("none", "auto")
 )}
     \if{html}{\out{</div>}}
   }

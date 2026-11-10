@@ -205,7 +205,12 @@ test_that('polished fits converge, keep exact zeros, and return float64 weights'
       niter = 50L
     )
     expect_silent(cot$solve())
-    cot$grid_search()
+    if (solver == 'lbfgs') {
+      # two lambdas and nboot = 0, so nothing is selected
+      expect_warning(cot$grid_search(), 'nboot >= 1')
+    } else {
+      cot$grid_search()
+    }
     info <- fit_optimizer(cot)$info()
     expect_true(all(unlist(info$converged)))
     expect_true(all(unlist(info$reason) == 'ok'))
@@ -249,6 +254,7 @@ test_that('default accelerator fits are polished and return float64 weights', {
   opts <- cotOptions(
     lambda = 2,
     solver = 'mirror',
+    polish = 'auto',
     niter = 30L,
     nboot = 0,
     cost.online = 'tensorized'

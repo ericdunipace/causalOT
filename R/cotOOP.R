@@ -1284,7 +1284,7 @@ OTProblem_ <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-3,
-        polish = c("auto", "none")
+        polish = c("none", "auto")
       ) {
         private$polish_method <- match.arg(polish)
         private$polish_cache <- new.env(parent = emptyenv())
@@ -2492,6 +2492,12 @@ OTProblem_ <- R6::R6Class(
         if (!is.finite(ot$penalty) || ot$penalty <= 0) {
           return("requires a finite positive lambda")
         }
+        if (ot$n > cot_polish_ctl$max_free) {
+          return(sprintf(
+            "source sample larger than %d points",
+            cot_polish_ctl$max_free
+          ))
+        }
         if (
           !ot$tensorized &&
             (identical(ot$C_xy$algorithm, "user") ||
@@ -3496,10 +3502,7 @@ OTProblem_ <- R6::R6Class(
 
         if (use_selector_state && length(finite_index) > 0L) {
           sym_state <- private$get_sym_evidence_state()
-          if (
-            isTRUE(sym_state$supported) &&
-              (!use_path_weights || all(weights_converged[finite_index]))
-          ) {
+          if (isTRUE(sym_state$supported)) {
             if (lambda_selector == "profile_symmetric_loo") {
               for (idx in finite_index) {
                 lambda_metrics[[idx]] <- private$eval_lambda_sym_evidence(
@@ -3510,7 +3513,7 @@ OTProblem_ <- R6::R6Class(
               }
               out$note <- paste(
                 "Profile symmetric leave-one-out evidence uses stored fitted COT path weights.",
-                "Boundary lambdas are excluded from selection."
+                "Infinite and zero lambdas are excluded from selection."
               )
               out$loo <- cot_selector_loo_convention
             } else if (lambda_selector == "profile_marginal_loo") {
@@ -3525,7 +3528,7 @@ OTProblem_ <- R6::R6Class(
               }
               out$note <- paste(
                 "Profile marginal leave-one-out evidence scores target masses under the stored fitted donor path.",
-                "Boundary lambdas are excluded from selection."
+                "Infinite and zero lambdas are excluded from selection."
               )
               out$loo <- cot_selector_marginal_loo_convention
             } else if (lambda_selector == "symmetric_loo") {
@@ -3544,7 +3547,7 @@ OTProblem_ <- R6::R6Class(
               }
               out$note <- paste(
                 "Fixed-pilot symmetric leave-one-out evidence uses donor pilot masses and does not inspect stored fitted path weights.",
-                "Boundary lambdas are excluded from selection."
+                "Infinite and zero lambdas are excluded from selection."
               )
               out$loo <- cot_selector_loo_convention
               if (isTRUE(lambda_selector_control$details)) {
@@ -3564,7 +3567,7 @@ OTProblem_ <- R6::R6Class(
               }
               out$note <- paste(
                 "Fixed-pilot marginal leave-one-out evidence uses donor pilot masses and does not inspect stored fitted path weights.",
-                "Boundary lambdas are excluded from selection."
+                "Infinite and zero lambdas are excluded from selection."
               )
               out$loo <- cot_selector_marginal_loo_convention
               if (isTRUE(lambda_selector_control$details)) {
@@ -3618,7 +3621,7 @@ OTProblem_ <- R6::R6Class(
               )
               out$note <- paste(
                 "Mass-bootstrap symmetric evidence resamples donor and target masses without refitting the stored COT path.",
-                "Boundary lambdas are excluded from selection."
+                "Infinite and zero lambdas are excluded from selection."
               )
               out$loo <- cot_selector_loo_convention
               if (isTRUE(lambda_selector_control$details)) {
@@ -3629,6 +3632,15 @@ OTProblem_ <- R6::R6Class(
                   mass.bootstrap.kappa = lambda_selector_control$mass.bootstrap.kappa
                 )
               }
+            }
+
+            unconverged <- finite_index[!weights_converged[finite_index]]
+            if (use_path_weights && length(unconverged)) {
+              out$note <- paste(
+                out$note,
+                "Scored fits that were not converged: lambda",
+                paste(lambda_input_values[unconverged], collapse = ", ")
+              )
             }
 
             out$metrics <- lambda_metrics
@@ -3645,6 +3657,30 @@ OTProblem_ <- R6::R6Class(
             out$selected_lambda <- lambda_input_values[[out$selected_index]]
             out$selector <- lambda_selector
 
+            # A maximum at the edge of the grid may lie beyond it
+            finite_lambda <- lambda_input_values[finite_index]
+            edge <- if (out$selected_lambda == min(finite_lambda)) {
+              "smallest"
+            } else if (out$selected_lambda == max(finite_lambda)) {
+              "largest"
+            } else {
+              NA_character_
+            }
+            if (
+              length(finite_index) >= 3L &&
+                any(is.finite(finite_metrics)) &&
+                !is.na(edge)
+            ) {
+              msg <- sprintf(
+                "%s selected lambda %s, the %s finite lambda in the grid; the best lambda may lie outside the grid. Consider widening it.",
+                lambda_selector,
+                format(out$selected_lambda),
+                edge
+              )
+              out$note <- paste(out$note, msg)
+              warning(msg, call. = FALSE)
+            }
+
             if (length(finite_index) == 1L) {
               out$note <- paste(
                 out$note,
@@ -3654,26 +3690,7 @@ OTProblem_ <- R6::R6Class(
             return(out)
           }
 
-          if (
-            isTRUE(sym_state$supported) &&
-              use_path_weights &&
-              !all(weights_converged[finite_index])
-          ) {
-            out$note <- paste(
-              "Fell back to bootstrap_legacy because at least one eligible finite-lambda fit needed by",
-              selector_label,
-              paste0(
-                "was not converged: lambda ",
-                paste(
-                  lambda_input_values[finite_index[
-                    !weights_converged[finite_index]
-                  ]],
-                  collapse = ", "
-                ),
-                "."
-              )
-            )
-          } else if (identical(sym_state$reason, "online")) {
+          if (identical(sym_state$reason, "online")) {
             out$note <- paste(
               "Fell back to bootstrap_legacy because",
               selector_label,
@@ -3706,6 +3723,29 @@ OTProblem_ <- R6::R6Class(
           if (is.na(out$note)) {
             out$note <- "Fixed lambda path; no lambda selection was applied."
           }
+          return(out)
+        }
+
+        if (use_selector_state) {
+          # An evidence selector fell back. Those selectors don't use nboot, so
+          # nboot = 0 is a natural setting and the fallback uses its own default.
+          if (n_boot_lambda < 1L) {
+            n_boot_lambda <- 20L
+            out$note <- paste(out$note, "Used 20 bootstrap draws because nboot = 0.")
+          }
+          warning(out$note, call. = FALSE)
+        }
+
+        # Without bootstrap draws every score would be 0 and the first lambda wins
+        if (n_boot_lambda < 1L && length(candidates) > 1L) {
+          out$selected_index <- candidates[[1L]]
+          out$selected_lambda <- lambda_input_values[[out$selected_index]]
+          msg <- sprintf(
+            "No lambda selection was done because bootstrap_legacy needs nboot >= 1; using the first lambda, %s.",
+            format(out$selected_lambda)
+          )
+          out$note <- if (is.na(out$note)) msg else paste(out$note, msg)
+          warning(out$note, call. = FALSE)
           return(out)
         }
 
@@ -4078,7 +4118,7 @@ NNM <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-5,
-        polish = c("auto", "none")
+        polish = c("none", "auto")
       ) {
         super$setup_arguments(
           lambda = 0,
@@ -4822,7 +4862,7 @@ cotDualLegacyTrain <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-5,
-        polish = c("auto", "none")
+        polish = c("none", "auto")
       ) {
         super$setup_arguments(
           lambda,
@@ -5555,7 +5595,7 @@ cotDualTrain <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-5,
-        polish = c("auto", "none")
+        polish = c("none", "auto")
       ) {
         super$setup_arguments(
           lambda,

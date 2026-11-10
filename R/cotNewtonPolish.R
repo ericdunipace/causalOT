@@ -6,14 +6,14 @@ cot_polish_ctl <- list(
   tol = 1e-8,
   sinkhorn_tol = 1e-13,
   sinkhorn_niter = 10000L,
-  max_free = 8000L,
+  max_free = 2000L, # also the largest source sample a COT fit polishes
   armijo = 1e-4,
   alpha_min = 1e-8,
   zero_tol = 1e-12,
   lbfgs_m = 10L,
   lbfgs_maxit = 200L,
   round_factor = 64, # multiple of eps treated as rounding noise
-  sinkhorn_factor = 16 # multiple of the sinkhorn tol treated as potential noise
+  sinkhorn_factor = 16 # multiple of the sinkhorn tol treated as noise in potentials
 )
 
 cot_polish_twin <- function(ot, x, y) {
@@ -60,14 +60,13 @@ cot_polish_sinkhorn_tol <- function(lambda, ctl) {
   max(ctl$sinkhorn_tol, ctl$round_factor * .Machine$double.eps * lambda)
 }
 
-# Active-set solve of the simplex QP min d'Hd/2 + g'd, sum(d) = 0, a + d >= 0.
-# The binding set is retained across Levenberg shifts and outer steps.
+# Active-set solve
 cot_polish_exact <- function(H, g, a, ctl, state) {
   n <- length(a)
   binding <- if (length(state$active) == n) {
     state$active
   } else {
-    # The free set changed, so start from the last binding set restricted to it.
+    # The free set changed
     (a <= ctl$zero_tol & g > sum(a * g) / sum(a)) |
       state$binding[state$indices]
   }
@@ -75,9 +74,7 @@ cot_polish_exact <- function(H, g, a, ctl, state) {
     binding[which.min(g)] <- FALSE
   }
   kkt_tol <- ctl$round_factor * .Machine$double.eps * max(1, max(abs(g)))
-  # The Householder reflection Q = I - beta v v' maps e_1 to the all-ones
-  # direction, so its last s - 1 columns Z span sum(d) = 0. Then Z'AZ is QAQ
-  # without its first row and column, and applying Q directly is O(s^2).
+  # Housholder reflections
   reduced_step <- function(F, rhs) {
     s <- length(F)
     v <- rep(1 / sqrt(s), s)
@@ -129,9 +126,7 @@ cot_polish_exact <- function(H, g, a, ctl, state) {
   stop("Polish QP needs a larger Levenberg shift")
 }
 
-# Free and binding coordinates. Bertsekas' epsilon shrinks with the
-# projected-gradient residual; the inverse cost scale makes the gradient step
-# dimensionless on the simplex.
+# Get free sets
 cot_polish_sets <- function(a, g, scale, ctl = cot_polish_ctl) {
   S <- which(a > ctl$zero_tol)
   nu <- sum(a[S] * g[S]) / sum(a[S])
@@ -140,8 +135,10 @@ cot_polish_sets <- function(a, g, scale, ctl = cot_polish_ctl) {
   theta <- (cumsum(u) - 1) / seq_along(u)
   projected <- pmax(v - theta[max(which(u > theta))], 0)
   epsilon <- min(1e-2 / length(a), sqrt(sum((a - projected)^2)))
-  # Avoid declaring a small optimal weight binding because of potential noise.
-  binding <- which(a <= epsilon & g > nu + ctl$sinkhorn_factor * ctl$sinkhorn_tol)
+  # Avoid declaring a small optimal weight binding because of noise.
+  binding <- which(
+    a <= epsilon & g > nu + ctl$sinkhorn_factor * ctl$sinkhorn_tol
+  )
   zeros <- which(a <= ctl$zero_tol & g < nu)
   list(
     free = sort(unique(c(setdiff(which(a > 0), binding), zeros))),
@@ -176,16 +173,17 @@ cot_polish_lbfgs <- function(g, memory, mean_weight) {
 cot_polish_newton <- function(twin, a, ev, base, F, state, ctl) {
   H <- twin$hessian_weights(F)
 
-  # The Hessian gauge is irrelevant on sum(d) = 0. Remove it before ridge
-  # scaling and active-set multiplier tests, especially at large lambda.
+  # normalize the Hessian
   rows <- H$mean(dim = 2, keepdim = TRUE)
   H <- H - rows - rows$t() + H$mean()
+
   model_g <- ev$grad[F] + as.numeric(H$matmul(as_cpu_double_tensor(base[F])))
   centered_g <- model_g - mean(model_g)
   hscale <- max(abs(as.numeric(H$diag())), .Machine$double.eps)
   eye <- torch::torch_eye(length(F), dtype = torch::torch_float64())
   shifts <- c(0, hscale * 10^(-10:0))
-  # The last shift that worked is a good guess, so only try one step below it.
+
+  # last shift that worked as next guess
   first <- if (is.null(state$shift)) 1L else max(1L, state$shift - 1L)
   for (i in first:length(shifts)) {
     dc <- tryCatch(
@@ -211,9 +209,7 @@ cot_polish_newton <- function(twin, a, ev, base, F, state, ctl) {
 }
 
 
-# Monotone Newton polish. Uses exact Newton steps on the free set, or L-BFGS
-# when the free set exceeds max_free. Returns float64 weights; if the polish
-# cannot improve an unconverged start, the start is returned unchanged.
+# Newton polish, monotone
 cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
   a <- as.numeric(twin$a)
   if (any(!is.finite(a)) || any(a < 0) || sum(a) <= 0) {
@@ -223,10 +219,7 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
   lambda <- as.numeric(twin$penalty)
   scale <- cot_conv_scale(twin)
 
-  # Loss resolution, and the gap resolution: a potential error of size delta
-  # moves the computed gap by up to 2 * (delta_xy + delta_xx), and each delta is
-  # about the Sinkhorn tolerance over (1 - contraction rate). 16 covers rates up
-  # to 3/4.
+  # Loss resolution
   floor <- ctl$round_factor * .Machine$double.eps * scale
   atol <- floor + ctl$sinkhorn_factor * cot_polish_sinkhorn_tol(lambda, ctl)
   fw_gap <- function(w, g) max(0, sum(w * g) - min(g))
@@ -270,8 +263,7 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
     base[sets$binding] <- -a[sets$binding]
     base[F] <- -sum(base) / length(F)
     if (dir == "lbfgs") {
-      # Pairs are stored at full length and restricted to the current free set,
-      # because the free set changes on most steps.
+      # Pairs are stored at full length and restricted to the current free set
       if (!is.null(prev_a)) {
         memory <- utils::tail(
           c(memory, list(list(s = a - prev_a, y = ev$grad - prev_g))),
@@ -328,8 +320,7 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
       }
       shrink <- 0.5
       if (dir == "lbfgs" && !length(pairs) && !is.null(next_ev) && slope < 0) {
-        # A rejected probe also supplies a secant curvature estimate, which
-        # avoids many halvings on a sharply curved face.
+        # get curvature from rejected probe
         curvature <- sum((next_ev$grad - ev$grad) * (cand - a))
         if (is.finite(curvature) && curvature > 0) {
           shrink <- max(0.05, min(0.5, -slope / curvature))
@@ -346,7 +337,7 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
     ev <- next_ev
 
     accepted <- accepted + 1L
-    # Stalled only when neither the loss nor the gap made real progress.
+    # Stall if gap and loss not making progress
     if (improvement <= floor && !(fw_gap(a, ev$grad) < 0.5 * gap)) {
       status <- "stalled"
       break

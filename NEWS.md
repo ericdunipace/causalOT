@@ -4,13 +4,14 @@
 * `vcov()` for `causalEffect` objects now computes the variance from the full
   plug-in influence function. Standard errors and confidence intervals will differ
   from earlier versions. `vcov(object, type = "components")` gives the
-  previous calculation.
+  previous calculation (which ignores cross terms)
+* `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
 
 ## New features
 * Updated convergence criterion to prevent needless long runs
-* COT fits now receive a monotone Newton polish by default.
-  `cotOptions(polish = "auto")` uses an exact Hessian up to 2,000 free
-  weights and L-BFGS above that cap.
+* `cotOptions(polish = "auto")` refines COT weights with a monotone Newton
+  polish using an exact Hessian. It is off by default and skips fits with
+  more than 2,000 source points. 
 * `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
   descent solver for debiased COT weights
 * New dual solvers `dual.solver = "fixed_point_joint"` and `"joint"`. Their

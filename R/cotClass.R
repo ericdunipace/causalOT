@@ -301,7 +301,9 @@ COT <- R6::R6Class(
 #'
 #' @param lambda The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.
 #' @param delta The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.
-#' @param opt.direction Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "primal" (LBFGS solver) until the mirror solver supports multiple lambdas.
+#' @param opt.direction `r lifecycle::badge("deprecated")` Use `solver`
+#'   instead. Should the optimizer solve the primal or dual problems. One of
+#'   "dual" or "primal"; "primal" is used if not supplied.
 #' @param dual.solver Solver to use when `opt.direction = "dual"`. `"fixed_point_joint"` uses the joint KL forward with fixed-point updates on the source log-weights, `"joint"` uses alternating torch optimization over the dual potential and source log-weights, while `"entropy"` uses the legacy entropy-implied weight update path.
 #' @param debias Should debiased optimal transport be used? TRUE or FALSE.
 #' @param solver Solver to use for COT weight optimization. For `opt.direction = "primal"`, solver options are `"lbfgs"` uses LBFGS optimization on the weights directly. `"mirror"` runs a mirror descent solver, which is typically faster.
@@ -329,10 +331,11 @@ COT <- R6::R6Class(
 #'   selection. Supported entries are `pilot.weights`, `details`,
 #'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`, and
 #'   `mass.bootstrap.kappa`.
-#' @param polish refines eligible primal fits (one debiased
-#' weight problem, no balance constraints) in float64 with a
-#' Newton method and reports convergence in info()$polish; "none"
-#' skips it."
+#' @param polish "none" (the default) or "auto". "auto" refines eligible
+#' primal fits (one debiased weight problem, no balance constraints, at most
+#' 2000 source points) in float64 with a Newton method and reports
+#' convergence in info()$polish. Larger fits are skipped and keep the
+#' solver's own convergence flag.
 #' @param tol Relative tolerance for final fit convergence (default 1e-4),
 #'   shared by phase 1 and polish: `gap <= atol + tol * max(0, D)`, where
 #'   `D` is the debiased divergence. Unpolished fits use `atol = ot_tol`
@@ -410,11 +413,11 @@ COT <- R6::R6Class(
 cotOptions <- function(
   lambda = NULL,
   delta = NULL,
-  opt.direction = c("dual", "primal"),
+  opt.direction = deprecated(),
   dual.solver = c("fixed_point_joint", "joint", "entropy"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
-  polish = c("auto", "none"),
+  polish = c("none", "auto"),
   p = 2.0,
   cost.function = NULL,
   cost.online = "auto",
@@ -482,10 +485,18 @@ cotOptions <- function(
     output$delta <- sort(delta, decreasing = TRUE)
   }
 
-  if (missing(opt.direction) || arg_not_used(opt.direction)) {
-    output[["opt.direction"]] <- "primal"
-  } else {
+  if (lifecycle::is_present(opt.direction) && !arg_not_used(opt.direction)) {
+    # COT$new() and calc_weight() reach here through do.call(), so use the
+    # global env as the user env, otherwise lifecycle blames causalOT
+    lifecycle::deprecate_warn(
+      when = "1.1",
+      what = "cotOptions(opt.direction)",
+      with = "cotOptions(solver)",
+      user_env = globalenv()
+    )
     output[["opt.direction"]] <- match.arg(opt.direction, c("dual", "primal"))
+  } else {
+    output[["opt.direction"]] <- "primal"
   }
   if (missing(dual.solver) || arg_not_used(dual.solver)) {
     output[["dual.solver"]] <- "fixed_point_joint"

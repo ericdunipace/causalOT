@@ -305,6 +305,7 @@ testthat::test_that("lbfgs uses the optimality test for a single divergence", {
     opt.direction = "primal",
     solver = "lbfgs",
     line_search_fn = "strong_wolfe",
+    polish = "auto",
     niter = 200L,
     ot_niter = 500L,
     ot_tol = 1e-6,

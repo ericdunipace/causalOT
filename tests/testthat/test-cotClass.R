@@ -668,6 +668,30 @@ testthat::test_that("cotOptions error checking works", {
   testthat::expect_true(opt$opt.direction == "primal")
 })
 
+testthat::test_that("opt.direction is deprecated", {
+  testthat::skip_on_cran()
+  causalOT:::torch_check()
+
+  testthat::expect_silent(opt <- cotOptions(lambda = 1))
+  testthat::expect_equal(opt$opt.direction, "primal")
+
+  lifecycle::expect_deprecated(
+    opt <- cotOptions(lambda = 1, opt.direction = "dual")
+  )
+  testthat::expect_equal(opt$opt.direction, "dual")
+
+  # a plain options list reaches cotOptions through do.call
+  x <- matrix(stats::rnorm(20), 10, 2)
+  y <- matrix(stats::rnorm(20), 10, 2)
+  lifecycle::expect_deprecated(
+    cot <- causalOT:::COT$new(
+      source = x,
+      target = y,
+      options = list(lambda = 1, opt.direction = "primal", niter = 1L)
+    )
+  )
+})
+
 testthat::test_that("cotOptions warns about unused arguments", {
   testthat::skip_on_cran()
   causalOT:::torch_check()

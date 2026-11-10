@@ -1554,7 +1554,7 @@ cot_init_semirelaxed <- function(C, b, lambda) {
 # skip the b'g term of the self divergence if y is constant
 cot_ccp_y_self_term <- function(ot, niter = 1000L, tol = 1e-10) {
   ot_private <- ot$.__enclos_env__$private
-  # sinkhorn_self_loop updates a stored g_yy in place, so run it on a copy
+  # need to copy g_yy otherwise it's edited by reference
   g_yy_stored <- ot_private$pot$g_yy
   if (!is.null(g_yy_stored)) {
     ot_private$pot$g_yy <- g_yy_stored$detach()$clone()
@@ -1575,7 +1575,7 @@ cot_conv_scale <- function(ot) {
   max(as.numeric(ot$penalty), .Machine$double.eps)
 }
 
-# Final fit convergence uses the user's absolute-plus-relative tolerance.
+# check final fit convergence
 cot_converged <- function(gap, D, atol, tol) {
   values <- list(gap, D, atol, tol)
   if (any(lengths(values) != 1L) || any(!is.finite(unlist(values)))) {
@@ -1681,24 +1681,6 @@ energy_dist <- function(OT) {
   loss <- loss_cross -
     cost_bilinear(OT$C_xx, a, a) * 0.5 -
     cost_bilinear(OT$C_yy, b, b) * 0.5
-  # if (OT$tensorized) {
-  #   loss_cross <- if (OT$C_yx$data$requires_grad) {
-  #     b$dot(OT$C_yx$data$matmul(a))
-  #   } else {
-  #     a$dot(OT$C_xy$data$matmul(b))
-  #   }
-  #   loss <- loss_cross -
-  #     a$dot(OT$C_xx$data$matmul(a)) * 0.5 -
-  #     b$dot(OT$C_yy$data$matmul(b)) * 0.5
-  # } else {
-  #   loss <- energy_dist_online(
-  #     OT$C_xy$data$x,
-  #     OT$C_xy$data$y,
-  #     a,
-  #     b,
-  #     OT$C_xy$fun
-  #   )
-  # }
 
   return(loss)
 }
@@ -1716,158 +1698,9 @@ inf_sinkhorn_dist <- function(OT) {
   } else {
     cost_bilinear(OT$C_xy, OT$a, OT$b)
   }
-  # if (OT$tensorized) {
-  #   a <- OT$a
-  #   b <- OT$b
-  #   loss <- if (OT$C_yx$data$requires_grad) {
-  #     b$dot(OT$C_yx$data$matmul(a))
-  #   } else {
-  #     a$dot(OT$C_xy$data$matmul(b))
-  #   }
-  # } else {
-  #   loss <- inf_sinkhorn_online(
-  #     x = OT$C_xy$data$x,
-  #     y = OT$C_xy$data$y,
-  #     a = OT$a,
-  #     b = OT$b,
-  #     formula = OT$C_xy$fun
-  #   )
-  # }
 
   return(loss)
 }
-
-# inf_sinkhorn_online <- torch::autograd_function(
-#   forward = function(ctx, x, y, a, b, formula) {
-#     device <- get_device(x = x, y = y, a = a, b = b)
-#     dtype <- get_dtype(x = x, y = y, a = a, b = b)
-
-#     x_mat <- as_matrix(x)
-#     y_mat <- as_matrix(y)
-#     a_vec <- as_numeric(a)
-#     b_vec <- as_numeric(b)
-
-#     d <- ncol(x_mat)
-
-#     if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-#       sumred <- rkeops::keops_kernel(
-#         formula = paste0("Sum_Reduction( B* ", formula, ", 1)"),
-#         args = c(
-#           paste0("X = Vi(", d, ")"),
-#           paste0("Y = Vj(", d, ")"),
-#           "B = Vj(1)"
-#         )
-#       )
-#     } else {
-#       sumred <- rkeops::keops_kernel(
-#         formula = paste0("Sum_Reduction( B* ", formula, ", 0)"),
-#         args = c(
-#           paste0("X = Vi(", d, ")"),
-#           paste0("Y = Vj(", d, ")"),
-#           "B = Vj(1)"
-#         )
-#       )
-#     }
-
-#     a_deriv <- sumred(list(x_mat, y_mat, b_vec))
-#     # b_deriv <- sumred(list(y,x, a))
-#     loss <- sum(a_vec * a_deriv)
-
-#     ctx$save_for_backward(
-#       a_deriv = c(a_deriv),
-#       # b_deriv = c(b_deriv),
-#       a = a_vec,
-#       b = b_vec,
-#       x = x_mat,
-#       y = y_mat,
-#       forward_op = sumred,
-#       device = device,
-#       dtype = dtype
-#     )
-#     return(torch::torch_tensor(loss, dtype = dtype$a, device = device$a))
-#   },
-#   backward = function(ctx, grad_output) {
-#     grads <- list(x = NULL, y = NULL, a = NULL, b = NULL)
-#     saved_var <- ctx$saved_variables
-#     go <- as_numeric(grad_output)
-#     if (ctx$needs_input_grad$a) {
-#       grads$a <-
-#         torch::torch_tensor(
-#           go * saved_var$a_deriv,
-#           dtype = saved_var$dtype$a,
-#           device = saved_var$device$a
-#         )
-#     }
-#     if (ctx$needs_input_grad$b) {
-#       grads$b <-
-#         torch::torch_tensor(
-#           go * saved_var$forwar_op(list(saved_var$y, saved_var$x, saved_var$a)),
-#           dtype = saved_var$dtype$b,
-#           device = saved_var$device$b
-#         )
-#     }
-#     if (ctx$needs_input_grad$x) {
-#       cost_grad <- rkeops::keops_grad(op = saved_var$forward_op, var = "X")
-#       grad_data <- list(
-#         X = saved_var$x,
-#         Y = saved_var$y,
-#         B = saved_var$b,
-#         eta = matrix(saved_var$a)
-#       )
-#       if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-#         grad_data <- unname(grad_data)
-#       }
-#       grads$x <-
-#         torch::torch_tensor(
-#           go * cost_grad(grad_data),
-#           dtype = saved_var$dtype$x,
-#           device = saved_var$device$x
-#         )
-#     }
-#     if (ctx$needs_input_grad$y) {
-#       cost_grad <- rkeops::keops_grad(op = saved_var$forward_op, var = "X")
-#       grad_data <- list(
-#         X = saved_var$y,
-#         Y = saved_var$x,
-#         B = saved_var$a,
-#         eta = matrix(saved_var$b)
-#       )
-
-#       if (
-#         rkeops_installed() &&
-#           utils::packageVersion("rkeops") >= pkg_vers_number("2.0")
-#       ) {
-#         grad_data <- unname(grad_data)
-#       }
-
-#       grads$x <-
-#         torch::torch_tensor(
-#           go * cost_grad(grad_data),
-#           dtype = saved_var$dtype$y,
-#           device = saved_var$device$y
-#         )
-#     }
-#     return(grads)
-#   }
-# )
-
-# semi_dual <- function(OT,pot,debias = FALSE) {
-#
-#   a <- OT$a
-#   a_log <- log(a)
-#   eps <- OT$penalty
-#   softmin <- OT$softmin
-#
-#   if(debias) {
-#     #softmin has neg sign already
-#     loss <- pot$dot(a) + a$dot(softmin(eps, OT$C_xx, pot, a_log))
-#   } else {
-#     #softmin has neg sign already
-#     b <- OT$b
-#     loss <- pot$dot(a) + b$dot(softmin(eps, OT$C_yx, f, a_log))
-#   }
-#   return(loss)
-# }
 
 online_rows <- function(x, m) {
   mb <- getOption("causalOT.online_block_mb", 128)
@@ -2425,105 +2258,6 @@ ot_distance.causalWeights <- function(
     post = as_numeric(loss_select(ot_final, niter, tol))
   ))
 }
-# setMethod("ot_distance", signature(x1 = "causalWeights"),
-# function(x1, x2 = NULL, a = NULL, b = NULL, penalty, p = 2,
-#          cost = NULL,
-#          debias = TRUE, online.cost = "auto",
-#          diameter=NULL,
-#          niter = 1000, tol = 1e-7) {
-#
-#
-#   stopifnot(inherits(x1, "causalWeights"))
-#
-#
-#   cw <- x1
-#   dh <- x1@data
-#
-#   if(missing(penalty) || is.na(penalty) || is.null(penalty)) {
-#     warning("Penalty parameter not provided. Using estimated cost diameter as a penalty parameter.")
-#     maxes <- apply(dh@x,2,max)
-#     mins  <- apply(dh@x,2,min)
-#
-#     penalty <- 1/p * sum((maxes-mins)^p)
-#
-#   }
-#
-#   stopifnot(penalty > 0.0)
-#
-#   if( cw@estimand == "ATE" ) {
-#     x0 <- get_x0(dh)
-#     x1 <- get_x1(dh)
-#     x <- get_x(dh)
-#     z <- get_z(dh)
-#     b <- renormalize(get_w(dh))
-#     a0_init <- renormalize(b[z==0])
-#     a1_init <- renormalize(b[z==1])
-#
-#     ot0_init <- OT$new(x = x0, y = x,
-#                   a = a0_init, b = b,
-#                   penalty = penalty,
-#                   cost = cost, p = p, debias = debias,
-#                   tensorized = online.cost,
-#                   diameter = diameter)
-#     ot1_init <- OT$new(x = x1, y = x,
-#                   a = a1_init, b = b,
-#                   penalty = penalty,
-#                   cost = cost, p = p, debias = debias,
-#                   tensorized = online.cost,
-#                   diameter = diameter)
-#
-#     ot0 <- OT$new(x = x0, y = x,
-#                   a = renormalize(cw@w0), b = b,
-#                   penalty = penalty,
-#                   cost = cost, p = p, debias = debias,
-#                   tensorized = online.cost,
-#                   diameter = diameter)
-#     ot1 <- OT$new(x = x1, y = x,
-#                   a = renormalize(cw@w1), b = b,
-#                   penalty = penalty,
-#                   cost = cost, p = p, debias = debias,
-#                   tensorized = online.cost,
-#                   diameter = diameter)
-#
-#     return(list(pre = c(control = as_numeric(loss_select(ot0_init, niter, tol)),
-#                            treated = as_numeric(loss_select(ot1_init, niter, tol))),
-#                 post =  c(control = as_numeric(loss_select(ot0, niter, tol)),
-#                            treated = as_numeric(loss_select(ot1, niter, tol)))
-#                 ))
-#
-#
-#   } else if (cw@estimand == "ATT" || cw@estimand == "ATC") {
-#     x0 <- get_x0(dh)
-#     x1 <- get_x1(dh)
-#     w <- get_w(dh)
-#     z <- get_z(dh)
-#     a_init <- renormalize(w[z==0])
-#     b_init <- renormalize(w[z==1])
-#   } else {
-#     stop("Estimand not found!")
-#   }
-#
-#   ot_init <- OT$new(x = x0, y = x1,
-#                      a = a_init, b = b_init,
-#                      penalty = penalty,
-#                      cost = cost, p = p, debias = debias,
-#                      tensorized = online.cost,
-#                      diameter = diameter)
-#
-#   ot_final <- OT$new(x = x0, y = x1,
-#                a = renormalize(cw@w0), b = renormalize(cw@w1),
-#                penalty = penalty,
-#                cost = cost, p = p, debias = debias,
-#                tensorized = online.cost,
-#                diameter = diameter)
-#
-#
-#   return(list(pre = as_numeric(loss_select(ot_init, niter, tol)),
-#               post = as_numeric(loss_select(ot_final, niter, tol))))
-#
-# }
-#
-# )
 
 ot_dist_default <- function(
   x1,
