@@ -10,7 +10,7 @@
 * Updated convergence criterion to prevent needless long runs
 * COT fits now receive a monotone Newton polish by default.
   `cotOptions(polish = "auto")` uses an exact Hessian up to 2,000 free
-  weights and L-BFGS above that cap or with standard online costs.
+  weights and L-BFGS above that cap.
 * `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
   descent solver for debiased COT weights
 * New dual solvers `dual.solver = "fixed_point_joint"` and `"joint"`. Their
@@ -18,7 +18,7 @@
   passed through `cotOptions(...)`.
 * The lambda grid, selection scores, and selected value are stored in
   `causalWeights@info$metric`.
-* `Measure()` gains a `unit.id` argument.
+* `Measure()` gains a `unit.id` argument to identify observations.
 * `cotOptions()` now accepts `ot_niter` and `ot_tol` to control the inner
   Sinkhorn iterations.
 

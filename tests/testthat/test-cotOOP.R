@@ -237,6 +237,7 @@ testthat::test_that("weights adapatiation", {
   testthat::skip_on_cran()
   testthat::skip_on_ci()
   causalOT:::torch_check()
+  set.seed(234808)
   
   z  <- matrix(rnorm(64*2), 64, 2) + matrix(c(0,.5), 64,2, byrow = TRUE)
   x  <- matrix(rnorm(128*2), 128, 2)
@@ -248,7 +249,7 @@ testthat::test_that("weights adapatiation", {
   ot <- OTProblem(m1, m2)
   
   # debugonce(ot$setup_arguments)
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, lambda = c(1, 10))
   
   # debugonce(ot$solve)
   # Rprof(tmp<-tempfile())
@@ -284,7 +285,7 @@ testthat::test_that("weights adapatiation", {
   ot <- OTProblem(m1, m2)
   
   # debugonce(ot$setup_arguments)
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, lambda = c(1, 10))
   
   old_delta <- ot$penalty$delta
   
@@ -337,7 +338,7 @@ testthat::test_that("weights adapatiation", {
   m1 <- Measure(x = x, target.values = colMeans(z), adapt = "weights")
   m2 <- Measure(x = y,  target.values = colMeans(z), adapt = "weights")
   ot <- OTProblem(m1, m2)
-  ot$setup_arguments()
+  ot$setup_arguments(lambda = c(1, 10))
   
   # debugonce(ot$solve)
   testthat::expect_warning(ot$solve(niter = 1L, tol = 1e-7,
@@ -361,6 +362,7 @@ testthat::test_that("bary with muilt groups", {
   testthat::skip_on_cran()
   testthat::skip_on_ci()
   causalOT:::torch_check()
+  set.seed(234808)
   
   #bary center + two groups
   z  <- matrix(runif(64*2), 64, 2) + matrix(c(0,.5), 64,2, byrow = TRUE)
@@ -376,7 +378,7 @@ testthat::test_that("bary with muilt groups", {
   m4 <- Measure(x = y2, adapt = "weights")
   ot <- OTProblem(m1, mt) * 0.5 + OTProblem(m2, mt) * 0.5+ 
     OTProblem(m3,mt) * 0.5 + OTProblem(m4, mt) * 0.5
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, lambda = c(1, 10))
   # debugonce(ot$solve)
   # ot$solve(niter = 100L, tol = 1e-5, torch_args = list(line_search_fn = "strong_wolfe"))
   testthat::expect_silent(ot$solve(niter = 1L, tol = 1e-3, torch_optim = torch::optim_rmsprop, torch_args = list(lr = 1e-5)))
@@ -393,7 +395,7 @@ testthat::test_that("bary with muilt groups", {
   ot <- OTProblem(m1, mt) * 0.5 + OTProblem(m2, mt) * 0.5+ 
     OTProblem(m3,mt) * 0.5 + OTProblem(m4, mt) * 0.5
   
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, lambda = c(1, 10))
   ot$solve(niter = 1L, torch_optim = torch::optim_rmsprop, torch_args = list(lr = 1e-5))
   ot$choose_hyperparameters(n_boot_lambda = 10)
   testthat::expect_true(is.numeric(ot$selected_lambda))
@@ -411,7 +413,7 @@ testthat::test_that("bary with muilt groups", {
   ot <- OTProblem(m1, mt)+ OTProblem(m2,mt)
   
   # debugonce(ot$setup_arguments)
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, ot_niter = 50L, lambda = c(1e-3, 10, Inf))
   
   # debugonce(ot$solve)
   # debugonce(ot$.__enclos_env__$private$frankwolfe_step)
@@ -428,7 +430,7 @@ testthat::test_that("bary with muilt groups", {
   ot <- OTProblem(m1, mt)+ OTProblem(m2,mt)
   
   # debugonce(ot$setup_arguments)
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, lambda = c(1, 10))
   
   # debugonce(ot$solve)
   # debugonce(ot$.__enclos_env__$private$frankwolfe_step)
@@ -443,7 +445,7 @@ testthat::test_that("bary with muilt groups", {
   m2 <- Measure(x = y,  target.values = colMeans(z), adapt = "weights")
   
   ot <- OTProblem(m1, mt)+ OTProblem(m2,mt)
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, lambda = c(1, 10))
   # debugonce(ot$solve)
   testthat::expect_error(ot$solve(niter = 1L, optimizer = "frank-wolfe", osqp_args = list(verbose = FALSE)))
   #opt one at at time should work
@@ -451,7 +453,7 @@ testthat::test_that("bary with muilt groups", {
   m10 <- Measure(x = x, target.values = colMeans(z))
   m20 <- Measure(x = y,  target.values = colMeans(z))
   ot_z <- OTProblem(m1$detach(), mt)+ OTProblem(m2$detach(),mt)
-  ot_z$setup_arguments(debias = TRUE)
+  ot_z$setup_arguments(debias = TRUE, lambda = c(1, 10))
   # debugonce(ot_z$.__enclos_env__$private$torch_optim_step)
   ot_z$solve(niter = 1L, torch_optim = torch::optim_rmsprop)
   
@@ -460,7 +462,7 @@ testthat::test_that("bary with muilt groups", {
   testthat::expect_true(mt$requires_grad)
   
   ot <- OTProblem(m1, mt0)+ OTProblem(m2,mt0)
-  ot$setup_arguments(debias = TRUE)
+  ot$setup_arguments(debias = TRUE, lambda = c(1, 10))
   # debugonce(ot$solve)
   ot$solve(niter = 1L, optimizer = "frank-wolfe", osqp_args = list(verbose = FALSE))
   ot$choose_hyperparameters(n_boot_lambda = 10L)

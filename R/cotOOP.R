@@ -1657,12 +1657,21 @@ OTProblem_ <- R6::R6Class(
         weights_converged <- rep(TRUE, n_lambda)
         fit_failed <- function(w) {
           keys <- ls(w)
-          !length(keys) || !all(vapply(keys, function(k) {
-            if (length(dim(w[[k]])) > 1L) return(all(is.finite(as.numeric(w[[k]]$to(device = "cpu")))))
-            cot_fit_valid(w[[k]], 0)
-          }, logical(1)))
+          !length(keys) ||
+            !all(vapply(
+              keys,
+              function(k) {
+                if (length(dim(w[[k]])) > 1L) {
+                  return(all(is.finite(as.numeric(w[[k]]$to(device = "cpu")))))
+                }
+                cot_fit_valid(w[[k]], 0)
+              },
+              logical(1)
+            ))
         }
-        delta_failed <- lapply(weights_list, function(path) vapply(path, fit_failed, logical(1)))
+        delta_failed <- lapply(weights_list, function(path) {
+          vapply(path, fit_failed, logical(1))
+        })
         # setup final metrics list
         private$weights_metrics <- list(
           delta = vector("list", n_lambda),
@@ -1705,7 +1714,9 @@ OTProblem_ <- R6::R6Class(
             for (l in seq_along(lambda_values)) {
               delta_temp_metric <- vapply(
                 weights_list[[l]],
-                FUN = function(w, boot) if (fit_failed(w)) Inf else private$eval_delta(w, boot),
+                FUN = function(w, boot) {
+                  if (fit_failed(w)) Inf else private$eval_delta(w, boot)
+                },
                 FUN.VALUE = 0.0,
                 boot = boot_measure
               )
@@ -1787,9 +1798,13 @@ OTProblem_ <- R6::R6Class(
         private$weights_metrics$lambda.selector <- lambda_selection$selector
         private$weights_metrics$lambda.loo <- lambda_selection$loo
         excluded <- lambda_input_values[vapply(delta_failed, all, logical(1))]
-        if (length(excluded)) lambda_selection$note <- paste(
-          if (is.na(lambda_selection$note)) "" else lambda_selection$note,
-          "Excluded numerically failed lambda:", paste(excluded, collapse = ", "))
+        if (length(excluded)) {
+          lambda_selection$note <- paste(
+            if (is.na(lambda_selection$note)) "" else lambda_selection$note,
+            "Excluded numerically failed lambda:",
+            paste(excluded, collapse = ", ")
+          )
+        }
         private$weights_metrics$lambda.note <- lambda_selection$note
         if (!is.null(lambda_selection$details)) {
           private$weights_metrics$lambda.details <- lambda_selection$details
@@ -1812,19 +1827,48 @@ OTProblem_ <- R6::R6Class(
         }
 
         selected_key <- lambda_keys[[lambda_selection$selected_index]]
-        d_index <- if (n_delta > 1L) match(self$selected_delta, delta_values) else 1L
+        d_index <- if (n_delta > 1L) {
+          match(self$selected_delta, delta_values)
+        } else {
+          1L
+        }
         selected_converged <- private$converged_run[[selected_key]][[d_index]]
-        status <- c(private$polish_info[[selected_key]][[d_index]]$status, "")[[1L]]
-        gap <- c(private$polish_gap[[selected_key]][[d_index]], gap = NA_real_, D = NA_real_)
+        status <- c(private$polish_info[[selected_key]][[d_index]]$status, "")[[
+          1L
+        ]]
+        gap <- c(
+          private$polish_gap[[selected_key]][[d_index]],
+          gap = NA_real_,
+          D = NA_real_
+        )
         polished <- private$polish_weights[[selected_key]]
-        self$polished_weights <- if (length(polished) && !is.null(names(private$polish_info[[selected_key]])))
-          polished[[names(private$polish_info[[selected_key]])[[d_index]]]] else NULL
-        if (identical(selected_converged, FALSE) && !startsWith(status, "skipped")) {
+        self$polished_weights <- if (
+          length(polished) &&
+            !is.null(names(private$polish_info[[selected_key]]))
+        ) {
+          polished[[names(private$polish_info[[selected_key]])[[d_index]]]]
+        } else {
+          NULL
+        }
+        if (
+          identical(selected_converged, FALSE) && !startsWith(status, "skipped")
+        ) {
           reason <- private$reason_run[[selected_key]][[d_index]]
           ratio <- gap[["gap"]] / max(gap[["D"]], .Machine$double.xmin)
-          detail <- if (length(ratio) == 1L && is.finite(ratio)) sprintf("; gap/D = %.6g", ratio) else ""
-          warning(sprintf("Selected lambda %s is not converged (%s%s); use polish = 'auto' or a larger niter.",
-            lambda_selection$selected_lambda, reason, detail), call. = FALSE)
+          detail <- if (length(ratio) == 1L && is.finite(ratio)) {
+            sprintf("; gap/D = %.6g", ratio)
+          } else {
+            ""
+          }
+          warning(
+            sprintf(
+              "Selected lambda %s is not converged (%s%s); use polish = 'auto' or a larger niter.",
+              lambda_selection$selected_lambda,
+              reason,
+              detail
+            ),
+            call. = FALSE
+          )
         }
         # set weights back to the measures
         private$parameters_get_set(value = weights_list)
@@ -1841,17 +1885,10 @@ OTProblem_ <- R6::R6Class(
       #' \item `balance.function.differences` The final differences in the balance functions
       #' \item `hyperparam.metrics` A list of the bootstrap evaluation for delta and lambda values
       #' \item `polish` Per-lambda and per-delta polish `status` and `iterations`.
-      #' \item `converged` Per-lambda and per-delta logical outcome. Eligible fits
-      #' pass `gap <= atol + tol * max(0, D)`, using the user's solver `tol`.
-      #' Unpolished fits also require normal stopping and use `atol = ot_tol`.
-      #' Polished fits use `atol = 64 * eps64 * scale` plus 16 times the polish's
-      #' Sinkhorn tolerance, where `scale` is the cost scale. Out-of-scope fits
-      #' retain the solver flag.
+      #' \item `converged` whether the Frank–Wolfe gap is below atol + tol * D.
       #' \item `reason` Per-lambda and per-delta outcome message: `ok`, `niter`,
       #' `gap above tolerance`, `gap unavailable`, `polish error: <msg>`, or
-      #' `error: <msg>`. Polish errors fall back to valid phase-1 weights and
-      #' their convergence test. Numerical failures store NA weights and are
-      #' excluded from selection. Selecting a fit that is not converged warns.}
+      #' `error: <msg>`.}
       #' @examples
       #' if (torch::torch_is_installed()) {
       #'   ot$info()
@@ -2443,11 +2480,25 @@ OTProblem_ <- R6::R6Class(
       },
 
       polish_eligible = function() {
-        if (inherits(self, "cotDualLegacyTrain")) return("dual solvers are outside gap convergence scope")
-        if (!private$optimality_check_eligible()) return("requires one debiased primal source-weight problem without balance constraints")
+        if (inherits(self, "cotDualLegacyTrain")) {
+          return("dual solvers are outside gap convergence scope")
+        }
+        if (!private$optimality_check_eligible()) {
+          return(
+            "requires one debiased primal source-weight problem without balance constraints"
+          )
+        }
         ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
-        if (!is.finite(ot$penalty) || ot$penalty <= 0) return("requires a finite positive lambda")
-        if (!ot$tensorized && (identical(ot$C_xy$algorithm, "user") || identical(ot$C_xx$algorithm, "user"))) return("custom online costs are unsupported")
+        if (!is.finite(ot$penalty) || ot$penalty <= 0) {
+          return("requires a finite positive lambda")
+        }
+        if (
+          !ot$tensorized &&
+            (identical(ot$C_xy$algorithm, "user") ||
+              identical(ot$C_xx$algorithm, "user"))
+        ) {
+          return("custom online costs are unsupported")
+        }
         TRUE
       },
 
@@ -2464,7 +2515,10 @@ OTProblem_ <- R6::R6Class(
       polish_mix_start = function() {
         ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
         torch::with_no_grad({
-          private$polish_set_weights(ot, (1 - 1e-3) * ot$a + 1e-3 / length(ot$a))
+          private$polish_set_weights(
+            ot,
+            (1 - 1e-3) * ot$a + 1e-3 / length(ot$a)
+          )
         })
         private$torch_optim_reset()
       },
@@ -2472,28 +2526,51 @@ OTProblem_ <- R6::R6Class(
       check_fit_path = function() {
         reasons <- unlist(private$reason_run)
         if (length(reasons) && all(startsWith(reasons, "error"))) {
-          stop("All lambda fits failed: ", paste(unique(reasons), collapse = "; "))
+          stop(
+            "All lambda fits failed: ",
+            paste(unique(reasons), collapse = "; ")
+          )
         }
       },
 
       polish_result = function(res, tol, delta) {
         name <- ls(private$ot_objects)[[1L]]
         ot <- private$ot_objects[[name]]
-        key <- as.character(ot$penalty); dkey <- paste(delta)
-        save <- function(status, iterations = 0L, gap = NA_real_, D = NA_real_) {
-          private$polish_info[[key]][[dkey]] <- list(status = status, iterations = iterations)
+        key <- as.character(ot$penalty)
+        dkey <- paste(delta)
+        save <- function(
+          status,
+          iterations = 0L,
+          gap = NA_real_,
+          D = NA_real_
+        ) {
+          private$polish_info[[key]][[dkey]] <- list(
+            status = status,
+            iterations = iterations
+          )
           private$polish_gap[[key]][[dkey]] <- c(gap = gap, D = D)
         }
-        if (!is.null(private$polish_weights[[key]])) private$polish_weights[[key]][[dkey]] <- NULL
+        if (!is.null(private$polish_weights[[key]])) {
+          private$polish_weights[[key]][[dkey]] <- NULL
+        }
         self$polished_weights <- NULL
         private$ot_update(use_grad = FALSE)
         weights <- private$parameters_get_set(clone = TRUE)
-        valid <- is.finite(as.numeric(res$loss)) && all(vapply(ls(weights), function(k) {
-          if (private$measures[[k]]$adapt == "x") all(is.finite(as.numeric(weights[[k]]$to(device = "cpu")))) else
-            cot_fit_valid(weights[[k]], res$loss)
-        }, logical(1)))
+        valid <- is.finite(as.numeric(res$loss)) &&
+          all(vapply(
+            ls(weights),
+            function(k) {
+              if (private$measures[[k]]$adapt == "x") {
+                all(is.finite(as.numeric(weights[[k]]$to(device = "cpu"))))
+              } else {
+                cot_fit_valid(weights[[k]], res$loss)
+              }
+            },
+            logical(1)
+          ))
         if (!valid) {
-          res$reason <- "error: Phase-1 weights or loss are non-finite or invalid"; res$converged <- FALSE
+          res$reason <- "error: Phase-1 weights or loss are non-finite or invalid"
+          res$converged <- FALSE
           save("failed")
           return(res)
         }
@@ -2510,47 +2587,94 @@ OTProblem_ <- R6::R6Class(
           D <- if (is.null(res$divergence)) NA_real_ else res$divergence
           stopped <- isTRUE(res$stopped_by_rule)
           res$converged <- stopped && cot_converged(gap, D, private$ot_tol, tol)
-          res$reason <- if (res$converged) "ok" else if (!is.null(error)) paste0("polish error: ", error) else
-            if (!stopped) "niter" else if (!is.finite(gap) || !is.finite(D)) "gap unavailable" else "gap above tolerance"
+          res$reason <- if (res$converged) {
+            "ok"
+          } else if (!is.null(error)) {
+            paste0("polish error: ", error)
+          } else if (!stopped) {
+            "niter"
+          } else if (!is.finite(gap) || !is.finite(D)) {
+            "gap unavailable"
+          } else {
+            "gap above tolerance"
+          }
           save(status, gap = gap, D = D)
           res
         }
-        if (private$polish_method == "none") return(phase1("none"))
-        result <- tryCatch(torch::with_no_grad({
-          cache <- private$polish_cache
-          if (is.null(cache$costs)) {
-            # Stored costs are recomputed from float64 copies of the points, so
-            # matching source and target points get identical costs.
-            measures <- lapply(private$problems[[name]], function(k) private$measures[[k]])
-            x <- cot_polish_tensor(measures[[1L]]$x); y <- cot_polish_tensor(measures[[2L]]$x)
-            rebuild <- function(C, u, v) if (inherits(C, "costTensor")) C$fun(u, v, C$p) else C
-            cache$costs <- list(xy = cot_polish_cost(rebuild(ot$C_xy, x, y)),
-              xx = cot_polish_cost(rebuild(ot$C_xx, x, x), symmetric = TRUE),
-              yy = cot_polish_cost(rebuild(ot$C_yy, y, y), symmetric = TRUE))
-            cache$y_self <- new.env(parent = emptyenv())
-          }
-          C <- cache$costs
-          cot_newton_polish(ot$a, ot$b, C$xy, C$xx, C$yy, ot$penalty,
-            scale = cot_conv_scale(ot), cache = cache$y_self)
-        }), error = identity)
-        if (inherits(result, "error")) return(phase1("error", conditionMessage(result)))
+        if (private$polish_method == "none") {
+          return(phase1("none"))
+        }
+        result <- tryCatch(
+          torch::with_no_grad({
+            cache <- private$polish_cache
+            if (is.null(cache$twin)) {
+              measures <- lapply(private$problems[[name]], function(k) {
+                private$measures[[k]]
+              })
+              cache$twin <- cot_polish_twin(
+                ot,
+                measures[[1L]]$x,
+                measures[[2L]]$x
+              )
+            }
+            # one twin per path: new lambda, same float64 costs
+            twin <- cache$twin
+            twin$penalty <- ot$penalty
+            twin$potentials <- NULL
+            twin$a <- as_cpu_double_tensor(ot$a)
+            cot_newton_polish(twin)
+          }),
+          error = identity
+        )
+        if (inherits(result, "error")) {
+          return(phase1("error", conditionMessage(result)))
+        }
         if (result$changed) {
           # The model keeps a copy in its own dtype as the warm start for the
           # next fit; the float64 weights are what the fit returns.
           torch::with_no_grad({
-            private$polish_set_weights(ot, torch::torch_tensor(result$weights, dtype = self$dtype, device = self$device))
+            private$polish_set_weights(
+              ot,
+              torch::torch_tensor(
+                result$weights,
+                dtype = self$dtype,
+                device = self$device
+              )
+            )
             if (ot$tensorized) {
-              ev <- ot$sinkhorn_ccp_eval(niter = private$ot_niter, tol = private$ot_tol)
-              if (inherits(self, "cotCCPTrain")) {private$ccp_capture_state(ot, ev); private$ccp_compute_kkt(ot)}
+              ev <- ot$sinkhorn_ccp_eval(
+                niter = private$ot_niter,
+                tol = private$ot_tol
+              )
+              if (inherits(self, "cotCCPTrain")) {
+                private$ccp_capture_state(ot, ev)
+                private$ccp_compute_kkt(ot)
+              }
             }
           })
-          private$polish_weights[[key]][[dkey]] <- self$polished_weights <- result$weights
-          res$loss <- if (inherits(self, "cotCCPTrain")) result$loss else result$divergence
+          private$polish_weights[[key]][[
+            dkey
+          ]] <- self$polished_weights <- result$weights
+          res$loss <- if (inherits(self, "cotCCPTrain")) {
+            result$loss
+          } else {
+            result$divergence
+          }
           res$polished <- TRUE
         }
-        res$converged <- cot_converged(result$gap, result$divergence, result$atol, tol)
-        res$reason <- if (res$converged) "ok" else if (!is.finite(result$gap) || !is.finite(result$divergence))
-          "gap unavailable" else "gap above tolerance"
+        res$converged <- cot_converged(
+          result$gap,
+          result$divergence,
+          result$atol,
+          tol
+        )
+        res$reason <- if (res$converged) {
+          "ok"
+        } else if (!is.finite(result$gap) || !is.finite(result$divergence)) {
+          "gap unavailable"
+        } else {
+          "gap above tolerance"
+        }
         save(result$status, result$iterations, result$gap, result$divergence)
         res
       },
@@ -2587,7 +2711,11 @@ OTProblem_ <- R6::R6Class(
             weights_delta[[paste(d)]][[address]] <- ot$a$detach()$clone()
           }
 
-          reason_delta[[paste(d)]] <- if (is.null(res$reason)) "gap unavailable" else res$reason
+          reason_delta[[paste(d)]] <- if (is.null(res$reason)) {
+            "gap unavailable"
+          } else {
+            res$reason
+          }
           if (startsWith(reason_delta[[paste(d)]], "error")) {
             w <- weights_delta[[paste(d)]]
             for (k in ls(w)) {
@@ -2598,7 +2726,9 @@ OTProblem_ <- R6::R6Class(
             # usable point, without rescuing or restarting the failed fit.
             private$parameters_get_set(value = phase_start)
             private$ot_update(use_grad = FALSE)
-            if (inherits(private$opt, "optim_optimizer")) private$torch_optim_reset()
+            if (inherits(private$opt, "optim_optimizer")) {
+              private$torch_optim_reset()
+            }
           }
 
           # save iterations and final losses
@@ -2607,9 +2737,12 @@ OTProblem_ <- R6::R6Class(
           converged_delta[[paste(d)]] <- res$converged
 
           # Store exact zeros above; interiorize only the next warm start.
-          if (isTRUE(res$polished) &&
+          if (
+            isTRUE(res$polished) &&
               (!identical(d, utils::tail(private$penalty_list$delta, 1L)) ||
-               private$ot_objects[[ls(private$ot_objects)[[1L]]]]$penalty != utils::tail(private$penalty_list$lambda, 1L))) {
+                private$ot_objects[[ls(private$ot_objects)[[1L]]]]$penalty !=
+                  utils::tail(private$penalty_list$lambda, 1L))
+          ) {
             private$polish_mix_start()
           }
         }
@@ -2827,9 +2960,14 @@ OTProblem_ <- R6::R6Class(
         private$torch_optim_reset()
         private$lbfgs_count <- private$lbfgs_reset <- 0L
 
-        return(list(loss = loss, iter = i, converged = converged_flag,
-          stopped_by_rule = stopped_by_rule, fw_gap = private$phase1_cert$fw_gap,
-          divergence = private$phase1_cert$divergence))
+        return(list(
+          loss = loss,
+          iter = i,
+          converged = converged_flag,
+          stopped_by_rule = stopped_by_rule,
+          fw_gap = private$phase1_cert$fw_gap,
+          divergence = private$phase1_cert$divergence
+        ))
       },
 
       #update ot problems
@@ -3225,7 +3363,9 @@ OTProblem_ <- R6::R6Class(
             private$measures[[target_add]]$init_weights$detach()
           ),
           cross_exclude = {
-            exclude <- if (!is.null(source_unit_id) && !is.null(target_unit_id)) {
+            exclude <- if (
+              !is.null(source_unit_id) && !is.null(target_unit_id)
+            ) {
               cot_unit_exclusion_mask(source_unit_id, target_unit_id)
             } else {
               cot_overlap_exclusion_mask(source_x, target_x)
@@ -3320,7 +3460,9 @@ OTProblem_ <- R6::R6Class(
         n_lambda <- length(lambda_values)
         failed <- weights_failed
         candidates <- which(!failed)
-        if (!length(candidates)) stop("All lambda fits failed: no usable weights")
+        if (!length(candidates)) {
+          stop("All lambda fits failed: no usable weights")
+        }
         lambda_input_values <- as.numeric(lambda_input_values)
         lambda_metrics <- rep(NA_real_, n_lambda)
         out <- list(
@@ -3333,21 +3475,24 @@ OTProblem_ <- R6::R6Class(
           selector = "fixed"
         )
 
-        eligible_lambda <- !failed & is.finite(lambda_input_values) &
+        eligible_lambda <- !failed &
+          is.finite(lambda_input_values) &
           (lambda_input_values > 0)
         finite_index <- which(eligible_lambda)
-        use_path_weights <- lambda_selector %in% c(
-          "profile_symmetric_loo",
-          "profile_marginal_loo",
-          "mass_bootstrap_symmetric"
-        )
-        use_selector_state <- lambda_selector %in% c(
-          "profile_symmetric_loo",
-          "profile_marginal_loo",
-          "symmetric_loo",
-          "marginal_loo",
-          "mass_bootstrap_symmetric"
-        )
+        use_path_weights <- lambda_selector %in%
+          c(
+            "profile_symmetric_loo",
+            "profile_marginal_loo",
+            "mass_bootstrap_symmetric"
+          )
+        use_selector_state <- lambda_selector %in%
+          c(
+            "profile_symmetric_loo",
+            "profile_marginal_loo",
+            "symmetric_loo",
+            "marginal_loo",
+            "mass_bootstrap_symmetric"
+          )
 
         if (use_selector_state && length(finite_index) > 0L) {
           sym_state <- private$get_sym_evidence_state()
@@ -3370,7 +3515,9 @@ OTProblem_ <- R6::R6Class(
               out$loo <- cot_selector_loo_convention
             } else if (lambda_selector == "profile_marginal_loo") {
               for (idx in finite_index) {
-                lambda_metrics[[idx]] <- private$eval_lambda_profile_marginal_loo(
+                lambda_metrics[[
+                  idx
+                ]] <- private$eval_lambda_profile_marginal_loo(
                   weights_list[[idx]],
                   lambda = lambda_input_values[[idx]],
                   state = sym_state
@@ -3387,7 +3534,9 @@ OTProblem_ <- R6::R6Class(
                 sym_state$source_n
               )
               for (idx in finite_index) {
-                lambda_metrics[[idx]] <- private$eval_lambda_fixed_symmetric_loo(
+                lambda_metrics[[
+                  idx
+                ]] <- private$eval_lambda_fixed_symmetric_loo(
                   pilot_weights = pilot_weights,
                   lambda = lambda_input_values[[idx]],
                   state = sym_state
@@ -3513,7 +3662,16 @@ OTProblem_ <- R6::R6Class(
             out$note <- paste(
               "Fell back to bootstrap_legacy because at least one eligible finite-lambda fit needed by",
               selector_label,
-              paste0("was not converged: lambda ", paste(lambda_input_values[finite_index[!weights_converged[finite_index]]], collapse = ", "), ".")
+              paste0(
+                "was not converged: lambda ",
+                paste(
+                  lambda_input_values[finite_index[
+                    !weights_converged[finite_index]
+                  ]],
+                  collapse = ", "
+                ),
+                "."
+              )
             )
           } else if (identical(sym_state$reason, "online")) {
             out$note <- paste(
@@ -3568,7 +3726,11 @@ OTProblem_ <- R6::R6Class(
 
         out$metrics <- lambda_metrics
         finite_scores <- candidates[is.finite(lambda_metrics[candidates])]
-        out$selected_index <- if (length(finite_scores)) finite_scores[which.min(lambda_metrics[finite_scores])] else candidates[[1L]]
+        out$selected_index <- if (length(finite_scores)) {
+          finite_scores[which.min(lambda_metrics[finite_scores])]
+        } else {
+          candidates[[1L]]
+        }
         out$selected_lambda <- lambda_input_values[[out$selected_index]]
         out$selector <- "bootstrap_legacy"
         out
@@ -3941,28 +4103,34 @@ NNM <- R6::R6Class(
       solve = function(...) {
         C_xy <- private$C_xy
         if (!private$tensorized) {
-          x <- as_matrix(C_xy$data$x)
-          y <- as_matrix(C_xy$data$y)
-          d <- ncol(x)
-          dim.red <- if (
-            utils::packageVersion("rkeops") >= pkg_vers_number("2.0")
-          ) {
-            "0"
-          } else {
-            "1"
-          }
-          argmin_op <- rkeops::keops_kernel(
-            formula = paste0("ArgMin_Reduction(", C_xy$fun, ",", dim.red, ")"),
-            args = c(
-              paste0("X = Vi(", d, ")"),
-              paste0("Y = Vj(", d, ")")
-            )
+          mins <- online_by_rows(
+            C_xy,
+            C_xy$data$y,
+            C_xy$data$x,
+            function(Cb, i) Cb$argmin(2)
           )
-          mins <- torch::torch_tensor(
-            c(argmin_op(list(x, y))) + 1,
-            dtype = torch::torch_int64(),
-            device = private$b$device
-          )
+          # x <- as_matrix(C_xy$data$x)
+          # y <- as_matrix(C_xy$data$y)
+          # d <- ncol(x)
+          # dim.red <- if (
+          #   utils::packageVersion("rkeops") >= pkg_vers_number("2.0")
+          # ) {
+          #   "0"
+          # } else {
+          #   "1"
+          # }
+          # argmin_op <- rkeops::keops_kernel(
+          #   formula = paste0("ArgMin_Reduction(", C_xy$fun, ",", dim.red, ")"),
+          #   args = c(
+          #     paste0("X = Vi(", d, ")"),
+          #     paste0("Y = Vj(", d, ")")
+          #   )
+          # )
+          # mins <- torch::torch_tensor(
+          #   c(argmin_op(list(x, y))) + 1,
+          #   dtype = torch::torch_int64(),
+          #   device = private$b$device
+          # )
         } else {
           mins <- C_xy$data$argmin(1)
         }
@@ -4213,79 +4381,39 @@ def cot_bf_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, a_log: Tensor, b_log:
 "
 
 # rkeops forward functions
-dual_forwards_keops <- list(
+dual_forwards_online <- list(
   calc_w1 = function(f, C_xy, a_log, b_log, lambda, n) {
-    xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
-    ymat <- as.matrix(C_xy$data$y$to(device = "cpu"))
-    f_lambda <- f + a_log
-    # f_lambda <- f
-    exp_sums_g <- C_xy$reduction(list(
-      ymat,
-      xmat,
-      as.numeric(f_lambda$to(device = "cpu")),
-      1.0 / lambda
-    ))
-
-    g_lambda <- if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-      -c(exp_sums_g) + as_numeric(b_log)
-    } else {
-      -(log(exp_sums_g[, 2]) + exp_sums_g[, 1]) + as_numeric(b_log)
-    }
-
-    exp_sums_a1 <- C_xy$reduction(list(xmat, ymat, g_lambda, 1.0 / lambda))
-    a1_log <- if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-      torch::torch_tensor(c(exp_sums_a1), dtype = f$dtype, device = f$device) +
-        f_lambda
-    } else {
-      torch::torch_tensor(
-        log(exp_sums_a1[, 2]) + exp_sums_a1[, 1],
-        dtype = f$dtype,
-        device = f$device
-      ) +
-        f_lambda
-    }
-    return(a1_log$log_softmax(1)$exp()$view(-1))
+    lambda <- as.numeric(lambda)
+    f_lambda <- f
+    g_lambda <- b_log -
+      online_lse_rows(C_xy, C_xy$data$y, C_xy$data$x, f_lambda, 1 / lambda)
+    a1_log <- online_lse_rows(
+      C_xy,
+      C_xy$data$x,
+      C_xy$data$y,
+      g_lambda,
+      1 / lambda
+    ) +
+      f_lambda
+    a1_log$log_softmax(1)$exp()$view(-1)
   },
-  calc_w2 = function(f, C_xy, a_log, lambda, n) {
-    f_lambda <- f + a_log
-    # f_lambda <- f
-    xmat <- as.matrix(C_xy$data$x$to(device = "cpu"))
-    # ymat <- as.matrix(C_xy$data$x$to(device = "cpu"))
-
-    if (utils::packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-      log_exp_sums_a2 <- C_xy$reduction(list(
-        xmat,
-        xmat,
-        as.numeric(f_lambda$to(device = "cpu")),
-        1.0 / lambda
-      ))
-      a2_log <- torch::torch_tensor(
-        c(log_exp_sums_a2),
-        dtype = f$dtype,
-        device = f$device
-      ) +
-        f_lambda
-    } else {
-      exp_sums_a2 <- C_xy$reduction(list(
-        xmat,
-        xmat,
-        as.numeric(f_lambda$to(device = "cpu")),
-        1.0 / lambda
-      ))
-      a2_log <- torch::torch_tensor(
-        log(exp_sums_a2[, 2]) + exp_sums_a2[, 1],
-        dtype = f$dtype,
-        device = f$device
-      ) +
-        f_lambda
-    }
-
-    return(a2_log$log_softmax(1)$exp()$view(-1))
+  calc_w2 = function(f, C_xx, a_log, lambda, n) {
+    lambda <- as.numeric(lambda)
+    f_lambda <- f
+    a2_log <- online_lse_rows(
+      C_xx,
+      C_xx$data$x,
+      C_xx$data$y,
+      f_lambda,
+      1 / lambda
+    ) +
+      f_lambda
+    a2_log$log_softmax(1)$exp()$view(-1)
   },
   cot_dual = function(gamma, C_xy, C_xx, a_log, b_log, lambda, n) {
     f_star <- gamma$detach() #+ a_log
 
-    w1 <- dual_forwards_keops$calc_w1(
+    w1 <- dual_forwards_online$calc_w1(
       f_star,
       C_xy,
       a_log,
@@ -4293,7 +4421,7 @@ dual_forwards_keops <- list(
       lambda,
       n
     )$detach()$to(device = gamma$device)
-    w2 <- dual_forwards_keops$calc_w2(
+    w2 <- dual_forwards_online$calc_w2(
       f_star,
       C_xx,
       a_log,
@@ -4307,7 +4435,8 @@ dual_forwards_keops <- list(
     return(list(
       loss = loss,
       avg_diff = measure_diff$norm(),
-      bf_diff = torch::torch_zeros(1, dtype = loss$dtype)
+      bf_diff = torch::torch_zeros(1, dtype = loss$dtype),
+      w1 = w1$detach()
     ))
   },
   cot_bf_dual = function(
@@ -4327,7 +4456,7 @@ dual_forwards_keops <- list(
     beta_d <- beta$detach()
     # f_star1 = f_star2 - bf$matmul(beta$detach())
 
-    w1 <- dual_forwards_keops$calc_w1(
+    w1 <- dual_forwards_online$calc_w1(
       f_star,
       C_xy,
       a_log,
@@ -4335,7 +4464,7 @@ dual_forwards_keops <- list(
       lambda,
       n
     )$detach()$to(device = gamma$device)
-    w2 <- dual_forwards_keops$calc_w2(
+    w2 <- dual_forwards_online$calc_w2(
       f_star,
       C_xx,
       a_log,
@@ -4358,7 +4487,8 @@ dual_forwards_keops <- list(
       loss = loss,
       avg_diff = measure_diff$abs()$mean(),
       bf_diff = bf_diff$abs()$max(),
-      beta_check = beta_check
+      beta_check = beta_check,
+      w1 = w1$detach()
     ))
   }
 )
@@ -4500,8 +4630,8 @@ cotDualOpt <- torch::nn_module(
   )
 )
 
-cotDualOpt_keops <- torch::nn_module(
-  classname = "cotDualOpt_keops",
+cotDualOpt_online <- torch::nn_module(
+  classname = "cotDualOpt_online",
   inherit = cotDualOpt,
   forward = function(C_xy, C_xx, a_log, b_log, lambda, bf, bt, delta) {
     private$ts_forward(
@@ -4516,9 +4646,9 @@ cotDualOpt_keops <- torch::nn_module(
   },
   private = list(
     set_forward = function(...) {
-      private$ts_forward <- dual_forwards_keops$cot_dual
-      self$calc_w1 <- dual_forwards_keops$calc_w1
-      self$calc_w2 <- dual_forwards_keops$calc_w2
+      private$ts_forward <- dual_forwards_online$cot_dual
+      self$calc_w1 <- dual_forwards_online$calc_w1
+      self$calc_w2 <- dual_forwards_online$calc_w2
     }
   )
 )
@@ -4566,8 +4696,8 @@ cotDualBfOpt <- torch::nn_module(
   }
 )
 
-cotDualBfOpt_keops <- torch::nn_module(
-  classname = "cotDualBfOpt_keops",
+cotDualBfOpt_online <- torch::nn_module(
+  classname = "cotDualBfOpt_online",
   inherit = cotDualBfOpt,
   forward = function(C_xy, C_xx, a_log, b_log, lambda, bf, bt, delta) {
     torch::with_no_grad(self$gamma$sub_(bf$matmul(self$beta)))
@@ -4588,9 +4718,9 @@ cotDualBfOpt_keops <- torch::nn_module(
   },
   private = list(
     set_forward = function(...) {
-      private$ts_forward <- dual_forwards_keops$cot_bf_dual
-      self$calc_w1 <- dual_forwards_keops$calc_w1
-      self$calc_w2 <- dual_forwards_keops$calc_w2
+      private$ts_forward <- dual_forwards_online$cot_bf_dual
+      self$calc_w1 <- dual_forwards_online$calc_w1
+      self$calc_w2 <- dual_forwards_online$calc_w2
     }
   )
 )
@@ -4746,8 +4876,8 @@ cotDualLegacyTrain <- R6::R6Class(
         tensorized <- self$ot$tensorized
         nn_fun <- switch(
           tensorized * 2 + runbf + 1L,
-          cotDualOpt_keops,
-          cotDualBfOpt_keops,
+          cotDualOpt_online,
+          cotDualBfOpt_online,
           cotDualOpt,
           cotDualBfOpt
         )
@@ -5446,8 +5576,8 @@ cotDualTrain <- R6::R6Class(
         tensorized <- self$ot$tensorized
         nn_fun <- switch(
           tensorized * 2 + runbf + 1L,
-          cotDualOpt_keops,
-          cotDualBfOpt_keops,
+          cotDualOpt_online,
+          cotDualBfOpt_online,
           cotDualJointOpt,
           cotDualJointBfOpt
         )

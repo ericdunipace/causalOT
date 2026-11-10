@@ -75,7 +75,9 @@ COT <- R6::R6Class(
             private$solve_args,
             list(...)
           )
-          solve_args <- solve_args[!duplicated(names(solve_args), fromLast = TRUE)]
+          solve_args <- solve_args[
+            !duplicated(names(solve_args), fromLast = TRUE)
+          ]
           do.call(
             private$optimizer$solve,
             solve_args
@@ -95,7 +97,9 @@ COT <- R6::R6Class(
             private$solve_args,
             list(...)
           )
-          solve_args <- solve_args[!duplicated(names(solve_args), fromLast = TRUE)]
+          solve_args <- solve_args[
+            !duplicated(names(solve_args), fromLast = TRUE)
+          ]
           do.call(
             private$optimizer$solve,
             solve_args
@@ -254,7 +258,9 @@ COT <- R6::R6Class(
       weights = function(value) {
         if (missing(value)) {
           polished <- private$optimizer$polished_weights
-          if (is.numeric(polished)) return(polished)
+          if (is.numeric(polished)) {
+            return(polished)
+          }
           as.numeric(private$source$weights$to(device = "cpu"))
         } else {
           private$source$weights <- value
@@ -323,13 +329,10 @@ COT <- R6::R6Class(
 #'   selection. Supported entries are `pilot.weights`, `details`,
 #'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`, and
 #'   `mass.bootstrap.kappa`.
-#' @param polish Primal weight refinement, `"auto"` (default) or `"none"`.
-#'   `"auto"` refines the phase-1 weights in float64 on the CPU with Newton
-#'   steps, or L-BFGS steps when more than 2,000 weights are free, and returns
-#'   float64 weights. It applies to a single debiased OT problem with one
-#'   adapted source weight measure, no balance constraints, and a finite lambda;
-#'   other configurations are skipped. `info()$polish` records each fit's
-#'   `status` and `iterations`.
+#' @param polish refines eligible primal fits (one debiased
+#' weight problem, no balance constraints) in float64 with a
+#' Newton method and reports convergence in info()$polish; "none"
+#' skips it."
 #' @param tol Relative tolerance for final fit convergence (default 1e-4),
 #'   shared by phase 1 and polish: `gap <= atol + tol * max(0, D)`, where
 #'   `D` is the debiased divergence. Unpolished fits use `atol = ot_tol`
@@ -593,8 +596,10 @@ cotOptions <- function(
 
   # Without a line search, torch's LBFGS takes full steps, which can collapse
   # the weights onto a single point. Use strong Wolfe unless the user chose.
-  if (inherits(output$torch.optimizer, "optim_lbfgs") &&
-      !("line_search_fn" %in% names(list(...)))) {
+  if (
+    inherits(output$torch.optimizer, "optim_lbfgs") &&
+      !("line_search_fn" %in% names(list(...)))
+  ) {
     output$solver.options$line_search_fn <- "strong_wolfe"
   }
 

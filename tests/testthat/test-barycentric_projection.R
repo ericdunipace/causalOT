@@ -35,12 +35,6 @@ testthat::test_that("barycentric_projection works, p = 2 tensor", {
   testthat::expect_equal(preds, predict(fit)) # make sure S3 registered
   
   # compare to online formulation
-  causalOT:::rkeops_check()
-  if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0") ) {
-    rkeops::rkeops_use_float64()
-  } else {
-    rkeops::compile4float64()
-  }
   mess <- testthat::capture_output(fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online"))
   mess <- testthat::capture_output(predo <- predict(fito))
   testthat::expect_equal(preds, predo, tol = 1e-5)
@@ -122,13 +116,7 @@ testthat::test_that("barycentric_projection works, p = 1", {
   preds <- causalOT:::predict.bp(fit)
   testthat::expect_equal(preds, predict(fit)) # make sure S3 registered
   
-  causalOT:::rkeops_check()
   # give error for the p = 1 online
-  if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0") ) {
-    rkeops::rkeops_use_float64()
-  } else {
-    rkeops::compile4float64()
-  }
   testthat::expect_warning(fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online"))
   testthat::expect_error(predo <- predict(fito))
   fun <- function(x1, x2, p) {
@@ -213,14 +201,9 @@ testthat::test_that("barycentric_projection works, p = 3", {
   testthat::expect_warning(preds2 <- predict(fit))
   testthat::expect_equal(preds, preds2) # make sure S3 registered
   
-  causalOT:::rkeops_check()
-  if(utils::packageVersion("rkeops") >= pkg_vers_number("2.0") ) {
-    rkeops::rkeops_use_float64()
-  } else {
-    rkeops::compile4float64()
-  }
   mess <- testthat::capture_output((fito <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = power, cost.online = "online")))
-  testthat::expect_error(causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = as.numeric(power), cost.online = "online"))
+  mess <- testthat::capture_output(fito_num <- causalOT:::barycentric_projection(y ~ ., data = df, weight = weights, p = as.numeric(power), cost.online = "online"))
+  testthat::expect_equal(fito_num$potentials, fito$potentials)
   mess <- testthat::capture_output(testthat::expect_warning(predo <- predict(fito)))
   testthat::expect_equal(preds, predo, tol = 1e-5)
   

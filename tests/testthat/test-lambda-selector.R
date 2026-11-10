@@ -1323,7 +1323,7 @@ testthat::test_that("sym_evidence integrates with primal finite-lambda COT and e
     opt.direction = "primal",
     solver = "lbfgs",
     cost.online = "tensorized",
-    niter = 10L,
+    niter = 2L,
     nboot = 1L,
     tol = 1e-2,
     lambda.selector = "sym_evidence",

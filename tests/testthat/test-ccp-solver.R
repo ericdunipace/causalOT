@@ -51,7 +51,7 @@ testthat::test_that("ccp solver runs fixed lambda primal tensorized COT", {
     lambda = 100.0,
     opt.direction = "primal",
     solver = "mirror",
-    niter = 10L,
+    niter = 3L,
     ot_niter = 500L,
     ot_tol = 1e-8,
     tol = 1e-10

@@ -47,13 +47,10 @@ cotOptions(
 
 \item{solver}{Solver to use for COT weight optimization. For \code{opt.direction = "primal"}, solver options are \code{"lbfgs"} uses LBFGS optimization on the weights directly. \code{"mirror"} runs a mirror descent solver, which is typically faster.}
 
-\item{polish}{Primal weight refinement, \code{"auto"} (default) or \code{"none"}.
-\code{"auto"} refines the phase-1 weights in float64 on the CPU with Newton
-steps, or L-BFGS steps when more than 2,000 weights are free, and returns
-float64 weights. It applies to a single debiased OT problem with one
-adapted source weight measure, no balance constraints, and a finite lambda;
-other configurations are skipped. \code{info()$polish} records each fit's
-\code{status} and \code{iterations}.}
+\item{polish}{refines eligible primal fits (one debiased
+weight problem, no balance constraints) in float64 with a
+Newton method and reports convergence in info()$polish; "none"
+skips it."}
 
 \item{p}{The power of the cost function to use for the cost.}
 

@@ -50,23 +50,23 @@ weights <- causalOT::calc_weight(x = data,
   z = NULL, y = NULL,
   estimand = estimate,
   method = "NNM")
-  
+
  df <- data.frame(y = data$get_y(), z = data$get_z(), data$get_x())
-  
+
  # undebiased
- fit <- causalOT::barycentric_projection(y ~ ., data = df, 
+ fit <- causalOT::barycentric_projection(y ~ ., data = df,
     weight = weights,
     separate.samples.on = "z", niter = 2)
-    
+
  #debiased
- fit_d <- causalOT::barycentric_projection(y ~ ., data = df, 
+ fit_d <- causalOT::barycentric_projection(y ~ ., data = df,
     weight = weights,
     separate.samples.on = "z", debias = TRUE, niter = 2)
- 
+
  # predictions, without new data
  undebiased_predictions <- predict(fit,   source.sample = df$z)
  debiased_predictions   <- predict(fit_d, source.sample = df$z)
- 
+
  isTRUE(all.equal(unname(undebiased_predictions), df$y)) # FALSE
  isTRUE(all.equal(unname(debiased_predictions), df$y)) # TRUE
  }
