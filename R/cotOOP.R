@@ -3451,7 +3451,7 @@ OTProblem_ <- R6::R6Class(
           lambda = lambda
         )
       },
-      energy_variance_dbar = function() {
+      energy_variance_dbar = function(euclidean = FALSE) {
         # Keep scales per problem: a measure may occur in several problems,
         # potentially with different cost functions or powers.
         out <- list()
@@ -3469,23 +3469,27 @@ OTProblem_ <- R6::R6Class(
               next
             }
             self_cost <- if (side == 1L) ot$C_xx else ot$C_yy
-            if (inherits(self_cost, "costTensor")) {
+            if (!euclidean && inherits(self_cost, "costTensor")) {
               total <- self_cost$data$detach()$sum()$item()
             } else {
               # Online costs need only a bounded sample to estimate this scale.
-              # The fit's cost function preserves p, its normalization and any
-              # user-supplied cost. No sampling occurs for small measures.
+              # No sampling occurs for small measures.
               x <- meas$x$detach()
               if (!ot$tensorized && n > 2000L) {
                 x <- x[sample.int(n, 2000L), , drop = FALSE]
                 n <- 2000L
               }
-              template <- if (is.null(self_cost)) ot$C_xy else self_cost
-              sampled_cost <- cost(
-                x, x, p = template$p, tensorized = TRUE,
-                cost_function = template$fun
-              )
-              total <- sampled_cost$data$detach()$sum()$item()
+              if (euclidean) {
+                total <- cot_euclidean_distances(x, x)$sum()$item()
+              } else {
+                # Preserve the fit's p, normalization and user-supplied cost.
+                template <- if (is.null(self_cost)) ot$C_xy else self_cost
+                sampled_cost <- cost(
+                  x, x, p = template$p, tensorized = TRUE,
+                  cost_function = template$fun
+                )
+                total <- sampled_cost$data$detach()$sum()$item()
+              }
             }
             scales[[add]] <- total / (n * (n - 1))
           }
@@ -3535,26 +3539,39 @@ OTProblem_ <- R6::R6Class(
         )
 
         if (lambda_selector == "energy_variance") {
-          is_sum_objective <- function(expr) {
-            if (!is.call(expr)) return(FALSE)
-            if (identical(expr[[1L]], as.name("oop_loss_select"))) return(TRUE)
-            identical(expr[[1L]], as.name("+")) &&
-              all(vapply(as.list(expr)[-1L], is_sum_objective, logical(1)))
-          }
-          if (!is_sum_objective(private$objective)) {
+          objective_problems <- function(expr) {
+            if (is.call(expr)) {
+              if (identical(expr[[1L]], as.name("oop_loss_select"))) {
+                # Each leaf is oop_loss_select(private$ot_objects[[name]]).
+                return(expr[[2L]][[3L]])
+              }
+              if (identical(expr[[1L]], as.name("+"))) {
+                return(unlist(lapply(as.list(expr)[-1L], objective_problems),
+                              use.names = FALSE))
+              }
+            }
             stop("energy_variance needs a plain sum of OT objectives")
           }
-          private$set_lambda(Inf)
-          ones <- rlang::env()
+          # Environments store each problem once, but the objective may use it
+          # repeatedly. Apply the same multiplicity to energy and variance.
+          problem_counts <- table(objective_problems(private$objective))
+          energy_cost <- lambda_selector_control$energy.variance.cost
+          euclidean <- identical(energy_cost, "euclidean")
+          if (!euclidean) {
+            private$set_lambda(Inf)
+            ones <- rlang::env()
+            for (add in ls(private$measures)) {
+              ones[[add]] <- torch::torch_ones(
+                private$measures[[add]]$n, dtype = self$dtype, device = self$device
+              )
+            }
+          }
           weighted_adds <- character()
           for (add in ls(private$measures)) {
             meas <- private$measures[[add]]
-            ones[[add]] <- torch::torch_ones(
-              meas$n, dtype = self$dtype, device = self$device
-            )
             if (meas$adapt == "weights") weighted_adds <- c(weighted_adds, add)
           }
-          dbar <- private$energy_variance_dbar()
+          dbar <- private$energy_variance_dbar(euclidean = euclidean)
           multiplier <- lambda_selector_control$energy.variance.c
           s_inf <- penalty <- rep(NA_real_, n_lambda)
           sum_w2 <- matrix(
@@ -3562,15 +3579,66 @@ OTProblem_ <- R6::R6Class(
             dimnames = list(as.character(lambda_input_values), weighted_adds)
           )
           lambda_metrics[] <- Inf
+          if (euclidean) {
+            # Distances do not depend on the weights, so score all candidate
+            # lambdas together: one column of masses per candidate.
+            s_inf[candidates] <- 0
+            for (problem in names(problem_counts)) {
+              adds <- private$problems[[problem]]
+              measures <- lapply(adds, function(add) private$measures[[add]])
+              masses <- lapply(seq_along(adds), function(side) {
+                meas <- measures[[side]]
+                torch::torch_stack(lapply(candidates, function(idx) {
+                  renormalize(if (meas$adapt == "weights") {
+                    weights_list[[idx]][[adds[[side]]]]$detach()
+                  } else {
+                    meas$init_weights$detach()
+                  })
+                }), dim = 2L)
+              })
+              w <- masses[[1L]]
+              b <- masses[[2L]]
+              online <- !private$ot_objects[[problem]]$tensorized
+              energy <- function(x, y, w, b) {
+                cot_euclidean_bilinear(x, y, w, b, online) -
+                  cot_euclidean_bilinear(x, x, w, w, online) / 2 -
+                  cot_euclidean_bilinear(y, y, b, b, online) / 2
+              }
+              adapts_x <- vapply(measures, function(m) m$adapt == "x", logical(1))
+              if (!any(adapts_x)) {
+                scores <- energy(measures[[1L]]$x$detach(),
+                                 measures[[2L]]$x$detach(), w, b)
+              } else {
+                # Fitted points change with lambda: score one candidate at a time.
+                scores <- vapply(seq_along(candidates), function(k) {
+                  wts <- weights_list[[candidates[[k]]]]
+                  points <- lapply(seq_along(adds), function(side) {
+                    if (adapts_x[[side]] && !is.null(wts[[adds[[side]]]])) {
+                      wts[[adds[[side]]]]$detach()
+                    } else {
+                      measures[[side]]$x$detach()
+                    }
+                  })
+                  energy(points[[1L]], points[[2L]], w[, k], b[, k])
+                }, numeric(1))
+              }
+              s_inf[candidates] <- s_inf[candidates] +
+                problem_counts[[problem]] * scores
+            }
+          }
           for (idx in candidates) {
             wts <- weights_list[[idx]]
-            s_inf[[idx]] <- private$eval_lambda(wts, ones)
+            if (!euclidean) {
+              s_inf[[idx]] <- private$eval_lambda(wts, ones)
+            }
             for (add in weighted_adds) {
               w <- renormalize(wts[[add]]$detach())
               sum_w2[idx, add] <- w$square()$sum()$item()
             }
-            problem_penalties <- vapply(dbar, function(scales) {
-              multiplier * sum(scales * sum_w2[idx, names(scales)]) / 2
+            problem_penalties <- vapply(names(problem_counts), function(problem) {
+              scales <- dbar[[problem]]
+              problem_counts[[problem]] * multiplier *
+                sum(scales * sum_w2[idx, names(scales)]) / 2
             }, numeric(1))
             penalty[[idx]] <- sum(problem_penalties)
             lambda_metrics[[idx]] <- s_inf[[idx]] + penalty[[idx]]
@@ -3591,7 +3659,7 @@ OTProblem_ <- R6::R6Class(
           if (isTRUE(lambda_selector_control$details)) {
             out$details <- list(
               S_inf = s_inf, sum.w2 = sum_w2, dbar = dbar,
-              c = multiplier, penalty = penalty
+              c = multiplier, penalty = penalty, cost = energy_cost
             )
           }
           return(out)
@@ -6603,6 +6671,19 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
     },
     check_history = NULL,
     memory_resets = 0L,
+    reverts = 0L,
+    # The cold grid needs 165 quiet checks before one late gap certificate.
+    # A shorter window incorrectly cuts off that fit (seed 2, mult 0.46).
+    stagnation_checks = 170L,
+    safeguard_slack = 1,
+    eta_min = .0625,
+    eta_decay = .5,
+    # Reserve 1% of ot_tol for the check/audit Sinkhorn discrepancy.
+    convergence_margin = .01,
+    fp_converged = function(cert, tol) {
+      cot_converged(cert$fw_gap + private$convergence_margin * private$ot_tol,
+        cert$divergence, private$ot_tol, tol)
+    },
     torch_optim_setup = function(...) invisible(NULL),
     torch_optim_reset = function(...) invisible(NULL),
     # Keep the gap certificate from this solver; dual fits remain ineligible
@@ -6645,9 +6726,10 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
         private$pending_weights <- NULL
         private$check_history <- list()
         private$memory_resets <- 0L
+        private$reverts <- 0L
         initial <- private$fp_checkpoint(warm)
         private$check_history[[1L]] <- c(list(iter = 0L), initial)
-        if (cot_converged(initial$fw_gap, initial$divergence, private$ot_tol, tol)) {
+        if (private$fp_converged(initial, tol)) {
           private$accepted_weights <- warm
           return(list(loss = initial$divergence, iter = 0L, converged = TRUE,
             stopped_by_rule = FALSE, fw_gap = initial$fw_gap,
@@ -6659,27 +6741,75 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
         u <- private$nn_holder$gamma
         v <- torch::torch_zeros_like(u)
         U <- R <- list()
-        # Seeding the best-state pool with the incoming warm start is the
-        # next safeguard; for now keep the best updated iterate as in Phase 1.
-        best <- NULL
+        # Exact incoming weights may contain zeros and have no finite potential.
+        # Store weights as well as the potential so they remain eligible at exit.
+        best <- c(initial, list(u = NULL, weights = warm))
+        progress_S <- initial$divergence
+        stagnant_checks <- 0L
+        reset_pending <- FALSE
+        eta_floor <- min(eta, private$eta_min)
         stopped <- FALSE
         reason <- "niter"
         res <- private$fp_forward()
+        last_ess <- 1 / res$w2$square()$sum()$item()
         check <- function(iter) {
           cert <- private$fp_checkpoint(res$w2)
-          private$check_history[[length(private$check_history) + 1L]] <-
-            c(list(iter = iter), cert)
           if (!is.finite(cert$divergence) || !is.finite(cert$fw_gap)) {
             stop("Non-finite entropy fixed-point checkpoint.")
           }
-          if (is.null(best) || cert$divergence < best$divergence) {
-            best <<- c(cert, list(u = u$detach()$clone()))
-          } else if (cert$divergence > best$divergence + private$ot_tol * cot_conv_scale(self$ot)) {
+          slack <- private$safeguard_slack * private$ot_tol * cot_conv_scale(self$ot)
+          if (cert$divergence < best$divergence) {
+            best <<- c(cert, list(u = u$detach()$clone(),
+              weights = res$w2$detach()$clone()))
+          }
+          if (best$divergence < progress_S - slack) {
+            progress_S <<- best$divergence
+            stagnant_checks <<- 0L
+          } else {
+            stagnant_checks <<- stagnant_checks + 1L
+          }
+          passed <- private$fp_converged(cert, tol)
+          action <- "none"
+          if (!passed && cert$divergence > best$divergence + slack) {
             U <<- R <<- list()
             v$zero_()
-            private$memory_resets <- private$memory_resets + 1L
+            if (reset_pending) {
+              action <- "revert"
+              private$reverts <- private$reverts + 1L
+              at_floor <- eta <= eta_floor
+              eta <<- max(eta_floor, eta * private$eta_decay)
+              kappa <<- eta / 2
+              if (is.null(best$u)) {
+                # Reconstruct only for continuing updates; the exact best
+                # weights remain stored independently of this mixed restart.
+                private$fp_build_potential(best$weights)
+              } else {
+                u$copy_(best$u)
+              }
+              res <<- private$fp_forward()
+              reset_pending <<- FALSE
+              if (at_floor) {
+                stopped <<- TRUE
+                reason <<- "no progress"
+              }
+            } else {
+              action <- "reset"
+              private$memory_resets <- private$memory_resets + 1L
+              reset_pending <<- TRUE
+            }
+          } else {
+            reset_pending <<- FALSE
           }
-          cot_converged(cert$fw_gap, cert$divergence, private$ot_tol, tol)
+          private$check_history[[length(private$check_history) + 1L]] <-
+            c(list(iter = iter), cert, list(best_divergence = best$divergence,
+              slack = slack, eta = eta, action = action,
+              stagnant_checks = stagnant_checks))
+          last_ess <<- 1 / res$w2$square()$sum()$item()
+          if (!passed && !stopped && stagnant_checks >= private$stagnation_checks) {
+            stopped <<- TRUE
+            reason <<- "stalled"
+          }
+          passed
         }
         for (i in seq_len(niter)) {
           private$fp_iteration <- i
@@ -6719,23 +6849,25 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
           # A stall is an absolute step test, deliberately tighter than the
           # relative gap tolerance; small Anderson steps need not be optimal.
           stalled <- (res$log_w2 - old_log_w2)$abs()$max()$item() <= tol^2
-          if (i %% private$check_every == 0L || i == niter || stalled) {
+          ess <- 1 / res$w2$square()$sum()$item()
+          if (i %% private$check_every == 0L || i == niter || stalled || ess < last_ess / 2) {
             passed <- check(i)
-            if (passed || stalled) {
-              stopped <- stalled && !passed
-              reason <- if (passed) "ok" else "stalled"
+            if (passed || stalled || stopped) {
+              if (passed) reason <- "ok" else if (!stopped) reason <- "stalled"
+              stopped <- !passed
               break
             }
           }
         }
         # Every exit above has checked the current iterate. Return the lowest
         # checked objective and recompute its certificate at the restored weights.
-        u$copy_(best$u)
-        final <- private$fp_checkpoint(self$weights)
-        converged <- cot_converged(final$fw_gap, final$divergence, private$ot_tol, tol)
+        if (!is.null(best$u)) u$copy_(best$u)
+        private$accepted_weights <- best$weights
+        final <- private$fp_checkpoint(best$weights)
+        converged <- private$fp_converged(final, tol)
         if (converged) reason <- "ok" else if (reason == "ok") reason <- "gap above tolerance"
         list(loss = final$divergence, iter = i, converged = converged,
-          stopped_by_rule = stopped, fw_gap = final$fw_gap,
+          stopped_by_rule = stopped && !converged, fw_gap = final$fw_gap,
           divergence = final$divergence, reason = reason)
       })
     }

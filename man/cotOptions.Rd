@@ -89,22 +89,27 @@ versions of the package. The experimental alternatives are
 backward-compatible alias for \code{"profile_symmetric_loo"}, and
 \code{"legacy_bootstrap_balance"} is retained as an alias for
 \code{"bootstrap_legacy"}. \code{"energy_variance"} minimizes the in-sample
-infinite-lambda divergence plus a variance penalty on normalized weights;
+energy score plus a variance penalty on normalized weights;
 it ignores \code{nboot} and \code{lambda.bootstrap} for lambda selection and requires
 a plain sum of OT objectives.}
 
 \item{lambda.selector.control}{Optional list of controls for lambda
 selection. Supported entries are \code{pilot.weights}, \code{details},
 \code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile},
-\code{mass.bootstrap.kappa}, and \code{energy.variance.c}. The latter is a finite
+\code{mass.bootstrap.kappa}, \code{energy.variance.cost}, and \code{energy.variance.c}.
+\code{energy.variance.cost} is \code{"euclidean"} (default) for unsquared Euclidean
+distances, or \code{"fit"} for the fit's cost and infinite-lambda divergence.
+The same cost defines the score and \code{dbar}. \code{energy.variance.c} is a finite
 nonnegative multiplier (default 1) for the \code{energy_variance} penalty;
 larger values favor higher effective sample size (ESS) weights. Its score is
-the infinite-lambda divergence plus \code{energy.variance.c * dbar * sum(w^2) / 2},
+\code{w'D_xy b - w'D_xx w / 2 - b'D_yy b / 2} plus
+\code{energy.variance.c * dbar * sum(w^2) / 2}, summed over OT problems,
 using mass-one weights and the mean off-diagonal self cost \code{dbar}.
-Online costs estimate \code{dbar} from at most 2,000 randomly sampled rows;
+Online Euclidean scores use all rows in chunks. Online costs estimate
+\code{dbar} from at most 2,000 randomly sampled rows;
 singleton measures use zero. With \code{details = TRUE}, \code{lambda.details} stores
 \code{S_inf}, \code{sum.w2} (rows are lambdas, columns are weighted measures), \code{dbar}
-(per problem and weighted measure), \code{c}, and the combined \code{penalty}.}
+(per problem and weighted measure), \code{c}, \code{cost}, and the combined \code{penalty}.}
 
 \item{tol}{Relative tolerance for final fit convergence (default 1e-4),
 shared by phase 1 and polish: \code{gap <= atol + tol * max(0, D)}, where

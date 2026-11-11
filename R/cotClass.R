@@ -328,21 +328,26 @@ COT <- R6::R6Class(
 #'   backward-compatible alias for `"profile_symmetric_loo"`, and
 #'   `"legacy_bootstrap_balance"` is retained as an alias for
 #'   `"bootstrap_legacy"`. `"energy_variance"` minimizes the in-sample
-#'   infinite-lambda divergence plus a variance penalty on normalized weights;
+#'   energy score plus a variance penalty on normalized weights;
 #'   it ignores `nboot` and `lambda.bootstrap` for lambda selection and requires
 #'   a plain sum of OT objectives.
 #' @param lambda.selector.control Optional list of controls for lambda
 #'   selection. Supported entries are `pilot.weights`, `details`,
 #'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`,
-#'   `mass.bootstrap.kappa`, and `energy.variance.c`. The latter is a finite
+#'   `mass.bootstrap.kappa`, `energy.variance.cost`, and `energy.variance.c`.
+#'   `energy.variance.cost` is `"euclidean"` (default) for unsquared Euclidean
+#'   distances, or `"fit"` for the fit's cost and infinite-lambda divergence.
+#'   The same cost defines the score and `dbar`. `energy.variance.c` is a finite
 #'   nonnegative multiplier (default 1) for the `energy_variance` penalty;
 #'   larger values favor higher effective sample size (ESS) weights. Its score is
-#'   the infinite-lambda divergence plus `energy.variance.c * dbar * sum(w^2) / 2`,
+#'   `w'D_xy b - w'D_xx w / 2 - b'D_yy b / 2` plus
+#'   `energy.variance.c * dbar * sum(w^2) / 2`, summed over OT problems,
 #'   using mass-one weights and the mean off-diagonal self cost `dbar`.
-#'   Online costs estimate `dbar` from at most 2,000 randomly sampled rows;
+#'   Online Euclidean scores use all rows in chunks. Online costs estimate
+#'   `dbar` from at most 2,000 randomly sampled rows;
 #'   singleton measures use zero. With `details = TRUE`, `lambda.details` stores
 #'   `S_inf`, `sum.w2` (rows are lambdas, columns are weighted measures), `dbar`
-#'   (per problem and weighted measure), `c`, and the combined `penalty`.
+#'   (per problem and weighted measure), `c`, `cost`, and the combined `penalty`.
 #' @param polish "none" (the default) or "auto". "auto" refines eligible
 #' primal fits (one debiased weight problem, no balance constraints, at most
 #' 2000 source points) in float64 with a Newton method and reports

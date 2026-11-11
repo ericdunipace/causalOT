@@ -1720,7 +1720,7 @@ online_by_rows <- function(C, x, y, f) {
 
 online_lse_rows <- function(C, x, y, G, P) {
   Gv <- G$view(c(1L, -1L))
-  online_by_rows(C, x, y, function(Cb, i) (Gv - Cb * P)$logsumexp(2))
+  online_by_rows(C, x, y, function(Cb, i) (Cb * (-P))$add_(Gv)$logsumexp(2))
 }
 
 online_cost_mv <- function(C, x, y, v) {

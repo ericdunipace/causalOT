@@ -70,7 +70,8 @@ cot_normalize_lambda_selector_control <- function(control = list()) {
     "mass.bootstrap.summary",
     "mass.bootstrap.quantile",
     "mass.bootstrap.kappa",
-    "energy.variance.c"
+    "energy.variance.c",
+    "energy.variance.cost"
   )
   unknown <- setdiff(names(control), allowed)
   if (length(unknown) > 0L) {
@@ -88,7 +89,8 @@ cot_normalize_lambda_selector_control <- function(control = list()) {
     mass.bootstrap.summary = "mean",
     mass.bootstrap.quantile = 0.1,
     mass.bootstrap.kappa = 1,
-    energy.variance.c = 1
+    energy.variance.c = 1,
+    energy.variance.cost = "euclidean"
   )
 
   if ("pilot.weights" %in% names(control)) {
@@ -164,7 +166,50 @@ cot_normalize_lambda_selector_control <- function(control = list()) {
     out$energy.variance.c <- as.numeric(multiplier)
   }
 
+  if ("energy.variance.cost" %in% names(control)) {
+    energy_cost <- control[["energy.variance.cost"]]
+    if (
+      !is.character(energy_cost) || length(energy_cost) != 1L ||
+        is.na(energy_cost) || !(energy_cost %in% c("euclidean", "fit"))
+    ) {
+      stop(
+        "lambda.selector.control$energy.variance.cost must be 'euclidean' or 'fit'."
+      )
+    }
+    out$energy.variance.cost <- energy_cost
+  }
+
   out
+}
+
+cot_euclidean_distances <- function(x, y) {
+  # Direct distances keep self diagonals zero and avoid cancellation in the
+  # matrix-multiplication identity, including when rows are chunked.
+  # R torch takes the numeric enum: 2 means donot_use_mm_for_euclid_dist.
+  torch::torch_cdist(x, y, p = 2, compute_mode = 2L)
+}
+
+# w' D b for D = Euclidean distances between x and y. w and b are vectors,
+# or matrices with one column per weight vector (e.g. one per lambda), so a
+# whole lambda path is scored while computing each distance block once.
+cot_euclidean_bilinear <- function(x, y, w, b, online = FALSE) {
+  if (!online) {
+    total <- (w * cot_euclidean_distances(x, y)$matmul(b))$sum(dim = 1L)
+    return(torch::as_array(total$cpu()))
+  }
+
+  # Bound each temporary distance matrix to at most one million entries
+  # (or one row for very large targets). Every observation contributes.
+  chunk_size <- min(512L, max(1L, floor(1e6 / nrow(y))))
+  total <- 0
+  for (start in seq.int(1L, nrow(x), by = chunk_size)) {
+    rows <- seq.int(start, min(start + chunk_size - 1L, nrow(x)))
+    distances <- cot_euclidean_distances(x[rows, , drop = FALSE], y)
+    w_rows <- if (w$dim() == 1L) w[rows, drop = FALSE] else w[rows, , drop = FALSE]
+    chunk <- (w_rows * distances$matmul(b))$sum(dim = 1L)
+    total <- total + torch::as_array(chunk$cpu())
+  }
+  total
 }
 
 cot_resolve_pilot_weights <- function(pilot.weights, n) {

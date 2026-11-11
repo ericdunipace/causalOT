@@ -1986,13 +1986,14 @@ energy_selector_fixture <- function(p = 1, online = FALSE, cost_function = NULL)
   list(ot = ot, x = x, y = y, add = add, weights = weights)
 }
 
-energy_selector_score <- function(fixture, multiplier = 1, failed = c(FALSE, FALSE)) {
+energy_selector_score <- function(fixture, multiplier = 1, failed = c(FALSE, FALSE),
+                                  cost = "euclidean") {
   fixture$ot$.__enclos_env__$private$select_lambda_metric(
     weights_list = fixture$weights, weights_converged = c(TRUE, TRUE),
     lambda_values = c(10, 1), lambda_input_values = c(10, 1),
     lambda_selector = "energy_variance",
     lambda_selector_control = causalOT:::cot_normalize_lambda_selector_control(
-      list(energy.variance.c = multiplier, details = TRUE)
+      list(energy.variance.c = multiplier, energy.variance.cost = cost, details = TRUE)
     ), n_boot_lambda = NA, lambda_bootstrap = NA, weights_failed = failed
   )
 }
@@ -2000,7 +2001,7 @@ energy_selector_score <- function(fixture, multiplier = 1, failed = c(FALSE, FAL
 testthat::test_that("energy_variance matches hand energy and normalized variance scores", {
   f <- energy_selector_fixture()
   result <- energy_selector_score(f, 2)
-  D <- as.matrix(stats::dist(rbind(f$x, f$y), method = "manhattan"))
+  D <- as.matrix(stats::dist(rbind(f$x, f$y)))
   Cxx <- D[1:30, 1:30]
   Cxy <- D[1:30, 31:70]
   Cyy <- D[31:70, 31:70]
@@ -2015,6 +2016,7 @@ testthat::test_that("energy_variance matches hand energy and normalized variance
   testthat::expect_equal(result$metrics, expected, tolerance = 1e-10)
   testthat::expect_equal(result$details$dbar[[1]][[f$add]], dbar)
   testthat::expect_equal(result$details$c, 2)
+  testthat::expect_identical(result$details$cost, "euclidean")
   testthat::expect_equal(result$details$S_inf + result$details$penalty, expected)
   testthat::expect_equal(as.numeric(result$details$sum.w2[2, ]), 1 / 30)
   testthat::expect_match(result$note, "n_boot_lambda and lambda_bootstrap are ignored")
@@ -2024,9 +2026,9 @@ testthat::test_that("energy_variance matches hand energy and normalized variance
   testthat::expect_identical(excluded$metrics[[1]], Inf)
 })
 
-testthat::test_that("energy_variance c zero is the infinite-lambda in-sample score", {
+testthat::test_that("energy_variance fit reproduces the infinite-lambda in-sample score", {
   f <- energy_selector_fixture()
-  result <- energy_selector_score(f, 0)
+  result <- energy_selector_score(f, 0, cost = "fit")
   priv <- f$ot$.__enclos_env__$private
   ones <- rlang::env()
   for (add in ls(priv$measures)) {
@@ -2036,6 +2038,16 @@ testthat::test_that("energy_variance c zero is the infinite-lambda in-sample sco
   expected <- vapply(f$weights, priv$eval_lambda, numeric(1), boot = ones)
   testthat::expect_equal(result$metrics, expected, tolerance = 1e-12)
   testthat::expect_equal(result$details$penalty, c(0, 0))
+  testthat::expect_identical(result$details$cost, "fit")
+  penalized <- energy_selector_score(f, 2, cost = "fit")
+  Cxx <- as.matrix(stats::dist(f$x, method = "manhattan"))
+  dbar <- sum(Cxx) / (30 * 29)
+  sum_w2 <- vapply(f$weights, function(wts) {
+    w <- as.numeric(wts[[f$add]])
+    sum((w / sum(w))^2)
+  }, numeric(1))
+  testthat::expect_equal(penalized$metrics, expected + dbar * sum_w2,
+                         tolerance = 1e-12)
 })
 
 testthat::test_that("energy variance control validates finite nonnegative scalars", {
@@ -2048,23 +2060,39 @@ testthat::test_that("energy variance control validates finite nonnegative scalar
       "energy.variance.c must be a single finite nonnegative number"
     )
   }
+  testthat::expect_identical(
+    causalOT:::cot_normalize_lambda_selector_control()$energy.variance.cost,
+    "euclidean"
+  )
+  for (cost in c("euclidean", "fit")) {
+    testthat::expect_identical(
+      causalOT:::cot_normalize_lambda_selector_control(list(energy.variance.cost = cost))$
+        energy.variance.cost, cost
+    )
+  }
+  for (bad in list(NULL, NA, "manhattan", c("euclidean", "fit"), 1, TRUE)) {
+    testthat::expect_error(
+      causalOT:::cot_normalize_lambda_selector_control(list(energy.variance.cost = bad)),
+      "energy.variance.cost must be 'euclidean' or 'fit'", fixed = TRUE
+    )
+  }
   testthat::expect_equal(
     causalOT:::cotOptions(lambda.selector = "energy_variance")$lambda.selector,
     "energy_variance"
   )
 })
 
-testthat::test_that("energy_variance uses online scales and preserves custom costs and p", {
+testthat::test_that("energy_variance fit uses online scales and preserves custom costs and p", {
   tensor <- energy_selector_fixture()
   online <- energy_selector_fixture(online = TRUE)
-  testthat::expect_equal(energy_selector_score(online)$metrics,
-                         energy_selector_score(tensor)$metrics, tolerance = 1e-10)
+  testthat::expect_equal(energy_selector_score(online, cost = "fit")$metrics,
+                         energy_selector_score(tensor, cost = "fit")$metrics, tolerance = 1e-10)
   custom <- function(x, y, p) torch::torch_cdist(x, y, p = 1) * 3
   user <- energy_selector_fixture(cost_function = custom)
-  testthat::expect_equal(energy_selector_score(user)$metrics,
-                         3 * energy_selector_score(tensor)$metrics, tolerance = 1e-10)
+  testthat::expect_equal(energy_selector_score(user, cost = "fit")$metrics,
+                         3 * energy_selector_score(tensor, cost = "fit")$metrics, tolerance = 1e-10)
   squared <- energy_selector_fixture(p = 2)
-  res <- energy_selector_score(squared)
+  res <- energy_selector_score(squared, cost = "fit")
   expected <- vapply(squared$weights, function(wts) {
     w <- as.numeric(wts[[squared$add]])
     w <- w / sum(w)
@@ -2073,6 +2101,162 @@ testthat::test_that("energy_variance uses online scales and preserves custom cos
     sum(mean_diff^2) / 2 + sum(Cxx) / (30 * 29) * sum(w^2) / 2
   }, numeric(1))
   testthat::expect_equal(res$metrics, expected, tolerance = 1e-10)
+})
+
+testthat::test_that("energy_variance Euclidean scores ignore the fit cost and skip eval_lambda", {
+  expected <- energy_selector_score(energy_selector_fixture())
+  custom <- function(x, y, p) torch::torch_cdist(x, y, p = 1) * 3
+  for (f in list(energy_selector_fixture(p = 2),
+                 energy_selector_fixture(cost_function = custom),
+                 energy_selector_fixture(online = TRUE, cost_function = custom))) {
+    priv <- f$ot$.__enclos_env__$private
+    replace_private_binding(priv, "eval_lambda", function(...) stop("fit scorer called"))
+    result <- energy_selector_score(f)
+    testthat::expect_equal(result$metrics, expected$metrics, tolerance = 1e-12)
+    testthat::expect_equal(result$details$dbar[[1]][[f$add]],
+                           expected$details$dbar[[1]][[1]], tolerance = 1e-12)
+  }
+})
+
+testthat::test_that("energy_variance sums problems with fitted and fixed masses on either side", {
+  causalOT:::torch_check()
+  x <- rbind(c(0, 0), c(1, 2), c(3, 1))
+  y <- rbind(c(0.5, 1), c(2, 3))
+  z <- rbind(c(-1, 0), c(2, 1))
+  make_measure <- function(data, adapt, weights) causalOT:::Measure(
+    data, adapt = adapt, weights = weights,
+    device = torch::torch_device("cpu"), dtype = torch::torch_double()
+  )
+  source <- make_measure(x, "weights", c(0.2, 0.3, 0.5))
+  target <- make_measure(y, "weights", c(0.4, 0.6))
+  fixed <- make_measure(z, "none", c(0.8, 0.2))
+  ot <- causalOT:::OTProblem(source, target) + causalOT:::OTProblem(fixed, source)
+  ot$setup_arguments(lambda = c(10, 1), p = 2, debias = FALSE,
+                     cost.online = "tensorized")
+  ax <- rlang::obj_address(source)
+  ay <- rlang::obj_address(target)
+  weights <- lapply(list(c(1, 2, 4), c(4, 2, 1)), function(w) {
+    out <- rlang::env()
+    out[[ax]] <- torch::torch_tensor(w, dtype = torch::torch_double())
+    out[[ay]] <- torch::torch_tensor(c(3, 1), dtype = torch::torch_double())
+    out
+  })
+  energy <- function(u, v, a, b) {
+    D <- as.matrix(stats::dist(rbind(u, v)))
+    i <- seq_len(nrow(u))
+    j <- nrow(u) + seq_len(nrow(v))
+    sum(a * (D[i, j] %*% b)) - sum(a * (D[i, i] %*% a)) / 2 -
+      sum(b * (D[j, j] %*% b)) / 2
+  }
+  expected <- vapply(weights, function(wts) {
+    w <- as.numeric(wts[[ax]])
+    w <- w / sum(w)
+    b <- c(0.75, 0.25)
+    energy(x, y, w, b) + energy(z, x, c(0.8, 0.2), w) +
+      sum(as.matrix(stats::dist(x))) / (3 * 2) * sum(w^2) +
+      sum(as.matrix(stats::dist(y))) / (2 * 1) * sum(b^2) / 2
+  }, numeric(1))
+  result <- energy_selector_score(list(ot = ot, weights = weights))
+  testthat::expect_equal(result$metrics, expected, tolerance = 1e-12)
+})
+
+testthat::test_that("energy_variance counts repeated objective terms in scores and penalties", {
+  causalOT:::torch_check()
+  for (online in c("tensorized", "online")) {
+    make_measure <- function(x, adapt = "none") causalOT:::Measure(
+      matrix(x, ncol = 1), adapt = adapt,
+      device = torch::torch_device("cpu"), dtype = torch::torch_double()
+    )
+    source <- make_measure(c(0, 1), "weights")
+    p <- causalOT:::OTProblem(source, make_measure(0.2))
+    q <- causalOT:::OTProblem(source, make_measure(1))
+    problems <- list(p = p, q = q, pp = p + p, pq = p + q, ppq = p + p + q)
+    for (ot in problems) {
+      ot$setup_arguments(lambda = c(10, 1), p = 1, debias = TRUE,
+                         cost.online = online)
+    }
+    add <- rlang::obj_address(source)
+    weights <- lapply(list(c(1, 0), c(0, 1)), function(w) {
+      out <- rlang::env()
+      out[[add]] <- torch::torch_tensor(w, dtype = torch::torch_double())
+      out
+    })
+    for (cost in c("euclidean", "fit")) {
+      for (multiplier in c(0, 2)) {
+        scores <- lapply(problems, function(ot) energy_selector_score(
+          list(ot = ot, weights = weights), multiplier, cost = cost
+        ))
+        testthat::expect_equal(scores$pp$details$S_inf, c(0.4, 1.6), tolerance = 1e-12)
+        testthat::expect_equal(scores$pp$metrics, 2 * scores$p$metrics, tolerance = 1e-12)
+        testthat::expect_equal(scores$ppq$metrics,
+                               2 * scores$p$metrics + scores$q$metrics, tolerance = 1e-12)
+        testthat::expect_equal(scores$ppq$details$penalty,
+                               2 * scores$p$details$penalty + scores$q$details$penalty,
+                               tolerance = 1e-12)
+        testthat::expect_equal(scores$pq$selected_index, 2L)
+        testthat::expect_equal(scores$ppq$selected_index, 1L)
+      }
+    }
+  }
+})
+
+testthat::test_that("online Euclidean bilinear scores use every row in bounded chunks", {
+  causalOT:::torch_check()
+  x <- cbind(seq_len(1031) / 1031, sin(seq_len(1031)))
+  y <- rbind(c(0, 0), c(1, 2), c(-1, 1))
+  w <- seq_len(nrow(x))
+  w <- w / sum(w)
+  b <- c(0.2, 0.3, 0.5)
+  tx <- torch::torch_tensor(x, dtype = torch::torch_double())
+  ty <- torch::torch_tensor(y, dtype = torch::torch_double())
+  tw <- torch::torch_tensor(w, dtype = torch::torch_double())
+  tb <- torch::torch_tensor(b, dtype = torch::torch_double())
+  distances <- causalOT:::cot_euclidean_distances
+  calls <- list()
+  testthat::local_mocked_bindings(cot_euclidean_distances = function(x, y) {
+    calls[[length(calls) + 1L]] <<- c(nrow(x), nrow(y))
+    distances(x, y)
+  }, .package = "causalOT")
+  D <- as.matrix(stats::dist(rbind(x, y)))
+  testthat::expect_equal(
+    causalOT:::cot_euclidean_bilinear(tx, ty, tw, tb, online = TRUE),
+    sum(w * (D[seq_len(nrow(x)), nrow(x) + seq_len(nrow(y))] %*% b)),
+    tolerance = 1e-12
+  )
+  testthat::expect_equal(sum(vapply(calls, `[[`, integer(1), 1L)), nrow(x))
+  testthat::expect_true(all(vapply(calls, `[[`, integer(1), 1L) <= 512L))
+  calls <- list()
+  testthat::expect_equal(
+    causalOT:::cot_euclidean_bilinear(tx, tx, tw, tw, online = TRUE),
+    sum(w * (as.matrix(stats::dist(x)) %*% w)), tolerance = 1e-12
+  )
+  testthat::expect_equal(sum(vapply(calls, `[[`, integer(1), 1L)), nrow(x))
+  testthat::expect_true(all(vapply(calls, prod, numeric(1)) <= 1e6))
+})
+
+testthat::test_that("Euclidean bilinear scores weight matrices one column at a time", {
+  causalOT:::torch_check()
+  x <- cbind(seq_len(1031) / 1031, sin(seq_len(1031)))
+  y <- rbind(c(0, 0), c(1, 2), c(-1, 1))
+  W <- cbind(rep(1, nrow(x)), seq_len(nrow(x)))
+  W <- sweep(W, 2, colSums(W), "/")
+  B <- cbind(c(0.2, 0.3, 0.5), c(1, 0, 0))
+  tx <- torch::torch_tensor(x, dtype = torch::torch_double())
+  ty <- torch::torch_tensor(y, dtype = torch::torch_double())
+  tW <- torch::torch_tensor(W, dtype = torch::torch_double())
+  tB <- torch::torch_tensor(B, dtype = torch::torch_double())
+  Dxy <- as.matrix(stats::dist(rbind(x, y)))[seq_len(nrow(x)), nrow(x) + seq_len(nrow(y))]
+  expected <- colSums(W * (Dxy %*% B))
+  for (online in c(FALSE, TRUE)) {
+    testthat::expect_equal(
+      causalOT:::cot_euclidean_bilinear(tx, ty, tW, tB, online = online),
+      expected, tolerance = 1e-12
+    )
+    testthat::expect_equal(
+      causalOT:::cot_euclidean_bilinear(tx, ty, tW[, 2], tB[, 2], online = online),
+      expected[[2]], tolerance = 1e-12
+    )
+  }
 })
 
 testthat::test_that("energy_variance c moves selection from balance toward ESS on a fitted path", {
@@ -2179,4 +2363,29 @@ testthat::test_that("energy_variance bounds online scale samples at 2000 rows", 
   testthat::expect_equal(calls, list(c(2000L, 2000L)))
   testthat::expect_true(is.finite(dbar[[1]][[1]]))
   testthat::expect_gt(dbar[[1]][[1]], 0)
+  euclidean_calls <- list()
+  distances <- causalOT:::cot_euclidean_distances
+  testthat::local_mocked_bindings(cot_euclidean_distances = function(x, y) {
+    euclidean_calls[[length(euclidean_calls) + 1L]] <<- c(nrow(x), nrow(y))
+    distances(x, y)
+  }, .package = "causalOT")
+  set.seed(724)
+  expected_x <- matrix(seq_len(2100)[sample.int(2100, 2000)], ncol = 1)
+  set.seed(724)
+  euclidean_dbar <- ot$.__enclos_env__$private$energy_variance_dbar(euclidean = TRUE)
+  testthat::expect_equal(euclidean_calls, list(c(2000L, 2000L)))
+  testthat::expect_equal(euclidean_dbar[[1]][[1]],
+                         sum(as.matrix(stats::dist(expected_x))) / (2000 * 1999))
+
+  # Only dbar is sampled: even a candidate concentrated on the final row must
+  # use the complete support for the energy score.
+  add <- rlang::obj_address(source)
+  candidate <- rlang::env()
+  w <- rep(0, 2100)
+  w[[2100]] <- 1
+  candidate[[add]] <- torch::torch_tensor(w, dtype = torch::torch_double())
+  calls <- list()
+  result <- energy_selector_score(list(ot = ot, weights = list(candidate, candidate)))
+  testthat::expect_equal(result$details$S_inf, rep(2099.25, 2), tolerance = 1e-12)
+  testthat::expect_length(calls, 0L)
 })

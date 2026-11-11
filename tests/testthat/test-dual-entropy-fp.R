@@ -362,3 +362,87 @@ testthat::test_that("warm-start mixing requires a positive fraction at most one"
       "fixed_point_warm_start_mix must be in")
   }
 })
+
+testthat::test_that("checkpoint stagnation stops and preserves the exact incoming best weights", {
+  z <- defp_fixture(n = 20L)
+  p <- z$private
+  incoming <- c(rep(0, 18), .2, .8)
+  p$parameters_get_set(list(incoming))
+  p$check_every <- 2L
+  p$stagnation_checks <- 3L
+  checkpoint <- p$fp_checkpoint
+  unlockBinding("fp_checkpoint", p)
+  p$fp_checkpoint <- function(w) {
+    checkpoint(w)
+    list(divergence = 1, fw_gap = 1)
+  }
+  lockBinding("fp_checkpoint", p)
+  result <- p$optimization_loop(100L, 1e-8)
+  testthat::expect_identical(result$reason, "stalled")
+  testthat::expect_equal(result$iter, 6L)
+  testthat::expect_false(result$converged)
+  testthat::expect_true(result$stopped_by_rule)
+  testthat::expect_identical(as.numeric(z$fit$weights), incoming)
+  testthat::expect_equal(p$memory_resets, 0L)
+  testthat::expect_equal(p$reverts, 0L)
+})
+
+testthat::test_that("persistent increases reset then revert and stop at the local eta floor", {
+  z <- defp_fixture(n = 20L)
+  p <- z$private
+  p$check_every <- 1L
+  p$stagnation_checks <- 100L
+  p$fixed_point_eta <- .25
+  p$eta_min <- .125
+  calls <- 0L
+  checkpoint <- p$fp_checkpoint
+  unlockBinding("fp_checkpoint", p)
+  p$fp_checkpoint <- function(w) {
+    checkpoint(w)
+    calls <<- calls + 1L
+    list(divergence = if (calls == 1L) 0 else 1, fw_gap = 1)
+  }
+  lockBinding("fp_checkpoint", p)
+  result <- p$optimization_loop(100L, 1e-8)
+  testthat::expect_identical(result$reason, "no progress")
+  testthat::expect_equal(result$iter, 4L)
+  testthat::expect_false(result$converged)
+  testthat::expect_true(result$stopped_by_rule)
+  testthat::expect_equal(p$memory_resets, 2L)
+  testthat::expect_equal(p$reverts, 2L)
+  testthat::expect_equal(p$fixed_point_eta, .25)
+  checks <- p$check_history[-1L]
+  testthat::expect_identical(vapply(checks, `[[`, character(1), "action"),
+    c("reset", "revert", "reset", "revert"))
+  testthat::expect_equal(vapply(checks, `[[`, numeric(1), "eta"), c(.25, .125, .125, .125))
+  testthat::expect_true(all(diff(vapply(checks, `[[`, numeric(1), "best_divergence")) <= 0))
+})
+
+testthat::test_that("a sudden ESS drop triggers an unscheduled certificate", {
+  z <- defp_fixture(n = 20L)
+  p <- z$private
+  p$check_every <- 50L
+  forward <- p$fp_forward
+  calls <- 0L
+  unlockBinding("fp_forward", p)
+  p$fp_forward <- function() {
+    calls <<- calls + 1L
+    if (calls == 2L) p$nn_holder$gamma[1]$add_(10)
+    forward()
+  }
+  lockBinding("fp_forward", p)
+  p$optimization_loop(2L, 1e-8)
+  testthat::expect_equal(p$check_history[[2L]]$iter, 1L)
+})
+
+testthat::test_that("the reporting margin reserves only a small part of ot_tol", {
+  z <- defp_fixture(n = 20L)
+  p <- z$private
+  threshold <- p$ot_tol + 1e-6 * .03
+  borderline <- list(divergence = .03, fw_gap = threshold - .005 * p$ot_tol)
+  testthat::expect_true(causalOT:::cot_converged(borderline$fw_gap, .03, p$ot_tol, 1e-6))
+  testthat::expect_false(p$fp_converged(borderline, 1e-6))
+  borderline$fw_gap <- threshold - .02 * p$ot_tol
+  testthat::expect_true(p$fp_converged(borderline, 1e-6))
+  testthat::expect_true(p$fp_converged(list(divergence = 0, fw_gap = 0), 1e-6))
+})
