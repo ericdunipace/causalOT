@@ -1088,7 +1088,9 @@ OT$set(
 
     f <- parts$f[idx1]$view(c(-1L, 1L))
     g <- parts$g[idx2]$view(c(1L, -1L))
-    ((f + g - cost_block(parts$C, idx1, idx2)) / as.numeric(self$penalty))$exp()
+    (f + g)$sub_(cost_block(parts$C, idx1, idx2))$div_(as.numeric(
+      self$penalty
+    ))$exp_()
   }
 )
 
