@@ -8,6 +8,10 @@
 * `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
 
 ## New features
+* `dual.solver = "fixed_point"` adds entropy-potential updates with weighted
+  Anderson acceleration, sparse-safe residuals, and gap-based convergence.
+  It supports tensorized and online costs, returns the best checked weights,
+  and currently excludes balance functions. The existing default is unchanged.
 * Updated convergence criterion to prevent needless long runs
 * `cotOptions(polish = "auto")` refines COT weights with a monotone Newton
   polish using an exact Hessian. It is off by default and skips fits with

@@ -4253,18 +4253,24 @@ def calc_w2(u: Tensor, C_xx: Tensor, a_log: Tensor, eps: float, n: int) -> Tenso
   return w2
   
 def cot_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, a_log: Tensor, b_log: Tensor, eps: float, n: int):
-  gamma_centered = gamma - gamma.mean()
-  f_star = gamma_centered.detach()
-
-  w1 = calc_w1(f_star, C_xy, a_log, b_log, eps, n)
-  w2 = calc_w2(f_star, C_xx, a_log, eps, n)
-  
-  measure_diff = (w1-w2).detach()
-  loss =  -1.0 * gamma_centered.dot(measure_diff) 
-  # mult by -1 because is a maximization and are turning into minimization
-  # print(-loss.item())
-  return {'loss' : loss, 'avg_diff' : measure_diff.detach().norm(), 'bf_diff' : torch.zeros(1,dtype=loss.dtype),
-          'w1' : w1.detach()}
+  u = gamma.detach() - gamma.detach().max()
+  score = u.view(n, 1) - C_xy / eps
+  g = b_log - score.logsumexp(dim=0)
+  cross_lse = (g.view(1, -1) - C_xy / eps).logsumexp(dim=1)
+  self_lse = (u.view(1, n) - C_xx / eps).logsumexp(dim=1)
+  log_raw = u + self_lse
+  log_z = log_raw.logsumexp(dim=0)
+  log_w1 = u + cross_lse
+  log_w2 = log_raw - log_z
+  w1 = log_w1.exp()
+  w2 = log_w2.exp()
+  # Cancel u analytically: even underflowed weights have a finite residual.
+  d = cross_lse - self_lse + log_z
+  measure_diff = (w1 - w2).detach()
+  loss = -(gamma - gamma.mean()).dot(measure_diff)
+  return {'loss': loss, 'avg_diff': measure_diff.norm(),
+          'bf_diff': torch.zeros(1, dtype=loss.dtype), 'w1': w1,
+          'w2': w2, 'log_w1': log_w1, 'log_w2': log_w2, 'd': d}
   
 def cot_bf_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, a_log: Tensor, b_log: Tensor, eps: float, n: int, beta: Tensor, bf: Tensor, bt: Tensor, delta: float):
   gamma_centered = gamma - gamma.mean()
@@ -4457,33 +4463,23 @@ dual_forwards_online <- list(
     a2_log$log_softmax(1)$exp()$view(-1)
   },
   cot_dual = function(gamma, C_xy, C_xx, a_log, b_log, lambda, n) {
-    f_star <- gamma$detach() #+ a_log
-
-    w1 <- dual_forwards_online$calc_w1(
-      f_star,
-      C_xy,
-      a_log,
-      b_log,
-      lambda,
-      n
-    )$detach()$to(device = gamma$device)
-    w2 <- dual_forwards_online$calc_w2(
-      f_star,
-      C_xx,
-      a_log,
-      lambda,
-      n
-    )$detach()$to(device = gamma$device)
-
+    lambda <- as.numeric(lambda)
+    u <- gamma$detach() - gamma$detach()$max()
+    g <- b_log - online_lse_rows(C_xy, C_xy$data$y, C_xy$data$x, u, 1 / lambda)
+    cross_lse <- online_lse_rows(C_xy, C_xy$data$x, C_xy$data$y, g, 1 / lambda)
+    self_lse <- online_lse_rows(C_xx, C_xx$data$x, C_xx$data$y, u, 1 / lambda)
+    log_raw <- u + self_lse
+    log_z <- log_raw$logsumexp(1)
+    log_w1 <- u + cross_lse
+    log_w2 <- log_raw - log_z
+    w1 <- log_w1$exp()
+    w2 <- log_w2$exp()
     measure_diff <- w1 - w2
-    loss <- -1.0 * gamma$dot(measure_diff) # mult by neg 1 because is a maximization
-
-    return(list(
-      loss = loss,
-      avg_diff = measure_diff$norm(),
-      bf_diff = torch::torch_zeros(1, dtype = loss$dtype),
-      w1 = w1$detach()
-    ))
+    loss <- -gamma$dot(measure_diff)
+    list(loss = loss, avg_diff = measure_diff$norm(),
+      bf_diff = torch::torch_zeros(1, dtype = loss$dtype, device = loss$device),
+      w1 = w1, w2 = w2, log_w1 = log_w1, log_w2 = log_w2,
+      d = cross_lse - self_lse + log_z)
   },
   cot_bf_dual = function(
     gamma,
@@ -6424,4 +6420,182 @@ cotDualFixedPointJointTrain <- R6::R6Class(
     }
   ),
   inherit = cotDualTrain
+)
+
+# Entropy potential parameterization: weights are the symmetric self marginal.
+cotDualEntropyFixedPointTrain <- R6::R6Class(
+  classname = "cotDualEntropyFixedPointTrain",
+  inherit = cotDualLegacyTrain,
+  public = list(
+    setup_arguments = function(
+      lambda = NULL, delta = NULL, grid.length = 7L, cost.function = NULL,
+      p = 2, cost.online = "auto", debias = TRUE, diameter = NULL,
+      ot_niter = 1000L, ot_tol = 1e-5, polish = c("none", "auto")
+    ) {
+      if (!isTRUE(debias)) stop("dual.solver = 'fixed_point' requires debias = TRUE.")
+      super$setup_arguments(
+        lambda, delta, grid.length, cost.function, p, cost.online, debias,
+        diameter, ot_niter, ot_tol, polish = polish
+      )
+      if (length(private$target_objects)) {
+        stop("dual.solver = 'fixed_point' does not support balance functions.")
+      }
+      # The parent initializes OT at its construction penalty. Solve the self
+      # problem at the first fitted lambda before building the entropy potential.
+      self$ot$penalty <- as.numeric(private$lambda)
+      self$ot$sinkhorn_opt(niter = ot_niter, tol = ot_tol)
+      gamma <- self$ot$potentials$f_xx / as.numeric(private$lambda)
+      torch::with_no_grad(private$nn_holder$gamma$copy_(gamma - gamma$max()))
+      invisible(self)
+    },
+    solve = function(
+      niter = 1000L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
+      torch_optim = torch::optim_lbfgs, torch_scheduler = torch::lr_reduce_on_plateau,
+      torch_args = NULL, osqp_args = NULL, quick.balance.function = TRUE,
+      fixed_point_eta = 1, fixed_point_beta = .9,
+      fixed_point_update = c("anderson", "momentum"), anderson_m = 5L,
+      check_every = 50L
+    ) {
+      stopifnot(
+        "fixed_point_eta must be finite and positive" = length(fixed_point_eta) == 1L && is.finite(fixed_point_eta) && fixed_point_eta > 0,
+        "fixed_point_beta must be in [0, 1)" = length(fixed_point_beta) == 1L && is.finite(fixed_point_beta) && fixed_point_beta >= 0 && fixed_point_beta < 1,
+        "anderson_m must be a positive integer" = length(anderson_m) == 1L && is.finite(anderson_m) && anderson_m >= 1 && anderson_m == as.integer(anderson_m),
+        "check_every must be a positive integer" = length(check_every) == 1L && is.finite(check_every) && check_every >= 1 && check_every == as.integer(check_every)
+      )
+      private$fixed_point_eta <- as.numeric(fixed_point_eta)
+      private$fixed_point_beta <- as.numeric(fixed_point_beta)
+      private$fixed_point_update <- match.arg(fixed_point_update)
+      private$anderson_m <- as.integer(anderson_m)
+      private$check_every <- as.integer(check_every)
+      super$solve(niter, tol, optimizer = "torch", torch_optim = torch_optim,
+        torch_scheduler = torch_scheduler, torch_args = torch_args,
+        osqp_args = osqp_args, quick.balance.function = quick.balance.function)
+    }
+  ),
+  active = list(
+    weights = function(value) {
+      C <- if (inherits(private$C_xx, "costTensor")) private$C_xx$data else private$C_xx
+      private$nn_holder$calc_w2(
+        private$nn_holder$gamma$detach(), C, private$a_log,
+        torch::jit_scalar(private$lambda), torch::jit_scalar(private$nn_holder$n)
+      )$detach()
+    }
+  ),
+  private = list(
+    fixed_point_eta = 1,
+    fixed_point_beta = .9,
+    fixed_point_update = "anderson",
+    anderson_m = 5L,
+    check_every = 50L,
+    check_history = NULL,
+    memory_resets = 0L,
+    torch_optim_setup = function(...) invisible(NULL),
+    torch_optim_reset = function(...) invisible(NULL),
+    # Keep the gap certificate from this solver; dual fits remain ineligible
+    # for Newton polishing, including when polish = "auto" was requested.
+    polish_result = function(res, tol, delta) {
+      key <- as.character(self$ot$penalty)
+      private$polish_info[[key]][[paste(delta)]] <- list(
+        status = "skipped: dual fixed point", iterations = 0L)
+      private$polish_gap[[key]][[paste(delta)]] <- c(gap = res$fw_gap, D = res$divergence)
+      res
+    },
+    fp_forward = function() {
+      private$nn_holder$forward(private$C_xy, private$C_xx,
+        private$a_log, private$b_log, private$lambda,
+        private$bf, private$bt, private$delta)
+    },
+    fp_checkpoint = function(w) {
+      self$ot$a <- w$detach()
+      self$ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
+      list(divergence = oop_loss_select(self$ot)$detach()$item(),
+        fw_gap = cot_ccp_kkt(self$ot)$fw_gap)
+    },
+    optimization_loop = function(niter, tol) {
+      torch::with_no_grad({
+        eta <- private$fixed_point_eta
+        kappa <- eta / 2
+        u <- private$nn_holder$gamma
+        v <- torch::torch_zeros_like(u)
+        U <- R <- list()
+        best <- NULL
+        private$check_history <- list()
+        private$memory_resets <- 0L
+        stopped <- FALSE
+        reason <- "niter"
+        res <- private$fp_forward()
+        check <- function(iter) {
+          cert <- private$fp_checkpoint(res$w2)
+          private$check_history[[length(private$check_history) + 1L]] <-
+            c(list(iter = iter), cert)
+          if (!is.finite(cert$divergence) || !is.finite(cert$fw_gap)) {
+            stop("Non-finite entropy fixed-point checkpoint.")
+          }
+          if (is.null(best) || cert$divergence < best$divergence) {
+            best <<- c(cert, list(u = u$detach()$clone()))
+          } else if (cert$divergence > best$divergence + private$ot_tol * cot_conv_scale(self$ot)) {
+            U <<- R <<- list()
+            v$zero_()
+            private$memory_resets <- private$memory_resets + 1L
+          }
+          cot_converged(cert$fw_gap, cert$divergence, private$ot_tol, tol)
+        }
+        for (i in seq_len(niter)) {
+          old_log_w2 <- res$log_w2
+          if (private$fixed_point_update == "momentum") {
+            v <- private$fixed_point_beta * v + res$d
+            next_u <- u + kappa * v
+          } else {
+            T <- u + kappa * res$d
+            U <- c(U, list(T))
+            R <- c(R, list(res$w2$sqrt() * (kappa * res$d)))
+            if (length(U) > private$anderson_m) {
+              U <- U[-1L]; R <- R[-1L]
+            }
+            next_u <- T
+            k <- length(R)
+            if (k > 1L) {
+              residuals <- torch::torch_stack(R, dim = 2L)
+              G <- residuals$t()$matmul(residuals)
+              G <- G + 1e-10 * G$diag()$max() *
+                torch::torch_eye(k, dtype = u$dtype, device = u$device)
+              alpha <- tryCatch(torch::linalg_solve(G,
+                torch::torch_ones(k, dtype = u$dtype, device = u$device)),
+                error = function(e) NULL)
+              if (!is.null(alpha) && alpha$isfinite()$all()$item() &&
+                  is.finite(alpha$sum()$item()) && alpha$sum()$item() != 0) {
+                candidate <- torch::torch_stack(U, dim = 2L)$matmul(alpha / alpha$sum())
+                if (candidate$isfinite()$all()$item()) next_u <- candidate
+              }
+            }
+          }
+          u$copy_(next_u - next_u$max())
+          res <- private$fp_forward()
+          if (!res$d$isfinite()$all()$item() || !u$isfinite()$all()$item()) {
+            stop("Non-finite entropy fixed-point update.")
+          }
+          # A stall is an absolute step test, deliberately tighter than the
+          # relative gap tolerance; small Anderson steps need not be optimal.
+          stalled <- (res$log_w2 - old_log_w2)$abs()$max()$item() <= tol^2
+          if (i %% private$check_every == 0L || i == niter || stalled) {
+            passed <- check(i)
+            if (passed || stalled) {
+              stopped <- stalled && !passed
+              reason <- if (passed) "ok" else "stalled"
+              break
+            }
+          }
+        }
+        # Every exit above has checked the current iterate. Return the lowest
+        # checked objective and recompute its certificate at the restored weights.
+        u$copy_(best$u)
+        final <- private$fp_checkpoint(self$weights)
+        converged <- cot_converged(final$fw_gap, final$divergence, private$ot_tol, tol)
+        if (converged) reason <- "ok" else if (reason == "ok") reason <- "gap above tolerance"
+        list(loss = final$divergence, iter = i, converged = converged,
+          stopped_by_rule = stopped, fw_gap = final$fw_gap,
+          divergence = final$divergence, reason = reason)
+      })
+    }
+  )
 )

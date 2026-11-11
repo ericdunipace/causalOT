@@ -217,6 +217,7 @@ COT <- R6::R6Class(
             options$dual.solver,
             "joint" = cotDualTrain,
             "fixed_point_joint" = cotDualFixedPointJointTrain,
+            "fixed_point" = cotDualEntropyFixedPointTrain,
             "entropy" = cotDualLegacyTrain
           ),
           "nnm" = NNM
@@ -304,7 +305,7 @@ COT <- R6::R6Class(
 #' @param opt.direction `r lifecycle::badge("deprecated")` Use `solver`
 #'   instead. Should the optimizer solve the primal or dual problems. One of
 #'   "dual" or "primal"; "primal" is used if not supplied.
-#' @param dual.solver Solver to use when `opt.direction = "dual"`. `"fixed_point_joint"` uses the joint KL forward with fixed-point updates on the source log-weights, `"joint"` uses alternating torch optimization over the dual potential and source log-weights, while `"entropy"` uses the legacy entropy-implied weight update path.
+#' @param dual.solver Solver to use when `opt.direction = "dual"`. `"fixed_point"` uses entropy-potential fixed-point updates with weighted Anderson acceleration and gap-based convergence (without a torch optimizer). It currently excludes balance functions. `"fixed_point_joint"` uses the joint KL forward with fixed-point updates on the source log-weights, `"joint"` uses alternating torch optimization over the dual potential and source log-weights, while `"entropy"` uses the legacy entropy-implied weight update path.
 #' @param debias Should debiased optimal transport be used? TRUE or FALSE.
 #' @param solver Solver to use for COT weight optimization. For `opt.direction = "primal"`, solver options are `"lbfgs"` uses LBFGS optimization on the weights directly. `"mirror"` runs a mirror descent solver, which is typically faster.
 #' @param p The power of the cost function to use for the cost.
@@ -354,7 +355,10 @@ COT <- R6::R6Class(
 #' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
 #' @param ... Arguments passed to the solvers. See details. Named arguments
-#'   not used by any solver produce a warning.
+#'   not used by any solver produce a warning. For `dual.solver = "fixed_point"`,
+#'   these include `fixed_point_update` (`"anderson"` or `"momentum"`),
+#'   `fixed_point_eta` (default 1), `fixed_point_beta` (default 0.9),
+#'   `anderson_m` (default 5), and `check_every` (default 50).
 #'
 #' @return A list of class `cotOptions` with the following slots
 #' \itemize{
@@ -416,7 +420,7 @@ cotOptions <- function(
   lambda = NULL,
   delta = NULL,
   opt.direction = deprecated(),
-  dual.solver = c("fixed_point_joint", "joint", "entropy"),
+  dual.solver = c("fixed_point_joint", "joint", "entropy", "fixed_point"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
   polish = c("none", "auto"),
@@ -505,7 +509,7 @@ cotOptions <- function(
   } else {
     output[["dual.solver"]] <- match.arg(
       dual.solver,
-      c("fixed_point_joint", "joint", "entropy")
+      c("fixed_point_joint", "joint", "entropy", "fixed_point")
     )
   }
 
@@ -704,6 +708,9 @@ cotOptions <- function(
     "a_log_momentum",
     "fixed_point_eta",
     "fixed_point_beta",
+    "fixed_point_update",
+    "anderson_m",
+    "check_every",
     "fixed_point_weight_floor",
     "fixed_point_objective_check_every",
     "fixed_point_objective_bad_limit",

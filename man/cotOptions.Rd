@@ -8,7 +8,7 @@ cotOptions(
   lambda = NULL,
   delta = NULL,
   opt.direction = deprecated(),
-  dual.solver = c("fixed_point_joint", "joint", "entropy"),
+  dual.solver = c("fixed_point_joint", "joint", "entropy", "fixed_point"),
   debias = TRUE,
   solver = c("lbfgs", "mirror"),
   polish = c("none", "auto"),
@@ -43,7 +43,7 @@ cotOptions(
 instead. Should the optimizer solve the primal or dual problems. One of
 "dual" or "primal"; "primal" is used if not supplied.}
 
-\item{dual.solver}{Solver to use when \code{opt.direction = "dual"}. \code{"fixed_point_joint"} uses the joint KL forward with fixed-point updates on the source log-weights, \code{"joint"} uses alternating torch optimization over the dual potential and source log-weights, while \code{"entropy"} uses the legacy entropy-implied weight update path.}
+\item{dual.solver}{Solver to use when \code{opt.direction = "dual"}. \code{"fixed_point"} uses entropy-potential fixed-point updates with weighted Anderson acceleration and gap-based convergence (without a torch optimizer). It currently excludes balance functions. \code{"fixed_point_joint"} uses the joint KL forward with fixed-point updates on the source log-weights, \code{"joint"} uses alternating torch optimization over the dual potential and source log-weights, while \code{"entropy"} uses the legacy entropy-implied weight update path.}
 
 \item{debias}{Should debiased optimal transport be used? TRUE or FALSE.}
 
@@ -114,7 +114,10 @@ violation is below \code{ot_tol}.}
 \item{dtype}{An object of class \code{torch_dtype} that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.}
 
 \item{...}{Arguments passed to the solvers. See details. Named arguments
-not used by any solver produce a warning.}
+not used by any solver produce a warning. For \code{dual.solver = "fixed_point"},
+these include \code{fixed_point_update} (\code{"anderson"} or \code{"momentum"}),
+\code{fixed_point_eta} (default 1), \code{fixed_point_beta} (default 0.9),
+\code{anderson_m} (default 5), and \code{check_every} (default 50).}
 }
 \value{
 A list of class \code{cotOptions} with the following slots
