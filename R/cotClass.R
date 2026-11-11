@@ -571,10 +571,13 @@ cotOptions <- function(
       c("auto", "tensorized", "online")
     )
   }
-  if (missing(cost.function) || arg_not_used(cost.function)) {
+  # check for a function first: arg_not_used() calls is.na(), which warns on one
+  if (!missing(cost.function) && is.function(cost.function)) {
+    output["cost.function"] <- list(cost.function)
+  } else if (missing(cost.function) || arg_not_used(cost.function)) {
     output["cost.function"] <- list(NULL)
   } else {
-    output["cost.function"] <- cost.function
+    stop("cost.function must be a function or NULL.")
   }
   if (missing(diameter) || arg_not_used(diameter)) {
     output["diameter"] <- list(NULL)

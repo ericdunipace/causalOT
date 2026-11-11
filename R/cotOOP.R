@@ -4012,7 +4012,9 @@ OTProblem_$set("private", "eval_lambda", function(wts, boot) {
       private$ot_objects[[o]]$sinkhorn_opt(20, 1e-3)
     }
   }
-  dists <- self$loss$detach()$item()
+  # Not self$loss: its ot_update() puts the fitted weights back in place of
+  # the bootstrapped candidate weights set above
+  dists <- eval(private$objective)$detach()$item()
   return(dists)
 })
 

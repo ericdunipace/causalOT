@@ -1878,3 +1878,89 @@ testthat::test_that("fixed-lambda CCP behavior is not broken by selector changes
   testthat::expect_silent(res <- cot$grid_search())
   testthat::expect_equal(res$penalty[["lambda"]], 50)
 })
+
+testthat::test_that("bootstrap_legacy scores the candidate weights, not the fitted ones", {
+  testthat::skip_on_cran()
+  causalOT:::torch_check()
+  set.seed(1)
+  x <- matrix(stats::rnorm(60), 30, 2)
+  y <- matrix(stats::rnorm(80, 0.5), 40, 2)
+  opts <- causalOT:::cotOptions(
+    lambda = c(10, 1),
+    nboot = 0L,
+    lambda.selector = "bootstrap_legacy",
+    cost.online = "tensorized",
+    niter = 20L,
+    solver = "lbfgs",
+    device = torch::torch_device("cpu")
+  )
+  cot <- causalOT:::COT$new(source = x, target = y, options = opts)
+  cot$solve()
+  priv <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private
+  adds <- ls(priv$measures)
+  add <- adds[vapply(adds, function(k) priv$measures[[k]]$adapt == "weights", logical(1))]
+  dtype <- priv$measures[[add]]$init_weights$dtype
+
+  uniform <- rlang::env()
+  class(uniform) <- c("weightEnv", class(uniform))
+  uniform[[add]] <- torch::torch_tensor(rep(1 / 30, 30), dtype = dtype)
+  spiky <- rlang::env()
+  class(spiky) <- c("weightEnv", class(spiky))
+  spiky_w <- c(rep(1, 3), rep(1e-6, 27))
+  spiky[[add]] <- torch::torch_tensor(spiky_w / sum(spiky_w), dtype = dtype)
+
+  for (lambda_boot in c(Inf, 1)) {
+    priv$set_lambda(lambda_boot)
+    set.seed(2)
+    boot <- priv$draw_boot_measure()
+    testthat::expect_false(isTRUE(all.equal(
+      priv$eval_lambda(uniform, boot),
+      priv$eval_lambda(spiky, boot)
+    )))
+  }
+})
+
+testthat::test_that("bootstrap_legacy renormalizes the bootstrapped candidate weights", {
+  testthat::skip_on_cran()
+  causalOT:::torch_check()
+  set.seed(1)
+  x <- matrix(stats::rnorm(60), 30, 2)
+  y <- matrix(stats::rnorm(80, 0.5), 40, 2)
+  opts <- causalOT:::cotOptions(
+    lambda = c(10, 1),
+    p = 1,
+    nboot = 0L,
+    lambda.selector = "bootstrap_legacy",
+    cost.online = "tensorized",
+    niter = 20L,
+    solver = "lbfgs",
+    device = torch::torch_device("cpu"),
+    dtype = torch::torch_float64()
+  )
+  cot <- causalOT:::COT$new(source = x, target = y, options = opts)
+  cot$solve()
+  priv <- cot$.__enclos_env__$private$optimizer$.__enclos_env__$private
+  adds <- ls(priv$measures)
+  add <- adds[vapply(adds, function(k) priv$measures[[k]]$adapt == "weights", logical(1))]
+  add_y <- setdiff(adds, add)
+
+  spiky <- rlang::env()
+  class(spiky) <- c("weightEnv", class(spiky))
+  spiky_w <- c(rep(1, 3), rep(1e-3, 27))
+  spiky_w <- spiky_w / sum(spiky_w)
+  spiky[[add]] <- torch::torch_tensor(spiky_w, dtype = torch::torch_float64())
+
+  priv$set_lambda(Inf)
+  set.seed(2)
+  boot <- priv$draw_boot_measure()
+  a <- spiky_w * as.numeric(boot[[add]])
+  a <- a / sum(a)
+  b <- as.numeric(boot[[add_y]]) / 40
+
+  # p = 1 is the L1 cost, and the Inf-penalty divergence is half the energy distance
+  l1 <- function(u, v) as.matrix(stats::dist(rbind(u, v), method = "manhattan"))[
+    seq_len(nrow(u)), nrow(u) + seq_len(nrow(v)), drop = FALSE]
+  energy <- 2 * sum(a * (l1(x, y) %*% b)) - sum(a * (l1(x, x) %*% a)) -
+    sum(b * (l1(y, y) %*% b))
+  testthat::expect_equal(priv$eval_lambda(spiky, boot), energy / 2, tolerance = 1e-8)
+})

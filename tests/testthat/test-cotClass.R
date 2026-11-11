@@ -720,3 +720,13 @@ testthat::test_that("cotOptions defaults to the bootstrap lambda selector", {
 
   testthat::expect_equal(cotOptions()$lambda.selector, "bootstrap_legacy")
 })
+
+testthat::test_that("cotOptions keeps a custom cost function", {
+  causalOT:::torch_check()
+  euclidean <- function(x1, x2, p) torch::torch_cdist(x1, x2, p = 2)
+  testthat::expect_silent(opts <- causalOT:::cotOptions(cost.function = euclidean))
+  testthat::expect_identical(opts$cost.function, euclidean)
+  testthat::expect_null(causalOT:::cotOptions()$cost.function)
+  testthat::expect_null(causalOT:::cotOptions(cost.function = NA)$cost.function)
+  testthat::expect_error(causalOT:::cotOptions(cost.function = "euclidean"), "must be a function")
+})
