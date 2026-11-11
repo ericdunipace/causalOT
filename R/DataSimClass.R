@@ -443,6 +443,323 @@ Kallus2018 <- R6::R6Class("Kallus2018",
 )
 
 
+#### LocalBumps: outcome made of local bumps, 0 tx effect ####
+
+#' Local bumps data example
+#'
+#' @details Generates data where the outcome is a checkerboard of Gaussian
+#' bumps in the first two covariates. The bandwidth sets how local the outcome
+#' is.
+#'
+#' @return An [R6][R6::R6Class] object of class [DataSim][DataSim]
+#' @export
+#' @rdname DataSimClass-LocalBumps
+LocalBumps <- R6::R6Class("LocalBumps",
+                          inherit = DataSim,
+                          public = list(
+                            #' @description
+                            #' Generates the data
+                            gen_data = function() {
+                              self$gen_x()
+                              self$gen_z()
+                              self$gen_y()
+                              invisible(self)
+                            },
+                            #' @description
+                            #' Generates the covariate data
+                            gen_x = function() {
+                              stopifnot(length(private$n) > 0)
+                              private$x <- matrix(rnorm(private$n * private$p),
+                                                  nrow = private$n, ncol = private$p)
+                              colnames(private$x) <- paste0("X", 1:private$p)
+                              private$check_data()
+                              invisible(self)
+                            },
+                            #' @description
+                            #' Generates the outcome data
+                            gen_y = function() {
+                              if (all(dim(private$x) == 0)) gen_x()
+                              mean_y <- private$mu0 <- private$mu1 <-
+                                private$param$beta_y *
+                                (private$bumps(private$x[, 1:2, drop = FALSE]) - private$bump_mean) /
+                                private$bump_sd
+                              private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
+                              invisible(self)
+                            },
+                            #' @description
+                            #' Generates the treatment indicator
+                            gen_z = function() {
+                              if (all(dim(private$x) == 0)) gen_x()
+                              private$pscore <- plogis(private$param$beta_z *
+                                                         (private$x[, 1] + private$x[, 2]))
+                              private$z <- rbinom(private$n, size = 1, prob = private$pscore)
+                              private$check_data()
+                              invisible(self)
+                            },
+                            #' @description
+                            #' Generates the the LocalBumps `R6` class
+                            #' @param n The number of observations
+                            #' @param p The dimensions of the covariates. At
+                            #' least 2; covariates past the second are noise.
+                            #' @param param The data generating parameters
+                            #' fed as a list.
+                            #' @param bandwidth The standard deviation of each
+                            #' bump. Smaller values give a more local outcome.
+                            #' @param overlap One of "low" or "high".
+                            #' See details.
+                            #' @param ... Extra arguments. Currently unused.
+                            #'
+                            #' @details
+                            #' ## Covariates
+                            #' \eqn{X \sim N(0, I_p)}.
+                            #'
+                            #' ## Outcome
+                            #' \eqn{Y(0) = Y(1) = \beta_y f_h(X_1, X_2) + \eta}, where
+                            #' \eqn{f_h} is a sum of Gaussian bumps with standard
+                            #' deviation \eqn{h} (`bandwidth`), centered on the
+                            #' grid \eqn{\{-1.5, 0, 1.5\}^2} with alternating
+                            #' signs, and standardized to mean 0 and variance 1
+                            #' under the distribution of \eqn{X}. The default
+                            #' parameters are \eqn{\beta_y = 2} and
+                            #' \eqn{\eta \sim N(0, 1)}.
+                            #'
+                            #' ## Overlap
+                            #' The treatment indicator is
+                            #' \eqn{Z \sim Bernoulli(logit^{-1}(\beta_z (X_1 + X_2)))},
+                            #' where \eqn{\beta_z = 2} if overlap is "low" and
+                            #' \eqn{\beta_z = 0.5} if overlap is "high".
+                            #'
+                            #' @return An object of class [DataSim][DataSim].
+                            #' @export
+                            #'
+                            #' @examples
+                            #' data <- LocalBumps$new(n = 100, p = 2, bandwidth = 0.5, overlap = "low")
+                            #' data$gen_data()
+                            #' print(data$get_x()[1:2,])
+                            initialize = function(n = 100, p = 2, param = list(), bandwidth = 0.5,
+                                                  overlap = "low", ...) {
+                              if (missing(n) | is.null(n)) {
+                                private$n <- 100
+                              } else {
+                                private$n <- n
+                              }
+                              stopifnot("'p' must be at least 2" = p >= 2)
+                              private$p <- p
+                              stopifnot("'bandwidth' must be positive" = is.numeric(bandwidth) && bandwidth > 0)
+                              private$bandwidth <- bandwidth
+                              if (missing(overlap) | is.null(overlap)) {
+                                private$overlap <- "low"
+                              } else {
+                                private$overlap <- match.arg(overlap, c("low", "high"))
+                              }
+                              default_param <- list(
+                                beta_z = list(low = 2, high = 0.5),
+                                beta_y = 2,
+                                sigma_y = 1
+                              )
+                              private$param <- list(
+                                beta_z = if (is.null(param$beta_z)) default_param$beta_z[[private$overlap]] else param$beta_z,
+                                beta_y = if (is.null(param$beta_y)) default_param$beta_y else param$beta_y,
+                                sigma_y = if (is.null(param$sigma_y)) default_param$sigma_y else param$sigma_y
+                              )
+
+                              # standardize the bumps under N(0, I_2) with a grid integral,
+                              # so the scale does not depend on the sample
+                              grid <- seq(-6, 6, length.out = 241)
+                              mass <- dnorm(grid) * diff(grid[1:2])
+                              points <- as.matrix(expand.grid(grid, grid))
+                              weight <- as.vector(outer(mass, mass))
+                              f <- private$bumps(points)
+                              private$bump_mean <- sum(weight * f) / sum(weight)
+                              private$bump_sd <- sqrt(sum(weight * (f - private$bump_mean)^2) / sum(weight))
+                              return(invisible(self))
+                            },
+                            #' @description
+                            #' Returns the chosen design parameters
+                            get_design = function() {
+                              return(c(bandwidth = private$bandwidth, overlap = private$overlap))
+                            },
+                            #' @description
+                            #' Returns the true propensity score
+                            get_pscore = function() {
+                              return(private$pscore)
+                            }
+                          ),
+                          private = list(bandwidth = "numeric",
+                                         overlap = "character",
+                                         pscore = "numeric",
+                                         bump_mean = "numeric",
+                                         bump_sd = "numeric",
+                                         bumps = function(x12) {
+                                           centers <- as.matrix(expand.grid(c(-1.5, 0, 1.5), c(-1.5, 0, 1.5)))
+                                           signs <- c(1, -1, 1, -1, 1, -1, 1, -1, 1) # checkerboard
+                                           out <- 0
+                                           for (k in seq_len(nrow(centers))) {
+                                             d2 <- (x12[, 1] - centers[k, 1])^2 + (x12[, 2] - centers[k, 2])^2
+                                             out <- out + signs[k] * exp(-d2 / (2 * private$bandwidth^2))
+                                           }
+                                           out
+                                         }
+                          )
+)
+
+#### ClusterMixture: clustered covariates, 0 tx effect ####
+
+#' Cluster mixture data example
+#'
+#' @details Generates data with covariates drawn from well-separated clusters.
+#' Treatment and the outcome both depend on the cluster through a pattern that
+#' no quadratic function of the cluster centers explains, so balancing the
+#' covariate means and covariances does not remove the confounding.
+#'
+#' @return An [R6][R6::R6Class] object of class [DataSim][DataSim]
+#' @export
+#' @rdname DataSimClass-ClusterMixture
+ClusterMixture <- R6::R6Class("ClusterMixture",
+                              inherit = DataSim,
+                              public = list(
+                                #' @description
+                                #' Generates the data
+                                gen_data = function() {
+                                  self$gen_x()
+                                  self$gen_z()
+                                  self$gen_y()
+                                  invisible(self)
+                                },
+                                #' @description
+                                #' Generates the covariate data
+                                gen_x = function() {
+                                  stopifnot(length(private$n) > 0)
+                                  private$cluster <- sample.int(nrow(private$centers), private$n, replace = TRUE)
+                                  x <- matrix(rnorm(private$n * private$p), nrow = private$n, ncol = private$p)
+                                  x[, 1:2] <- private$centers[private$cluster, , drop = FALSE] +
+                                    private$param$sd_cluster * x[, 1:2, drop = FALSE]
+                                  colnames(x) <- paste0("X", 1:private$p)
+                                  private$x <- x
+                                  private$check_data()
+                                  invisible(self)
+                                },
+                                #' @description
+                                #' Generates the outcome data
+                                gen_y = function() {
+                                  if (all(dim(private$x) == 0)) gen_x()
+                                  mean_y <- private$mu0 <- private$mu1 <-
+                                    private$param$beta_y[1] * private$level[private$cluster] +
+                                    private$param$beta_y[2] * (private$x[, 1] + private$x[, 2]) / 2
+                                  private$y <- c(mean_y + rnorm(private$n, mean = 0, sd = private$param$sigma_y))
+                                  invisible(self)
+                                },
+                                #' @description
+                                #' Generates the treatment indicator
+                                gen_z = function() {
+                                  if (all(dim(private$x) == 0)) gen_x()
+                                  private$pscore <- plogis(
+                                    private$param$beta_z[1] * private$level[private$cluster] +
+                                      private$param$beta_z[2] * (private$x[, 1] + private$x[, 2]) / 2
+                                  )
+                                  private$z <- rbinom(private$n, size = 1, prob = private$pscore)
+                                  private$check_data()
+                                  invisible(self)
+                                },
+                                #' @description
+                                #' Generates the the ClusterMixture `R6` class
+                                #' @param n The number of observations
+                                #' @param p The dimensions of the covariates. At
+                                #' least 2; covariates past the second are noise.
+                                #' @param param The data generating parameters
+                                #' fed as a list.
+                                #' @param overlap One of "low" or "high".
+                                #' See details.
+                                #' @param ... Extra arguments. Currently unused.
+                                #'
+                                #' @details
+                                #' ## Covariates
+                                #' Each unit falls in one of nine equally likely
+                                #' clusters centered on the grid
+                                #' \eqn{\{-2, 0, 2\}^2}. Given its cluster
+                                #' \eqn{k}, \eqn{(X_1, X_2) \sim N(c_k, 0.4^2 I_2)}
+                                #' and the remaining covariates are \eqn{N(0, 1)}.
+                                #'
+                                #' ## Outcome
+                                #' \eqn{Y(0) = Y(1) = \beta_1 \ell_k + \beta_2 (X_1 + X_2)/2 + \eta},
+                                #' where the cluster level \eqn{\ell_k} is the
+                                #' residual of \eqn{c_{k1}^2 c_{k2}^2} after
+                                #' regressing it on all quadratic functions of the
+                                #' centers, scaled to unit variance. Defaults are
+                                #' \eqn{\beta = (2, 1)} and \eqn{\eta \sim N(0, 1)}.
+                                #'
+                                #' ## Overlap
+                                #' The treatment indicator is
+                                #' \eqn{Z \sim Bernoulli(logit^{-1}(a \ell_k + 0.5 (X_1 + X_2)/2))},
+                                #' where \eqn{a = 1} if overlap is "low" and
+                                #' \eqn{a = 0.5} if overlap is "high".
+                                #'
+                                #' @return An object of class [DataSim][DataSim].
+                                #' @export
+                                #'
+                                #' @examples
+                                #' data <- ClusterMixture$new(n = 100, p = 2, overlap = "low")
+                                #' data$gen_data()
+                                #' print(data$get_x()[1:2,])
+                                initialize = function(n = 100, p = 2, param = list(), overlap = "low", ...) {
+                                  if (missing(n) | is.null(n)) {
+                                    private$n <- 100
+                                  } else {
+                                    private$n <- n
+                                  }
+                                  stopifnot("'p' must be at least 2" = p >= 2)
+                                  private$p <- p
+                                  if (missing(overlap) | is.null(overlap)) {
+                                    private$overlap <- "low"
+                                  } else {
+                                    private$overlap <- match.arg(overlap, c("low", "high"))
+                                  }
+                                  default_param <- list(
+                                    beta_z = list(low = c(1, 0.5), high = c(0.5, 0.5)),
+                                    beta_y = c(2, 1),
+                                    sigma_y = 1,
+                                    sd_cluster = 0.4
+                                  )
+                                  private$param <- list(
+                                    beta_z = if (is.null(param$beta_z)) default_param$beta_z[[private$overlap]] else param$beta_z,
+                                    beta_y = if (is.null(param$beta_y)) default_param$beta_y else param$beta_y,
+                                    sigma_y = if (is.null(param$sigma_y)) default_param$sigma_y else param$sigma_y,
+                                    sd_cluster = if (is.null(param$sd_cluster)) default_param$sd_cluster else param$sd_cluster
+                                  )
+
+                                  # cluster levels orthogonal to every quadratic in the centers
+                                  private$centers <- as.matrix(expand.grid(c(-2, 0, 2), c(-2, 0, 2)))
+                                  c1 <- private$centers[, 1]
+                                  c2 <- private$centers[, 2]
+                                  level <- residuals(lm(c1^2 * c2^2 ~ c1 + c2 + I(c1^2) + I(c2^2) + I(c1 * c2)))
+                                  private$level <- unname(level / sqrt(mean(level^2)))
+                                  return(invisible(self))
+                                },
+                                #' @description
+                                #' Returns the chosen design parameters
+                                get_design = function() {
+                                  return(c(overlap = private$overlap))
+                                },
+                                #' @description
+                                #' Returns the true propensity score
+                                get_pscore = function() {
+                                  return(private$pscore)
+                                },
+                                #' @description
+                                #' Returns the cluster of each unit
+                                get_cluster = function() {
+                                  return(private$cluster)
+                                }
+                              ),
+                              private = list(overlap = "character",
+                                             pscore = "numeric",
+                                             centers = "matrix",
+                                             level = "numeric",
+                                             cluster = "integer"
+                              )
+)
+
+
 #### Kang and Schafer data ####
 
 KangSchafer <- R6::R6Class("KangSchafer", 
