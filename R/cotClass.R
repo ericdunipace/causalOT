@@ -358,7 +358,10 @@ COT <- R6::R6Class(
 #'   not used by any solver produce a warning. For `dual.solver = "fixed_point"`,
 #'   these include `fixed_point_update` (`"anderson"` or `"momentum"`),
 #'   `fixed_point_eta` (default 1), `fixed_point_beta` (default 0.9),
-#'   `anderson_m` (default 5), and `check_every` (default 50).
+#'   `anderson_m` (default 5), `check_every` (default 50), and
+#'   `fixed_point_lambda_order` (`"ascending"`, the default, or `"descending"`).
+#'   Each new lambda checks the incoming weights before mixing them with 0.1%
+#'   uniform mass and rebuilding the entropy potential when more iterations are needed.
 #'
 #' @return A list of class `cotOptions` with the following slots
 #' \itemize{
@@ -709,6 +712,7 @@ cotOptions <- function(
     "fixed_point_eta",
     "fixed_point_beta",
     "fixed_point_update",
+    "fixed_point_lambda_order",
     "anderson_m",
     "check_every",
     "fixed_point_weight_floor",

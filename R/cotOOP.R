@@ -3926,7 +3926,7 @@ OTProblem_$set("private", "eval_delta", function(wts, boot) {
     target_obj <- private$target_objects[[add]]
     n <- nrow(target_obj$bf)
 
-    w_star <- w * b
+    w_star <- renormalize(w * b)
     if (!target_obj$bf$requires_grad) {
       m <- target_obj$bf$transpose(2, 1)$matmul(w_star)
       targ <- target_obj$bt
@@ -3969,10 +3969,12 @@ OTProblem_$set("private", "eval_lambda", function(wts, boot) {
       meas$init_weights$detach()
     }
 
+    # renormalize so the bootstrap measure has mass 1; otherwise the random
+    # total mass of w * b rewards concentrated weights
     if (meas$adapt == "weights" || meas$adapt == "none") {
-      w_star <- w * b
+      w_star <- renormalize(w * b)
     } else if (meas$adapt == "x") {
-      w_star <- meas$init_weights * b
+      w_star <- renormalize(meas$init_weights * b)
     } else {
       stop("Bug in this if else statement!")
     }
@@ -6440,12 +6442,12 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       if (length(private$target_objects)) {
         stop("dual.solver = 'fixed_point' does not support balance functions.")
       }
-      # The parent initializes OT at its construction penalty. Solve the self
-      # problem at the first fitted lambda before building the entropy potential.
+      # Initialize a finite potential while retaining the original weights.
+      # solve() selects the path order; every fit checkpoints those weights
+      # before rebuilding at its own lambda.
       self$ot$penalty <- as.numeric(private$lambda)
-      self$ot$sinkhorn_opt(niter = ot_niter, tol = ot_tol)
-      gamma <- self$ot$potentials$f_xx / as.numeric(private$lambda)
-      torch::with_no_grad(private$nn_holder$gamma$copy_(gamma - gamma$max()))
+      private$pending_weights <- self$ot$a$detach()$clone()
+      private$fp_build_potential(private$pending_weights)
       invisible(self)
     },
     solve = function(
@@ -6454,7 +6456,8 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       torch_args = NULL, osqp_args = NULL, quick.balance.function = TRUE,
       fixed_point_eta = 1, fixed_point_beta = .9,
       fixed_point_update = c("anderson", "momentum"), anderson_m = 5L,
-      check_every = 50L
+      check_every = 50L,
+      fixed_point_lambda_order = c("ascending", "descending")
     ) {
       stopifnot(
         "fixed_point_eta must be finite and positive" = length(fixed_point_eta) == 1L && is.finite(fixed_point_eta) && fixed_point_eta > 0,
@@ -6467,6 +6470,11 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       private$fixed_point_update <- match.arg(fixed_point_update)
       private$anderson_m <- as.integer(anderson_m)
       private$check_every <- as.integer(check_every)
+      private$lambda_order <- match.arg(fixed_point_lambda_order)
+      ord <- order(private$penalty_list$lambda,
+        decreasing = private$lambda_order == "descending")
+      private$penalty_list$lambda <- private$penalty_list$lambda[ord]
+      private$penalty_input_list$lambda <- private$penalty_input_list$lambda[ord]
       super$solve(niter, tol, optimizer = "torch", torch_optim = torch_optim,
         torch_scheduler = torch_scheduler, torch_args = torch_args,
         osqp_args = osqp_args, quick.balance.function = quick.balance.function)
@@ -6474,6 +6482,11 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
   ),
   active = list(
     weights = function(value) {
+      # A pending or iteration-zero accepted vector is kept exactly, including
+      # zeros. During potential updates the iterate is always w2(gamma).
+      if (!is.null(private$accepted_weights)) {
+        return(private$accepted_weights$detach()$clone())
+      }
       C <- if (inherits(private$C_xx, "costTensor")) private$C_xx$data else private$C_xx
       private$nn_holder$calc_w2(
         private$nn_holder$gamma$detach(), C, private$a_log,
@@ -6487,6 +6500,59 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
     fixed_point_update = "anderson",
     anderson_m = 5L,
     check_every = 50L,
+    lambda_order = "ascending",
+    warm_start_mix = 1e-3,
+    pending_weights = NULL,
+    accepted_weights = NULL,
+    fp_iteration = 0L,
+    set_lambda = function(l) {
+      # Capture weights before changing the scale used by the entropy forward.
+      warm <- if (is.null(private$pending_weights)) self$weights else private$pending_weights
+      super$set_lambda(l)
+      private$pending_weights <- warm$detach()$clone()
+      private$accepted_weights <- warm$detach()$clone()
+    },
+    parameters_get_set = function(value, clone = FALSE) {
+      if (missing(value)) {
+        out <- rlang::env()
+        class(out) <- c("weightEnv", class(out))
+        address <- private$problems[[ls(private$problems)[[1L]]]][[1L]]
+        out[[address]] <- self$weights$detach()$clone()
+        return(out)
+      }
+      if (!is.environment(value) && !is.list(value)) {
+        stop("value must be a list or environment with one weight vector.")
+      }
+      keys <- if (is.environment(value)) ls(value) else seq_along(value)
+      if (length(keys) != 1L) stop("Expected one source weight vector.")
+      w <- value[[keys[[1L]]]]
+      if (!inherits(w, "torch_tensor")) {
+        w <- torch::torch_tensor(w, dtype = private$nn_holder$gamma$dtype,
+          device = private$nn_holder$gamma$device)
+      }
+      w <- w$detach()$to(dtype = private$nn_holder$gamma$dtype,
+        device = private$nn_holder$gamma$device)$view(-1)$clone()
+      if (length(w) != self$ot$n || !w$isfinite()$all()$item() ||
+          (w < 0)$any()$item() || abs(w$sum()$item() - 1) > 1e-6) {
+        stop("Weights must be finite, nonnegative, sum to one, and match the source size.")
+      }
+      private$fp_build_potential(w)
+      # Retain the unmixed vector for the next iteration-zero check; the
+      # getter already reflects the reconstructed (mixed) potential.
+      private$pending_weights <- w
+      invisible(NULL)
+    },
+    fp_build_potential = function(w) {
+      torch::with_no_grad({
+        mixed <- (1 - private$warm_start_mix) * w + private$warm_start_mix / length(w)
+        self$ot$a <- mixed
+        self$ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
+        gamma <- self$ot$potentials$f_xx / as.numeric(private$lambda) + mixed$log()
+        private$nn_holder$gamma$copy_(gamma - gamma$max())
+        private$accepted_weights <- NULL
+      })
+      invisible(NULL)
+    },
     check_history = NULL,
     memory_resets = 0L,
     torch_optim_setup = function(...) invisible(NULL),
@@ -6512,15 +6578,42 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
         fw_gap = cot_ccp_kkt(self$ot)$fw_gap)
     },
     optimization_loop = function(niter, tol) {
+      start <- self$weights$detach()$clone()
+      private$fp_iteration <- 0L
+      tryCatch(private$fp_optimization_loop(niter, tol), error = function(e) {
+        # Keep extraction safe even if a failed proposal damaged gamma.
+        # iterate_over_delta marks this fit failed and restores phase_start
+        # through parameters_get_set before proceeding to the next lambda.
+        private$accepted_weights <- start
+        list(loss = NA_real_, iter = private$fp_iteration, converged = FALSE,
+          stopped_by_rule = FALSE, fw_gap = NA_real_, divergence = NA_real_,
+          reason = paste0("error: ", conditionMessage(e)))
+      })
+    },
+    fp_optimization_loop = function(niter, tol) {
       torch::with_no_grad({
+        warm <- if (is.null(private$pending_weights)) self$weights else private$pending_weights
+        warm <- warm$detach()$clone()
+        private$pending_weights <- NULL
+        private$check_history <- list()
+        private$memory_resets <- 0L
+        initial <- private$fp_checkpoint(warm)
+        private$check_history[[1L]] <- c(list(iter = 0L), initial)
+        if (cot_converged(initial$fw_gap, initial$divergence, private$ot_tol, tol)) {
+          private$accepted_weights <- warm
+          return(list(loss = initial$divergence, iter = 0L, converged = TRUE,
+            stopped_by_rule = FALSE, fw_gap = initial$fw_gap,
+            divergence = initial$divergence, reason = "ok"))
+        }
+        private$fp_build_potential(warm)
         eta <- private$fixed_point_eta
         kappa <- eta / 2
         u <- private$nn_holder$gamma
         v <- torch::torch_zeros_like(u)
         U <- R <- list()
+        # Seeding the best-state pool with the incoming warm start is the
+        # next safeguard; for now keep the best updated iterate as in Phase 1.
         best <- NULL
-        private$check_history <- list()
-        private$memory_resets <- 0L
         stopped <- FALSE
         reason <- "niter"
         res <- private$fp_forward()
@@ -6541,6 +6634,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
           cot_converged(cert$fw_gap, cert$divergence, private$ot_tol, tol)
         }
         for (i in seq_len(niter)) {
+          private$fp_iteration <- i
           old_log_w2 <- res$log_w2
           if (private$fixed_point_update == "momentum") {
             v <- private$fixed_point_beta * v + res$d

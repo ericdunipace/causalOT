@@ -8,6 +8,9 @@
 * `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
 
 ## New features
+* Entropy fixed-point lambda paths reconstruct potentials at each new lambda,
+  safely mixing sparse warm starts. Already certified weights return unchanged
+  at iteration zero. `fixed_point_lambda_order` selects either path direction.
 * `dual.solver = "fixed_point"` adds entropy-potential updates with weighted
   Anderson acceleration, sparse-safe residuals, and gap-based convergence.
   It supports tensorized and online costs, returns the best checked weights,

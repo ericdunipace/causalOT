@@ -117,7 +117,10 @@ violation is below \code{ot_tol}.}
 not used by any solver produce a warning. For \code{dual.solver = "fixed_point"},
 these include \code{fixed_point_update} (\code{"anderson"} or \code{"momentum"}),
 \code{fixed_point_eta} (default 1), \code{fixed_point_beta} (default 0.9),
-\code{anderson_m} (default 5), and \code{check_every} (default 50).}
+\code{anderson_m} (default 5), \code{check_every} (default 50), and
+\code{fixed_point_lambda_order} (\code{"ascending"}, the default, or \code{"descending"}).
+Each new lambda checks the incoming weights before mixing them with 0.1\%
+uniform mass and rebuilding the entropy potential when more iterations are needed.}
 }
 \value{
 A list of class \code{cotOptions} with the following slots
