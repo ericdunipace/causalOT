@@ -490,8 +490,11 @@ LocalBumps <- R6::R6Class("LocalBumps",
                             #' Generates the treatment indicator
                             gen_z = function() {
                               if (all(dim(private$x) == 0)) gen_x()
+                              f <- (private$bumps(private$x[, 1:2, drop = FALSE]) - private$bump_mean) /
+                                private$bump_sd
                               private$pscore <- plogis(private$param$beta_z *
-                                                         (private$x[, 1] + private$x[, 2]))
+                                                         (private$x[, 1] + private$x[, 2]) +
+                                                         private$param$beta_f * f)
                               private$z <- rbinom(private$n, size = 1, prob = private$pscore)
                               private$check_data()
                               invisible(self)
@@ -525,9 +528,15 @@ LocalBumps <- R6::R6Class("LocalBumps",
                             #'
                             #' ## Overlap
                             #' The treatment indicator is
-                            #' \eqn{Z \sim Bernoulli(logit^{-1}(\beta_z (X_1 + X_2)))},
+                            #' \eqn{Z \sim Bernoulli(logit^{-1}(\beta_z (X_1 + X_2) + \beta_f f_h(X_1, X_2)))},
                             #' where \eqn{\beta_z = 2} if overlap is "low" and
-                            #' \eqn{\beta_z = 0.5} if overlap is "high".
+                            #' \eqn{\beta_z = 0.5} if overlap is "high". The
+                            #' default \eqn{\beta_f = 1}. The \eqn{\beta_f} term
+                            #' ties treatment to the bumps, so the confounding
+                            #' is local when \eqn{h} is small and smooth when
+                            #' \eqn{h} is large. With \eqn{\beta_f = 0} the
+                            #' checkerboard averages out along \eqn{X_1 + X_2}
+                            #' and there is almost no confounding.
                             #'
                             #' @return An object of class [DataSim][DataSim].
                             #' @export
@@ -554,11 +563,13 @@ LocalBumps <- R6::R6Class("LocalBumps",
                               }
                               default_param <- list(
                                 beta_z = list(low = 2, high = 0.5),
+                                beta_f = 1,
                                 beta_y = 2,
                                 sigma_y = 1
                               )
                               private$param <- list(
                                 beta_z = if (is.null(param$beta_z)) default_param$beta_z[[private$overlap]] else param$beta_z,
+                                beta_f = if (is.null(param$beta_f)) default_param$beta_f else param$beta_f,
                                 beta_y = if (is.null(param$beta_y)) default_param$beta_y else param$beta_y,
                                 sigma_y = if (is.null(param$sigma_y)) default_param$sigma_y else param$sigma_y
                               )

@@ -151,9 +151,15 @@ parameters are \eqn{\beta_y = 2} and
 \subsection{Overlap}{
 
 The treatment indicator is
-\eqn{Z \sim Bernoulli(logit^{-1}(\beta_z (X_1 + X_2)))},
+\eqn{Z \sim Bernoulli(logit^{-1}(\beta_z (X_1 + X_2) + \beta_f f_h(X_1, X_2)))},
 where \eqn{\beta_z = 2} if overlap is "low" and
-\eqn{\beta_z = 0.5} if overlap is "high".
+\eqn{\beta_z = 0.5} if overlap is "high". The
+default \eqn{\beta_f = 1}. The \eqn{\beta_f} term
+ties treatment to the bumps, so the confounding
+is local when \eqn{h} is small and smooth when
+\eqn{h} is large. With \eqn{\beta_f = 0} the
+checkerboard averages out along \eqn{X_1 + X_2}
+and there is almost no confounding.
 }
   }
   \subsection{Returns}{

@@ -371,8 +371,12 @@ COT <- R6::R6Class(
 #'   `fixed_point_eta` (default 1), `fixed_point_beta` (default 0.9),
 #'   `anderson_m` (default 5), `check_every` (default 50), and
 #'   `fixed_point_lambda_order` (`"ascending"`, the default, or `"descending"`).
-#'   Each new lambda checks the incoming weights before mixing them with 0.1%
-#'   uniform mass and rebuilding the entropy potential when more iterations are needed.
+#'   `fixed_point_warm_start_mix` (default 1) is the fraction of uniform mass
+#'   mixed into the incoming weights before the entropy potential is rebuilt
+#'   when more iterations are needed. The default 1 restarts each lambda from
+#'   uniform weights; values below 1 keep part of the previous solution. Each
+#'   new lambda first checks the incoming weights and returns them exactly if
+#'   they already pass the gap test.
 #'
 #' @return A list of class `cotOptions` with the following slots
 #' \itemize{
@@ -728,6 +732,7 @@ cotOptions <- function(
     "fixed_point_beta",
     "fixed_point_update",
     "fixed_point_lambda_order",
+    "fixed_point_warm_start_mix",
     "anderson_m",
     "check_every",
     "fixed_point_weight_floor",

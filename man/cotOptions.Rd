@@ -130,8 +130,12 @@ these include \code{fixed_point_update} (\code{"anderson"} or \code{"momentum"})
 \code{fixed_point_eta} (default 1), \code{fixed_point_beta} (default 0.9),
 \code{anderson_m} (default 5), \code{check_every} (default 50), and
 \code{fixed_point_lambda_order} (\code{"ascending"}, the default, or \code{"descending"}).
-Each new lambda checks the incoming weights before mixing them with 0.1\%
-uniform mass and rebuilding the entropy potential when more iterations are needed.}
+\code{fixed_point_warm_start_mix} (default 1) is the fraction of uniform mass
+mixed into the incoming weights before the entropy potential is rebuilt
+when more iterations are needed. The default 1 restarts each lambda from
+uniform weights; values below 1 keep part of the previous solution. Each
+new lambda first checks the incoming weights and returns them exactly if
+they already pass the gap test.}
 }
 \value{
 A list of class \code{cotOptions} with the following slots

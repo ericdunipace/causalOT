@@ -7,8 +7,8 @@ defp_fixture <- function(n = 100L, seed = 1L, mult = 1, online = "tensorized") {
   y <- matrix(rnorm(n * 2L, .5), n)
   C <- pmax(0, outer(rowSums(x^2), rowSums(y^2), "+") / 2 - tcrossprod(x, y))
   lambda <- mult * median(C)
-  source <- causalOT:::Measure(x, adapt = "weights", dtype = torch::torch_double())
-  target <- causalOT:::Measure(y, adapt = "none", dtype = torch::torch_double())
+  source <- causalOT:::Measure(x, adapt = "weights", dtype = torch::torch_double(), device = torch::torch_device("cpu"))
+  target <- causalOT:::Measure(y, adapt = "none", dtype = torch::torch_double(), device = torch::torch_device("cpu"))
   fit <- causalOT:::cotDualEntropyFixedPointTrain$new(source, target)
   fit$setup_arguments(lambda = lambda, cost.online = online, ot_tol = 1e-8)
   list(fit = fit, private = fit$.__enclos_env__$private, lambda = lambda, x = x, y = y)
@@ -50,7 +50,8 @@ testthat::test_that("public routing preserves honest capped-fit diagnostics and 
     opt.direction = "dual", dual.solver = "fixed_point", niter = 2L,
     fixed_point_eta = .7, fixed_point_update = "momentum", anderson_m = 3L,
     fixed_point_lambda_order = "descending",
-    check_every = 1L, dtype = torch::torch_double(), ot_tol = 1e-8))
+    fixed_point_warm_start_mix = .1,
+    check_every = 1L, dtype = torch::torch_double(), device = torch::torch_device("cpu"), ot_tol = 1e-8))
   fit <- causalOT:::COT$new(z$x, z$y, options = options)
   fit$solve()
   opt <- fit$.__enclos_env__$private$optimizer
@@ -63,6 +64,7 @@ testthat::test_that("public routing preserves honest capped-fit diagnostics and 
   testthat::expect_equal(p$anderson_m, 3L)
   testthat::expect_equal(p$check_every, 1L)
   testthat::expect_identical(p$lambda_order, "descending")
+  testthat::expect_equal(p$warm_start_mix, .1)
   testthat::expect_equal(p$penalty_list$lambda, z$lambda * c(2, 1))
   testthat::expect_false(inherits(p$opt, "optim_optimizer"))
   testthat::expect_true(all(unlist(p$reason_run) == "niter"))
@@ -105,14 +107,14 @@ testthat::test_that("collapse case improves on joint solver and matches polished
   z <- defp_fixture()
   options <- suppressWarnings(causalOT::cotOptions(lambda = z$lambda,
     opt.direction = "dual", dual.solver = "fixed_point_joint", niter = 2000L,
-    ot_tol = 1e-8, tol = 1e-4, dtype = torch::torch_double()))
+    ot_tol = 1e-8, tol = 1e-4, dtype = torch::torch_double(), device = torch::torch_device("cpu")))
   legacy <- causalOT:::COT$new(z$x, z$y, options = options)
   legacy$solve()
   testthat::expect_gt(max(legacy$weights), .5)
   reference <- causalOT:::COT$new(z$x, z$y,
     options = causalOT::cotOptions(lambda = z$lambda, solver = "mirror",
       polish = "auto", niter = 2000L, ot_tol = 1e-8, tol = 1e-6,
-      dtype = torch::torch_double()))
+      dtype = torch::torch_double(), device = torch::torch_device("cpu")))
   reference$solve()
   ref_ot <- reference$.__enclos_env__$private$optimizer$.__enclos_env__$private$ot_objects
   ref_ot <- ref_ot[[ls(ref_ot)[1L]]]
@@ -131,8 +133,8 @@ testthat::test_that("collapse case improves on joint solver and matches polished
 
 testthat::test_that("balance functions are rejected clearly", {
   source <- causalOT:::Measure(matrix(1:12, 6), adapt = "weights",
-    target.values = c(2, 8), dtype = torch::torch_double())
-  target <- causalOT:::Measure(matrix(2:13, 6), adapt = "none", dtype = torch::torch_double())
+    target.values = c(2, 8), dtype = torch::torch_double(), device = torch::torch_device("cpu"))
+  target <- causalOT:::Measure(matrix(2:13, 6), adapt = "none", dtype = torch::torch_double(), device = torch::torch_device("cpu"))
   fit <- causalOT:::cotDualEntropyFixedPointTrain$new(source, target)
   testthat::expect_error(fit$setup_arguments(lambda = 1), "does not support balance functions")
 })
@@ -212,12 +214,17 @@ testthat::test_that("refitting a certified lambda stops at iteration zero withou
 testthat::test_that("a sparse certified warm start is checked and returned exactly", {
   x <- matrix(seq_len(8), ncol = 1)
   a <- c(0, .1, 0, .2, 0, .3, 0, .4)
-  source <- causalOT:::Measure(x, weights = a, adapt = "weights", dtype = torch::torch_double())
-  target <- causalOT:::Measure(x, weights = a, adapt = "none", dtype = torch::torch_double())
+  source <- causalOT:::Measure(x, weights = a, adapt = "weights", dtype = torch::torch_double(), device = torch::torch_device("cpu"))
+  target <- causalOT:::Measure(x, weights = a, adapt = "none", dtype = torch::torch_double(), device = torch::torch_device("cpu"))
   fit <- causalOT:::cotDualEntropyFixedPointTrain$new(source, target)
   fit$setup_arguments(lambda = c(1, 2), cost.online = "tensorized", ot_tol = 1e-10)
   p <- fit$.__enclos_env__$private
   before <- as.numeric(p$pending_weights)
+  # S = 0 here, so the gap threshold is ot_tol alone, and a check whose Sinkhorn
+  # starts from the cold-restart (uniform) potentials misses it by Sinkhorn error.
+  # On a real path the previous fit leaves potentials at the incoming weights.
+  fit$ot$a <- torch::torch_tensor(a, dtype = torch::torch_double())
+  fit$ot$sinkhorn_opt(niter = 1e5L, tol = 1e-13)
   # Reconstruction at either lambda would mix away the exact zeros.
   unlockBinding("fp_build_potential", p)
   p$fp_build_potential <- function(...) stop("unexpected mixing of a certified start")
@@ -234,8 +241,10 @@ testthat::test_that("the weight setter reconstructs a finite potential from exac
   for (online in c("tensorized", "online")) {
     z <- defp_fixture(n = 20L, mult = 10, online = online)
     a <- c(rep(0, 18), .2, .8)
+    # A small mix keeps the exact zeros nearly in place, which is the hard case.
+    z$private$warm_start_mix <- 1e-3
     z$private$parameters_get_set(list(a))
-    mixed <- .999 * a + .001 / length(a)
+    mixed <- (1 - z$private$warm_start_mix) * a + z$private$warm_start_mix / length(a)
     testthat::expect_true(all(is.finite(as.numeric(z$private$nn_holder$gamma))))
     testthat::expect_equal(as.numeric(z$fit$weights), mixed, tolerance = 1e-7)
     w <- z$private$parameters_get_set(clone = TRUE)
@@ -285,26 +294,71 @@ testthat::test_that("an iteration error restores phase_start before the next lam
   testthat::expect_true(all(is.finite(as.numeric(p$nn_holder$gamma))))
 })
 
-testthat::test_that("native three-lambda warm paths agree with cold fits", {
+testthat::test_that("native three-lambda paths agree with cold fits at the default and a partial mix", {
+  testthat::expect_equal(causalOT:::cotDualEntropyFixedPointTrain$private_fields$warm_start_mix, 1)
   x <- matrix(c(0, 1, 2), ncol = 1)
-  y <- matrix(c(.25, 1, 1.75), ncol = 1)
+  # A 1e-3 mix lost the middle point on this support-changing path.
+  y <- matrix(c(.2, 1.8), ncol = 1)
   lambdas <- c(.05, .1, .2)
   make <- function(lambda) causalOT:::COT$new(x, y,
     options = suppressWarnings(causalOT::cotOptions(lambda = lambda,
       opt.direction = "dual", dual.solver = "fixed_point", niter = 2000L,
-      ot_tol = 1e-10, tol = 1e-6, dtype = torch::torch_double())))
+      ot_tol = 1e-10, tol = 1e-6, dtype = torch::torch_double(), device = torch::torch_device("cpu"))))
   cold <- lapply(lambdas, function(l) {
-    f <- make(l); f$solve(); f$weights
-  })
-  for (order in c("ascending", "descending")) {
-    f <- make(lambdas)
-    f$solve(fixed_point_lambda_order = order)
+    f <- make(l); f$solve()
     p <- f$.__enclos_env__$private$optimizer$.__enclos_env__$private
+    testthat::expect_true(all(unlist(p$converged_run)))
+    f$weights
+  })
+  for (mix in c(1, .5)) for (order in c("ascending", "descending")) {
+    f <- make(lambdas)
+    f$solve(fixed_point_lambda_order = order, fixed_point_warm_start_mix = mix)
+    p <- f$.__enclos_env__$private$optimizer$.__enclos_env__$private
+    testthat::expect_equal(p$warm_start_mix, mix)
     testthat::expect_equal(p$penalty_list$lambda, sort(lambdas, decreasing = order == "descending"))
     testthat::expect_true(all(unlist(p$converged_run)))
     for (i in seq_along(lambdas)) {
       w <- p$weights_list[[as.character(lambdas[i])]][[1]]
       testthat::expect_equal(as.numeric(w[[ls(w)[1]]]), cold[[i]], tolerance = 1e-5)
     }
+  }
+})
+
+testthat::test_that("a full cold restart rebuilds uniform weights after the incoming check", {
+  z <- defp_fixture(n = 20L)
+  a <- c(rep(0, 18), .2, .8)
+  z$private$parameters_get_set(list(a))
+  incoming <- rebuilt <- NULL
+  checkpoint <- z$private$fp_checkpoint
+  build <- z$private$fp_build_potential
+  unlockBinding("fp_checkpoint", z$private)
+  z$private$fp_checkpoint <- function(w) {
+    if (is.null(incoming)) incoming <<- as.numeric(w)
+    checkpoint(w)
+  }
+  lockBinding("fp_checkpoint", z$private)
+  unlockBinding("fp_build_potential", z$private)
+  z$private$fp_build_potential <- function(w) {
+    build(w)
+    rebuilt <<- as.numeric(z$fit$weights)
+  }
+  lockBinding("fp_build_potential", z$private)
+  z$fit$solve(niter = 2L, tol = 1e-6, fixed_point_warm_start_mix = 1)
+  testthat::expect_identical(incoming, a)
+  testthat::expect_equal(rebuilt, rep(1 / 20, 20), tolerance = 1e-7)
+  testthat::expect_equal(z$private$warm_start_mix, 1)
+  # Rebuilding from unrelated cached potentials gives exactly the same start.
+  z$private$fp_build_potential(z$fit$weights)
+  cold_u <- as.numeric(z$private$nn_holder$gamma)
+  z$private$fp_checkpoint(torch::torch_tensor(a, dtype = torch::torch_double()))
+  z$private$fp_build_potential(torch::torch_tensor(a, dtype = torch::torch_double()))
+  testthat::expect_identical(as.numeric(z$private$nn_holder$gamma), cold_u)
+})
+
+testthat::test_that("warm-start mixing requires a positive fraction at most one", {
+  z <- defp_fixture(n = 20L)
+  for (mix in list(0, -.1, 1.1, NA_real_, Inf, numeric(), c(.1, .5))) {
+    testthat::expect_error(z$fit$solve(fixed_point_warm_start_mix = mix),
+      "fixed_point_warm_start_mix must be in")
   }
 })

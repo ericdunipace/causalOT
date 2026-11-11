@@ -6499,13 +6499,15 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       fixed_point_eta = 1, fixed_point_beta = .9,
       fixed_point_update = c("anderson", "momentum"), anderson_m = 5L,
       check_every = 50L,
-      fixed_point_lambda_order = c("ascending", "descending")
+      fixed_point_lambda_order = c("ascending", "descending"),
+      fixed_point_warm_start_mix = 1
     ) {
       stopifnot(
         "fixed_point_eta must be finite and positive" = length(fixed_point_eta) == 1L && is.finite(fixed_point_eta) && fixed_point_eta > 0,
         "fixed_point_beta must be in [0, 1)" = length(fixed_point_beta) == 1L && is.finite(fixed_point_beta) && fixed_point_beta >= 0 && fixed_point_beta < 1,
         "anderson_m must be a positive integer" = length(anderson_m) == 1L && is.finite(anderson_m) && anderson_m >= 1 && anderson_m == as.integer(anderson_m),
-        "check_every must be a positive integer" = length(check_every) == 1L && is.finite(check_every) && check_every >= 1 && check_every == as.integer(check_every)
+        "check_every must be a positive integer" = length(check_every) == 1L && is.finite(check_every) && check_every >= 1 && check_every == as.integer(check_every),
+        "fixed_point_warm_start_mix must be in (0, 1]" = length(fixed_point_warm_start_mix) == 1L && is.finite(fixed_point_warm_start_mix) && fixed_point_warm_start_mix > 0 && fixed_point_warm_start_mix <= 1
       )
       private$fixed_point_eta <- as.numeric(fixed_point_eta)
       private$fixed_point_beta <- as.numeric(fixed_point_beta)
@@ -6513,6 +6515,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       private$anderson_m <- as.integer(anderson_m)
       private$check_every <- as.integer(check_every)
       private$lambda_order <- match.arg(fixed_point_lambda_order)
+      private$warm_start_mix <- as.numeric(fixed_point_warm_start_mix)
       ord <- order(private$penalty_list$lambda,
         decreasing = private$lambda_order == "descending")
       private$penalty_list$lambda <- private$penalty_list$lambda[ord]
@@ -6543,7 +6546,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
     anderson_m = 5L,
     check_every = 50L,
     lambda_order = "ascending",
-    warm_start_mix = 1e-3,
+    warm_start_mix = 1,
     pending_weights = NULL,
     accepted_weights = NULL,
     fp_iteration = 0L,
@@ -6588,6 +6591,9 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       torch::with_no_grad({
         mixed <- (1 - private$warm_start_mix) * w + private$warm_start_mix / length(w)
         self$ot$a <- mixed
+        # A full cold restart must also forget cached Sinkhorn potentials:
+        # tiny differences in the rebuilt start can change Anderson's path.
+        if (private$warm_start_mix == 1) self$ot$potentials <- NULL
         self$ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
         gamma <- self$ot$potentials$f_xx / as.numeric(private$lambda) + mixed$log()
         private$nn_holder$gamma$copy_(gamma - gamma$max())
