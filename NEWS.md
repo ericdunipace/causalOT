@@ -8,6 +8,8 @@
 * `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
 
 ## New features
+* `lambda.selector = "energy_variance"` selects lambda using in-sample energy
+  balance plus a variance penalty controlled by `energy.variance.c` (default 1).
 * Entropy fixed-point lambda paths reconstruct potentials at each new lambda,
   safely mixing sparse warm starts. Already certified weights return unchanged
   at iteration zero. `fixed_point_lambda_order` selects either path direction.
@@ -31,6 +33,8 @@
   Sinkhorn iterations.
 
 ## Minor improvements and fixes
+* Bootstrap scores normalize resampled weights in `eval_lambda`, `eval_delta`,
+  and `sbw_oop_bs_`; lambda scoring preserves the resampled candidate weights.
 * `cotOptions()` now warns about arguments in `...` that no solver uses.
   Previously, misspelled arguments were silently ignored.
 

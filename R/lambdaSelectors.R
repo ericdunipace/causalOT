@@ -9,6 +9,7 @@ cot_lambda_selector_choices <- function(include_unsupported = TRUE) {
     "marginal_loo",
     "mass_bootstrap_symmetric",
     "bootstrap_legacy",
+    "energy_variance",
     "sym_evidence",
     "legacy_bootstrap_balance"
   )
@@ -68,7 +69,8 @@ cot_normalize_lambda_selector_control <- function(control = list()) {
     "details",
     "mass.bootstrap.summary",
     "mass.bootstrap.quantile",
-    "mass.bootstrap.kappa"
+    "mass.bootstrap.kappa",
+    "energy.variance.c"
   )
   unknown <- setdiff(names(control), allowed)
   if (length(unknown) > 0L) {
@@ -85,7 +87,8 @@ cot_normalize_lambda_selector_control <- function(control = list()) {
     details = FALSE,
     mass.bootstrap.summary = "mean",
     mass.bootstrap.quantile = 0.1,
-    mass.bootstrap.kappa = 1
+    mass.bootstrap.kappa = 1,
+    energy.variance.c = 1
   )
 
   if ("pilot.weights" %in% names(control)) {
@@ -146,6 +149,19 @@ cot_normalize_lambda_selector_control <- function(control = list()) {
       )
     }
     out$mass.bootstrap.kappa <- mass.bootstrap.kappa
+  }
+
+  if ("energy.variance.c" %in% names(control)) {
+    multiplier <- control[["energy.variance.c"]]
+    if (
+      !is.numeric(multiplier) || length(multiplier) != 1L ||
+        !is.finite(multiplier) || multiplier < 0
+    ) {
+      stop(
+        "lambda.selector.control$energy.variance.c must be a single finite nonnegative number."
+      )
+    }
+    out$energy.variance.c <- as.numeric(multiplier)
   }
 
   out

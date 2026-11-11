@@ -24,9 +24,9 @@ cotOptions(
   niter = 2000,
   nboot = 100L,
   lambda.bootstrap = 0.05,
-  lambda.selector = c("bootstrap_legacy", "sym_evidence", "profile_symmetric_loo",
-    "profile_marginal_loo", "symmetric_loo", "marginal_loo", "mass_bootstrap_symmetric",
-    "legacy_bootstrap_balance", "kfold_symmetric"),
+  lambda.selector = c("bootstrap_legacy", "energy_variance", "sym_evidence",
+    "profile_symmetric_loo", "profile_marginal_loo", "symmetric_loo", "marginal_loo",
+    "mass_bootstrap_symmetric", "legacy_bootstrap_balance", "kfold_symmetric"),
   lambda.selector.control = list(),
   tol = 1e-04,
   device = NULL,
@@ -88,12 +88,22 @@ versions of the package. The experimental alternatives are
 \code{"marginal_loo"}, and \code{"mass_bootstrap_symmetric"}. \code{"sym_evidence"} is retained as a
 backward-compatible alias for \code{"profile_symmetric_loo"}, and
 \code{"legacy_bootstrap_balance"} is retained as an alias for
-\code{"bootstrap_legacy"}.}
+\code{"bootstrap_legacy"}. \code{"energy_variance"} minimizes the in-sample
+infinite-lambda divergence plus a variance penalty on normalized weights;
+it ignores \code{nboot} and \code{lambda.bootstrap} for lambda selection.}
 
 \item{lambda.selector.control}{Optional list of controls for lambda
 selection. Supported entries are \code{pilot.weights}, \code{details},
-\code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile}, and
-\code{mass.bootstrap.kappa}.}
+\code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile},
+\code{mass.bootstrap.kappa}, and \code{energy.variance.c}. The latter is a finite
+nonnegative multiplier (default 1) for the \code{energy_variance} penalty;
+larger values favor higher effective sample size (ESS) weights. Its score is
+the infinite-lambda divergence plus \code{energy.variance.c * dbar * sum(w^2) / 2},
+using mass-one weights and the mean off-diagonal self cost \code{dbar}.
+Online costs estimate \code{dbar} from at most 2,000 randomly sampled rows;
+singleton measures use zero. With \code{details = TRUE}, \code{lambda.details} stores
+\code{S_inf}, \code{sum.w2} (rows are lambdas, columns are weighted measures), \code{dbar}
+(per problem and weighted measure), \code{c}, and the combined \code{penalty}.}
 
 \item{tol}{Relative tolerance for final fit convergence (default 1e-4),
 shared by phase 1 and polish: \code{gap <= atol + tol * max(0, D)}, where

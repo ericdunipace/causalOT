@@ -733,9 +733,9 @@ in the potentials is below \code{ot_tol * lambda}.}
   n_boot_lambda = 100L,
   n_boot_delta = 1000L,
   lambda_bootstrap = Inf,
-  lambda.selector = c("bootstrap_legacy", "sym_evidence", "profile_symmetric_loo",
-    "profile_marginal_loo", "symmetric_loo", "marginal_loo", "mass_bootstrap_symmetric",
-    "legacy_bootstrap_balance", "kfold_symmetric"),
+  lambda.selector = c("bootstrap_legacy", "energy_variance", "sym_evidence",
+    "profile_symmetric_loo", "profile_marginal_loo", "symmetric_loo", "marginal_loo",
+    "mass_bootstrap_symmetric", "legacy_bootstrap_balance", "kfold_symmetric"),
   lambda.selector.control = list()
 )}
     \if{html}{\out{</div>}}

@@ -1609,6 +1609,7 @@ OTProblem_ <- R6::R6Class(
         lambda_bootstrap = Inf,
         lambda.selector = c(
           "bootstrap_legacy",
+          "energy_variance",
           "sym_evidence",
           "profile_symmetric_loo",
           "profile_marginal_loo",
@@ -1621,9 +1622,7 @@ OTProblem_ <- R6::R6Class(
         lambda.selector.control = list()
       ) {
         # check arguments
-        stopifnot("n_boot_lambda must be >= 0" = n_boot_lambda >= 0)
         stopifnot("n_boot_delta must be >= 0" = n_boot_delta >= 0)
-        stopifnot("lambda_bootstrap must be > 0" = lambda_bootstrap > 0)
         if (missing(lambda.selector)) {
           lambda.selector <- "bootstrap_legacy"
         } else if (length(lambda.selector) > 1L) {
@@ -1633,6 +1632,11 @@ OTProblem_ <- R6::R6Class(
         lambda.selector.control <- cot_normalize_lambda_selector_control(
           lambda.selector.control
         )
+
+        if (lambda.selector != "energy_variance") {
+          stopifnot("n_boot_lambda must be >= 0" = n_boot_lambda >= 0)
+          stopifnot("lambda_bootstrap must be > 0" = lambda_bootstrap > 0)
+        }
 
         # alter lists if needed for inherited classes
         res <- private$setup_choose_hyperparameters()
@@ -3447,6 +3451,48 @@ OTProblem_ <- R6::R6Class(
           lambda = lambda
         )
       },
+      energy_variance_dbar = function() {
+        # Keep scales per problem: a measure may occur in several problems,
+        # potentially with different cost functions or powers.
+        out <- list()
+        for (problem in ls(private$ot_objects)) {
+          ot <- private$ot_objects[[problem]]
+          adds <- private$problems[[problem]]
+          scales <- numeric()
+          for (side in seq_along(adds)) {
+            add <- adds[[side]]
+            meas <- private$measures[[add]]
+            if (meas$adapt != "weights") next
+            n <- meas$n
+            if (n < 2L) {
+              scales[[add]] <- 0
+              next
+            }
+            self_cost <- if (side == 1L) ot$C_xx else ot$C_yy
+            if (inherits(self_cost, "costTensor")) {
+              total <- self_cost$data$detach()$sum()$item()
+            } else {
+              # Online costs need only a bounded sample to estimate this scale.
+              # The fit's cost function preserves p, its normalization and any
+              # user-supplied cost. No sampling occurs for small measures.
+              x <- meas$x$detach()
+              if (!ot$tensorized && n > 2000L) {
+                x <- x[sample.int(n, 2000L), , drop = FALSE]
+                n <- 2000L
+              }
+              template <- if (is.null(self_cost)) ot$C_xy else self_cost
+              sampled_cost <- cost(
+                x, x, p = template$p, tensorized = TRUE,
+                cost_function = template$fun
+              )
+              total <- sampled_cost$data$detach()$sum()$item()
+            }
+            scales[[add]] <- total / (n * (n - 1))
+          }
+          out[[problem]] <- scales
+        }
+        out
+      },
       select_lambda_metric = function(
         weights_list,
         weights_converged,
@@ -3466,6 +3512,7 @@ OTProblem_ <- R6::R6Class(
           "marginal_loo" = "fixed-pilot marginal leave-one-out evidence",
           "mass_bootstrap_symmetric" = "mass-bootstrap symmetric evidence",
           "bootstrap_legacy" = "legacy bootstrap selector",
+          "energy_variance" = "energy distance plus variance penalty",
           lambda_selector
         )
 
@@ -3486,6 +3533,86 @@ OTProblem_ <- R6::R6Class(
           selected_lambda = lambda_input_values[[1L]],
           selector = "fixed"
         )
+
+        if (lambda_selector == "energy_variance") {
+          private$set_lambda(Inf)
+          ones <- rlang::env()
+          weighted_adds <- character()
+          for (add in ls(private$measures)) {
+            meas <- private$measures[[add]]
+            ones[[add]] <- torch::torch_ones(
+              meas$n, dtype = self$dtype, device = self$device
+            )
+            if (meas$adapt == "weights") weighted_adds <- c(weighted_adds, add)
+          }
+          dbar <- private$energy_variance_dbar()
+          is_sum_objective <- function(expr) {
+            if (!is.call(expr)) return(FALSE)
+            if (identical(expr[[1L]], as.name("oop_loss_select"))) return(TRUE)
+            identical(expr[[1L]], as.name("+")) &&
+              all(vapply(as.list(expr)[-1L], is_sum_objective, logical(1)))
+          }
+          plain_sum <- is_sum_objective(private$objective)
+          multiplier <- lambda_selector_control$energy.variance.c
+          s_inf <- penalty <- rep(NA_real_, n_lambda)
+          sum_w2 <- matrix(
+            NA_real_, nrow = n_lambda, ncol = length(weighted_adds),
+            dimnames = list(as.character(lambda_input_values), weighted_adds)
+          )
+          lambda_metrics[] <- Inf
+          for (idx in candidates) {
+            wts <- weights_list[[idx]]
+            s_inf[[idx]] <- private$eval_lambda(wts, ones)
+            for (add in weighted_adds) {
+              w <- renormalize(wts[[add]]$detach())
+              sum_w2[idx, add] <- w$square()$sum()$item()
+            }
+            problem_penalties <- vapply(dbar, function(scales) {
+              multiplier * sum(scales * sum_w2[idx, names(scales)]) / 2
+            }, numeric(1))
+            # Evaluate the same expression with each divergence penalized.
+            # This also respects scalar multipliers and combined OT objectives.
+            penalized_loss <- function(ot) {
+              problem <- names(dbar)[vapply(names(dbar), function(key) {
+                identical(ot, private$ot_objects[[key]])
+              }, logical(1))]
+              oop_loss_select(ot) + problem_penalties[[problem]]
+            }
+            lambda_metrics[[idx]] <- if (multiplier == 0) {
+              s_inf[[idx]]
+            } else if (plain_sum) {
+              # Avoid a second full energy evaluation, especially online.
+              s_inf[[idx]] + sum(problem_penalties)
+            } else {
+              eval(
+                private$objective,
+                envir = list(oop_loss_select = penalized_loss),
+                enclos = environment()
+              )$detach()$item()
+            }
+            penalty[[idx]] <- lambda_metrics[[idx]] - s_inf[[idx]]
+          }
+          finite_scores <- candidates[is.finite(lambda_metrics[candidates])]
+          out$selected_index <- if (length(finite_scores)) {
+            finite_scores[which.min(lambda_metrics[finite_scores])]
+          } else {
+            candidates[[1L]]
+          }
+          out$metrics <- lambda_metrics
+          out$selected_lambda <- lambda_input_values[[out$selected_index]]
+          out$selector <- "energy_variance"
+          out$note <- paste(
+            "Energy distance plus variance penalty uses normalized fitted weights.",
+            "n_boot_lambda and lambda_bootstrap are ignored for lambda selection."
+          )
+          if (isTRUE(lambda_selector_control$details)) {
+            out$details <- list(
+              S_inf = s_inf, sum.w2 = sum_w2, dbar = dbar,
+              c = multiplier, penalty = penalty
+            )
+          }
+          return(out)
+        }
 
         eligible_lambda <- !failed &
           is.finite(lambda_input_values) &
@@ -5041,74 +5168,7 @@ cotDualLegacyTrain <- R6::R6Class(
   private = {
     list(
       eval_lambda = function(wts, boot) {
-        addresses <- ls(private$measures)
-        prob_adds <- ls(private$ot_objects)
-        wt_adds <- ls(wts)
-        sel_probs <- NULL
-        prob_hold <- NULL
-        p1_add <- p2_add <- NULL
-
-        n <- NULL
-        w <- NULL
-        b <- NULL
-        m <- NULL
-        w_star <- NULL
-        ot_obj <- NULL
-        meas <- NULL
-
-        for (add in addresses) {
-          b <- boot[[add]]
-          meas <- private$measures[[add]]
-
-          w <- if (add %in% wt_adds) {
-            wts[[add]]$detach()
-          } else {
-            meas$init_weights$detach()
-          }
-
-          if (meas$adapt == "weights" || meas$adapt == "none") {
-            w_star <- w * b
-          } else if (meas$adapt == "x") {
-            w_star <- meas$init_weights * b
-          } else {
-            stop("Bug in this if else statement!")
-          }
-
-          sel_probs <- prob_adds[grep(add, prob_adds)]
-          for (i in sel_probs) {
-            prob_hold <- private$problems[[i]]
-            p1_add <- prob_hold[[1]]
-            p2_add <- prob_hold[[2]]
-            if (p1_add == add) {
-              private$ot_objects[[i]]$a <- w_star
-              if (meas$adapt == "x") {
-                update_cost(
-                  private$ot_objects[[i]]$C_xy,
-                  w,
-                  private$measures[[p2_add]]$x$detach()
-                )
-              }
-            } else if (p2_add == add) {
-              private$ot_objects[[i]]$b <- w_star
-              if (meas$adapt == "x") {
-                update_cost(
-                  private$ot_objects[[i]]$C_yx,
-                  w,
-                  private$measures[[p1_add]]$x$detach()
-                )
-              }
-            } else {
-              stop("OT Problem address not found. You found a bug!")
-            }
-          }
-        }
-        # browser()
-        # private$ot_objects[[i]]$penalty <- private$boot_lambda #0.05 #private$ot_objects[[i]]$diameter
-        if (is.finite(private$ot_objects[[i]]$penalty)) {
-          private$ot_objects[[i]]$sinkhorn_opt(20, 1e-3)
-        }
-        dists <- self$loss$detach()$item()
-        return(dists)
+        super$eval_lambda(wts, boot)
       },
       set_lambda = function(l) {
         stopifnot(l >= 0.0)
