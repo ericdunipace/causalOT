@@ -2075,25 +2075,6 @@ testthat::test_that("energy_variance uses online scales and preserves custom cos
   testthat::expect_equal(res$metrics, expected, tolerance = 1e-10)
 })
 
-testthat::test_that("energy_variance combines per-problem penalties through the objective", {
-  f <- energy_selector_fixture()
-  g <- energy_selector_fixture()
-  first <- energy_selector_score(f)$metrics
-  second <- energy_selector_score(g)$metrics
-  combined <- 2 * f$ot + g$ot
-  suppressWarnings(combined$setup_arguments(
-    lambda = c(10, 1), p = 1, debias = TRUE, cost.online = "tensorized"
-  ))
-  weights <- lapply(seq_along(f$weights), function(i) {
-    out <- rlang::env()
-    out[[f$add]] <- f$weights[[i]][[f$add]]
-    out[[g$add]] <- g$weights[[i]][[g$add]]
-    out
-  })
-  result <- energy_selector_score(list(ot = combined, weights = weights))
-  testthat::expect_equal(result$metrics, 2 * first + second, tolerance = 1e-10)
-})
-
 testthat::test_that("energy_variance c moves selection from balance toward ESS on a fitted path", {
   causalOT:::torch_check()
   set.seed(722)

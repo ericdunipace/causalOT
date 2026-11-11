@@ -90,7 +90,8 @@ backward-compatible alias for \code{"profile_symmetric_loo"}, and
 \code{"legacy_bootstrap_balance"} is retained as an alias for
 \code{"bootstrap_legacy"}. \code{"energy_variance"} minimizes the in-sample
 infinite-lambda divergence plus a variance penalty on normalized weights;
-it ignores \code{nboot} and \code{lambda.bootstrap} for lambda selection.}
+it ignores \code{nboot} and \code{lambda.bootstrap} for lambda selection and requires
+a plain sum of OT objectives.}
 
 \item{lambda.selector.control}{Optional list of controls for lambda
 selection. Supported entries are \code{pilot.weights}, \code{details},

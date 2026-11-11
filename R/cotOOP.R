@@ -3535,6 +3535,15 @@ OTProblem_ <- R6::R6Class(
         )
 
         if (lambda_selector == "energy_variance") {
+          is_sum_objective <- function(expr) {
+            if (!is.call(expr)) return(FALSE)
+            if (identical(expr[[1L]], as.name("oop_loss_select"))) return(TRUE)
+            identical(expr[[1L]], as.name("+")) &&
+              all(vapply(as.list(expr)[-1L], is_sum_objective, logical(1)))
+          }
+          if (!is_sum_objective(private$objective)) {
+            stop("energy_variance needs a plain sum of OT objectives")
+          }
           private$set_lambda(Inf)
           ones <- rlang::env()
           weighted_adds <- character()
@@ -3546,13 +3555,6 @@ OTProblem_ <- R6::R6Class(
             if (meas$adapt == "weights") weighted_adds <- c(weighted_adds, add)
           }
           dbar <- private$energy_variance_dbar()
-          is_sum_objective <- function(expr) {
-            if (!is.call(expr)) return(FALSE)
-            if (identical(expr[[1L]], as.name("oop_loss_select"))) return(TRUE)
-            identical(expr[[1L]], as.name("+")) &&
-              all(vapply(as.list(expr)[-1L], is_sum_objective, logical(1)))
-          }
-          plain_sum <- is_sum_objective(private$objective)
           multiplier <- lambda_selector_control$energy.variance.c
           s_inf <- penalty <- rep(NA_real_, n_lambda)
           sum_w2 <- matrix(
@@ -3570,27 +3572,8 @@ OTProblem_ <- R6::R6Class(
             problem_penalties <- vapply(dbar, function(scales) {
               multiplier * sum(scales * sum_w2[idx, names(scales)]) / 2
             }, numeric(1))
-            # Evaluate the same expression with each divergence penalized.
-            # This also respects scalar multipliers and combined OT objectives.
-            penalized_loss <- function(ot) {
-              problem <- names(dbar)[vapply(names(dbar), function(key) {
-                identical(ot, private$ot_objects[[key]])
-              }, logical(1))]
-              oop_loss_select(ot) + problem_penalties[[problem]]
-            }
-            lambda_metrics[[idx]] <- if (multiplier == 0) {
-              s_inf[[idx]]
-            } else if (plain_sum) {
-              # Avoid a second full energy evaluation, especially online.
-              s_inf[[idx]] + sum(problem_penalties)
-            } else {
-              eval(
-                private$objective,
-                envir = list(oop_loss_select = penalized_loss),
-                enclos = environment()
-              )$detach()$item()
-            }
-            penalty[[idx]] <- lambda_metrics[[idx]] - s_inf[[idx]]
+            penalty[[idx]] <- sum(problem_penalties)
+            lambda_metrics[[idx]] <- s_inf[[idx]] + penalty[[idx]]
           }
           finite_scores <- candidates[is.finite(lambda_metrics[candidates])]
           out$selected_index <- if (length(finite_scores)) {
@@ -5167,9 +5150,6 @@ cotDualLegacyTrain <- R6::R6Class(
   },
   private = {
     list(
-      eval_lambda = function(wts, boot) {
-        super$eval_lambda(wts, boot)
-      },
       set_lambda = function(l) {
         stopifnot(l >= 0.0)
         stopifnot(l <= Inf)

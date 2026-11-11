@@ -329,7 +329,8 @@ COT <- R6::R6Class(
 #'   `"legacy_bootstrap_balance"` is retained as an alias for
 #'   `"bootstrap_legacy"`. `"energy_variance"` minimizes the in-sample
 #'   infinite-lambda divergence plus a variance penalty on normalized weights;
-#'   it ignores `nboot` and `lambda.bootstrap` for lambda selection.
+#'   it ignores `nboot` and `lambda.bootstrap` for lambda selection and requires
+#'   a plain sum of OT objectives.
 #' @param lambda.selector.control Optional list of controls for lambda
 #'   selection. Supported entries are `pilot.weights`, `details`,
 #'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`,
