@@ -446,3 +446,27 @@ testthat::test_that("the reporting margin reserves only a small part of ot_tol",
   testthat::expect_true(p$fp_converged(borderline, 1e-6))
   testthat::expect_true(p$fp_converged(list(divergence = 0, fw_gap = 0), 1e-6))
 })
+
+testthat::test_that("gap progress keeps flat-objective fits running", {
+  z <- defp_fixture(n = 20L)
+  p <- z$private
+  p$check_every <- 2L
+  p$stagnation_checks <- 3L
+  calls <- 0L
+  checkpoint <- p$fp_checkpoint
+  unlockBinding("fp_checkpoint", p)
+  p$fp_checkpoint <- function(w) {
+    checkpoint(w)
+    calls <<- calls + 1L
+    # Each change is below 1%, but the cumulative change every third check
+    # exceeds it. Objective-only stagnation would stop at iteration six.
+    list(divergence = 1, fw_gap = .996^(calls - 1L))
+  }
+  lockBinding("fp_checkpoint", p)
+  result <- p$optimization_loop(12L, 1e-8)
+  testthat::expect_identical(result$reason, "niter")
+  testthat::expect_equal(result$iter, 12L)
+  testthat::expect_false(result$stopped_by_rule)
+  testthat::expect_false(result$converged)
+  testthat::expect_equal(p$check_history[[4L]]$stagnant_checks, 0L)
+})

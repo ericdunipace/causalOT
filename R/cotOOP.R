@@ -6672,9 +6672,10 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
     check_history = NULL,
     memory_resets = 0L,
     reverts = 0L,
-    # The cold grid needs 165 quiet checks before one late gap certificate.
-    # A shorter window incorrectly cuts off that fit (seed 2, mult 0.46).
-    stagnation_checks = 170L,
+    # Gap progress remains visible after objective changes fall below slack.
+    # Calibrated on the cold grid, including the certificates at iteration 9700.
+    stagnation_checks = 50L,
+    stagnation_fraction = .01,
     safeguard_slack = 1,
     eta_min = .0625,
     eta_decay = .5,
@@ -6744,7 +6745,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
         # Exact incoming weights may contain zeros and have no finite potential.
         # Store weights as well as the potential so they remain eligible at exit.
         best <- c(initial, list(u = NULL, weights = warm))
-        progress_S <- initial$divergence
+        progress_gap <- max(initial$fw_gap, .Machine$double.xmin)
         stagnant_checks <- 0L
         reset_pending <- FALSE
         eta_floor <- min(eta, private$eta_min)
@@ -6762,8 +6763,10 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
             best <<- c(cert, list(u = u$detach()$clone(),
               weights = res$w2$detach()$clone()))
           }
-          if (best$divergence < progress_S - slack) {
-            progress_S <<- best$divergence
+          # A fractional gap decrease is a fixed decrease in log-gap. Keep
+          # its best checked anchor independently of the objective-best state.
+          if (cert$fw_gap < progress_gap * (1 - private$stagnation_fraction)) {
+            progress_gap <<- max(cert$fw_gap, .Machine$double.xmin)
             stagnant_checks <<- 0L
           } else {
             stagnant_checks <<- stagnant_checks + 1L
@@ -6803,7 +6806,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
           private$check_history[[length(private$check_history) + 1L]] <-
             c(list(iter = iter), cert, list(best_divergence = best$divergence,
               slack = slack, eta = eta, action = action,
-              stagnant_checks = stagnant_checks))
+              stagnant_checks = stagnant_checks, progress_gap = progress_gap))
           last_ess <<- 1 / res$w2$square()$sum()$item()
           if (!passed && !stopped && stagnant_checks >= private$stagnation_checks) {
             stopped <<- TRUE
