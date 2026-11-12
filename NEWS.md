@@ -8,17 +8,6 @@
 * `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
 
 ## New features
-* `lambda.selector = "energy_variance"` selects lambda using in-sample energy
-  balance plus a variance penalty controlled by `energy.variance.c` (default 1).
-* Entropy fixed-point lambda paths check the incoming weights at each new
-  lambda and return them unchanged at iteration zero if they are already
-  certified. Otherwise each lambda restarts from uniform weights by default;
-  `fixed_point_warm_start_mix` below 1 keeps part of the previous solution.
-  `fixed_point_lambda_order` selects either path direction.
-* `dual.solver = "fixed_point"` adds entropy-potential updates with weighted
-  Anderson acceleration, sparse-safe residuals, and gap-based convergence.
-  It supports tensorized and online costs, returns the best checked weights,
-  and currently excludes balance functions. The existing default is unchanged.
 * Updated convergence criterion to prevent needless long runs
 * `cotOptions(polish = "auto")` refines COT weights with a monotone Newton
   polish using an exact Hessian. It is off by default and skips fits with
