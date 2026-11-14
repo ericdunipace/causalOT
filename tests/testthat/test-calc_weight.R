@@ -87,8 +87,29 @@ testthat::test_that("calc_weight works", {
   testthat::expect_equal(weights@estimand, estimate)
   testthat::expect_equal(weights@method, "SBW")
   testthat::expect_s4_class(weights, "causalWeights")
-  
-  
-  
+
+
+
+})
+
+testthat::test_that("calc_weight COT with lambda = 0 has no lambda selection", {
+  causalOT:::torch_check()
+
+  set.seed(23483)
+  data <- causalOT::Hainmueller$new(n = 2^5, p = 6)
+  data$gen_data()
+  x <- data$get_x()
+  z <- data$get_z()
+
+  # lambda = 0 skips hyperparameter selection, so the metric is a string
+  weights <- calc_weight(x = x, z = z, estimand = "ATE",
+                         method = "COT", options = list(lambda = 0))
+  testthat::expect_s4_class(weights, "causalWeights")
+  testthat::expect_null(weights@info$lambda_selection)
+
+  weights <- calc_weight(x = x, z = z, estimand = "ATT",
+                         method = "COT", options = list(lambda = 0))
+  testthat::expect_s4_class(weights, "causalWeights")
+  testthat::expect_null(weights@info$lambda_selection)
 })
 
