@@ -181,12 +181,9 @@ test_that('a polish that cannot descend returns the start unchanged', {
   expect_identical(ans$weights, f$a)
 })
 
-test_that('L-BFGS and online costs achieve the Newton answer', {
+test_that('online costs achieve the tensorized answer', {
   f <- polish_fixture()
   newton <- polish_run(f)
-  lbfgs <- polish_run(f, max_free = 2L, lbfgs_maxit = 80L)
-  expect_lte(lbfgs$loss, polish_loss(f, f$a))
-  expect_lt(abs(lbfgs$loss - newton$loss), 1e-6 * abs(newton$loss))
   online <- polish_run(f, mode = 'online')
   expect_equal(online$loss, newton$loss, tolerance = 1e-10)
   expect_equal(online$weights, newton$weights, tolerance = 1e-6)
@@ -205,12 +202,7 @@ test_that('polished fits converge, keep exact zeros, and return float64 weights'
       niter = 50L
     )
     expect_silent(cot$solve())
-    if (solver == 'lbfgs') {
-      # two lambdas and nboot = 0, so nothing is selected
-      expect_warning(cot$grid_search(), 'nboot >= 1')
-    } else {
-      cot$grid_search()
-    }
+    cot$grid_search()
     info <- fit_optimizer(cot)$info()
     expect_true(all(unlist(info$converged)))
     expect_true(all(unlist(info$reason) == 'ok'))
@@ -439,11 +431,7 @@ test_that('numerical failures store NA, are excluded from selection, and all-fai
   saved <- p$weights_list[['4']][[1]]
   expect_true(all(is.na(as.numeric(saved[[ls(saved)[[1]]]]))))
   optimizer <- fit_optimizer(cot)
-  for (selector in c(
-    'bootstrap_legacy',
-    'profile_symmetric_loo',
-    'mass_bootstrap_symmetric'
-  )) {
+  for (selector in c('bootstrap', 'auto')) {
     suppressWarnings(optimizer$choose_hyperparameters(
       n_boot_lambda = 1,
       n_boot_delta = 0,
@@ -490,7 +478,7 @@ test_that('unpolished selection warns only when phase 1 ran out of iterations', 
     fit_optimizer(cot)$choose_hyperparameters(
       n_boot_lambda = 1,
       n_boot_delta = 0,
-      lambda.selector = 'bootstrap_legacy'
+      lambda.selector = 'bootstrap'
     )
   )
   expect_equal(fit_optimizer(cot)$selected_lambda, 4)
@@ -519,7 +507,7 @@ test_that('unpolished selection warns only when phase 1 ran out of iterations', 
     fit_optimizer(cot)$choose_hyperparameters(
       n_boot_lambda = 1,
       n_boot_delta = 0,
-      lambda.selector = 'bootstrap_legacy'
+      lambda.selector = 'bootstrap'
     ),
     warning = function(w) {
       warnings <<- c(warnings, conditionMessage(w))

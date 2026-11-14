@@ -48,6 +48,7 @@ testthat::test_that("public routing preserves honest capped-fit diagnostics and 
   z <- defp_fixture(n = 20L)
   options <- suppressWarnings(causalOT::cotOptions(lambda = z$lambda * c(1, 2),
     opt.direction = "dual", dual.solver = "fixed_point", niter = 2L,
+    polish = "none",
     fixed_point_eta = .7, fixed_point_update = "momentum", anderson_m = 3L,
     fixed_point_lambda_order = "descending",
     fixed_point_warm_start_mix = .1,

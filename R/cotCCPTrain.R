@@ -39,7 +39,7 @@ cotCCPTrain <- R6::R6Class(
   inherit = OTProblem_,
   public = list(
     solve = function(
-      niter = 1000L,
+      niter = 500L,
       tol = 1e-5,
       osqp_args = NULL,
       quick.balance.function = TRUE,
@@ -432,12 +432,16 @@ cotCCPTrain <- R6::R6Class(
     },
 
     iterate_over_lambda = function(niter, tol) {
-      for (l in private$penalty_list$lambda) {
+      private$state_run <- vector("list", length(private$penalty_list$lambda))
+      for (i in seq_along(private$penalty_list$lambda)) {
+        l <- private$penalty_list$lambda[[i]]
         private$set_lambda(l)
 
         res <- private$iterate_over_delta(niter, tol)
 
-        private$weights_list[[as.character(l)]] <- res$weights
+        private$weights_list[[i]] <- res$weights
+        names(private$weights_list)[i] <- as.character(l)
+        private$state_run[[i]] <- res$states
         private$iterations_run[[as.character(l)]] <- res$iter
         private$final_loss[[as.character(l)]] <- res$loss
         private$converged_run[[as.character(l)]] <- res$converged

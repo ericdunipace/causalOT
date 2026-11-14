@@ -6,17 +6,20 @@
   from earlier versions. `vcov(object, type = "components")` gives the
   previous calculation (which ignores cross terms)
 * `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
+* `cotOptions()` now defaults to `solver = "fixed_point"` and `niter = 500`
+  for all solvers. 
 
 ## New features
 * Updated convergence criterion to prevent needless long runs
 * `cotOptions(polish = "auto")` refines COT weights with a monotone Newton
-  polish using an exact Hessian. It is off by default and skips fits with
+  polish using an exact Hessian. It is on by default and skips fits with
   more than 2,000 source points. 
-* `cotOptions(opt.direction = "primal", solver = "mirror")` runs a mirror
-  descent solver for debiased COT weights
-* New dual solvers `dual.solver = "fixed_point_joint"` and `"joint"`. Their
-  tuning parameters (`fixed_point_eta`, `n_potential_steps`, etc.) can be
-  passed through `cotOptions(...)`.
+* New solvers: `cotOptions(solver = "mirror")` runs a mirror 
+  descent solver for debiased COT weights and `"fixed_point"` runs fast fixed
+  point iterations also for debiased COT weights. 
+* Lambda selection is now done via an RBF kernel. You can have the software
+  choose thiswith `lambda = "auto"` before the estimation of weights or after 
+  with weight estimation with option `lambda.selector = "auto"` in `cotOptions()`.
 * The lambda grid, selection scores, and selected value are stored in
   `causalWeights@info$metric`.
 * `Measure()` gains a `unit.id` argument to identify observations.
