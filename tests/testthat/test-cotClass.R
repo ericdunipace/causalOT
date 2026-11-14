@@ -672,8 +672,9 @@ testthat::test_that("opt.direction is deprecated", {
   testthat::skip_on_cran()
   causalOT:::torch_check()
 
+  # the default fixed-point solver is a dual solver
   testthat::expect_silent(opt <- cotOptions(lambda = 1))
-  testthat::expect_equal(opt$opt.direction, "primal")
+  testthat::expect_equal(opt$opt.direction, "dual")
 
   lifecycle::expect_deprecated(
     opt <- cotOptions(lambda = 1, opt.direction = "dual")
@@ -700,7 +701,7 @@ testthat::test_that("cotOptions warns about unused arguments", {
     opt <- cotOptions(lambda = 1, dual.sover = "mirror"),
     "dual.sover"
   )
-  testthat::expect_equal(opt$dual.solver, "fixed_point_joint")
+  testthat::expect_equal(opt$dual.solver, "fixed_point")
 
   # arguments used by the torch optimizer are passed through quietly
   testthat::expect_silent(opt <- cotOptions(lambda = 1, lr = 0.01))
@@ -714,9 +715,20 @@ testthat::test_that("cotOptions warns about unused arguments", {
   testthat::expect_equal(opt$ot_tol, 1e-5)
 })
 
-testthat::test_that("cotOptions defaults to the bootstrap lambda selector", {
+testthat::test_that("cotOptions defaults to the auto lambda selector", {
   testthat::skip_on_cran()
   causalOT:::torch_check()
 
-  testthat::expect_equal(cotOptions()$lambda.selector, "bootstrap_legacy")
+  testthat::expect_equal(cotOptions()$lambda, "auto")
+  testthat::expect_equal(cotOptions()$lambda.selector, "auto")
+})
+
+testthat::test_that("cotOptions keeps a custom cost function", {
+  causalOT:::torch_check()
+  euclidean <- function(x1, x2, p) torch::torch_cdist(x1, x2, p = 2)
+  testthat::expect_silent(opts <- causalOT:::cotOptions(cost.function = euclidean))
+  testthat::expect_identical(opts$cost.function, euclidean)
+  testthat::expect_null(causalOT:::cotOptions()$cost.function)
+  testthat::expect_null(causalOT:::cotOptions(cost.function = NA)$cost.function)
+  testthat::expect_error(causalOT:::cotOptions(cost.function = "euclidean"), "must be a function")
 })

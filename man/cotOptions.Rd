@@ -5,13 +5,13 @@
 \title{Options available for the COT method}
 \usage{
 cotOptions(
-  lambda = NULL,
+  lambda = "auto",
   delta = NULL,
   opt.direction = deprecated(),
-  dual.solver = c("fixed_point_joint", "joint", "entropy"),
+  dual.solver = c("fixed_point_joint", "joint", "entropy", "fixed_point"),
   debias = TRUE,
-  solver = c("lbfgs", "mirror"),
-  polish = c("none", "auto"),
+  solver = c("fixed_point", "lbfgs", "mirror"),
+  polish = c("auto", "none"),
   p = 2,
   cost.function = NULL,
   cost.online = "auto",
@@ -21,12 +21,10 @@ cotOptions(
   grid.length = 7L,
   torch.optimizer = torch::optim_rmsprop,
   torch.scheduler = torch::lr_multiplicative,
-  niter = 2000,
+  niter = 500L,
   nboot = 100L,
   lambda.bootstrap = 0.05,
-  lambda.selector = c("bootstrap_legacy", "sym_evidence", "profile_symmetric_loo",
-    "profile_marginal_loo", "symmetric_loo", "marginal_loo", "mass_bootstrap_symmetric",
-    "legacy_bootstrap_balance", "kfold_symmetric"),
+  lambda.selector = c("auto", "bootstrap"),
   lambda.selector.control = list(),
   tol = 1e-04,
   device = NULL,
@@ -35,25 +33,55 @@ cotOptions(
 )
 }
 \arguments{
-\item{lambda}{The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.}
+\item{lambda}{The entropy penalty in solver cost units. The default,
+\code{"auto"}, selects one positive value before fitting by predicting binary
+treatment from pooled covariates. A numeric scalar or vector specifies
+fixed candidates and \code{NULL} fits a default grid. \code{"auto"} requires
+\code{\link[=calc_weight]{calc_weight()}}, uniform observation weights and the standard squared
+Euclidean cost (\code{p = 2}); otherwise the default grid is fit and
+\code{lambda.selector} chooses among it.
+It searches the multiplier of the median off-diagonal solver cost using
+centered kernel ridge regression with an unpenalized intercept and
+leave-one-out scoring, profiling nine ridge penalties. The full-data
+ridge penalty is held fixed for deletion. The result is the best evaluated
+score within a bounded search, not a global optimum. The default budget is
+50 evaluations with at most two boundary expansions; scores within
+\verb{1e-10 * max(1, abs(best score))} are tied in favor of larger multipliers.
+Selection evaluates solver costs on CPU in double precision, independently
+of the final fit's device and dtype, for stable spectral calculations.
+Each evaluation requires dense cubic-time linear algebra. Above 2000 rows a
+reproducible treatment-stratified subsample determines the cost scale and
+lambda, while final weights use all rows. Selection diagnostics are in
+\code{weights@info$lambda_selection}; set \code{lambda.selector.control = list(details = TRUE)} to retain the evaluation trace. Numeric lambda values
+remain in solver units; for squared Euclidean cost the median solver cost
+is half the median squared distance.}
 
 \item{delta}{The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.}
 
 \item{opt.direction}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{solver}
 instead. Should the optimizer solve the primal or dual problems. One of
-"dual" or "primal"; "primal" is used if not supplied.}
+"dual" or "primal".}
 
-\item{dual.solver}{Solver to use when \code{opt.direction = "dual"}. \code{"fixed_point_joint"} uses the joint KL forward with fixed-point updates on the source log-weights, \code{"joint"} uses alternating torch optimization over the dual potential and source log-weights, while \code{"entropy"} uses the legacy entropy-implied weight update path.}
+\item{dual.solver}{Legacy solver selection when \code{opt.direction = "dual"}.
+\code{"fixed_point"} selects the entropy-potential fixed-point solver; the
+legacy default \code{"fixed_point_joint"} is a different joint KL trainer.
+\code{"joint"} and \code{"entropy"} select the other legacy dual trainers.}
 
 \item{debias}{Should debiased optimal transport be used? TRUE or FALSE.}
 
-\item{solver}{Solver to use for COT weight optimization. For \code{opt.direction = "primal"}, solver options are \code{"lbfgs"} uses LBFGS optimization on the weights directly. \code{"mirror"} runs a mirror descent solver, which is typically faster.}
+\item{solver}{Solver for COT weight optimization. \code{"fixed_point"} (the
+default) uses entropy-potential updates with Anderson acceleration and
+requires debiased transport without balance constraints. When omitted,
+balance constraints or \code{debias = FALSE} select \code{"lbfgs"} instead.
+\code{"lbfgs"} optimizes weights directly and \code{"mirror"} uses mirror descent.}
 
-\item{polish}{"none" (the default) or "auto". "auto" refines eligible
-primal fits (one debiased weight problem, no balance constraints, at most
-2000 source points) in float64 with a Newton method and reports
-convergence in info()$polish. Larger fits are skipped and keep the
-solver's own convergence flag.}
+\item{polish}{"auto" (the default) or "none". "auto" refines eligible
+fixed-point, L-BFGS, and mirror fits with one debiased weight problem and
+no balance constraints in float64. It skips refinement when the initial
+free set exceeds 2000 points. \code{info()$polish} reports the status and number
+of refinement iterations; convergence is reported in \code{info()$converged}
+and \code{info()$reason}. Fixed-point fits with \code{"none"} may stop at the
+iteration cap without a warning and retain their phase-1 convergence status.}
 
 \item{p}{The power of the cost function to use for the cost.}
 
@@ -73,25 +101,25 @@ solver's own convergence flag.}
 
 \item{torch.scheduler}{The scheduler for the optimizer. Defaults to \code{\link[torch:lr_multiplicative]{torch::lr_multiplicative()}} for RMSprop-based dual solvers and \code{\link[torch:lr_reduce_on_plateau]{torch::lr_reduce_on_plateau()}} for LBFGS.}
 
-\item{niter}{The number of iterations to run the solver}
+\item{niter}{The maximum number of solver iterations (default 500).}
 
 \item{nboot}{The number of iterations for the bootstrap to select the final penalty parameters.}
 
 \item{lambda.bootstrap}{The penalty parameter to use for the bootstrap hyperparameter selection of lambda.}
 
-\item{lambda.selector}{How to select lambda among the fitted grid. The
-default, \code{"bootstrap_legacy"}, is the bootstrap selector used in previous
-versions of the package. The experimental alternatives are
-\code{"profile_symmetric_loo"}, \code{"profile_marginal_loo"}, \code{"symmetric_loo"},
-\code{"marginal_loo"}, and \code{"mass_bootstrap_symmetric"}. \code{"sym_evidence"} is retained as a
-backward-compatible alias for \code{"profile_symmetric_loo"}, and
-\code{"legacy_bootstrap_balance"} is retained as an alias for
-\code{"bootstrap_legacy"}.}
+\item{lambda.selector}{How to select lambda among a fitted grid. The
+default, \code{"auto"}, scores the positive finite candidates by pooled
+binary-label prediction, without refitting. Grid ATE uses one score and a
+candidate usable by both arm fits. \code{"bootstrap"} is the bootstrap selector
+used in previous versions of the package, controlled by \code{nboot} and
+\code{lambda.bootstrap}. \code{"auto"} uses \code{"bootstrap"} when its own rule does
+not apply (non-uniform observation weights, \code{p != 2}, a custom
+\code{cost.function}, or no finite positive candidate) and records why in
+\code{weights@info$metric$lambda.note}.}
 
 \item{lambda.selector.control}{Optional list of controls for lambda
-selection. Supported entries are \code{pilot.weights}, \code{details},
-\code{mass.bootstrap.summary}, \code{mass.bootstrap.quantile}, and
-\code{mass.bootstrap.kappa}.}
+selection. The only entry is \code{details}; \code{TRUE} keeps the evaluation trace
+of the \code{"auto"} search.}
 
 \item{tol}{Relative tolerance for final fit convergence (default 1e-4),
 shared by phase 1 and polish: \code{gap <= atol + tol * max(0, D)}, where
@@ -112,7 +140,17 @@ violation is below \code{ot_tol}.}
 \item{dtype}{An object of class \code{torch_dtype} that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.}
 
 \item{...}{Arguments passed to the solvers. See details. Named arguments
-not used by any solver produce a warning.}
+not used by any solver produce a warning. For \code{dual.solver = "fixed_point"},
+these include \code{fixed_point_update} (\code{"anderson"} or \code{"momentum"}),
+\code{fixed_point_eta} (default 1), \code{fixed_point_beta} (default 0.9),
+\code{anderson_m} (default 5), \code{check_every} (default 50), and
+\code{fixed_point_lambda_order} (\code{"ascending"}, the default, or \code{"descending"}).
+\code{fixed_point_warm_start_mix} (default 1) is the fraction of uniform mass
+mixed into the incoming weights before the entropy potential is rebuilt
+when more iterations are needed. The default 1 restarts each lambda from
+uniform weights; values below 1 keep part of the previous solution. Each
+new lambda first checks the incoming weights and returns them exactly if
+they already pass the gap test.}
 }
 \value{
 A list of class \code{cotOptions} with the following slots
@@ -176,5 +214,6 @@ if ( torch::torch_is_installed()) {
 opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_rmsprop)
 opts2 <- cotOptions(lambda = NULL)
 opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
+opts4 <- cotOptions(lambda = "auto")
 }
 }

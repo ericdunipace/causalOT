@@ -82,8 +82,40 @@ calc_weight <- function(x, z,
   if (method == "Wasserstein") method <- "COT"
   estimand <- match.arg(estimand)
 
+  # check labels before dataHolder coerces them to integers
+  z_binary <- !is.matrix(x) ||
+    ((is.numeric(z) || is.logical(z)) && !anyNA(z) && all(z %in% c(0, 1)))
+
   # process the data
   data <- dataHolder(x = x, z = z, y = NA_real_, weights = weights)
+
+  selection <- NULL
+  if (method == "COT") {
+    if (!inherits(options, "cotOptions")) options <- do.call(cotOptions, as.list(options))
+    # "auto" predicts treatment from pooled rows with uniform weights and standard cost
+    # otherwise use the bootstrap
+    n <- length(data@z)
+    auto_ok <- z_binary &&
+      all(tabulate(data@z + 1L, 2L) >= 2L) &&
+      all(is.finite(data@weights)) &&
+      max(abs(data@weights - 1 / n)) <= 1e-10 / n &&
+      isTRUE(options$p == 2) && is.null(options$cost.function)
+    if (!auto_ok) {
+      if (identical(options$lambda, "auto")) {
+        options["lambda"] <- list(NULL)
+        if (is.null(options$grid.length)) options$grid.length <- 7L
+      }
+      if (identical(options$lambda.selector, "auto")) options$lambda.selector <- "bootstrap"
+    }
+    if (identical(options$lambda, "auto")) {
+      selection <- cot_select_trt_rbf(data, options)
+      options$lambda <- selection$lambda
+    }
+    # use original pooled observations for tuning across estimands
+    if (identical(options$lambda.selector, "auto")) {
+      options$lambda.selection.data <- list(x = data@x, z = data@z)
+    }
+  }
 
   # set up the solver
   problem <- cotProblem(data, estimand, method,
@@ -95,6 +127,11 @@ calc_weight <- function(x, z,
   # save the call and data
   # these involve copying the object which isn't ideal. 
   # may change in the future
+  if (is.null(selection) && method == "COT") {
+    metrics <- if (estimand == "ATE") cw@info$w0$metric else cw@info$metric
+    if (is.list(metrics)) selection <- metrics$lambda.details
+  }
+  if (!is.null(selection)) cw@info$lambda_selection <- selection
   cw@call <- mc
   cw@data <- data
   

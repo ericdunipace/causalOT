@@ -22,13 +22,20 @@ COT <- R6::R6Class(
       gridInit = function(...) {
         private$optimizer$penalty$lambda
       },
-      grid_search = function(...) {
+      rbf_path_eligibility = function() {
+        private$optimizer$rbf_path_eligibility()
+      },
+      rbf_grid = function() private$optimizer$rbf_grid(),
+      rbf_shared_scores = function() private$optimizer$rbf_shared_scores(),
+      grid_search = function(.rbf.eligible = NULL, .rbf.shared = NULL, ...) {
         private$optimizer$choose_hyperparameters(
           n_boot_lambda = self$nboot,
           n_boot_delta = self$nboot,
           lambda_bootstrap = self$lambda_bootstrap,
           lambda.selector = self$lambda_selector,
-          lambda.selector.control = self$lambda_selector_control
+          lambda.selector.control = self$lambda_selector_control,
+          .rbf.eligible = .rbf.eligible,
+          .rbf.shared = .rbf.shared
         )
 
         lambda <- private$optimizer$selected_lambda
@@ -130,6 +137,12 @@ COT <- R6::R6Class(
           options <- do.call(cotOptions, options)
         }
 
+        # lambda = "auto" needs pooled data; otherwise use the default grid
+        if (identical(options$lambda, "auto")) {
+          options["lambda"] <- list(NULL)
+          if (is.null(options$grid.length)) options$grid.length <- 7L
+        }
+
         self$niter <- options$niter
         self$tol <- options$tol
         self$nboot <- options$nboot
@@ -217,6 +230,7 @@ COT <- R6::R6Class(
             options$dual.solver,
             "joint" = cotDualTrain,
             "fixed_point_joint" = cotDualFixedPointJointTrain,
+            "fixed_point" = cotDualEntropyFixedPointTrain,
             "entropy" = cotDualLegacyTrain
           ),
           "nnm" = NNM
@@ -299,14 +313,43 @@ COT <- R6::R6Class(
 # COT options function
 #' Options available for the COT method
 #'
-#' @param lambda The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.
+#' @param lambda The entropy penalty in solver cost units. The default,
+#'   `"auto"`, selects one positive value before fitting by predicting binary
+#'   treatment from pooled covariates. A numeric scalar or vector specifies
+#'   fixed candidates and `NULL` fits a default grid. `"auto"` requires
+#'   [calc_weight()], uniform observation weights and the standard squared
+#'   Euclidean cost (`p = 2`); otherwise the default grid is fit and
+#'   `lambda.selector` chooses among it.
+#'   It searches the multiplier of the median off-diagonal solver cost using
+#'   centered kernel ridge regression with an unpenalized intercept and
+#'   leave-one-out scoring, profiling nine ridge penalties. The full-data
+#'   ridge penalty is held fixed for deletion. The result is the best evaluated
+#'   score within a bounded search, not a global optimum. The default budget is
+#'   50 evaluations with at most two boundary expansions; scores within
+#'   `1e-10 * max(1, abs(best score))` are tied in favor of larger multipliers.
+#'   Selection evaluates solver costs on CPU in double precision, independently
+#'   of the final fit's device and dtype, for stable spectral calculations.
+#'   Each evaluation requires dense cubic-time linear algebra. Above 2000 rows a
+#'   reproducible treatment-stratified subsample determines the cost scale and
+#'   lambda, while final weights use all rows. Selection diagnostics are in
+#'   `weights@info$lambda_selection`; set `lambda.selector.control =
+#'   list(details = TRUE)` to retain the evaluation trace. Numeric lambda values
+#'   remain in solver units; for squared Euclidean cost the median solver cost
+#'   is half the median squared distance.
 #' @param delta The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.
 #' @param opt.direction `r lifecycle::badge("deprecated")` Use `solver`
 #'   instead. Should the optimizer solve the primal or dual problems. One of
-#'   "dual" or "primal"; "primal" is used if not supplied.
-#' @param dual.solver Solver to use when `opt.direction = "dual"`. `"fixed_point_joint"` uses the joint KL forward with fixed-point updates on the source log-weights, `"joint"` uses alternating torch optimization over the dual potential and source log-weights, while `"entropy"` uses the legacy entropy-implied weight update path.
+#'   "dual" or "primal".
+#' @param dual.solver Legacy solver selection when `opt.direction = "dual"`.
+#'   `"fixed_point"` selects the entropy-potential fixed-point solver; the
+#'   legacy default `"fixed_point_joint"` is a different joint KL trainer.
+#'   `"joint"` and `"entropy"` select the other legacy dual trainers.
 #' @param debias Should debiased optimal transport be used? TRUE or FALSE.
-#' @param solver Solver to use for COT weight optimization. For `opt.direction = "primal"`, solver options are `"lbfgs"` uses LBFGS optimization on the weights directly. `"mirror"` runs a mirror descent solver, which is typically faster.
+#' @param solver Solver for COT weight optimization. `"fixed_point"` (the
+#'   default) uses entropy-potential updates with Anderson acceleration and
+#'   requires debiased transport without balance constraints. When omitted,
+#'   balance constraints or `debias = FALSE` select `"lbfgs"` instead.
+#'   `"lbfgs"` optimizes weights directly and `"mirror"` uses mirror descent.
 #' @param p The power of the cost function to use for the cost.
 #' @param cost.function A function to calculate the pairwise costs. Should take arguments `x1`, `x2`, and `p`. Default is NULL.
 #' @param cost.online Should an online cost algorithm be used? One of "auto", "online", or "tensorized". "tensorized" is the offline option.
@@ -316,26 +359,28 @@ COT <- R6::R6Class(
 #' @param grid.length The number of penalty parameters to explore in a grid search if none are provided in arguments `lambda` or `delta`.
 #' @param torch.optimizer The torch optimizer to use for methods using debiased entropy penalized optimal transport. If `debiased` is FALSE or `opt.direction` is "primal", will default to [torch::optim_lbfgs()]. Otherwise [torch::optim_rmsprop()] is used for the dual potential block. Joint dual solvers use an internal RMSprop optimizer for the trainable log-weight block.
 #' @param torch.scheduler The scheduler for the optimizer. Defaults to [torch::lr_multiplicative()] for RMSprop-based dual solvers and [torch::lr_reduce_on_plateau()] for LBFGS.
-#' @param niter The number of iterations to run the solver
+#' @param niter The maximum number of solver iterations (default 500).
 #' @param nboot The number of iterations for the bootstrap to select the final penalty parameters.
 #' @param lambda.bootstrap The penalty parameter to use for the bootstrap hyperparameter selection of lambda.
-#' @param lambda.selector How to select lambda among the fitted grid. The
-#'   default, `"bootstrap_legacy"`, is the bootstrap selector used in previous
-#'   versions of the package. The experimental alternatives are
-#'   `"profile_symmetric_loo"`, `"profile_marginal_loo"`, `"symmetric_loo"`,
-#'   `"marginal_loo"`, and `"mass_bootstrap_symmetric"`. `"sym_evidence"` is retained as a
-#'   backward-compatible alias for `"profile_symmetric_loo"`, and
-#'   `"legacy_bootstrap_balance"` is retained as an alias for
-#'   `"bootstrap_legacy"`.
+#' @param lambda.selector How to select lambda among a fitted grid. The
+#'   default, `"auto"`, scores the positive finite candidates by pooled
+#'   binary-label prediction, without refitting. Grid ATE uses one score and a
+#'   candidate usable by both arm fits. `"bootstrap"` is the bootstrap selector
+#'   used in previous versions of the package, controlled by `nboot` and
+#'   `lambda.bootstrap`. `"auto"` uses `"bootstrap"` when its own rule does
+#'   not apply (non-uniform observation weights, `p != 2`, a custom
+#'   `cost.function`, or no finite positive candidate) and records why in
+#'   `weights@info$metric$lambda.note`.
 #' @param lambda.selector.control Optional list of controls for lambda
-#'   selection. Supported entries are `pilot.weights`, `details`,
-#'   `mass.bootstrap.summary`, `mass.bootstrap.quantile`, and
-#'   `mass.bootstrap.kappa`.
-#' @param polish "none" (the default) or "auto". "auto" refines eligible
-#' primal fits (one debiased weight problem, no balance constraints, at most
-#' 2000 source points) in float64 with a Newton method and reports
-#' convergence in info()$polish. Larger fits are skipped and keep the
-#' solver's own convergence flag.
+#'   selection. The only entry is `details`; `TRUE` keeps the evaluation trace
+#'   of the `"auto"` search.
+#' @param polish "auto" (the default) or "none". "auto" refines eligible
+#'   fixed-point, L-BFGS, and mirror fits with one debiased weight problem and
+#'   no balance constraints in float64. It skips refinement when the initial
+#'   free set exceeds 2000 points. `info()$polish` reports the status and number
+#'   of refinement iterations; convergence is reported in `info()$converged`
+#'   and `info()$reason`. Fixed-point fits with `"none"` may stop at the
+#'   iteration cap without a warning and retain their phase-1 convergence status.
 #' @param tol Relative tolerance for final fit convergence (default 1e-4),
 #'   shared by phase 1 and polish: `gap <= atol + tol * max(0, D)`, where
 #'   `D` is the debiased divergence. Unpolished fits use `atol = ot_tol`
@@ -352,8 +397,17 @@ COT <- R6::R6Class(
 #' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
 #' @param ... Arguments passed to the solvers. See details. Named arguments
-#'   not used by any solver produce a warning.
-#'
+#'   not used by any solver produce a warning. For `dual.solver = "fixed_point"`,
+#'   these include `fixed_point_update` (`"anderson"` or `"momentum"`),
+#'   `fixed_point_eta` (default 1), `fixed_point_beta` (default 0.9),
+#'   `anderson_m` (default 5), `check_every` (default 50), and
+#'   `fixed_point_lambda_order` (`"ascending"`, the default, or `"descending"`).
+#'   `fixed_point_warm_start_mix` (default 1) is the fraction of uniform mass
+#'   mixed into the incoming weights before the entropy potential is rebuilt
+#'   when more iterations are needed. The default 1 restarts each lambda from
+#'   uniform weights; values below 1 keep part of the previous solution. Each
+#'   new lambda first checks the incoming weights and returns them exactly if
+#'   they already pass the gap test.
 #' @return A list of class `cotOptions` with the following slots
 #' \itemize{
 #' \item `lambda`The penalty parameter for the optimal transport distance
@@ -409,15 +463,16 @@ COT <- R6::R6Class(
 #' opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_rmsprop)
 #' opts2 <- cotOptions(lambda = NULL)
 #' opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
+#' opts4 <- cotOptions(lambda = "auto")
 #' }
 cotOptions <- function(
-  lambda = NULL,
+  lambda = "auto",
   delta = NULL,
   opt.direction = deprecated(),
-  dual.solver = c("fixed_point_joint", "joint", "entropy"),
+  dual.solver = c("fixed_point_joint", "joint", "entropy", "fixed_point"),
   debias = TRUE,
-  solver = c("lbfgs", "mirror"),
-  polish = c("none", "auto"),
+  solver = c("fixed_point", "lbfgs", "mirror"),
+  polish = c("auto", "none"),
   p = 2.0,
   cost.function = NULL,
   cost.online = "auto",
@@ -427,20 +482,10 @@ cotOptions <- function(
   grid.length = 7L,
   torch.optimizer = torch::optim_rmsprop,
   torch.scheduler = torch::lr_multiplicative,
-  niter = 2e3,
+  niter = 500L,
   nboot = 100L,
   lambda.bootstrap = 0.05,
-  lambda.selector = c(
-    "bootstrap_legacy",
-    "sym_evidence",
-    "profile_symmetric_loo",
-    "profile_marginal_loo",
-    "symmetric_loo",
-    "marginal_loo",
-    "mass_bootstrap_symmetric",
-    "legacy_bootstrap_balance",
-    "kfold_symmetric"
-  ),
+  lambda.selector = c("auto", "bootstrap"),
   lambda.selector.control = list(),
   tol = 1e-4,
   device = NULL,
@@ -467,9 +512,14 @@ cotOptions <- function(
   grid.length <- gsOpts$grid.length
 
   output <- list()
-  if (missing(lambda) || arg_not_used(lambda)) {
+  if (missing(lambda) || identical(lambda, "auto")) {
+    output$lambda <- "auto"
+  } else if (arg_not_used(lambda)) {
     output["lambda"] <- list(NULL)
   } else {
+    if (!is.numeric(lambda) || anyNA(lambda)) {
+      stop("lambda must be numeric, NULL, or 'auto'.")
+    }
     if (any(lambda < 0)) {
       stop("lambda must be >= 0")
     }
@@ -503,7 +553,7 @@ cotOptions <- function(
   } else {
     output[["dual.solver"]] <- match.arg(
       dual.solver,
-      c("fixed_point_joint", "joint", "entropy")
+      c("fixed_point_joint", "joint", "entropy", "fixed_point")
     )
   }
 
@@ -512,18 +562,33 @@ cotOptions <- function(
   } else {
     output$debias <- isTRUE(debias)
   }
-  if ((!output$debias) && output$opt.direction == "dual") {
-    output$opt.direction <- "primal"
-  }
-  if (missing(solver) || arg_not_used(solver)) {
-    output[["solver"]] <- "lbfgs"
+  solver_missing <- missing(solver) || arg_not_used(solver)
+  has_balance <- !is.null(output$delta) ||
+    (!missing(balance.formula) &&
+      (inherits(balance.formula, "formula") || !arg_not_used(balance.formula)))
+  legacy_direction <- lifecycle::is_present(opt.direction) && !arg_not_used(opt.direction)
+  if (solver_missing) {
+    output[["solver"]] <- if (!output$debias || has_balance || legacy_direction) {
+      "lbfgs"
+    } else {
+      "fixed_point"
+    }
   } else {
-    output[["solver"]] <- match.arg(solver, c("lbfgs", "mirror"))
+    output[["solver"]] <- match.arg(solver, c("fixed_point", "lbfgs", "mirror"))
+  }
+  if (output$solver == "fixed_point") {
+    if (!output$debias) stop("solver = 'fixed_point' requires debias = TRUE.")
+    if (has_balance) stop("solver = 'fixed_point' does not support balance constraints.")
+    output$opt.direction <- "dual"
+    output$dual.solver <- "fixed_point"
+  } else if (!output$debias && output$opt.direction == "dual") {
+    output$opt.direction <- "primal"
   }
 
   output$polish <- match.arg(polish)
 
-  if (missing(balance.formula) || arg_not_used(balance.formula)) {
+  if (missing(balance.formula) ||
+      (!inherits(balance.formula, "formula") && arg_not_used(balance.formula))) {
     output["balance.formula"] <- list(NULL)
   } else {
     balance.formula <- as.character(balance.formula)
@@ -562,10 +627,13 @@ cotOptions <- function(
       c("auto", "tensorized", "online")
     )
   }
-  if (missing(cost.function) || arg_not_used(cost.function)) {
+  # check for a function first: arg_not_used() calls is.na(), which warns on one
+  if (!missing(cost.function) && is.function(cost.function)) {
+    output["cost.function"] <- list(cost.function)
+  } else if (missing(cost.function) || arg_not_used(cost.function)) {
     output["cost.function"] <- list(NULL)
   } else {
-    output["cost.function"] <- cost.function
+    stop("cost.function must be a function or NULL.")
   }
   if (missing(diameter) || arg_not_used(diameter)) {
     output["diameter"] <- list(NULL)
@@ -605,8 +673,7 @@ cotOptions <- function(
     ]
   }
 
-  # Without a line search, torch's LBFGS takes full steps, which can collapse
-  # the weights onto a single point. Use strong Wolfe unless the user chose.
+  # use strong Wolfe by default to avoid weight collapse from full LBFGS steps
   if (
     inherits(output$torch.optimizer, "optim_lbfgs") &&
       !("line_search_fn" %in% names(list(...)))
@@ -641,7 +708,7 @@ cotOptions <- function(
   }
 
   if (arg_not_used(niter)) {
-    output$niter <- 1000L
+    output$niter <- 500L
   } else {
     output$niter <- as.integer(niter)
   }
@@ -660,9 +727,18 @@ cotOptions <- function(
   }
 
   if (missing(lambda.selector) || arg_not_used(lambda.selector)) {
-    output$lambda.selector <- cot_normalize_lambda_selector("bootstrap_legacy")
+    output$lambda.selector <- "auto"
   } else {
     output$lambda.selector <- cot_normalize_lambda_selector(lambda.selector)
+  }
+
+  # keep RBF input order for fitted-path indices
+  if (
+    identical(output$lambda.selector, "auto") &&
+      !missing(lambda) &&
+      is.numeric(lambda)
+  ) {
+    output$lambda <- lambda
   }
 
   if (
@@ -702,6 +778,11 @@ cotOptions <- function(
     "a_log_momentum",
     "fixed_point_eta",
     "fixed_point_beta",
+    "fixed_point_update",
+    "fixed_point_lambda_order",
+    "fixed_point_warm_start_mix",
+    "anderson_m",
+    "check_every",
     "fixed_point_weight_floor",
     "fixed_point_objective_check_every",
     "fixed_point_objective_bad_limit",
@@ -765,9 +846,10 @@ cotOptions <- function(
     }
     if (
       is.null(output$lambda) ||
-        length(output$lambda) != 1L ||
-        !is.finite(output$lambda) ||
-        output$lambda <= 0
+        (!identical(output$lambda, "auto") &&
+          (length(output$lambda) != 1L ||
+            !is.finite(output$lambda) ||
+            output$lambda <= 0))
     ) {
       stop("solver = 'mirror' requires a single finite positive lambda.")
     }

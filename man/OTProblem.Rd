@@ -281,6 +281,17 @@ if (torch::torch_is_installed()) {
  ot$setup_arguments(lambda = c(1,1000))
  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
  ot$choose_hyperparameters(n_boot_lambda = 2, n_boot_delta = 10, lambda_bootstrap = 100)
+
+ # Fixed-support two-sample membership can be inferred. For overlapping
+ # supports or composite objectives, supply pooled x, binary z, and
+ # optional unique unit.id through lambda.selection.data at setup.
+ x0 <- matrix(c(-2, -1, 0, 1), ncol = 1)
+ x1 <- matrix(c(0, 1, 2, 3), ncol = 1)
+ rbf <- OTProblem(Measure(x0, adapt = "weights"), Measure(x1))
+ rbf$setup_arguments(lambda = c(.1, 1, 10))
+ rbf$solve(niter = 2)
+ rbf$choose_hyperparameters(lambda.selector = "auto")
+ rbf$info()$hyperparam.metrics$lambda.details
 }
 
 ## ------------------------------------------------
@@ -327,6 +338,9 @@ it was polished, otherwise \code{NULL}.}
     \item \href{#method-OTProblem-initialize}{\code{OTProblem$new()}}
     \item \href{#method-OTProblem-setup_arguments}{\code{OTProblem$setup_arguments()}}
     \item \href{#method-OTProblem-solve}{\code{OTProblem$solve()}}
+    \item \href{#method-OTProblem-rbf_path_eligibility}{\code{OTProblem$rbf_path_eligibility()}}
+    \item \href{#method-OTProblem-rbf_grid}{\code{OTProblem$rbf_grid()}}
+    \item \href{#method-OTProblem-rbf_shared_scores}{\code{OTProblem$rbf_shared_scores()}}
     \item \href{#method-OTProblem-choose_hyperparameters}{\code{OTProblem$choose_hyperparameters()}}
     \item \href{#method-OTProblem-info}{\code{OTProblem$info()}}
     \item \href{#method-OTProblem-clone}{\code{OTProblem$clone()}}
@@ -618,14 +632,18 @@ if (torch::torch_is_installed()) {
   diameter = NULL,
   ot_niter = 1000L,
   ot_tol = 0.001,
-  polish = c("none", "auto")
+  polish = c("none", "auto"),
+  lambda.selection.data = NULL,
+  lambda.selector.control = list()
 )}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{lambda}}{The penalty parameters to try for the \code{OTProblem.} If not provided, the function will select some.}
+      \item{\code{lambda}}{Numeric penalty candidates in solver cost units, or
+\code{"auto"} to select one positive value before fitting using
+pooled binary-label prediction. If omitted, a default grid is used.}
       \item{\code{delta}}{The constraint paramters to try for the balance function problems, if any.}
       \item{\code{grid.length}}{The number of hyperparameters to try if not provided}
       \item{\code{cost.function}}{The cost function for the data. Can be any function that takes arguments \code{x1}, \code{x2}, \code{p}. Defaults to the Euclidean distance.}
@@ -637,6 +655,20 @@ if (torch::torch_is_installed()) {
       \item{\code{ot_tol}}{Sinkhorn tolerance: iterations stop once the largest change
 in the potentials is below \code{ot_tol * lambda}.}
       \item{\code{polish}}{Primal weight refinement, \code{"auto"} or \code{"none"}; see \code{\link[=cotOptions]{cotOptions()}}.}
+      \item{\code{lambda.selection.data}}{Optional list containing pooled covariates \code{x},
+binary labels \code{z}, and optional unique \code{unit.id}. Covariates must have
+the solver's feature order and scaling. For a single two-sample term,
+labels can instead be inferred from measure membership; absent unit IDs,
+this assumes independent samples. In a general OT problem these labels
+represent sample membership, not necessarily causal treatment. The
+caller chooses the pooling and labels for the intended comparison.
+Shared IDs require explicit pooled data, and supplied IDs must be
+unique. Identical covariate rows are not deduplicated. Composite
+objectives require explicit data. RBF selection requires fixed
+supports, uniform original masses, standard p = 2 cost, and two
+observations per class.}
+      \item{\code{lambda.selector.control}}{Selection controls; set \code{details = TRUE}
+to retain the adaptive evaluation trace.}
     }
     \if{html}{\out{</div>}}
   }
@@ -672,7 +704,7 @@ in the potentials is below \code{ot_tol * lambda}.}
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{OTProblem$solve(
-  niter = 1000L,
+  niter = 500L,
   tol = 1e-05,
   optimizer = c("torch", "frank-wolfe"),
   torch_optim = torch::optim_lbfgs,
@@ -723,6 +755,51 @@ in the potentials is below \code{ot_tol * lambda}.}
 }
 
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-OTProblem-rbf_path_eligibility"></a>}}
+\if{latex}{\out{\hypertarget{method-OTProblem-rbf_path_eligibility}{}}}
+\subsection{\code{OTProblem$rbf_path_eligibility()}}{
+  Internal: inspect numerical eligibility for ATE coordination.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$rbf_path_eligibility()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A lambda grid and eligibility vector.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-OTProblem-rbf_grid"></a>}}
+\if{latex}{\out{\hypertarget{method-OTProblem-rbf_grid}{}}}
+\subsection{\code{OTProblem$rbf_grid()}}{
+  Internal: the lambda grid the \code{"auto"} selector would score.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$rbf_grid()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The input lambda grid, or \code{NULL} if \code{"auto"} cannot score it.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-OTProblem-rbf_shared_scores"></a>}}
+\if{latex}{\out{\hypertarget{method-OTProblem-rbf_shared_scores}{}}}
+\subsection{\code{OTProblem$rbf_shared_scores()}}{
+  Internal: share a prepared RBF context and score cache.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$rbf_shared_scores()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The prepared context and cache.
+  }
+}
+
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-choose_hyperparameters"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-choose_hyperparameters}{}}}
 \subsection{\code{OTProblem$choose_hyperparameters()}}{
@@ -733,10 +810,11 @@ in the potentials is below \code{ot_tol * lambda}.}
   n_boot_lambda = 100L,
   n_boot_delta = 1000L,
   lambda_bootstrap = Inf,
-  lambda.selector = c("bootstrap_legacy", "sym_evidence", "profile_symmetric_loo",
-    "profile_marginal_loo", "symmetric_loo", "marginal_loo", "mass_bootstrap_symmetric",
-    "legacy_bootstrap_balance", "kfold_symmetric"),
-  lambda.selector.control = list()
+  lambda.selector = c("auto", "bootstrap"),
+  lambda.selector.control = list(),
+  lambda.selection.data = NULL,
+  .rbf.eligible = NULL,
+  .rbf.shared = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -747,9 +825,17 @@ in the potentials is below \code{ot_tol * lambda}.}
       \item{\code{n_boot_delta}}{The number of bootstrap iterations to run when selecting delta}
       \item{\code{lambda_bootstrap}}{The penalty parameter to use when selecting lambda. Higher numbers run faster.}
       \item{\code{lambda.selector}}{Lambda selection rule to apply across the
-fitted lambda grid.}
+fitted lambda grid. \code{"auto"} (default) directly scores each eligible
+finite, positive supplied lambda using centered kernel-ridge
+leave-one-out prediction of the pooled binary labels. Ties favor the
+larger lambda. When that rule cannot be used for the problem, \code{"auto"}
+uses \code{"bootstrap"}, the bootstrap selector of earlier versions.}
       \item{\code{lambda.selector.control}}{Optional list of controls for the
 selected lambda selector.}
+      \item{\code{lambda.selection.data}}{Optional replacement list of pooled \code{x},
+binary \code{z}, and optional unique \code{unit.id}, in the solver's feature
+representation. If omitted, reuse the setup snapshot.}
+      \item{\code{.rbf.eligible, .rbf.shared}}{Internal arguments for coordinating ATE arms.}
     }
     \if{html}{\out{</div>}}
   }
@@ -773,6 +859,17 @@ selected lambda selector.}
  ot$setup_arguments(lambda = c(1,1000))
  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
  ot$choose_hyperparameters(n_boot_lambda = 2, n_boot_delta = 10, lambda_bootstrap = 100)
+
+ # Fixed-support two-sample membership can be inferred. For overlapping
+ # supports or composite objectives, supply pooled x, binary z, and
+ # optional unique unit.id through lambda.selection.data at setup.
+ x0 <- matrix(c(-2, -1, 0, 1), ncol = 1)
+ x1 <- matrix(c(0, 1, 2, 3), ncol = 1)
+ rbf <- OTProblem(Measure(x0, adapt = "weights"), Measure(x1))
+ rbf$setup_arguments(lambda = c(.1, 1, 10))
+ rbf$solve(niter = 2)
+ rbf$choose_hyperparameters(lambda.selector = "auto")
+ rbf$info()$hyperparam.metrics$lambda.details
 }
 }
     \if{html}{\out{</div>}}
@@ -797,6 +894,8 @@ selected lambda selector.}
 \item \code{balance.function.differences} The final differences in the balance functions
 \item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values
 \item \code{polish} Per-lambda and per-delta polish \code{status} and \code{iterations}.
+Eligible fixed-point fits report the same refinement or skip statuses
+as eligible primal fits; \code{none} means polishing was disabled.
 \item \code{converged} whether the Frank–Wolfe gap is below atol + tol * D.
 \item \code{reason} Per-lambda and per-delta outcome message: \code{ok}, \code{niter},
 \verb{gap above tolerance}, \verb{gap unavailable}, \verb{polish error: <msg>}, or

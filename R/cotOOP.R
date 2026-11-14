@@ -1244,7 +1244,9 @@ OTProblem_ <- R6::R6Class(
 
       #' @description
       #' Sets up the OT problems for the `OTProblem` object. This should be run before `choose_hyperparameters` and `solve`.
-      #' @param lambda The penalty parameters to try for the `OTProblem.` If not provided, the function will select some.
+      #' @param lambda Numeric penalty candidates in solver cost units, or
+      #'   `"auto"` to select one positive value before fitting using
+      #'   pooled binary-label prediction. If omitted, a default grid is used.
       #' @param delta The constraint paramters to try for the balance function problems, if any.
       #' @param grid.length The number of hyperparameters to try if not provided
       #' @param cost.function The cost function for the data. Can be any function that takes arguments `x1`, `x2`, `p`. Defaults to the Euclidean distance.
@@ -1273,6 +1275,20 @@ OTProblem_ <- R6::R6Class(
       #'  ot$setup_arguments(lambda = 1000)
       #' }
       #' @param polish Primal weight refinement, `"auto"` or `"none"`; see [cotOptions()].
+      #' @param lambda.selection.data Optional list containing pooled covariates `x`,
+      #'   binary labels `z`, and optional unique `unit.id`. Covariates must have
+      #'   the solver's feature order and scaling. For a single two-sample term,
+      #'   labels can instead be inferred from measure membership; absent unit IDs,
+      #'   this assumes independent samples. In a general OT problem these labels
+      #'   represent sample membership, not necessarily causal treatment. The
+      #'   caller chooses the pooling and labels for the intended comparison.
+      #'   Shared IDs require explicit pooled data, and supplied IDs must be
+      #'   unique. Identical covariate rows are not deduplicated. Composite
+      #'   objectives require explicit data. RBF selection requires fixed
+      #'   supports, uniform original masses, standard p = 2 cost, and two
+      #'   observations per class.
+      #' @param lambda.selector.control Selection controls; set `details = TRUE`
+      #'   to retain the adaptive evaluation trace.
       setup_arguments = function(
         lambda,
         delta,
@@ -1284,8 +1300,11 @@ OTProblem_ <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-3,
-        polish = c("none", "auto")
+        polish = c("none", "auto"),
+        lambda.selection.data = NULL,
+        lambda.selector.control = list()
       ) {
+        adaptive_rbf <- !missing(lambda) && identical(lambda, "auto")
         private$polish_method <- match.arg(polish)
         private$polish_cache <- new.env(parent = emptyenv())
         private$reason_run <- list()
@@ -1293,6 +1312,149 @@ OTProblem_ <- R6::R6Class(
         self$polished_weights <- NULL
         private$converged_run <- private$iterations_run <- private$final_loss <- private$weights_list <- list()
         prob_names <- ls(private$problems)
+        # Preserve original supports and masses before any optimization mutates them.
+        private$rbf_prepared <- NULL
+        private$rbf_adaptive <- NULL
+        private$rbf_context_error <- NULL
+        private$rbf_hard_error <- NULL
+        private$rbf_dimension <- NULL
+        private$rbf_cache <- new.env(parent = emptyenv())
+        private$rbf_support_snapshot <- lapply(
+          as.list(private$measures),
+          function(m) {
+            cot_to_numeric_matrix(m$x$detach())
+          }
+        )
+        private$rbf_cost_ok <- isTRUE(p == 2) && is.null(cost.function)
+        private$rbf_snapshot <- tryCatch(
+          {
+            measures <- lapply(ls(private$measures), function(k) {
+              private$measures[[k]]
+            })
+            if (
+              any(vapply(
+                measures,
+                function(m) identical(m$adapt, "x"),
+                logical(1)
+              ))
+            ) {
+              private$rbf_hard_error <- "RBF selection does not support adapt = 'x'."
+              stop(private$rbf_hard_error)
+            }
+            if (
+              any(vapply(
+                measures,
+                function(m) {
+                  w <- as.numeric(m$init_weights$detach()$to(device = "cpu"))
+                  any(!is.finite(w)) ||
+                    max(abs(w - 1 / length(w))) > 1e-6 / length(w)
+                },
+                logical(1)
+              ))
+            ) {
+              private$rbf_hard_error <- "RBF selection requires uniform original base observation weights."
+              stop(private$rbf_hard_error)
+            }
+            dims <- vapply(
+              measures,
+              function(m) as.integer(m$x$size(2)),
+              integer(1)
+            )
+            if (length(unique(dims)) != 1L) {
+              private$rbf_hard_error <- "RBF selection requires a common covariate geometry."
+              stop(private$rbf_hard_error)
+            }
+            private$rbf_dimension <- dims[1L]
+            if (!is.null(lambda.selection.data)) {
+              context <- cot_trt_rbf_context(
+                lambda.selection.data$x,
+                lambda.selection.data$z,
+                lambda.selection.data$unit.id
+              )
+              if (ncol(context$x) != dims[1L]) {
+                stop(
+                  "lambda.selection.data must match the solver covariate dimension."
+                )
+              }
+              context
+            } else {
+              if (
+                length(prob_names) != 1L ||
+                  !identical(
+                    private$objective,
+                    rlang::expr(oop_loss_select(private$ot_objects[[
+                      !!prob_names[[1L]]
+                    ]]))
+                  )
+              ) {
+                stop(
+                  "Composite OT problems require explicit lambda.selection.data."
+                )
+              }
+              adds <- private$problems[[prob_names[[1L]]]]
+              if (identical(adds[[1L]], adds[[2L]])) {
+                stop(
+                  "RBF selection cannot infer labels from the same measure on both sides."
+                )
+              }
+              a <- private$measures[[adds[[1L]]]]
+              b <- private$measures[[adds[[2L]]]]
+              for (ids in list(a$unit_id, b$unit_id)) {
+                if (!is.null(ids) && (anyNA(ids) || anyDuplicated(ids))) {
+                  stop(
+                    "Inference requires unique, nonmissing unit IDs within each measure."
+                  )
+                }
+              }
+              if (
+                !is.null(a$unit_id) &&
+                  !is.null(b$unit_id) &&
+                  length(intersect(a$unit_id, b$unit_id))
+              ) {
+                stop(
+                  "Overlapping unit IDs require explicit lambda.selection.data."
+                )
+              }
+              xa <- cot_to_numeric_matrix(a$x$detach())
+              xb <- cot_to_numeric_matrix(b$x$detach())
+              ids <- if (!is.null(a$unit_id) && !is.null(b$unit_id)) {
+                c(a$unit_id, b$unit_id)
+              } else {
+                NULL
+              }
+              cot_trt_rbf_context(
+                rbind(xa, xb),
+                c(rep(0L, nrow(xa)), rep(1L, nrow(xb))),
+                ids
+              )
+            }
+          },
+          error = function(e) {
+            private$rbf_context_error <- conditionMessage(e)
+            NULL
+          }
+        )
+        if (adaptive_rbf) {
+          private$prepare_rbf()
+          prep <- private$rbf_prepared
+          selection <- cot_trt_rbf_search(function(t) {
+            cot_trt_rbf_score(prep$C, prep$z, t)
+          })
+          selection$method <- "auto"
+          selection$mode <- "adaptive"
+          selection$median_cost <- prep$median_cost
+          selection$lambda <- selection$multiplier * prep$median_cost
+          selection$criterion <- prep$criterion
+          selection$sample_size <- prep$sample_size
+          selection$sample_indices <- prep$sample_indices
+          selection$sample_seed <- prep$sample_seed
+          selection$median_is_subsample <- prep$median_is_subsample
+          if (!isTRUE(lambda.selector.control$details)) {
+            selection$evaluations <- NULL
+          }
+          private$rbf_adaptive <- selection
+          lambda <- selection$lambda
+        }
         if (private$args_set) {
           warning(
             "OT problems already set up. This function will erase previous objects"
@@ -1409,7 +1571,9 @@ OTProblem_ <- R6::R6Class(
             Inf
           )
         }
-        lambda <- sort(as.numeric(lambda), decreasing = TRUE)
+        lambda <- as.numeric(lambda)
+        private$rbf_input_order <- order(lambda, decreasing = TRUE)
+        lambda <- lambda[private$rbf_input_order]
         private$penalty_input_list$lambda <- lambda
         private$penalty_list$lambda <- lambda
         private$penalty_list$lambda[private$penalty_input_list$lambda == 0] <-
@@ -1479,7 +1643,7 @@ OTProblem_ <- R6::R6Class(
       #'  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
       #' }
       solve = function(
-        niter = 1000L,
+        niter = 500L,
         tol = 1e-5,
         optimizer = c("torch", "frank-wolfe"),
         torch_optim = torch::optim_lbfgs,
@@ -1568,11 +1732,64 @@ OTProblem_ <- R6::R6Class(
           setNames(as.character(private$penalty_list$lambda))
 
         # optimize over lambda values
-        private$reason_run <- list()
+        private$reason_run <- vector(
+          "list",
+          length(private$penalty_list$lambda)
+        )
+        names(private$reason_run) <- as.character(private$penalty_list$lambda)
+        private$state_run <- vector("list", length(private$penalty_list$lambda))
         private$iterate_over_lambda(niter, tol)
         private$check_fit_path()
         torch_cubic_reassign()
         return(invisible(self))
+      },
+
+      #' @description Internal: inspect numerical eligibility for ATE coordination.
+      #' @return A lambda grid and eligibility vector.
+      rbf_path_eligibility = function() {
+        res <- private$setup_choose_hyperparameters()
+        valid_fit <- function(w) {
+          keys <- ls(w)
+          length(keys) > 0L &&
+            all(vapply(
+              keys,
+              function(k) {
+                if (length(dim(w[[k]])) > 1L) {
+                  all(is.finite(as.numeric(w[[k]]$to(device = "cpu"))))
+                } else {
+                  cot_fit_valid(w[[k]], 0)
+                }
+              },
+              logical(1)
+            ))
+        }
+        eligible <- vapply(
+          seq_along(res$lambda),
+          function(i) {
+            any(vapply(res$weights_list[[i]], valid_fit, logical(1)))
+          },
+          logical(1)
+        )
+        list(
+          lambda = as.numeric(res$lambda_input),
+          eligible = unname(eligible),
+          original_index = private$rbf_input_order
+        )
+      },
+      #' @description Internal: the lambda grid the `"auto"` selector would score.
+      #' @return The input lambda grid, or `NULL` if `"auto"` cannot score it.
+      rbf_grid = function() {
+        lambda <- private$penalty_input_list$lambda
+        usable <- is.null(private$rbf_unavailable()) &&
+          length(lambda) > 1L &&
+          any(is.finite(lambda) & lambda > 0)
+        if (usable) lambda else NULL
+      },
+      #' @description Internal: share a prepared RBF context and score cache.
+      #' @return The prepared context and cache.
+      rbf_shared_scores = function() {
+        private$prepare_rbf()
+        list(prepared = private$rbf_prepared, cache = private$rbf_cache)
       },
 
       #' @description
@@ -1581,9 +1798,17 @@ OTProblem_ <- R6::R6Class(
       #' @param n_boot_delta The number of bootstrap iterations to run when selecting delta
       #' @param lambda_bootstrap The penalty parameter to use when selecting lambda. Higher numbers run faster.
       #' @param lambda.selector Lambda selection rule to apply across the
-      #'   fitted lambda grid.
+      #'   fitted lambda grid. `"auto"` (default) directly scores each eligible
+      #'   finite, positive supplied lambda using centered kernel-ridge
+      #'   leave-one-out prediction of the pooled binary labels. Ties favor the
+      #'   larger lambda. When that rule cannot be used for the problem, `"auto"`
+      #'   uses `"bootstrap"`, the bootstrap selector of earlier versions.
       #' @param lambda.selector.control Optional list of controls for the
       #'   selected lambda selector.
+      #' @param lambda.selection.data Optional replacement list of pooled `x`,
+      #'   binary `z`, and optional unique `unit.id`, in the solver's feature
+      #'   representation. If omitted, reuse the setup snapshot.
+      #' @param .rbf.eligible,.rbf.shared Internal arguments for coordinating ATE arms.
       #' @return returns the object invisibly
       #'
       #' @examples
@@ -1602,37 +1827,82 @@ OTProblem_ <- R6::R6Class(
       #'  ot$setup_arguments(lambda = c(1,1000))
       #'  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
       #'  ot$choose_hyperparameters(n_boot_lambda = 2, n_boot_delta = 10, lambda_bootstrap = 100)
+      #'
+      #'  # Fixed-support two-sample membership can be inferred. For overlapping
+      #'  # supports or composite objectives, supply pooled x, binary z, and
+      #'  # optional unique unit.id through lambda.selection.data at setup.
+      #'  x0 <- matrix(c(-2, -1, 0, 1), ncol = 1)
+      #'  x1 <- matrix(c(0, 1, 2, 3), ncol = 1)
+      #'  rbf <- OTProblem(Measure(x0, adapt = "weights"), Measure(x1))
+      #'  rbf$setup_arguments(lambda = c(.1, 1, 10))
+      #'  rbf$solve(niter = 2)
+      #'  rbf$choose_hyperparameters(lambda.selector = "auto")
+      #'  rbf$info()$hyperparam.metrics$lambda.details
       #' }
+
       choose_hyperparameters = function(
         n_boot_lambda = 100L,
         n_boot_delta = 1000L,
         lambda_bootstrap = Inf,
-        lambda.selector = c(
-          "bootstrap_legacy",
-          "sym_evidence",
-          "profile_symmetric_loo",
-          "profile_marginal_loo",
-          "symmetric_loo",
-          "marginal_loo",
-          "mass_bootstrap_symmetric",
-          "legacy_bootstrap_balance",
-          "kfold_symmetric"
-        ),
-        lambda.selector.control = list()
+        lambda.selector = c("auto", "bootstrap"),
+        lambda.selector.control = list(),
+        lambda.selection.data = NULL,
+        .rbf.eligible = NULL,
+        .rbf.shared = NULL
       ) {
         # check arguments
-        stopifnot("n_boot_lambda must be >= 0" = n_boot_lambda >= 0)
         stopifnot("n_boot_delta must be >= 0" = n_boot_delta >= 0)
-        stopifnot("lambda_bootstrap must be > 0" = lambda_bootstrap > 0)
-        if (missing(lambda.selector)) {
-          lambda.selector <- "bootstrap_legacy"
-        } else if (length(lambda.selector) > 1L) {
+        if (length(lambda.selector) > 1L) {
           lambda.selector <- lambda.selector[[1L]]
         }
         lambda.selector <- cot_normalize_lambda_selector(lambda.selector)
         lambda.selector.control <- cot_normalize_lambda_selector_control(
           lambda.selector.control
         )
+
+        stopifnot("n_boot_lambda must be >= 0" = n_boot_lambda >= 0)
+        stopifnot("lambda_bootstrap must be > 0" = lambda_bootstrap > 0)
+
+        if (!is.null(lambda.selection.data)) {
+          context <- cot_trt_rbf_context(
+            lambda.selection.data$x,
+            lambda.selection.data$z,
+            lambda.selection.data$unit.id
+          )
+          if (
+            !is.null(private$rbf_dimension) &&
+              ncol(context$x) != private$rbf_dimension
+          ) {
+            stop(
+              "lambda.selection.data must match the solver covariate dimension."
+            )
+          }
+          private$rbf_snapshot <- context
+          private$rbf_context_error <- NULL
+          private$rbf_prepared <- NULL
+          private$rbf_cache <- new.env(parent = emptyenv())
+        }
+
+        if (!is.null(.rbf.shared)) {
+          reason <- private$rbf_unavailable()
+          if (!is.null(reason)) {
+            stop(reason)
+          }
+          for (key in names(private$rbf_support_snapshot)) {
+            if (
+              !identical(
+                cot_to_numeric_matrix(private$measures[[key]]$x$detach()),
+                private$rbf_support_snapshot[[key]]
+              )
+            ) {
+              stop(
+                "The fitted support changed after setup; run setup_arguments and solve again before lambda selection."
+              )
+            }
+          }
+          private$rbf_prepared <- .rbf.shared$prepared
+          private$rbf_cache <- .rbf.shared$cache
+        }
 
         # alter lists if needed for inherited classes
         res <- private$setup_choose_hyperparameters()
@@ -1648,11 +1918,11 @@ OTProblem_ <- R6::R6Class(
         lambda_keys <- as.character(lambda_values)
 
         # current weights list
-        weights_list <- lapply(lambda_keys, function(key) {
-          res$weights_list[[key]]
+        weights_list <- lapply(seq_along(lambda_values), function(i) {
+          res$weights_list[[i]]
         })
-        converged_list <- lapply(lambda_keys, function(key) {
-          res$converged[[key]]
+        converged_list <- lapply(seq_along(lambda_values), function(i) {
+          res$converged[[i]]
         })
         weights_converged <- rep(TRUE, n_lambda)
         fit_failed <- function(w) {
@@ -1791,7 +2061,15 @@ OTProblem_ <- R6::R6Class(
           lambda_selector_control = lambda.selector.control,
           n_boot_lambda = n_boot_lambda,
           lambda_bootstrap = lambda_bootstrap,
-          weights_failed = vapply(weights_list, fit_failed, logical(1))
+          weights_failed = vapply(weights_list, fit_failed, logical(1)) |
+            if (is.null(.rbf.eligible)) {
+              rep(FALSE, n_lambda)
+            } else {
+              if (length(.rbf.eligible) != n_lambda || anyNA(.rbf.eligible)) {
+                stop("Invalid shared RBF eligibility vector.")
+              }
+              !.rbf.eligible
+            }
         )
         private$weights_metrics$lambda <- lambda_selection$metrics
         private$weights_metrics$lambda.selected <- lambda_selection$selected_lambda
@@ -1806,6 +2084,10 @@ OTProblem_ <- R6::R6Class(
           )
         }
         private$weights_metrics$lambda.note <- lambda_selection$note
+        if (!is.null(private$rbf_adaptive) && lambda.selector == "auto") {
+          private$weights_metrics$lambda.selector <- "auto"
+          private$weights_metrics$lambda.details <- private$rbf_adaptive
+        }
         if (!is.null(lambda_selection$details)) {
           private$weights_metrics$lambda.details <- lambda_selection$details
         }
@@ -1832,28 +2114,29 @@ OTProblem_ <- R6::R6Class(
         } else {
           1L
         }
-        selected_converged <- private$converged_run[[selected_key]][[d_index]]
-        status <- c(private$polish_info[[selected_key]][[d_index]]$status, "")[[
-          1L
+        private$set_delta(delta_values[[d_index]])
+        selected_converged <- private$converged_run[[
+          lambda_selection$selected_index
+        ]][[d_index]]
+        selected_state <- private$state_run[[lambda_selection$selected_index]][[
+          d_index
         ]]
-        gap <- c(
-          private$polish_gap[[selected_key]][[d_index]],
-          gap = NA_real_,
-          D = NA_real_
-        )
-        polished <- private$polish_weights[[selected_key]]
-        self$polished_weights <- if (
-          length(polished) &&
-            !is.null(names(private$polish_info[[selected_key]]))
-        ) {
-          polished[[names(private$polish_info[[selected_key]])[[d_index]]]]
-        } else {
-          NULL
-        }
+        status <- c(selected_state$polish$status, "")[[1L]]
+        gap <- c(selected_state$gap, gap = NA_real_, D = NA_real_)
+        self$polished_weights <- selected_state$polished
+        reason <- private$reason_run[[lambda_selection$selected_index]][[
+          d_index
+        ]]
+        # Without the polish, only warn when phase 1 missed its own stopping
+        # rule, like OSQP without its polish. The gap check stays in info().
+        unpolished_stopped <- identical(status, "none") &&
+          !identical(reason, "niter")
         if (
-          identical(selected_converged, FALSE) && !startsWith(status, "skipped")
+          identical(selected_converged, FALSE) &&
+            !startsWith(status, "skipped") &&
+            !inherits(self, "cotDualEntropyFixedPointTrain") &&
+            !unpolished_stopped
         ) {
-          reason <- private$reason_run[[selected_key]][[d_index]]
           ratio <- gap[["gap"]] / max(gap[["D"]], .Machine$double.xmin)
           detail <- if (length(ratio) == 1L && is.finite(ratio)) {
             sprintf("; gap/D = %.6g", ratio)
@@ -1871,7 +2154,11 @@ OTProblem_ <- R6::R6Class(
           )
         }
         # set weights back to the measures
-        private$parameters_get_set(value = weights_list)
+        private$restore_fit_state(
+          lambda_selection$selected_index,
+          d_index,
+          weights_list
+        )
 
         # private$ot_update(only_params = FALSE, get_weights = TRUE, use_grad = FALSE)
       },
@@ -1885,6 +2172,8 @@ OTProblem_ <- R6::R6Class(
       #' \item `balance.function.differences` The final differences in the balance functions
       #' \item `hyperparam.metrics` A list of the bootstrap evaluation for delta and lambda values
       #' \item `polish` Per-lambda and per-delta polish `status` and `iterations`.
+      #' Eligible fixed-point fits report the same refinement or skip statuses
+      #' as eligible primal fits; `none` means polishing was disabled.
       #' \item `converged` whether the Frank–Wolfe gap is below atol + tol * D.
       #' \item `reason` Per-lambda and per-delta outcome message: `ok`, `niter`,
       #' `gap above tolerance`, `gap unavailable`, `polish error: <msg>`, or
@@ -1980,6 +2269,119 @@ OTProblem_ <- R6::R6Class(
       weights_list = "list", # list of estimated weights for each penalty
       optimizer_name = "character",
 
+      state_run = NULL,
+      rbf_support_snapshot = NULL,
+      rbf_snapshot = NULL,
+      rbf_prepared = NULL,
+      rbf_context_error = NULL,
+      rbf_hard_error = NULL,
+      rbf_dimension = NULL,
+      rbf_cache = NULL,
+      rbf_cost_ok = FALSE,
+      rbf_adaptive = NULL,
+      rbf_input_order = NULL,
+      # NULL when the RBF rule can score this problem, otherwise the reason
+      rbf_unavailable = function() {
+        if (!isTRUE(private$rbf_cost_ok)) {
+          return(
+            "RBF selection requires the standard p = 2 cost without a custom cost.function."
+          )
+        }
+        if (!is.null(private$rbf_hard_error)) {
+          return(private$rbf_hard_error)
+        }
+        private$rbf_context_error
+      },
+      prepare_rbf = function() {
+        reason <- private$rbf_unavailable()
+        if (!is.null(reason)) {
+          stop(reason)
+        }
+        for (key in names(private$rbf_support_snapshot)) {
+          current <- cot_to_numeric_matrix(private$measures[[key]]$x$detach())
+          if (!identical(current, private$rbf_support_snapshot[[key]])) {
+            stop(
+              "The fitted support changed after setup; run setup_arguments and solve again before lambda selection."
+            )
+          }
+        }
+        if (is.null(private$rbf_prepared)) {
+          private$rbf_prepared <- cot_trt_rbf_prepare(private$rbf_snapshot)
+        }
+      },
+      capture_fit_state = function(delta) {
+        potentials <- lapply(as.list(private$ot_objects), function(ot) {
+          lapply(ot$potentials, function(v) {
+            if (inherits(v, "torch_tensor")) v$detach()$clone() else v
+          })
+        })
+        dual <- inherits(self, "cotDualLegacyTrain")
+        params <- if (dual) {
+          lapply(private$nn_holder$parameters, function(v) v$detach()$clone())
+        } else {
+          NULL
+        }
+        a_log <- if (inherits(self, "cotDualTrain")) {
+          private$a_log_param$detach()$clone()
+        } else {
+          NULL
+        }
+        fixed <- inherits(self, "cotDualEntropyFixedPointTrain")
+        ot_key <- as.character(
+          private$ot_objects[[ls(private$ot_objects)[[1L]]]]$penalty
+        )
+        dkey <- paste(delta)
+        list(
+          potentials = potentials,
+          params = params,
+          a_log = a_log,
+          polish = private$polish_info[[ot_key]][[dkey]],
+          gap = private$polish_gap[[ot_key]][[dkey]],
+          polished = private$polish_weights[[ot_key]][[dkey]],
+          accepted = if (fixed && !is.null(private$accepted_weights)) {
+            private$accepted_weights$detach()$clone()
+          } else {
+            NULL
+          },
+          pending = if (fixed && !is.null(private$pending_weights)) {
+            private$pending_weights$detach()$clone()
+          } else {
+            NULL
+          }
+        )
+      },
+      restore_fit_state = function(i, d, weights) {
+        state <- private$state_run[[i]][[d]]
+        dual <- inherits(self, "cotDualLegacyTrain")
+        if (!dual) {
+          private$parameters_get_set(value = weights)
+        } else {
+          torch::with_no_grad({
+            for (name in names(state$params)) {
+              private$nn_holder$parameters[[name]]$copy_(state$params[[name]])
+            }
+            if (!is.null(state$a_log)) {
+              private$a_log_param$copy_(state$a_log)
+            }
+            for (key in ls(weights)) {
+              private$measures[[key]]$weights <- weights[[key]]
+            }
+          })
+          if (inherits(self, "cotDualEntropyFixedPointTrain")) {
+            private$accepted_weights <- state$accepted
+            private$pending_weights <- state$pending
+          }
+        }
+        for (key in names(state$potentials)) {
+          ot <- private$ot_objects[[key]]
+          sides <- private$problems[[key]]
+          ot$a <- private$measures[[sides[[1L]]]]$weights$detach()
+          ot$b <- private$measures[[sides[[2L]]]]$weights$detach()
+          pot <- state$potentials[[key]]
+          if (length(pot)) ot$potentials <- pot else ot$potentials <- NULL
+        }
+        invisible(NULL)
+      },
       # functions
       # adds new element to specified environment
       append = function(o, env_name) {
@@ -2480,7 +2882,8 @@ OTProblem_ <- R6::R6Class(
       },
 
       polish_eligible = function() {
-        if (inherits(self, "cotDualLegacyTrain")) {
+        if (inherits(self, "cotDualLegacyTrain") &&
+            !inherits(self, "cotDualEntropyFixedPointTrain")) {
           return("dual solvers are outside gap convergence scope")
         }
         if (!private$optimality_check_eligible()) {
@@ -2492,12 +2895,12 @@ OTProblem_ <- R6::R6Class(
         if (!is.finite(ot$penalty) || ot$penalty <= 0) {
           return("requires a finite positive lambda")
         }
-        if (ot$n > cot_polish_ctl$max_free) {
-          return(sprintf(
-            "source sample larger than %d points",
-            cot_polish_ctl$max_free
-          ))
-        }
+        # if (ot$n > cot_polish_ctl$max_free) {
+        #   return(sprintf(
+        #     "source sample larger than %d points",
+        #     cot_polish_ctl$max_free
+        #   ))
+        # }
         if (
           !ot$tensorized &&
             (identical(ot$C_xy$algorithm, "user") ||
@@ -2513,7 +2916,13 @@ OTProblem_ <- R6::R6Class(
         weights <- rlang::env()
         class(weights) <- c("weightEnv", class(weights))
         weights[[address]] <- w
-        private$parameters_get_set(weights)
+        if (inherits(self, "cotDualEntropyFixedPointTrain")) {
+          # save weights; rebuild the potential for the next fixed-point fit
+          private$accepted_weights <- w$detach()$clone()
+          private$pending_weights <- w$detach()$clone()
+        } else {
+          private$parameters_get_set(weights)
+        }
         private$weights <- weights
         ot$a <- w
       },
@@ -2560,6 +2969,11 @@ OTProblem_ <- R6::R6Class(
           private$polish_weights[[key]][[dkey]] <- NULL
         }
         self$polished_weights <- NULL
+        if (inherits(self, "cotDualEntropyFixedPointTrain") &&
+            !is.null(res$reason) && startsWith(res$reason, "error:")) {
+          save("failed")
+          return(res)
+        }
         private$ot_update(use_grad = FALSE)
         weights <- private$parameters_get_set(clone = TRUE)
         valid <- is.finite(as.numeric(res$loss)) &&
@@ -2591,6 +3005,13 @@ OTProblem_ <- R6::R6Class(
         phase1 <- function(status, error = NULL) {
           gap <- if (is.null(res$fw_gap)) NA_real_ else res$fw_gap
           D <- if (is.null(res$divergence)) NA_real_ else res$divergence
+          if (inherits(self, "cotDualEntropyFixedPointTrain")) {
+            if (!is.null(error) && !isTRUE(res$converged)) {
+              res$reason <- paste0("polish error: ", error)
+            }
+            save(status, gap = gap, D = D)
+            return(res)
+          }
           stopped <- isTRUE(res$stopped_by_rule)
           res$converged <- stopped && cot_converged(gap, D, private$ot_tol, tol)
           res$reason <- if (res$converged) {
@@ -2636,8 +3057,7 @@ OTProblem_ <- R6::R6Class(
           return(phase1("error", conditionMessage(result)))
         }
         if (result$changed) {
-          # The model keeps a copy in its own dtype as the warm start for the
-          # next fit; the float64 weights are what the fit returns.
+          # warm start in model dtype; return float64 weights
           torch::with_no_grad({
             private$polish_set_weights(
               ot,
@@ -2692,6 +3112,7 @@ OTProblem_ <- R6::R6Class(
 
         # set weights_delta holder
         weights_delta <- vector("list", n_delta)
+        states_delta <- vector("list", n_delta)
         names(weights_delta) <- names_delta
 
         iter_delta <- vector("numeric", n_delta) |> setNames(names_delta)
@@ -2700,7 +3121,8 @@ OTProblem_ <- R6::R6Class(
         converged_delta <- vector("logical", n_delta) |> setNames(names_delta)
 
         # run loop over delta values
-        for (d in private$penalty_list$delta) {
+        for (d_index in seq_along(private$penalty_list$delta)) {
+          d <- private$penalty_list$delta[[d_index]]
           # set bf constraint if needed
           private$set_delta(d)
 
@@ -2727,9 +3149,7 @@ OTProblem_ <- R6::R6Class(
             for (k in ls(w)) {
               w[[k]] <- torch::torch_full_like(w[[k]], NA_real_)
             }
-            # Do not let a failed warm start contaminate the remaining path.
-            # The failed fit stays failed; the next fit starts at the last
-            # usable point, without rescuing or restarting the failed fit.
+            # restore the last usable warm start after a failed fit
             private$parameters_get_set(value = phase_start)
             private$ot_update(use_grad = FALSE)
             if (inherits(private$opt, "optim_optimizer")) {
@@ -2737,6 +3157,7 @@ OTProblem_ <- R6::R6Class(
             }
           }
 
+          states_delta[[d_index]] <- private$capture_fit_state(d)
           # save iterations and final losses
           losses_delta[[paste(d)]] <- res$loss
           iter_delta[[paste(d)]] <- res$iter
@@ -2758,12 +3179,14 @@ OTProblem_ <- R6::R6Class(
           iter = iter_delta,
           reason = reason_delta,
           converged = converged_delta,
-          weights = weights_delta
+          weights = weights_delta,
+          states = states_delta
         ))
       },
 
       iterate_over_lambda = function(niter, tol) {
-        for (l in private$penalty_list$lambda) {
+        for (l_index in seq_along(private$penalty_list$lambda)) {
+          l <- private$penalty_list$lambda[[l_index]]
           # set penalty for OT problems
           private$set_lambda(l)
 
@@ -2778,17 +3201,18 @@ OTProblem_ <- R6::R6Class(
           res <- private$iterate_over_delta(niter, tol) # calls main workhorse functions
 
           # assign weights_delta to weights_list permanent object
-          private$weights_list[[as.character(l)]] <- res$weights
+          private$weights_list[[l_index]] <- res$weights
+          private$state_run[[l_index]] <- res$states
 
           # save diagnostic values
           # save iterations run
-          private$iterations_run[[as.character(l)]] <- res$iter
+          private$iterations_run[[l_index]] <- res$iter
 
           # save final loss
-          private$final_loss[[as.character(l)]] <- res$loss
+          private$final_loss[[l_index]] <- res$loss
 
-          private$reason_run[[as.character(l)]] <- res$reason
-          private$converged_run[[as.character(l)]] <- res$converged
+          private$reason_run[[l_index]] <- res$reason
+          private$converged_run[[l_index]] <- res$converged
         }
       },
 
@@ -2903,8 +3327,7 @@ OTProblem_ <- R6::R6Class(
         identical(unname(adapt), c("weights", "none"))
       },
 
-      # Legacy stall test shared with CCP. This only decides when to stop;
-      # polish_result judges convergence of the returned weights.
+      # legacy CCP stall test; polish_result checks convergence
       optimality_ok = function(tol, scale) {
         ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
         kkt_tol <- max(tol, 1e-6)
@@ -2945,8 +3368,7 @@ OTProblem_ <- R6::R6Class(
           check <- private$lr_reduce(loss)
           # check <- lr_reduce(opt_sched, loss$detach())
 
-          # Once the loss stalls, stop either way. stopped_by_rule means
-          # stopped; polish_result separately judges convergence.
+          # stop on loss stall; polish_result checks convergence
           if (
             check &&
               (i > 1) &&
@@ -3285,162 +3707,6 @@ OTProblem_ <- R6::R6Class(
           )
         )
       },
-      tensor_cost_matrix = function(
-        cost_obj,
-        template_obj,
-        x = NULL,
-        y = NULL
-      ) {
-        if (!is.null(cost_obj)) {
-          stopifnot(inherits(cost_obj, "costTensor"))
-          return(cot_to_numeric_matrix(cost_obj))
-        }
-
-        stopifnot(!is.null(template_obj), inherits(template_obj, "costTensor"))
-        stopifnot(!is.null(x), !is.null(y))
-
-        cot_to_numeric_matrix(template_obj$fun(x, y, template_obj$p))
-      },
-      assert_sym_evidence_costs = function(
-        cross_cost,
-        self_w_cost,
-        self_a_cost
-      ) {
-        stopifnot(inherits(cross_cost, "costTensor"))
-        if (!is.null(self_w_cost)) {
-          stopifnot(inherits(self_w_cost, "costTensor"))
-          stopifnot(identical(cross_cost$algorithm, self_w_cost$algorithm))
-          stopifnot(isTRUE(all.equal(cross_cost$p, self_w_cost$p)))
-        }
-        if (!is.null(self_a_cost)) {
-          stopifnot(inherits(self_a_cost, "costTensor"))
-          stopifnot(identical(cross_cost$algorithm, self_a_cost$algorithm))
-          stopifnot(isTRUE(all.equal(cross_cost$p, self_a_cost$p)))
-        }
-      },
-      get_sym_evidence_state = function() {
-        ot_names <- ls(private$ot_objects)
-        if (length(ot_names) != 1L) {
-          return(list(supported = FALSE, reason = "structure"))
-        }
-
-        problem_name <- ot_names[[1L]]
-        ot <- private$ot_objects[[problem_name]]
-        if (!isTRUE(ot$tensorized)) {
-          return(list(supported = FALSE, reason = "online"))
-        }
-
-        measure_names <- ls(private$measures)
-        adapt_modes <- vapply(
-          measure_names,
-          function(name) private$measures[[name]]$adapt,
-          character(1)
-        )
-        if (sum(adapt_modes == "weights") != 1L || any(adapt_modes == "x")) {
-          return(list(supported = FALSE, reason = "structure"))
-        }
-
-        source_add <- private$problems[[problem_name]][[1L]]
-        target_add <- private$problems[[problem_name]][[2L]]
-        if (
-          private$measures[[source_add]]$adapt != "weights" ||
-            private$measures[[target_add]]$adapt != "none"
-        ) {
-          return(list(supported = FALSE, reason = "structure"))
-        }
-
-        private$assert_sym_evidence_costs(ot$C_xy, ot$C_xx, ot$C_yy)
-
-        source_x <- private$measures[[source_add]]$x$detach()
-        target_x <- private$measures[[target_add]]$x$detach()
-        source_unit_id <- private$measures[[source_add]]$unit_id
-        target_unit_id <- private$measures[[target_add]]$unit_id
-
-        list(
-          supported = TRUE,
-          problem_name = problem_name,
-          source_add = source_add,
-          target_add = target_add,
-          source_n = nrow(source_x),
-          target_n = nrow(target_x),
-          source_unit_id = source_unit_id,
-          target_unit_id = target_unit_id,
-          target_weights = cot_to_numeric_vector(
-            private$measures[[target_add]]$init_weights$detach()
-          ),
-          cross_exclude = {
-            exclude <- if (
-              !is.null(source_unit_id) && !is.null(target_unit_id)
-            ) {
-              cot_unit_exclusion_mask(source_unit_id, target_unit_id)
-            } else {
-              cot_overlap_exclusion_mask(source_x, target_x)
-            }
-            if (any(exclude)) exclude else NULL
-          },
-          cross_cost = private$tensor_cost_matrix(ot$C_xy, ot$C_xy),
-          self_w_cost = private$tensor_cost_matrix(
-            ot$C_xx,
-            ot$C_xy,
-            source_x,
-            source_x
-          ),
-          self_a_cost = private$tensor_cost_matrix(
-            ot$C_yy,
-            ot$C_xy,
-            target_x,
-            target_x
-          )
-        )
-      },
-      eval_lambda_sym_evidence = function(wts, lambda, state) {
-        w <- cot_to_numeric_vector(wts[[state$source_add]]$detach())
-
-        cot_sym_evidence(
-          cross_cost = state$cross_cost,
-          self_a_cost = state$self_a_cost,
-          self_w_cost = state$self_w_cost,
-          cross_exclude = state$cross_exclude,
-          w = w,
-          a = state$target_weights,
-          lambda = lambda
-        )
-      },
-      eval_lambda_profile_marginal_loo = function(wts, lambda, state) {
-        w <- cot_to_numeric_vector(wts[[state$source_add]]$detach())
-
-        cot_marginal_evidence(
-          cross_cost = state$cross_cost,
-          cross_exclude = state$cross_exclude,
-          w = w,
-          a = state$target_weights,
-          lambda = lambda
-        )
-      },
-      eval_lambda_fixed_symmetric_loo = function(pilot_weights, lambda, state) {
-        cot_sym_evidence(
-          cross_cost = state$cross_cost,
-          self_a_cost = state$self_a_cost,
-          self_w_cost = state$self_w_cost,
-          cross_exclude = state$cross_exclude,
-          w = pilot_weights,
-          a = state$target_weights,
-          lambda = lambda
-        )
-      },
-      eval_lambda_fixed_marginal_loo = function(
-        pilot_weights,
-        lambda,
-        state
-      ) {
-        cot_marginal_evidence(
-          cross_cost = state$cross_cost,
-          cross_exclude = state$cross_exclude,
-          w = pilot_weights,
-          a = state$target_weights,
-          lambda = lambda
-        )
-      },
       select_lambda_metric = function(
         weights_list,
         weights_converged,
@@ -3452,17 +3718,6 @@ OTProblem_ <- R6::R6Class(
         lambda_bootstrap,
         weights_failed = rep(FALSE, length(weights_list))
       ) {
-        selector_label <- switch(
-          lambda_selector,
-          "profile_symmetric_loo" = "profile symmetric leave-one-out evidence",
-          "profile_marginal_loo" = "profile marginal leave-one-out evidence",
-          "symmetric_loo" = "fixed-pilot symmetric leave-one-out evidence",
-          "marginal_loo" = "fixed-pilot marginal leave-one-out evidence",
-          "mass_bootstrap_symmetric" = "mass-bootstrap symmetric evidence",
-          "bootstrap_legacy" = "legacy bootstrap selector",
-          lambda_selector
-        )
-
         n_lambda <- length(lambda_values)
         failed <- weights_failed
         candidates <- which(!failed)
@@ -3481,259 +3736,43 @@ OTProblem_ <- R6::R6Class(
           selector = "fixed"
         )
 
-        eligible_lambda <- !failed &
-          is.finite(lambda_input_values) &
-          (lambda_input_values > 0)
-        finite_index <- which(eligible_lambda)
-        use_path_weights <- lambda_selector %in%
-          c(
-            "profile_symmetric_loo",
-            "profile_marginal_loo",
-            "mass_bootstrap_symmetric"
-          )
-        use_selector_state <- lambda_selector %in%
-          c(
-            "profile_symmetric_loo",
-            "profile_marginal_loo",
-            "symmetric_loo",
-            "marginal_loo",
-            "mass_bootstrap_symmetric"
-          )
-
-        if (use_selector_state && length(finite_index) > 0L) {
-          sym_state <- private$get_sym_evidence_state()
-          if (isTRUE(sym_state$supported)) {
-            if (lambda_selector == "profile_symmetric_loo") {
-              for (idx in finite_index) {
-                lambda_metrics[[idx]] <- private$eval_lambda_sym_evidence(
-                  weights_list[[idx]],
-                  lambda = lambda_input_values[[idx]],
-                  state = sym_state
-                )
-              }
-              out$note <- paste(
-                "Profile symmetric leave-one-out evidence uses stored fitted COT path weights.",
-                "Infinite and zero lambdas are excluded from selection."
-              )
-              out$loo <- cot_selector_loo_convention
-            } else if (lambda_selector == "profile_marginal_loo") {
-              for (idx in finite_index) {
-                lambda_metrics[[
-                  idx
-                ]] <- private$eval_lambda_profile_marginal_loo(
-                  weights_list[[idx]],
-                  lambda = lambda_input_values[[idx]],
-                  state = sym_state
-                )
-              }
-              out$note <- paste(
-                "Profile marginal leave-one-out evidence scores target masses under the stored fitted donor path.",
-                "Infinite and zero lambdas are excluded from selection."
-              )
-              out$loo <- cot_selector_marginal_loo_convention
-            } else if (lambda_selector == "symmetric_loo") {
-              pilot_weights <- cot_resolve_pilot_weights(
-                lambda_selector_control$pilot.weights,
-                sym_state$source_n
-              )
-              for (idx in finite_index) {
-                lambda_metrics[[
-                  idx
-                ]] <- private$eval_lambda_fixed_symmetric_loo(
-                  pilot_weights = pilot_weights,
-                  lambda = lambda_input_values[[idx]],
-                  state = sym_state
-                )
-              }
-              out$note <- paste(
-                "Fixed-pilot symmetric leave-one-out evidence uses donor pilot masses and does not inspect stored fitted path weights.",
-                "Infinite and zero lambdas are excluded from selection."
-              )
-              out$loo <- cot_selector_loo_convention
-              if (isTRUE(lambda_selector_control$details)) {
-                out$details <- list(pilot.weights = pilot_weights)
-              }
-            } else if (lambda_selector == "marginal_loo") {
-              pilot_weights <- cot_resolve_pilot_weights(
-                lambda_selector_control$pilot.weights,
-                sym_state$source_n
-              )
-              for (idx in finite_index) {
-                lambda_metrics[[idx]] <- private$eval_lambda_fixed_marginal_loo(
-                  pilot_weights = pilot_weights,
-                  lambda = lambda_input_values[[idx]],
-                  state = sym_state
-                )
-              }
-              out$note <- paste(
-                "Fixed-pilot marginal leave-one-out evidence uses donor pilot masses and does not inspect stored fitted path weights.",
-                "Infinite and zero lambdas are excluded from selection."
-              )
-              out$loo <- cot_selector_marginal_loo_convention
-              if (isTRUE(lambda_selector_control$details)) {
-                out$details <- list(pilot.weights = pilot_weights)
-              }
-            } else if (lambda_selector == "mass_bootstrap_symmetric") {
-              if (n_boot_lambda < 1L) {
-                stop(
-                  "lambda.selector = 'mass_bootstrap_symmetric' requires n_boot_lambda >= 1."
-                )
-              }
-
-              score_matrix <- matrix(
-                NA_real_,
-                nrow = n_boot_lambda,
-                ncol = n_lambda,
-                dimnames = list(
-                  NULL,
-                  as.character(lambda_input_values)
-                )
-              )
-              for (boot_i in seq_len(n_boot_lambda)) {
-                a_boot <- cot_draw_bootstrap_mass(
-                  sym_state$target_weights,
-                  size = sym_state$target_n
-                )
-                for (idx in finite_index) {
-                  w <- cot_to_numeric_vector(
-                    weights_list[[idx]][[sym_state$source_add]]$detach()
-                  )
-                  w_boot <- cot_draw_bootstrap_mass(
-                    w,
-                    size = sym_state$source_n
-                  )
-                  score_matrix[boot_i, idx] <- cot_sym_evidence(
-                    cross_cost = sym_state$cross_cost,
-                    self_a_cost = sym_state$self_a_cost,
-                    self_w_cost = sym_state$self_w_cost,
-                    cross_exclude = sym_state$cross_exclude,
-                    w = w_boot,
-                    a = a_boot,
-                    lambda = lambda_input_values[[idx]]
-                  )
-                }
-              }
-              lambda_metrics[finite_index] <- cot_summarize_bootstrap_curve(
-                score_matrix[, finite_index, drop = FALSE],
-                summary = lambda_selector_control$mass.bootstrap.summary,
-                quantile = lambda_selector_control$mass.bootstrap.quantile,
-                kappa = lambda_selector_control$mass.bootstrap.kappa
-              )
-              out$note <- paste(
-                "Mass-bootstrap symmetric evidence resamples donor and target masses without refitting the stored COT path.",
-                "Infinite and zero lambdas are excluded from selection."
-              )
-              out$loo <- cot_selector_loo_convention
-              if (isTRUE(lambda_selector_control$details)) {
-                out$details <- list(
-                  bootstrap.scores = score_matrix,
-                  mass.bootstrap.summary = lambda_selector_control$mass.bootstrap.summary,
-                  mass.bootstrap.quantile = lambda_selector_control$mass.bootstrap.quantile,
-                  mass.bootstrap.kappa = lambda_selector_control$mass.bootstrap.kappa
-                )
-              }
-            }
-
-            unconverged <- finite_index[!weights_converged[finite_index]]
-            if (use_path_weights && length(unconverged)) {
-              out$note <- paste(
-                out$note,
-                "Scored fits that were not converged: lambda",
-                paste(lambda_input_values[unconverged], collapse = ", ")
-              )
-            }
-
-            out$metrics <- lambda_metrics
-            finite_metrics <- lambda_metrics[finite_index]
-            if (any(is.finite(finite_metrics))) {
-              out$selected_index <- finite_index[which.max(finite_metrics)]
-            } else {
-              out$selected_index <- finite_index[[1L]]
-              out$note <- paste(
-                out$note,
-                "All eligible selector scores were non-finite; defaulted to the first eligible finite positive lambda."
-              )
-            }
-            out$selected_lambda <- lambda_input_values[[out$selected_index]]
-            out$selector <- lambda_selector
-
-            # A maximum at the edge of the grid may lie beyond it
-            finite_lambda <- lambda_input_values[finite_index]
-            edge <- if (out$selected_lambda == min(finite_lambda)) {
-              "smallest"
-            } else if (out$selected_lambda == max(finite_lambda)) {
-              "largest"
-            } else {
-              NA_character_
-            }
-            if (
-              length(finite_index) >= 3L &&
-                any(is.finite(finite_metrics)) &&
-                !is.na(edge)
-            ) {
-              msg <- sprintf(
-                "%s selected lambda %s, the %s finite lambda in the grid; the best lambda may lie outside the grid. Consider widening it.",
-                lambda_selector,
-                format(out$selected_lambda),
-                edge
-              )
-              out$note <- paste(out$note, msg)
-              warning(msg, call. = FALSE)
-            }
-
-            if (length(finite_index) == 1L) {
-              out$note <- paste(
-                out$note,
-                "Only one eligible finite positive lambda candidate was available."
-              )
-            }
-            return(out)
-          }
-
-          if (identical(sym_state$reason, "online")) {
-            out$note <- paste(
-              "Fell back to bootstrap_legacy because",
-              selector_label,
-              "is not implemented for online costs yet."
-            )
-          } else if (identical(sym_state$reason, "structure")) {
-            out$note <- paste(
-              "Fell back to bootstrap_legacy because",
-              selector_label,
-              "currently supports only single-problem weight-fitting tensorized COT paths."
-            )
-          } else {
-            out$note <- paste(
-              "Fell back to bootstrap_legacy because",
-              selector_label,
-              "was not available for this problem."
-            )
-          }
-        } else if (use_selector_state && length(finite_index) == 0L) {
-          out$note <- paste(
-            "Fell back to bootstrap_legacy because no finite positive lambda candidates were available for",
-            selector_label,
-            "."
-          )
-        }
-
         if (n_lambda == 1L) {
-          out$selected_index <- 1L
-          out$selected_lambda <- lambda_input_values[[1L]]
-          if (is.na(out$note)) {
-            out$note <- "Fixed lambda path; no lambda selection was applied."
-          }
+          out$note <- "Fixed lambda path; no lambda selection was applied."
           return(out)
         }
 
-        if (use_selector_state) {
-          # An evidence selector fell back. Those selectors don't use nboot, so
-          # nboot = 0 is a natural setting and the fallback uses its own default.
-          if (n_boot_lambda < 1L) {
-            n_boot_lambda <- 20L
-            out$note <- paste(out$note, "Used 20 bootstrap draws because nboot = 0.")
+        if (lambda_selector == "auto") {
+          reason <- private$rbf_unavailable()
+          if (
+            is.null(reason) &&
+              !any(!failed & is.finite(lambda_input_values) & lambda_input_values > 0)
+          ) {
+            reason <- "No finite positive lambda candidates were available."
           }
-          warning(out$note, call. = FALSE)
+          if (is.null(reason)) {
+            private$prepare_rbf()
+            grid <- cot_trt_rbf_grid(
+              private$rbf_prepared,
+              lambda_input_values,
+              !failed,
+              cache = private$rbf_cache
+            )
+            grid$original_index <- private$rbf_input_order
+            out$metrics <- grid$scores
+            out$selected_index <- grid$selected_index
+            out$selected_lambda <- grid$lambda
+            out$selector <- "auto"
+            out$loo <- grid$criterion
+            out$details <- grid
+            out$note <- if (sum(grid$eligible) == 1L) {
+              "One eligible candidate; no bandwidth choice."
+            } else {
+              NA_character_
+            }
+            return(out)
+          }
+          # "auto" is the default, so unsupported problems use the bootstrap
+          out$note <- paste("auto used the bootstrap selector.", reason)
         }
 
         # Without bootstrap draws every score would be 0 and the first lambda wins
@@ -3741,7 +3780,7 @@ OTProblem_ <- R6::R6Class(
           out$selected_index <- candidates[[1L]]
           out$selected_lambda <- lambda_input_values[[out$selected_index]]
           msg <- sprintf(
-            "No lambda selection was done because bootstrap_legacy needs nboot >= 1; using the first lambda, %s.",
+            "No lambda selection was done because the bootstrap selector needs nboot >= 1; using the first lambda, %s.",
             format(out$selected_lambda)
           )
           out$note <- if (is.na(out$note)) msg else paste(out$note, msg)
@@ -3772,7 +3811,7 @@ OTProblem_ <- R6::R6Class(
           candidates[[1L]]
         }
         out$selected_lambda <- lambda_input_values[[out$selected_index]]
-        out$selector <- "bootstrap_legacy"
+        out$selector <- "bootstrap"
         out
       },
 
@@ -3920,7 +3959,7 @@ OTProblem_$set("private", "eval_delta", function(wts, boot) {
     target_obj <- private$target_objects[[add]]
     n <- nrow(target_obj$bf)
 
-    w_star <- w * b
+    w_star <- renormalize(w * b)
     if (!target_obj$bf$requires_grad) {
       m <- target_obj$bf$transpose(2, 1)$matmul(w_star)
       targ <- target_obj$bt
@@ -3963,10 +4002,12 @@ OTProblem_$set("private", "eval_lambda", function(wts, boot) {
       meas$init_weights$detach()
     }
 
+    # renormalize so the bootstrap measure has mass 1; otherwise the random
+    # total mass of w * b rewards concentrated weights
     if (meas$adapt == "weights" || meas$adapt == "none") {
-      w_star <- w * b
+      w_star <- renormalize(w * b)
     } else if (meas$adapt == "x") {
-      w_star <- meas$init_weights * b
+      w_star <- renormalize(meas$init_weights * b)
     } else {
       stop("Bug in this if else statement!")
     }
@@ -4004,7 +4045,9 @@ OTProblem_$set("private", "eval_lambda", function(wts, boot) {
       private$ot_objects[[o]]$sinkhorn_opt(20, 1e-3)
     }
   }
-  dists <- self$loss$detach()$item()
+  # Not self$loss: its ot_update() puts the fitted weights back in place of
+  # the bootstrapped candidate weights set above
+  dists <- eval(private$objective)$detach()$item()
   return(dists)
 })
 
@@ -4247,18 +4290,24 @@ def calc_w2(u: Tensor, C_xx: Tensor, a_log: Tensor, eps: float, n: int) -> Tenso
   return w2
   
 def cot_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, a_log: Tensor, b_log: Tensor, eps: float, n: int):
-  gamma_centered = gamma - gamma.mean()
-  f_star = gamma_centered.detach()
-
-  w1 = calc_w1(f_star, C_xy, a_log, b_log, eps, n)
-  w2 = calc_w2(f_star, C_xx, a_log, eps, n)
-  
-  measure_diff = (w1-w2).detach()
-  loss =  -1.0 * gamma_centered.dot(measure_diff) 
-  # mult by -1 because is a maximization and are turning into minimization
-  # print(-loss.item())
-  return {'loss' : loss, 'avg_diff' : measure_diff.detach().norm(), 'bf_diff' : torch.zeros(1,dtype=loss.dtype),
-          'w1' : w1.detach()}
+  u = gamma.detach() - gamma.detach().max()
+  score = u.view(n, 1) - C_xy / eps
+  g = b_log - score.logsumexp(dim=0)
+  cross_lse = (g.view(1, -1) - C_xy / eps).logsumexp(dim=1)
+  self_lse = (u.view(1, n) - C_xx / eps).logsumexp(dim=1)
+  log_raw = u + self_lse
+  log_z = log_raw.logsumexp(dim=0)
+  log_w1 = u + cross_lse
+  log_w2 = log_raw - log_z
+  w1 = log_w1.exp()
+  w2 = log_w2.exp()
+  # Cancel u analytically: even underflowed weights have a finite residual.
+  d = cross_lse - self_lse + log_z
+  measure_diff = (w1 - w2).detach()
+  loss = -(gamma - gamma.mean()).dot(measure_diff)
+  return {'loss': loss, 'avg_diff': measure_diff.norm(),
+          'bf_diff': torch.zeros(1, dtype=loss.dtype), 'w1': w1,
+          'w2': w2, 'log_w1': log_w1, 'log_w2': log_w2, 'd': d}
   
 def cot_bf_dual(gamma: Tensor, C_xy: Tensor, C_xx: Tensor, a_log: Tensor, b_log: Tensor, eps: float, n: int, beta: Tensor, bf: Tensor, bt: Tensor, delta: float):
   gamma_centered = gamma - gamma.mean()
@@ -4451,33 +4500,29 @@ dual_forwards_online <- list(
     a2_log$log_softmax(1)$exp()$view(-1)
   },
   cot_dual = function(gamma, C_xy, C_xx, a_log, b_log, lambda, n) {
-    f_star <- gamma$detach() #+ a_log
-
-    w1 <- dual_forwards_online$calc_w1(
-      f_star,
-      C_xy,
-      a_log,
-      b_log,
-      lambda,
-      n
-    )$detach()$to(device = gamma$device)
-    w2 <- dual_forwards_online$calc_w2(
-      f_star,
-      C_xx,
-      a_log,
-      lambda,
-      n
-    )$detach()$to(device = gamma$device)
-
+    lambda <- as.numeric(lambda)
+    u <- gamma$detach() - gamma$detach()$max()
+    g <- b_log - online_lse_rows(C_xy, C_xy$data$y, C_xy$data$x, u, 1 / lambda)
+    cross_lse <- online_lse_rows(C_xy, C_xy$data$x, C_xy$data$y, g, 1 / lambda)
+    self_lse <- online_lse_rows(C_xx, C_xx$data$x, C_xx$data$y, u, 1 / lambda)
+    log_raw <- u + self_lse
+    log_z <- log_raw$logsumexp(1)
+    log_w1 <- u + cross_lse
+    log_w2 <- log_raw - log_z
+    w1 <- log_w1$exp()
+    w2 <- log_w2$exp()
     measure_diff <- w1 - w2
-    loss <- -1.0 * gamma$dot(measure_diff) # mult by neg 1 because is a maximization
-
-    return(list(
+    loss <- -gamma$dot(measure_diff)
+    list(
       loss = loss,
       avg_diff = measure_diff$norm(),
-      bf_diff = torch::torch_zeros(1, dtype = loss$dtype),
-      w1 = w1$detach()
-    ))
+      bf_diff = torch::torch_zeros(1, dtype = loss$dtype, device = loss$device),
+      w1 = w1,
+      w2 = w2,
+      log_w1 = log_w1,
+      log_w2 = log_w2,
+      d = cross_lse - self_lse + log_z
+    )
   },
   cot_bf_dual = function(
     gamma,
@@ -4862,7 +4907,9 @@ cotDualLegacyTrain <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-5,
-        polish = c("none", "auto")
+        polish = c("none", "auto"),
+        lambda.selection.data = NULL,
+        lambda.selector.control = list()
       ) {
         super$setup_arguments(
           lambda,
@@ -4875,7 +4922,9 @@ cotDualLegacyTrain <- R6::R6Class(
           diameter,
           ot_niter,
           ot_tol,
-          polish = polish
+          polish = polish,
+          lambda.selection.data = lambda.selection.data,
+          lambda.selector.control = lambda.selector.control
         )
 
         m_add <- ls(private$measures)
@@ -4937,6 +4986,7 @@ cotDualLegacyTrain <- R6::R6Class(
         # runs faster and more accurately when reversed (small -> large)
         lambda_order <- order(lambda_fit, decreasing = FALSE)
         private$penalty_list$lambda <- lambda_fit[lambda_order]
+        private$rbf_input_order <- private$rbf_input_order[lambda_order]
         private$penalty_input_list$lambda <- lambda_raw[lambda_order]
 
         private$lambda <- private$penalty_list$lambda[1L]
@@ -4972,7 +5022,7 @@ cotDualLegacyTrain <- R6::R6Class(
         return(invisible(self))
       },
       solve = function(
-        niter = 1000L,
+        niter = 500L,
         tol = 1e-5,
         optimizer = c("torch", "frank-wolfe"),
         torch_optim = torch::optim_lbfgs,
@@ -5034,76 +5084,6 @@ cotDualLegacyTrain <- R6::R6Class(
   },
   private = {
     list(
-      eval_lambda = function(wts, boot) {
-        addresses <- ls(private$measures)
-        prob_adds <- ls(private$ot_objects)
-        wt_adds <- ls(wts)
-        sel_probs <- NULL
-        prob_hold <- NULL
-        p1_add <- p2_add <- NULL
-
-        n <- NULL
-        w <- NULL
-        b <- NULL
-        m <- NULL
-        w_star <- NULL
-        ot_obj <- NULL
-        meas <- NULL
-
-        for (add in addresses) {
-          b <- boot[[add]]
-          meas <- private$measures[[add]]
-
-          w <- if (add %in% wt_adds) {
-            wts[[add]]$detach()
-          } else {
-            meas$init_weights$detach()
-          }
-
-          if (meas$adapt == "weights" || meas$adapt == "none") {
-            w_star <- w * b
-          } else if (meas$adapt == "x") {
-            w_star <- meas$init_weights * b
-          } else {
-            stop("Bug in this if else statement!")
-          }
-
-          sel_probs <- prob_adds[grep(add, prob_adds)]
-          for (i in sel_probs) {
-            prob_hold <- private$problems[[i]]
-            p1_add <- prob_hold[[1]]
-            p2_add <- prob_hold[[2]]
-            if (p1_add == add) {
-              private$ot_objects[[i]]$a <- w_star
-              if (meas$adapt == "x") {
-                update_cost(
-                  private$ot_objects[[i]]$C_xy,
-                  w,
-                  private$measures[[p2_add]]$x$detach()
-                )
-              }
-            } else if (p2_add == add) {
-              private$ot_objects[[i]]$b <- w_star
-              if (meas$adapt == "x") {
-                update_cost(
-                  private$ot_objects[[i]]$C_yx,
-                  w,
-                  private$measures[[p1_add]]$x$detach()
-                )
-              }
-            } else {
-              stop("OT Problem address not found. You found a bug!")
-            }
-          }
-        }
-        # browser()
-        # private$ot_objects[[i]]$penalty <- private$boot_lambda #0.05 #private$ot_objects[[i]]$diameter
-        if (is.finite(private$ot_objects[[i]]$penalty)) {
-          private$ot_objects[[i]]$sinkhorn_opt(20, 1e-3)
-        }
-        dists <- self$loss$detach()$item()
-        return(dists)
-      },
       set_lambda = function(l) {
         stopifnot(l >= 0.0)
         stopifnot(l <= Inf)
@@ -5595,7 +5575,9 @@ cotDualTrain <- R6::R6Class(
         diameter = NULL,
         ot_niter = 1000L,
         ot_tol = 1e-5,
-        polish = c("none", "auto")
+        polish = c("none", "auto"),
+        lambda.selection.data = NULL,
+        lambda.selector.control = list()
       ) {
         super$setup_arguments(
           lambda,
@@ -5608,7 +5590,9 @@ cotDualTrain <- R6::R6Class(
           diameter,
           ot_niter,
           ot_tol,
-          polish = polish
+          polish = polish,
+          lambda.selection.data = lambda.selection.data,
+          lambda.selector.control = lambda.selector.control
         )
 
         m_add <- ls(private$measures)
@@ -5635,7 +5619,7 @@ cotDualTrain <- R6::R6Class(
         invisible(self)
       },
       solve = function(
-        niter = 1000L,
+        niter = 500L,
         tol = 1e-5,
         optimizer = c("torch", "frank-wolfe"),
         torch_optim = torch::optim_lbfgs,
@@ -6363,7 +6347,7 @@ cotDualFixedPointJointTrain <- R6::R6Class(
   classname = "cotDualFixedPointJointTrain",
   public = list(
     solve = function(
-      niter = 1000L,
+      niter = 500L,
       tol = 1e-5,
       optimizer = c("torch", "frank-wolfe"),
       torch_optim = torch::optim_lbfgs,
@@ -6418,4 +6402,497 @@ cotDualFixedPointJointTrain <- R6::R6Class(
     }
   ),
   inherit = cotDualTrain
+)
+
+# Entropy potential parameterization: weights are the symmetric self marginal.
+cotDualEntropyFixedPointTrain <- R6::R6Class(
+  classname = "cotDualEntropyFixedPointTrain",
+  inherit = cotDualLegacyTrain,
+  public = list(
+    setup_arguments = function(
+      lambda = NULL,
+      delta = NULL,
+      grid.length = 7L,
+      cost.function = NULL,
+      p = 2,
+      cost.online = "auto",
+      debias = TRUE,
+      diameter = NULL,
+      ot_niter = 1000L,
+      ot_tol = 1e-5,
+      polish = c("none", "auto"),
+      lambda.selection.data = NULL,
+      lambda.selector.control = list()
+    ) {
+      if (!isTRUE(debias)) {
+        stop("dual.solver = 'fixed_point' requires debias = TRUE.")
+      }
+      super$setup_arguments(
+        lambda,
+        delta,
+        grid.length,
+        cost.function,
+        p,
+        cost.online,
+        debias,
+        diameter,
+        ot_niter,
+        ot_tol,
+        polish = polish,
+        lambda.selection.data = lambda.selection.data,
+        lambda.selector.control = lambda.selector.control
+      )
+      if (length(private$target_objects)) {
+        stop("dual.solver = 'fixed_point' does not support balance functions.")
+      }
+      # initialize a finite potential and retain weights for the lambda path
+      self$ot$penalty <- as.numeric(private$lambda)
+      private$pending_weights <- self$ot$a$detach()$clone()
+      private$fp_build_potential(private$pending_weights)
+      invisible(self)
+    },
+    solve = function(
+      niter = 500L,
+      tol = 1e-5,
+      optimizer = c("torch", "frank-wolfe"),
+      torch_optim = torch::optim_lbfgs,
+      torch_scheduler = torch::lr_reduce_on_plateau,
+      torch_args = NULL,
+      osqp_args = NULL,
+      quick.balance.function = TRUE,
+      fixed_point_eta = 1,
+      fixed_point_beta = .9,
+      fixed_point_update = c("anderson", "momentum"),
+      anderson_m = 5L,
+      check_every = 50L,
+      fixed_point_lambda_order = c("ascending", "descending"),
+      fixed_point_warm_start_mix = 1
+    ) {
+      stopifnot(
+        "fixed_point_eta must be finite and positive" = length(
+          fixed_point_eta
+        ) ==
+          1L &&
+          is.finite(fixed_point_eta) &&
+          fixed_point_eta > 0,
+        "fixed_point_beta must be in [0, 1)" = length(fixed_point_beta) == 1L &&
+          is.finite(fixed_point_beta) &&
+          fixed_point_beta >= 0 &&
+          fixed_point_beta < 1,
+        "anderson_m must be a positive integer" = length(anderson_m) == 1L &&
+          is.finite(anderson_m) &&
+          anderson_m >= 1 &&
+          anderson_m == as.integer(anderson_m),
+        "check_every must be a positive integer" = length(check_every) == 1L &&
+          is.finite(check_every) &&
+          check_every >= 1 &&
+          check_every == as.integer(check_every),
+        "fixed_point_warm_start_mix must be in (0, 1]" = length(
+          fixed_point_warm_start_mix
+        ) ==
+          1L &&
+          is.finite(fixed_point_warm_start_mix) &&
+          fixed_point_warm_start_mix > 0 &&
+          fixed_point_warm_start_mix <= 1
+      )
+      private$fixed_point_eta <- as.numeric(fixed_point_eta)
+      private$fixed_point_beta <- as.numeric(fixed_point_beta)
+      private$fixed_point_update <- match.arg(fixed_point_update)
+      private$anderson_m <- as.integer(anderson_m)
+      private$check_every <- as.integer(check_every)
+      private$lambda_order <- match.arg(fixed_point_lambda_order)
+      private$warm_start_mix <- as.numeric(fixed_point_warm_start_mix)
+      ord <- order(
+        private$penalty_list$lambda,
+        decreasing = private$lambda_order == "descending"
+      )
+      private$penalty_list$lambda <- private$penalty_list$lambda[ord]
+      private$rbf_input_order <- private$rbf_input_order[ord]
+      private$penalty_input_list$lambda <- private$penalty_input_list$lambda[
+        ord
+      ]
+      super$solve(
+        niter,
+        tol,
+        optimizer = "torch",
+        torch_optim = torch_optim,
+        torch_scheduler = torch_scheduler,
+        torch_args = torch_args,
+        osqp_args = osqp_args,
+        quick.balance.function = quick.balance.function
+      )
+    }
+  ),
+  active = list(
+    weights = function(value) {
+      # keep pending or iteration-zero weights exactly, including zeros
+      # potential updates use w2(gamma)
+      if (!is.null(private$accepted_weights)) {
+        return(private$accepted_weights$detach()$clone())
+      }
+      C <- if (inherits(private$C_xx, "costTensor")) {
+        private$C_xx$data
+      } else {
+        private$C_xx
+      }
+      private$nn_holder$calc_w2(
+        private$nn_holder$gamma$detach(),
+        C,
+        private$a_log,
+        torch::jit_scalar(private$lambda),
+        torch::jit_scalar(private$nn_holder$n)
+      )$detach()
+    }
+  ),
+  private = list(
+    fixed_point_eta = 1,
+    fixed_point_beta = .9,
+    fixed_point_update = "anderson",
+    anderson_m = 5L,
+    check_every = 50L,
+    lambda_order = "ascending",
+    warm_start_mix = 1,
+    pending_weights = NULL,
+    accepted_weights = NULL,
+    fp_iteration = 0L,
+    set_lambda = function(l) {
+      # save weights before changing the entropy scale
+      warm <- if (is.null(private$pending_weights)) {
+        self$weights
+      } else {
+        private$pending_weights
+      }
+      super$set_lambda(l)
+      private$pending_weights <- warm$detach()$clone()
+      private$accepted_weights <- warm$detach()$clone()
+    },
+    parameters_get_set = function(value, clone = FALSE) {
+      if (missing(value)) {
+        out <- rlang::env()
+        class(out) <- c("weightEnv", class(out))
+        address <- private$problems[[ls(private$problems)[[1L]]]][[1L]]
+        out[[address]] <- self$weights$detach()$clone()
+        return(out)
+      }
+      if (!is.environment(value) && !is.list(value)) {
+        stop("value must be a list or environment with one weight vector.")
+      }
+      keys <- if (is.environment(value)) ls(value) else seq_along(value)
+      if (length(keys) != 1L) {
+        stop("Expected one source weight vector.")
+      }
+      w <- value[[keys[[1L]]]]
+      if (!inherits(w, "torch_tensor")) {
+        w <- torch::torch_tensor(
+          w,
+          dtype = private$nn_holder$gamma$dtype,
+          device = private$nn_holder$gamma$device
+        )
+      }
+      w <- w$detach()$to(
+        dtype = private$nn_holder$gamma$dtype,
+        device = private$nn_holder$gamma$device
+      )$view(-1)$clone()
+      if (
+        length(w) != self$ot$n ||
+          !w$isfinite()$all()$item() ||
+          (w < 0)$any()$item() ||
+          abs(w$sum()$item() - 1) > 1e-6
+      ) {
+        stop(
+          "Weights must be finite, nonnegative, sum to one, and match the source size."
+        )
+      }
+      private$fp_build_potential(w)
+      # keep unmixed weights for the iteration-zero check
+      private$pending_weights <- w
+      invisible(NULL)
+    },
+    fp_build_potential = function(w) {
+      torch::with_no_grad({
+        mixed <- (1 - private$warm_start_mix) *
+          w +
+          private$warm_start_mix / length(w)
+        self$ot$a <- mixed
+        # clear cached Sinkhorn potentials for a full cold restart
+        if (private$warm_start_mix == 1) {
+          self$ot$potentials <- NULL
+        }
+        self$ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
+        gamma <- self$ot$potentials$f_xx /
+          as.numeric(private$lambda) +
+          mixed$log()
+        private$nn_holder$gamma$copy_(gamma - gamma$max())
+        private$accepted_weights <- NULL
+      })
+      invisible(NULL)
+    },
+    check_history = NULL,
+    memory_resets = 0L,
+    reverts = 0L,
+    # track gap progress when objective changes fall below slack
+    stagnation_checks = 50L,
+    stagnation_fraction = .01,
+    safeguard_slack = 1,
+    eta_min = .0625,
+    eta_decay = .5,
+    # reserve 1% of ot_tol for Sinkhorn check discrepancies
+    convergence_margin = .01,
+    fp_converged = function(cert, tol) {
+      cot_converged(
+        cert$fw_gap + private$convergence_margin * private$ot_tol,
+        cert$divergence,
+        private$ot_tol,
+        tol
+      )
+    },
+    torch_optim_setup = function(...) invisible(NULL),
+    torch_optim_reset = function(...) invisible(NULL),
+    fp_forward = function() {
+      private$nn_holder$forward(
+        private$C_xy,
+        private$C_xx,
+        private$a_log,
+        private$b_log,
+        private$lambda,
+        private$bf,
+        private$bt,
+        private$delta
+      )
+    },
+    fp_checkpoint = function(w) {
+      self$ot$a <- w$detach()
+      self$ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
+      list(
+        divergence = oop_loss_select(self$ot)$detach()$item(),
+        fw_gap = cot_ccp_kkt(self$ot)$fw_gap
+      )
+    },
+    optimization_loop = function(niter, tol) {
+      start <- self$weights$detach()$clone()
+      private$fp_iteration <- 0L
+      tryCatch(private$fp_optimization_loop(niter, tol), error = function(e) {
+        # keep weights available after a failed proposal
+        # iterate_over_delta restores the starting state for the next lambda
+        private$accepted_weights <- start
+        list(
+          loss = NA_real_,
+          iter = private$fp_iteration,
+          converged = FALSE,
+          stopped_by_rule = FALSE,
+          fw_gap = NA_real_,
+          divergence = NA_real_,
+          reason = paste0("error: ", conditionMessage(e))
+        )
+      })
+    },
+    fp_optimization_loop = function(niter, tol) {
+      torch::with_no_grad({
+        warm <- if (is.null(private$pending_weights)) {
+          self$weights
+        } else {
+          private$pending_weights
+        }
+        warm <- warm$detach()$clone()
+        private$pending_weights <- NULL
+        private$check_history <- list()
+        private$memory_resets <- 0L
+        private$reverts <- 0L
+        initial <- private$fp_checkpoint(warm)
+        private$check_history[[1L]] <- c(list(iter = 0L), initial)
+        if (private$fp_converged(initial, tol)) {
+          private$accepted_weights <- warm
+          return(list(
+            loss = initial$divergence,
+            iter = 0L,
+            converged = TRUE,
+            stopped_by_rule = FALSE,
+            fw_gap = initial$fw_gap,
+            divergence = initial$divergence,
+            reason = "ok"
+          ))
+        }
+        private$fp_build_potential(warm)
+        eta <- private$fixed_point_eta
+        kappa <- eta / 2
+        u <- private$nn_holder$gamma
+        v <- torch::torch_zeros_like(u)
+        U <- R <- list()
+        # store incoming weights separately since zeros have no finite potential
+        best <- c(initial, list(u = NULL, weights = warm))
+        progress_gap <- max(initial$fw_gap, .Machine$double.xmin)
+        stagnant_checks <- 0L
+        reset_pending <- FALSE
+        eta_floor <- min(eta, private$eta_min)
+        stopped <- FALSE
+        reason <- "niter"
+        res <- private$fp_forward()
+        last_ess <- 1 / res$w2$square()$sum()$item()
+        check <- function(iter) {
+          cert <- private$fp_checkpoint(res$w2)
+          if (!is.finite(cert$divergence) || !is.finite(cert$fw_gap)) {
+            stop("Non-finite entropy fixed-point checkpoint.")
+          }
+          slack <- private$safeguard_slack *
+            private$ot_tol *
+            cot_conv_scale(self$ot)
+          if (cert$divergence < best$divergence) {
+            best <<- c(
+              cert,
+              list(u = u$detach()$clone(), weights = res$w2$detach()$clone())
+            )
+          }
+          # track gap progress separately from the best objective
+          if (cert$fw_gap < progress_gap * (1 - private$stagnation_fraction)) {
+            progress_gap <<- max(cert$fw_gap, .Machine$double.xmin)
+            stagnant_checks <<- 0L
+          } else {
+            stagnant_checks <<- stagnant_checks + 1L
+          }
+          passed <- private$fp_converged(cert, tol)
+          action <- "none"
+          if (!passed && cert$divergence > best$divergence + slack) {
+            U <<- R <<- list()
+            v$zero_()
+            if (reset_pending) {
+              action <- "revert"
+              private$reverts <- private$reverts + 1L
+              at_floor <- eta <= eta_floor
+              eta <<- max(eta_floor, eta * private$eta_decay)
+              kappa <<- eta / 2
+              if (is.null(best$u)) {
+                # rebuild for updates while retaining the exact best weights
+                private$fp_build_potential(best$weights)
+              } else {
+                u$copy_(best$u)
+              }
+              res <<- private$fp_forward()
+              reset_pending <<- FALSE
+              if (at_floor) {
+                stopped <<- TRUE
+                reason <<- "no progress"
+              }
+            } else {
+              action <- "reset"
+              private$memory_resets <- private$memory_resets + 1L
+              reset_pending <<- TRUE
+            }
+          } else {
+            reset_pending <<- FALSE
+          }
+          private$check_history[[length(private$check_history) + 1L]] <-
+            c(
+              list(iter = iter),
+              cert,
+              list(
+                best_divergence = best$divergence,
+                slack = slack,
+                eta = eta,
+                action = action,
+                stagnant_checks = stagnant_checks,
+                progress_gap = progress_gap
+              )
+            )
+          last_ess <<- 1 / res$w2$square()$sum()$item()
+          if (
+            !passed && !stopped && stagnant_checks >= private$stagnation_checks
+          ) {
+            stopped <<- TRUE
+            reason <<- "stalled"
+          }
+          passed
+        }
+        for (i in seq_len(niter)) {
+          private$fp_iteration <- i
+          old_log_w2 <- res$log_w2
+          if (private$fixed_point_update == "momentum") {
+            v <- private$fixed_point_beta * v + res$d
+            next_u <- u + kappa * v
+          } else {
+            T <- u + kappa * res$d
+            U <- c(U, list(T))
+            R <- c(R, list(res$w2$sqrt() * (kappa * res$d)))
+            if (length(U) > private$anderson_m) {
+              U <- U[-1L]
+              R <- R[-1L]
+            }
+            next_u <- T
+            k <- length(R)
+            if (k > 1L) {
+              residuals <- torch::torch_stack(R, dim = 2L)
+              G <- residuals$t()$matmul(residuals)
+              G <- G +
+                1e-10 *
+                  G$diag()$max() *
+                  torch::torch_eye(k, dtype = u$dtype, device = u$device)
+              alpha <- tryCatch(
+                torch::linalg_solve(
+                  G,
+                  torch::torch_ones(k, dtype = u$dtype, device = u$device)
+                ),
+                error = function(e) NULL
+              )
+              if (
+                !is.null(alpha) &&
+                  alpha$isfinite()$all()$item() &&
+                  is.finite(alpha$sum()$item()) &&
+                  alpha$sum()$item() != 0
+              ) {
+                candidate <- torch::torch_stack(U, dim = 2L)$matmul(
+                  alpha / alpha$sum()
+                )
+                if (candidate$isfinite()$all()$item()) next_u <- candidate
+              }
+            }
+          }
+          u$copy_(next_u - next_u$max())
+          res <- private$fp_forward()
+          if (!res$d$isfinite()$all()$item() || !u$isfinite()$all()$item()) {
+            stop("Non-finite entropy fixed-point update.")
+          }
+          # use a tighter absolute step test for stalls; small steps need not be optimal
+          stalled <- (res$log_w2 - old_log_w2)$abs()$max()$item() <= tol^2
+          ess <- 1 / res$w2$square()$sum()$item()
+          if (
+            i %% private$check_every == 0L ||
+              i == niter ||
+              stalled ||
+              ess < last_ess / 2
+          ) {
+            passed <- check(i)
+            if (passed || stalled || stopped) {
+              if (passed) {
+                reason <- "ok"
+              } else if (!stopped) {
+                reason <- "stalled"
+              }
+              stopped <- !passed
+              break
+            }
+          }
+        }
+        # restore the best checked weights and recompute the certificate
+        if (!is.null(best$u)) {
+          u$copy_(best$u)
+        }
+        private$accepted_weights <- best$weights
+        final <- private$fp_checkpoint(best$weights)
+        converged <- private$fp_converged(final, tol)
+        if (converged) {
+          reason <- "ok"
+        } else if (reason == "ok") {
+          reason <- "gap above tolerance"
+        }
+        list(
+          loss = final$divergence,
+          iter = i,
+          converged = converged,
+          stopped_by_rule = stopped && !converged,
+          fw_gap = final$fw_gap,
+          divergence = final$divergence,
+          reason = reason
+        )
+      })
+    }
+  )
 )

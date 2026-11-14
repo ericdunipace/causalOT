@@ -83,14 +83,6 @@ OT <- R6::R6Class(
         self$dtype <- dtype
       }
 
-      # if(self$dtype == torch::torch_double()) {
-      #   if(packageVersion("rkeops") >= pkg_vers_number("2.0")) {
-      #     rkeops::rkeops_use_float64()
-      #   } else {
-      #     rkeops::compile4float64()
-      #   }
-      # }
-
       # setup data
       if (!inherits(x, "torch_tensor")) {
         x <- torch::torch_tensor(x, dtype = self$dtype)$contiguous()
@@ -183,22 +175,7 @@ OT <- R6::R6Class(
       self$diameter <- diameter
       self$debias <- debias
       self$tensorized <- tensorized
-      # private$pot = list(f_xy = torch::torch_zeros(self$n),
-      #                 g_yx = torch::torch_zeros(self$m),
-      #                 f_xx = torch::torch_zeros(self$n),
-      #                 g_yy = torch::torch_zeros(self$m))
       private$pot <- vector("list", 0)
-
-      # if (self$tensorized) {
-      #   self$softmin <- function(eps, C_xy, y_potential, b_log) {
-      #     sinkhorn_compiled()$softmin(
-      #       torch::jit_scalar(eps),
-      #       C_xy$data,
-      #       y_potential,
-      #       b_log
-      #     )
-      #   }
-      # }
 
       return(invisible(self))
     }
@@ -320,9 +297,7 @@ OT <- R6::R6Class(
     pot = "list",
     pot_eps = NULL, # epsilon at which the stored potentials were computed
     g_yy_key = NULL, # inputs of the stored g_yy, see g_yy_current
-    # softmin_jit = "script_function",
     is_tensorized = function(tensorized, x, y) {
-      # browser()
       if (tensorized == "auto") {
         n <- nrow(x)
         m <- nrow(y)
@@ -336,12 +311,6 @@ OT <- R6::R6Class(
         tensorized <- TRUE
       } else if (tensorized == "online") {
         tensorized <- FALSE
-        # if (!rkeops_installed()) {
-        #   warning(
-        #     "Package 'rkeops' must be installed to use online cost calculations."
-        #   )
-        #   tensorized <- TRUE
-        # }
       } else {
         stop("tensorized must be one of auto, tensorized, or online")
       }
@@ -362,17 +331,6 @@ OT <- R6::R6Class(
         tensorized = TRUE,
         cost_function = cost_function
       )
-      # if (tensorized) {
-      #   diameter <- max(diam_cost$data)$item()
-      # } else {
-      #   exp_sums <- C_yx$reduction(list(
-      #     as.matrix(diam_cost$data$x$to(device = "cpu")),
-      #     as.matrix(diam_cost$data$y$to(device = "cpu")),
-      #     rep(0., 2),
-      #     -1.
-      #   ))
-      #   diameter <- max(exp_sums[, 1])
-      # }
       return(max(diam_cost$data)$item())
     },
     xy_converged = "logical",
@@ -380,34 +338,12 @@ OT <- R6::R6Class(
   )
 )
 
-
-# log_weights function
-# setGeneric("log_weights", function(a) standardGeneric("log_weights"))
-# setMethod("log_weights", signature(a = "torch_tensor"),
-# function(a) {
-#   min_val <- as.double(-1e5)
-#   torch::with_no_grad({
-#     a_log <- torch::torch_log(a)
-#     a_log[a_log < min_val] <- min_val
-#   })
-#   return(a_log)
-# }
-# )
-# setMethod("log_weights", signature(a = "numeric"),
-#           function(a) {
-#             min_val <- as.double(-1e5)
-#             a_log <- log(a)
-#             a_log[a_log < min_val] <- min_val
-#             return(a_log)
-#           }
-# )
-
 log_weights <- function(a) {
   if (inherits(a, "torch_tensor")) {
-    return(log_weights.torch_tensor(a))
+    return(log_weights_torch_tensor(a))
   }
   if (is.numeric(a)) {
-    return(log_weights.numeric(a))
+    return(log_weights_numeric(a))
   }
   stop(
     "no applicable method for 'log_weights' applied to an object of class ",
@@ -415,7 +351,7 @@ log_weights <- function(a) {
   )
 }
 
-log_weights.torch_tensor <- function(a) {
+log_weights_torch_tensor <- function(a) {
   min_val <- as.double(-1e5)
   torch::with_no_grad({
     a_log <- a$log()$clamp_min(min_val)
@@ -423,7 +359,7 @@ log_weights.torch_tensor <- function(a) {
   return(a_log)
 }
 
-log_weights.numeric <- function(a) {
+log_weights_numeric <- function(a) {
   min_val <- as.double(-1e5)
   a_log <- log(a)
   a_log[a_log < min_val] <- min_val
@@ -437,46 +373,7 @@ softmin_tensorized <- function(eps, C_xy, y_potential, b_log) {
         2
       )
   )
-  # softmin_jit(eps, C_xy$data, y_potential, b_log)
 }
-
-# softmin_jit <- torch::jit_trace(
-#     function(eps, C_xy, y_potential, b_log) {
-#       return ( -eps * ( torch::torch_add(y_potential / eps, b_log) - C_xy / eps )$logsumexp(2) )
-#     },
-#     torch::torch_tensor(10., dtype = self$dtype),
-#     torch::torch_tensor(matrix(0, 2,3), dtype = self$dtype),
-#     torch::torch_tensor(rep(0,3), dtype = self$dtype),
-#     torch::torch_tensor(rep(0,3), dtype = self$dtype)
-#     )
-
-# softmin_online <- function(eps, C_xy, y_potential, b_log) {
-#   x <- C_xy$data$x
-#   y <- C_xy$data$y
-#   m <- C_xy$mats
-#   if (x$requires_grad || y$requires_grad) {
-#     m <- list(x = as_matrix(x), y = as_matrix(y))
-#   } else if (is.null(m) || !identical(m$src_x, x) || !identical(m$src_y, y)) {
-#     m <- C_xy$mats <- list(
-#       src_x = x,
-#       src_y = y,
-#       x = as_matrix(x),
-#       y = as_matrix(y)
-#     )
-#   }
-#   out <- softmin_keops(
-#     eps,
-#     x,
-#     y,
-#     y_potential$detach(),
-#     b_log$detach(),
-#     C_xy$reduction,
-#     m$x,
-#     m$y
-#   )
-
-#   return(out)
-# }
 
 online_lse_user <- torch::autograd_function(
   forward = function(ctx, x, y, G, P, C) {
@@ -531,74 +428,7 @@ softmin_online <- function(eps, C_xy, y_potential, b_log) {
 }
 
 
-# softmin_keops <- torch::autograd_function(
-#   forward = function(
-#     ctx,
-#     eps,
-#     x,
-#     y,
-#     y_potential,
-#     b_log,
-#     reduction,
-#     xmat,
-#     ymat
-#   ) {
-#     G <- as_numeric(b_log + y_potential / eps)
-#     one_over_eps <- as_numeric(1.0 / eps)
-#     sums <- reduction(input = list(X = xmat, Y = ymat, G = G, P = one_over_eps))
-#     if (
-#       rkeops_installed() &&
-#         utils::packageVersion("rkeops") >= pkg_vers_number("2.0")
-#     ) {
-#       out <- torch::torch_tensor(
-#         -eps * c(sums),
-#         dtype = b_log$dtype,
-#         device = b_log$device
-#       )
-#     } else {
-#       out <- torch::torch_tensor(
-#         -eps * (log(sums[, 2]) + sums[, 1]),
-#         dtype = b_log$dtype,
-#         device = b_log$device
-#       )
-#     }
-
-#     ctx$save_for_backward(
-#       x = xmat,
-#       y = ymat,
-#       G = G,
-#       one_over_eps = one_over_eps,
-#       forward_op = reduction,
-#       dtype = b_log$dtype,
-#       device = b_log$device
-#     )
-
-#     return(out)
-#   },
-#   backward = function(ctx, grad_output) {
-#     grads <- list(x = NULL)
-#     saved_var <- ctx$saved_variables
-#     if (ctx$needs_input_grad$x) {
-#       cost_grad <- rkeops::keops_grad(op = saved_var$forward_op, var = "X")
-#       grads$x <- grad_output *
-#         torch::torch_tensor(
-#           cost_grad(list(
-#             X = saved_var$x,
-#             Y = saved_var$y,
-#             G = saved_var$G,
-#             P = saved_var$one_over_eps
-#           )),
-#           dtype = saved_var$dtype,
-#           device = saved_var$device
-#         )
-#     }
-#     return(grads)
-#   }
-# )
-
-# Epsilon scaling: geometric decrease from `start` to `eps`, one iteration per
-# level, then iterations at `eps` up to `tot_iter` in total. The levels are
-# clamped so the schedule reaches `eps` exactly.
+# epsilon scaling
 epsilon_trajectory <- function(start, eps, tot_iter) {
   path <- if (start > eps) {
     pmax(start * exp(-0.9 * (0:ceiling(log(start / eps) / 0.9))), eps)
@@ -608,9 +438,8 @@ epsilon_trajectory <- function(start, eps, tot_iter) {
   c(path, rep(eps, max(0L, tot_iter - length(path))))
 }
 
-# Where a solve starts: cold starts anneal from the diameter; warm starts
-# resume from the epsilon of the stored potentials, or at `eps` if that was
-# smaller (a larger epsilon is the easier problem).
+# if warm, will restart from the maximum of desired epsilon or epsilon
+# used to fit the potentials
 sinkhorn_start <- function(warm, pot_eps, diameter, eps) {
   if (!warm) {
     return(max(diameter, eps))
@@ -629,8 +458,7 @@ sinkhorn_usable <- function(...) {
   ))
 }
 
-# Whether a softmin over this cost can record gradients. Only the cost can:
-# the log weights and the potentials enter the softmin detached.
+# if cost needs gradient; weights and potentials enter detached
 cost_requires_grad <- function(C) {
   d <- C$data
   if (inherits(d, "torch_tensor")) {
@@ -645,9 +473,7 @@ cost_requires_grad <- function(C) {
 
 sinkhorn_ratio <- TRUE
 
-# Anderson memory for the compiled Sinkhorn loops (0 = plain Sinkhorn). The
-# x-y loop gains roughly 10-20x at small epsilon. The self loop converges in
-# about 15 damped sweeps at any epsilon, so it gains nothing and stays plain.
+# Length of Anderson memory
 sinkhorn_anderson_m_xy <- 10L
 sinkhorn_anderson_m_xx <- 3L
 
@@ -681,10 +507,7 @@ OT$set("public", "sinkhorn_opt", function(niter = 1e3, tol = 1e-7) {
   return(invisible(self))
 })
 
-# g_yy depends only on b, C_yy and epsilon. When the target weights are fixed
-# (the usual case), it need not be recomputed at each evaluation. The key holds
-# b, the C_yy tensor itself (update_cost replaces it rather than modifying it)
-# and epsilon at the last computation; the potentials setter clears it.
+# get the inputs needed for g_yy
 OT$set("private", "g_yy_inputs", function() {
   if (cost_requires_grad(self$C_yy) || private$b_$requires_grad) {
     return(NULL)
@@ -695,6 +518,7 @@ OT$set("private", "g_yy_inputs", function() {
     eps = as.numeric(self$penalty)
   )
 })
+# identify if g_yy needs updating
 OT$set("private", "g_yy_current", function() {
   key <- private$g_yy_key
   if (is.null(key) || !sinkhorn_usable(private$pot$g_yy)) {
@@ -707,9 +531,8 @@ OT$set("private", "g_yy_current", function() {
     identical(key$eps, as.numeric(self$penalty)) &&
     torch::torch_equal(key$b, private$b_$detach())
 })
-
+# only update non-g_yy potentials
 OT$set("public", "sinkhorn_cot", function(niter = 1e3, tol = 1e-7) {
-  # torch::autograd_set_grad_mode(enabled = FALSE)
   torch::with_no_grad({
     fg_list <- private$sinkhorn_loop(niter, tol)
 
@@ -988,8 +811,7 @@ OT$set("private", "sinkhorn_loop", function(niter, tol) {
     ft <- f_xy$detach()$clone()
   })
 
-  # A final step records gradients through the cost; without them it would
-  # only recompute what the loop has.
+  # final step records gradients through the cost
   if (!cost_requires_grad(C_xy) && !cost_requires_grad(C_yx)) {
     return(list(f_xy = ft, g_yx = gt))
   }
@@ -1088,7 +910,9 @@ OT$set(
 
     f <- parts$f[idx1]$view(c(-1L, 1L))
     g <- parts$g[idx2]$view(c(1L, -1L))
-    ((f + g - cost_block(parts$C, idx1, idx2)) / as.numeric(self$penalty))$exp()
+    (f + g)$sub_(cost_block(parts$C, idx1, idx2))$div_(as.numeric(
+      self$penalty
+    ))$exp_()
   }
 )
 
@@ -1521,8 +1345,6 @@ sinkhorn_loss <- function(OT) {
   return(loss)
 }
 
-# each target point j spreads its mass b_j over the sources by a softmin of
-# its cost column; the summed source mass is the semi-relaxed starting weight
 cot_init_semirelaxed <- function(C, b, lambda) {
   if (inherits(C, "costTensor")) {
     C <- C$data
@@ -1720,7 +1542,7 @@ online_by_rows <- function(C, x, y, f) {
 
 online_lse_rows <- function(C, x, y, G, P) {
   Gv <- G$view(c(1L, -1L))
-  online_by_rows(C, x, y, function(Cb, i) (Gv - Cb * P)$logsumexp(2))
+  online_by_rows(C, x, y, function(Cb, i) (Cb * (-P))$add_(Gv)$logsumexp(2))
 }
 
 online_cost_mv <- function(C, x, y, v) {

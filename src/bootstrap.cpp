@@ -83,6 +83,7 @@ Rcpp::NumericVector sbw_oop_bs_(Rcpp::List & w_list,
     // eval each weight
     for (int j = 0; j < n_w; ++j) {
       w_tilde = a_count_dbl.array() * w_matrix.col(j).array();
+      w_tilde /= w_tilde.sum();
       double evalout = ((source.transpose() * w_tilde) - target).array().abs().mean();
       means(j) += evalout/n_bd;
     }

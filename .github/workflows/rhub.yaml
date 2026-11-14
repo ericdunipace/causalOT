@@ -58,26 +58,17 @@ jobs:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
 
-      # IMPORTANT: make sure pak can see your drat repo during dependency solving
-      - name: Configure drat repo for pak (before deps)
-        shell: bash
-        run: |
-          mkdir -p .github
-          cat > .github/rprofile <<'EOF'
-          options(repos = c(
-            eric = "https://ericdunipace.github.io/drat",
-            getOption("repos")
-          ))
-          EOF
-          echo "R_PROFILE_USER=${GITHUB_WORKSPACE}/.github/rprofile" >> "$GITHUB_ENV"
-          Rscript -e 'print(getOption("repos"))'
-
       - uses: r-hub/actions/setup-deps@v1
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
           # Ensure rcmdcheck exists for the summary step below
           extra-packages: any::rcmdcheck
+
+      - name: Install torch backend (lantern/libtorch)
+        run: Rscript -e 'torch::install_torch()'
+        env:
+          TORCH_INSTALL: 1
 
       - uses: r-hub/actions/run-check@v1
         with:
