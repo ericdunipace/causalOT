@@ -137,8 +137,7 @@ COT <- R6::R6Class(
           options <- do.call(cotOptions, options)
         }
 
-        # lambda = "auto" needs the pooled data from calc_weight(). Without it,
-        # fit the default grid and let the selector choose.
+        # lambda = "auto" needs pooled data; otherwise use the default grid
         if (identical(options$lambda, "auto")) {
           options["lambda"] <- list(NULL)
           if (is.null(options$grid.length)) options$grid.length <- 7L
@@ -674,8 +673,7 @@ cotOptions <- function(
     ]
   }
 
-  # Without a line search, torch's LBFGS takes full steps, which can collapse
-  # the weights onto a single point. Use strong Wolfe unless the user chose.
+  # use strong Wolfe by default to avoid weight collapse from full LBFGS steps
   if (
     inherits(output$torch.optimizer, "optim_lbfgs") &&
       !("line_search_fn" %in% names(list(...)))
@@ -734,7 +732,7 @@ cotOptions <- function(
     output$lambda.selector <- cot_normalize_lambda_selector(lambda.selector)
   }
 
-  # Keep the original RBF input order for the fitted-path index mapping.
+  # keep RBF input order for fitted-path indices
   if (
     identical(output$lambda.selector, "auto") &&
       !missing(lambda) &&

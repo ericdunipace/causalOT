@@ -811,8 +811,7 @@ OT$set("private", "sinkhorn_loop", function(niter, tol) {
     ft <- f_xy$detach()$clone()
   })
 
-  # A final step records gradients through the cost; without them it would
-  # only recompute what the loop has.
+  # final step records gradients through the cost
   if (!cost_requires_grad(C_xy) && !cost_requires_grad(C_yx)) {
     return(list(f_xy = ft, g_yx = gt))
   }
@@ -1346,8 +1345,6 @@ sinkhorn_loss <- function(OT) {
   return(loss)
 }
 
-# each target point j spreads its mass b_j over the sources by a softmin of
-# its cost column; the summed source mass is the semi-relaxed starting weight
 cot_init_semirelaxed <- function(C, b, lambda) {
   if (inherits(C, "costTensor")) {
     C <- C$data

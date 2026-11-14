@@ -2917,8 +2917,7 @@ OTProblem_ <- R6::R6Class(
         class(weights) <- c("weightEnv", class(weights))
         weights[[address]] <- w
         if (inherits(self, "cotDualEntropyFixedPointTrain")) {
-          # A completed fit only needs the weights. Rebuild a potential later
-          # if a subsequent fixed-point fit needs to update them.
+          # save weights; rebuild the potential for the next fixed-point fit
           private$accepted_weights <- w$detach()$clone()
           private$pending_weights <- w$detach()$clone()
         } else {
@@ -3058,8 +3057,7 @@ OTProblem_ <- R6::R6Class(
           return(phase1("error", conditionMessage(result)))
         }
         if (result$changed) {
-          # The model keeps a copy in its own dtype as the warm start for the
-          # next fit; the float64 weights are what the fit returns.
+          # warm start in model dtype; return float64 weights
           torch::with_no_grad({
             private$polish_set_weights(
               ot,
@@ -3151,9 +3149,7 @@ OTProblem_ <- R6::R6Class(
             for (k in ls(w)) {
               w[[k]] <- torch::torch_full_like(w[[k]], NA_real_)
             }
-            # Do not let a failed warm start contaminate the remaining path.
-            # The failed fit stays failed; the next fit starts at the last
-            # usable point, without rescuing or restarting the failed fit.
+            # restore the last usable warm start after a failed fit
             private$parameters_get_set(value = phase_start)
             private$ot_update(use_grad = FALSE)
             if (inherits(private$opt, "optim_optimizer")) {
@@ -3331,8 +3327,7 @@ OTProblem_ <- R6::R6Class(
         identical(unname(adapt), c("weights", "none"))
       },
 
-      # Legacy stall test shared with CCP. This only decides when to stop;
-      # polish_result judges convergence of the returned weights.
+      # legacy CCP stall test; polish_result checks convergence
       optimality_ok = function(tol, scale) {
         ot <- private$ot_objects[[ls(private$ot_objects)[[1L]]]]
         kkt_tol <- max(tol, 1e-6)
@@ -3373,8 +3368,7 @@ OTProblem_ <- R6::R6Class(
           check <- private$lr_reduce(loss)
           # check <- lr_reduce(opt_sched, loss$detach())
 
-          # Once the loss stalls, stop either way. stopped_by_rule means
-          # stopped; polish_result separately judges convergence.
+          # stop on loss stall; polish_result checks convergence
           if (
             check &&
               (i > 1) &&
@@ -6451,9 +6445,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       if (length(private$target_objects)) {
         stop("dual.solver = 'fixed_point' does not support balance functions.")
       }
-      # Initialize a finite potential while retaining the original weights.
-      # solve() selects the path order; every fit checkpoints those weights
-      # before rebuilding at its own lambda.
+      # initialize a finite potential and retain weights for the lambda path
       self$ot$penalty <- as.numeric(private$lambda)
       private$pending_weights <- self$ot$a$detach()$clone()
       private$fp_build_potential(private$pending_weights)
@@ -6533,8 +6525,8 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
   ),
   active = list(
     weights = function(value) {
-      # A pending or iteration-zero accepted vector is kept exactly, including
-      # zeros. During potential updates the iterate is always w2(gamma).
+      # keep pending or iteration-zero weights exactly, including zeros
+      # potential updates use w2(gamma)
       if (!is.null(private$accepted_weights)) {
         return(private$accepted_weights$detach()$clone())
       }
@@ -6564,7 +6556,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
     accepted_weights = NULL,
     fp_iteration = 0L,
     set_lambda = function(l) {
-      # Capture weights before changing the scale used by the entropy forward.
+      # save weights before changing the entropy scale
       warm <- if (is.null(private$pending_weights)) {
         self$weights
       } else {
@@ -6612,8 +6604,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
         )
       }
       private$fp_build_potential(w)
-      # Retain the unmixed vector for the next iteration-zero check; the
-      # getter already reflects the reconstructed (mixed) potential.
+      # keep unmixed weights for the iteration-zero check
       private$pending_weights <- w
       invisible(NULL)
     },
@@ -6623,8 +6614,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
           w +
           private$warm_start_mix / length(w)
         self$ot$a <- mixed
-        # A full cold restart must also forget cached Sinkhorn potentials:
-        # tiny differences in the rebuilt start can change Anderson's path.
+        # clear cached Sinkhorn potentials for a full cold restart
         if (private$warm_start_mix == 1) {
           self$ot$potentials <- NULL
         }
@@ -6640,14 +6630,13 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
     check_history = NULL,
     memory_resets = 0L,
     reverts = 0L,
-    # Gap progress remains visible after objective changes fall below slack.
-    # Calibrated on the cold grid, including the certificates at iteration 9700.
+    # track gap progress when objective changes fall below slack
     stagnation_checks = 50L,
     stagnation_fraction = .01,
     safeguard_slack = 1,
     eta_min = .0625,
     eta_decay = .5,
-    # Reserve 1% of ot_tol for the check/audit Sinkhorn discrepancy.
+    # reserve 1% of ot_tol for Sinkhorn check discrepancies
     convergence_margin = .01,
     fp_converged = function(cert, tol) {
       cot_converged(
@@ -6683,9 +6672,8 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       start <- self$weights$detach()$clone()
       private$fp_iteration <- 0L
       tryCatch(private$fp_optimization_loop(niter, tol), error = function(e) {
-        # Keep extraction safe even if a failed proposal damaged gamma.
-        # iterate_over_delta marks this fit failed and restores phase_start
-        # through parameters_get_set before proceeding to the next lambda.
+        # keep weights available after a failed proposal
+        # iterate_over_delta restores the starting state for the next lambda
         private$accepted_weights <- start
         list(
           loss = NA_real_,
@@ -6730,8 +6718,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
         u <- private$nn_holder$gamma
         v <- torch::torch_zeros_like(u)
         U <- R <- list()
-        # Exact incoming weights may contain zeros and have no finite potential.
-        # Store weights as well as the potential so they remain eligible at exit.
+        # store incoming weights separately since zeros have no finite potential
         best <- c(initial, list(u = NULL, weights = warm))
         progress_gap <- max(initial$fw_gap, .Machine$double.xmin)
         stagnant_checks <- 0L
@@ -6755,8 +6742,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
               list(u = u$detach()$clone(), weights = res$w2$detach()$clone())
             )
           }
-          # A fractional gap decrease is a fixed decrease in log-gap. Keep
-          # its best checked anchor independently of the objective-best state.
+          # track gap progress separately from the best objective
           if (cert$fw_gap < progress_gap * (1 - private$stagnation_fraction)) {
             progress_gap <<- max(cert$fw_gap, .Machine$double.xmin)
             stagnant_checks <<- 0L
@@ -6775,8 +6761,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
               eta <<- max(eta_floor, eta * private$eta_decay)
               kappa <<- eta / 2
               if (is.null(best$u)) {
-                # Reconstruct only for continuing updates; the exact best
-                # weights remain stored independently of this mixed restart.
+                # rebuild for updates while retaining the exact best weights
                 private$fp_build_potential(best$weights)
               } else {
                 u$copy_(best$u)
@@ -6865,8 +6850,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
           if (!res$d$isfinite()$all()$item() || !u$isfinite()$all()$item()) {
             stop("Non-finite entropy fixed-point update.")
           }
-          # A stall is an absolute step test, deliberately tighter than the
-          # relative gap tolerance; small Anderson steps need not be optimal.
+          # use a tighter absolute step test for stalls; small steps need not be optimal
           stalled <- (res$log_w2 - old_log_w2)$abs()$max()$item() <= tol^2
           ess <- 1 / res$w2$square()$sum()$item()
           if (
@@ -6887,8 +6871,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
             }
           }
         }
-        # Every exit above has checked the current iterate. Return the lowest
-        # checked objective and recompute its certificate at the restored weights.
+        # restore the best checked weights and recompute the certificate
         if (!is.null(best$u)) {
           u$copy_(best$u)
         }

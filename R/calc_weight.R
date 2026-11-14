@@ -82,7 +82,7 @@ calc_weight <- function(x, z,
   if (method == "Wasserstein") method <- "COT"
   estimand <- match.arg(estimand)
 
-  # Check the labels before dataHolder coerces them to integers.
+  # check labels before dataHolder coerces them to integers
   z_binary <- !is.matrix(x) ||
     ((is.numeric(z) || is.logical(z)) && !anyNA(z) && all(z %in% c(0, 1)))
 
@@ -92,8 +92,8 @@ calc_weight <- function(x, z,
   selection <- NULL
   if (method == "COT") {
     if (!inherits(options, "cotOptions")) options <- do.call(cotOptions, as.list(options))
-    # "auto" predicts binary treatment from the pooled rows. It needs uniform
-    # observation weights and the standard cost; otherwise use the bootstrap.
+    # "auto" predicts treatment from pooled rows with uniform weights and standard cost
+    # otherwise use the bootstrap
     n <- length(data@z)
     auto_ok <- z_binary &&
       all(tabulate(data@z + 1L, 2L) >= 2L) &&
@@ -111,7 +111,7 @@ calc_weight <- function(x, z,
       selection <- cot_select_trt_rbf(data, options)
       options$lambda <- selection$lambda
     }
-    # The tuning rows are the original pooled observations for every estimand.
+    # use original pooled observations for tuning across estimands
     if (identical(options$lambda.selector, "auto")) {
       options$lambda.selection.data <- list(x = data@x, z = data@z)
     }

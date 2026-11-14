@@ -1,4 +1,4 @@
-# Entropy fixed-point tests: scalar fits, sparse starts, and lambda paths.
+# entropy fixed-point tests for scalar fits, sparse starts, and lambda paths
 defp_fixture <- function(n = 100L, seed = 1L, mult = 1, online = "tensorized") {
   causalOT:::torch_check()
   torch::torch_set_num_threads(1L)
@@ -73,7 +73,7 @@ testthat::test_that("public routing preserves honest capped-fit diagnostics and 
 
 testthat::test_that("returned state has the smallest checked divergence", {
   z <- defp_fixture(seed = 4L)
-  # Force the final proposal uphill so returning the last iterate would fail.
+  # force an uphill final proposal to check the returned iterate
   original <- z$private$fp_forward
   forwards <- 0L
   unlockBinding("fp_forward", z$private)
@@ -221,12 +221,11 @@ testthat::test_that("a sparse certified warm start is checked and returned exact
   fit$setup_arguments(lambda = c(1, 2), cost.online = "tensorized", ot_tol = 1e-10)
   p <- fit$.__enclos_env__$private
   before <- as.numeric(p$pending_weights)
-  # S = 0 here, so the gap threshold is ot_tol alone, and a check whose Sinkhorn
-  # starts from the cold-restart (uniform) potentials misses it by Sinkhorn error.
-  # On a real path the previous fit leaves potentials at the incoming weights.
+  # S = 0, so the gap threshold is ot_tol
+  # use incoming-weight potentials as on a real path; cold potentials miss the threshold
   fit$ot$a <- torch::torch_tensor(a, dtype = torch::torch_double())
   fit$ot$sinkhorn_opt(niter = 1e5L, tol = 1e-13)
-  # Reconstruction at either lambda would mix away the exact zeros.
+  # reconstruction at either lambda mixes away the zeros
   unlockBinding("fp_build_potential", p)
   p$fp_build_potential <- function(...) stop("unexpected mixing of a certified start")
   lockBinding("fp_build_potential", p)
@@ -242,7 +241,7 @@ testthat::test_that("the weight setter reconstructs a finite potential from exac
   for (online in c("tensorized", "online")) {
     z <- defp_fixture(n = 20L, mult = 10, online = online)
     a <- c(rep(0, 18), .2, .8)
-    # A small mix keeps the exact zeros nearly in place, which is the hard case.
+    # small mix keeps zeros nearly in place
     z$private$warm_start_mix <- 1e-3
     z$private$parameters_get_set(list(a))
     mixed <- (1 - z$private$warm_start_mix) * a + z$private$warm_start_mix / length(a)
@@ -298,7 +297,7 @@ testthat::test_that("an iteration error restores phase_start before the next lam
 testthat::test_that("native three-lambda paths agree with cold fits at the default and a partial mix", {
   testthat::expect_equal(causalOT:::cotDualEntropyFixedPointTrain$private_fields$warm_start_mix, 1)
   x <- matrix(c(0, 1, 2), ncol = 1)
-  # A 1e-3 mix lost the middle point on this support-changing path.
+  # a 1e-3 mix lost the middle point on this path
   y <- matrix(c(.2, 1.8), ncol = 1)
   lambdas <- c(.05, .1, .2)
   make <- function(lambda) causalOT:::COT$new(x, y,
@@ -348,7 +347,7 @@ testthat::test_that("a full cold restart rebuilds uniform weights after the inco
   testthat::expect_identical(incoming, a)
   testthat::expect_equal(rebuilt, rep(1 / 20, 20), tolerance = 1e-7)
   testthat::expect_equal(z$private$warm_start_mix, 1)
-  # Rebuilding from unrelated cached potentials gives exactly the same start.
+  # rebuilding from unrelated cached potentials gives the same start
   z$private$fp_build_potential(z$fit$weights)
   cold_u <- as.numeric(z$private$nn_holder$gamma)
   z$private$fp_checkpoint(torch::torch_tensor(a, dtype = torch::torch_double()))
@@ -459,8 +458,8 @@ testthat::test_that("gap progress keeps flat-objective fits running", {
   p$fp_checkpoint <- function(w) {
     checkpoint(w)
     calls <<- calls + 1L
-    # Each change is below 1%, but the cumulative change every third check
-    # exceeds it. Objective-only stagnation would stop at iteration six.
+    # each change is below 1%, but the cumulative change every third check exceeds it
+    # objective-only stagnation would stop at iteration six
     list(divergence = 1, fw_gap = .996^(calls - 1L))
   }
   lockBinding("fp_checkpoint", p)

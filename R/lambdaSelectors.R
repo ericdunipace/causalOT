@@ -1,5 +1,4 @@
-# "auto" is the treatment-prediction RBF rule; "bootstrap" is the bootstrap
-# selector from earlier versions of the package.
+# "auto" uses treatment-prediction RBF; "bootstrap" uses the legacy selector
 cot_lambda_selector_choices <- function() {
   c("auto", "bootstrap")
 }
@@ -69,8 +68,8 @@ cot_to_numeric_matrix <- function(x) {
   as.matrix(x)
 }
 
-# Treatment prediction uses the solver cost, with an unpenalized intercept.
-# The deletion identity holds with the full-sample ridge penalty alpha * n.
+# treatment prediction with solver cost and unpenalized intercept
+# deletion identity uses the full-sample ridge penalty alpha * n
 cot_trt_rbf_score <- function(C, z, t, alphas = 10^seq(-3, 1, 0.5)) {
   n <- length(z)
   K <- exp(-C / t)
@@ -104,8 +103,7 @@ cot_trt_rbf_score <- function(C, z, t, alphas = 10^seq(-3, 1, 0.5)) {
   list(score = scores[i], alpha = alphas[i])
 }
 
-# Search is deliberately bounded and returns the best evaluated point, not
-# an interpolated optimizer estimate. All cost scaling occurs before this call.
+# bounded search over scaled costs; return the best evaluated point
 cot_trt_rbf_search <- function(
   score,
   max_eval = 50L,
@@ -171,13 +169,13 @@ cot_trt_rbf_search <- function(
   }
   bounds <- log(2) + log(10) * c(-1.5, 2.5)
   initial <- sort(unique(c(seq(bounds[1], bounds[2], length.out = 7), log(2))))
-  # Always score the starting bandwidth, even with a very small budget.
+  # always score the starting bandwidth
   initial <- unique(c(log(2), bounds, initial))
   for (u in utils::head(initial, max_eval)) {
     evaluate(u)
   }
   expansions <- 0L
-  # Expand only when the endpoint beats its adjacent probe.
+  # expand when the endpoint beats its neighbor
   repeat {
     o <- order(trace$u)
     a <- trace[o, ]
@@ -207,8 +205,7 @@ cot_trt_rbf_search <- function(
     evaluate(next_edge)
     expansions <- expansions + 1L
   }
-  # Refine all sampled local minima, prioritizing their scores. The budget is
-  # shared, so a difficult first bracket cannot make a false convergence claim.
+  # refine sampled local minima by score, sharing the budget across brackets
   a <- trace[order(trace$u), ]
   n <- nrow(a)
   candidates <- which(
@@ -276,8 +273,7 @@ cot_trt_rbf_search <- function(
   )
 }
 
-# Immutable numeric tuning data; IDs describe observational identity, not rows
-# that happen to have equal covariates.
+# numeric tuning data; IDs identify observations, not equal covariate rows
 cot_trt_rbf_context <- function(x, z, unit.id = NULL) {
   x <- as.matrix(x)
   if (!is.numeric(x) || any(!is.finite(x))) {
@@ -346,10 +342,8 @@ cot_trt_rbf_prepare <- function(context, max_sample = 2000L, seed = 2026L) {
     ))
   }
   xs <- x[indices, , drop = FALSE]
-  # The dense spectral regression runs in R double precision. Float32 cost
-  # roundoff can otherwise make a valid RBF kernel appear indefinite, especially
-  # at large bandwidths. Use the solver's cost definition on CPU float64;
-  # the final transport fit still uses the requested device and dtype.
+  # use CPU float64 costs for spectral regression to avoid RBF roundoff errors
+  # the transport fit uses the requested device and dtype
   xs <- torch::torch_tensor(
     xs,
     dtype = torch::torch_double(),
