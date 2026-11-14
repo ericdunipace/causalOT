@@ -34,7 +34,6 @@ testthat::test_that("ccp solver runs fixed lambda primal tensorized COT", {
 
   opt <- cotOptions(
     lambda = 100.0,
-    opt.direction = "primal",
     solver = "mirror",
     niter = 3L,
     ot_niter = 500L,
@@ -67,13 +66,14 @@ testthat::test_that("ccp solver runs fixed lambda primal tensorized COT", {
 testthat::test_that("ccp option rejects unsupported first-slice configurations", {
   causalOT:::torch_check()
   testthat::expect_error(
-    cotOptions(lambda = 100.0, opt.direction = "dual", solver = "mirror"),
+    suppressWarnings(
+      cotOptions(lambda = 100.0, opt.direction = "dual", solver = "mirror")
+    ),
     "opt.direction"
   )
   testthat::expect_error(
     cotOptions(
       lambda = c(100.0, 10.0),
-      opt.direction = "primal",
       solver = "mirror"
     ),
     "single finite positive lambda"
@@ -81,7 +81,6 @@ testthat::test_that("ccp option rejects unsupported first-slice configurations",
   testthat::expect_error(
     cotOptions(
       lambda = 100.0,
-      opt.direction = "primal",
       solver = "mirror",
       balance.formula = "~X1"
     ),
@@ -97,7 +96,6 @@ testthat::test_that("solver option routes to the expected optimizer class", {
 
   opt_ccp <- cotOptions(
     lambda = 100.0,
-    opt.direction = "primal",
     solver = "mirror",
     cost.online = "tensorized"
   )
@@ -109,7 +107,6 @@ testthat::test_that("solver option routes to the expected optimizer class", {
 
   opt_lbfgs <- cotOptions(
     lambda = 100.0,
-    opt.direction = "primal",
     solver = "lbfgs",
     cost.online = "tensorized"
   )
@@ -137,7 +134,6 @@ testthat::test_that("ccp solve carries updated weights across iterations", {
   run_ccp <- function(niter) {
     opt <- cotOptions(
       lambda = 100.0,
-      opt.direction = "primal",
       solver = "mirror",
       polish = "none",
       cost.online = "tensorized",
@@ -168,7 +164,6 @@ testthat::test_that("ccp default fast path tries one tau per iteration", {
 
   opt <- cotOptions(
     lambda = 100.0,
-    opt.direction = "primal",
     solver = "mirror",
     cost.online = "tensorized",
     niter = 3L,
@@ -193,7 +188,6 @@ testthat::test_that("ccp sparse KKT diagnostic matches post-hoc diagnostic", {
 
   opt <- cotOptions(
     lambda = 100.0,
-    opt.direction = "primal",
     solver = "mirror",
     cost.online = "tensorized",
     niter = 4L,
@@ -226,7 +220,6 @@ testthat::test_that("ccp fast path does not mutate the fixed y self potential", 
 
   opt <- cotOptions(
     lambda = 100.0,
-    opt.direction = "primal",
     solver = "mirror",
     cost.online = "tensorized",
     niter = 2L,
@@ -258,7 +251,7 @@ testthat::test_that("dual solve writes solved weights back to COT object", {
   x <- matrix(stats::rnorm(n * d), n, d)
   y <- matrix(stats::rnorm(m * d), m, d)
 
-  opt <- cotOptions(
+  opt <- suppressWarnings(cotOptions(
     lambda = 100.0,
     opt.direction = "dual",
     cost.online = "tensorized",
@@ -266,7 +259,7 @@ testthat::test_that("dual solve writes solved weights back to COT object", {
     ot_niter = 50L,
     ot_tol = 1e-5,
     tol = 1e-5
-  )
+  ))
   cot <- causalOT:::COT$new(source = x, target = y, options = opt)
   start_weights <- cot$weights
 
@@ -302,7 +295,6 @@ testthat::test_that("lbfgs uses the optimality test for a single divergence", {
 
   opt <- cotOptions(
     lambda = 10,
-    opt.direction = "primal",
     solver = "lbfgs",
     line_search_fn = "strong_wolfe",
     polish = "auto",
