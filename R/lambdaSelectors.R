@@ -188,7 +188,7 @@ cot_trt_rbf_search <- function(
     )
     edges <- which(improving)
     direction <- if (length(edges)) {
-      edge_scores <- c(a$score[1], tail(a$score, 1))
+      edge_scores <- c(a$score[1], utils::tail(a$score, 1))
       c(-1L, 1L)[edges[which.min(edge_scores[edges])]]
     } else {
       0L
