@@ -129,7 +129,7 @@ calc_weight <- function(x, z,
   # may change in the future
   if (is.null(selection) && method == "COT") {
     metrics <- if (estimand == "ATE") cw@info$w0$metric else cw@info$metric
-    selection <- metrics$lambda.details
+    if (is.list(metrics)) selection <- metrics$lambda.details
   }
   if (!is.null(selection)) cw@info$lambda_selection <- selection
   cw@call <- mc
