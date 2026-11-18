@@ -47,7 +47,8 @@ test_that("search reports budget and handles flat and multimodal objectives", {
 test_that("input validation and deterministic stratified sampling work", {
   x <- matrix(seq_len(80), ncol = 2); z <- rep(0:1, each = 20)
   o <- cotOptions(lambda = "auto")
-  expect_error(cot_select_trt_rbf(dataHolder(x, z), cotOptions(lambda = "auto", p = 1)), "p = 2")
+  expect_true(is.finite(cot_select_trt_rbf(dataHolder(x, z), cotOptions(lambda = "auto", p = 1))$lambda))
+  expect_error(cot_select_trt_rbf(dataHolder(x, z), cotOptions(lambda = "auto", p = 3)), "conditionally negative definite")
   expect_error(cot_select_trt_rbf(dataHolder(x * 0, z), o), "positive median")
   expect_error(cot_select_trt_rbf(dataHolder(x, z, weights = seq_len(40)), o), "uniform")
   set.seed(33); state <- .Random.seed
@@ -356,4 +357,75 @@ test_that("mirror RBF selection preserves the fitted potentials", {
   suppressWarnings(ot$choose_hyperparameters(lambda.selector = "bootstrap"))
   suppressWarnings(ot$choose_hyperparameters(lambda.selector = "auto"))
   expect_identical(ot$info()$hyperparam.metrics$lambda.details$mode, "adaptive")
+})
+
+testthat::test_that("eligible built-in and custom costs use the solver kernel", {
+  set.seed(614)
+  x <- matrix(rnorm(48), 24, 2)
+  z <- rep(0:1, each = 12)
+  for (p in c(1, 1.5)) {
+    prep <- cot_trt_rbf_prepare(cot_trt_rbf_context(x, z), p = p)
+    C <- prep$C
+    Cc <- sweep(sweep(C, 1L, rowMeans(C)), 2L, colMeans(C)) + mean(C)
+    ev <- eigen(-(Cc + t(Cc)) / 2, symmetric = TRUE, only.values = TRUE)$values
+    testthat::expect_gte(min(ev), -1e-8 * max(1, max(abs(ev))))
+    selected <- cot_select_trt_rbf(dataHolder(x, z), cotOptions(p = p))
+    testthat::expect_true(is.finite(selected$lambda) && selected$lambda > 0)
+  }
+  A <- matrix(c(1.5, .2, 0, .7), 2, 2)
+  custom <- function(x1, x2, p) {
+    a <- torch::torch_tensor(A, dtype = x1$dtype, device = x1$device)
+    torch::torch_cdist(x1$matmul(a), x2$matmul(a), p = 2)^2 / 2
+  }
+  a <- cot_select_trt_rbf(dataHolder(x, z), cotOptions(cost.function = custom))
+  b <- cot_select_trt_rbf(dataHolder(x %*% A, z), cotOptions(p = 2))
+  testthat::expect_equal(a$lambda, b$lambda, tolerance = 1e-6)
+})
+
+testthat::test_that("invalid custom costs are rejected before kernel search", {
+  set.seed(615)
+  x <- matrix(rnorm(40), 20, 2)
+  z <- rep(0:1, each = 10)
+  bad <- function(x1, x2, p) torch::torch_cdist(x1, x2, p = 2)^4
+  asym <- function(x1, x2, p) torch::torch_cdist(x1, x2, p = 2) + x1[, 1, drop = FALSE]
+  testthat::expect_error(cot_select_trt_rbf(dataHolder(x, z), cotOptions(cost.function = bad)),
+                         class = "causalOT_noncnd_cost")
+  testthat::expect_error(cot_trt_rbf_prepare(cot_trt_rbf_context(x, z), cost_function = asym),
+                         "symmetric")
+  w <- suppressWarnings(calc_weight(x, z, estimand = "ATT", method = "COT",
+    options = list(cost.function = bad, lambda = "auto", niter = 2L, nboot = 2L, grid.length = 3L)))
+  testthat::expect_identical(w@info$metric$lambda.selector, "bootstrap")
+  testthat::expect_match(w@info$metric$lambda.note, "conditionally negative definite")
+})
+
+testthat::test_that("OTProblem uses L1 kernels for adaptive and grid selection", {
+  set.seed(616)
+  x <- matrix(rnorm(24), 12, 2)
+  ot <- OTProblem(Measure(x[1:6, , drop = FALSE], adapt = "weights"),
+                  Measure(x[7:12, , drop = FALSE]))
+  ot$setup_arguments(lambda = "auto", p = 1)
+  testthat::expect_true(is.finite(ot$penalty$lambda) && ot$penalty$lambda > 0)
+  testthat::expect_warning(ot$setup_arguments(lambda = c(.5, 1, 2), p = 1), "already set up")
+  suppressWarnings(ot$solve(niter = 2))
+  suppressWarnings(ot$choose_hyperparameters(lambda.selector = "auto"))
+  info <- ot$info()$hyperparam.metrics
+  testthat::expect_identical(info$lambda.selector, "auto")
+  testthat::expect_true(all(is.finite(info$lambda)))
+})
+
+testthat::test_that("custom cost eligibility is lazy and auto falls back on failures", {
+  set.seed(617)
+  x <- matrix(rnorm(24), 12, 2)
+  bad <- function(x1, x2, p) torch::torch_cdist(x1, x2, p = 2)^4
+  ot <- OTProblem(Measure(x[1:6, , drop = FALSE], adapt = "weights"),
+                  Measure(x[7:12, , drop = FALSE]))
+  ot$setup_arguments(lambda = c(.5, 1, 2), cost.function = bad)
+  priv <- ot$.__enclos_env__$private
+  testthat::expect_null(priv$rbf_prepared)
+  testthat::expect_null(priv$rbf_cost_reason)
+  suppressWarnings(ot$solve(niter = 2))
+  suppressWarnings(ot$choose_hyperparameters(lambda.selector = "auto", n_boot_lambda = 2L))
+  info <- ot$info()$hyperparam.metrics
+  testthat::expect_identical(info$lambda.selector, "bootstrap")
+  testthat::expect_match(info$lambda.note, "conditionally negative definite")
 })

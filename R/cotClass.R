@@ -317,11 +317,12 @@ COT <- R6::R6Class(
 #'   `"auto"`, selects one positive value before fitting by predicting binary
 #'   treatment from pooled covariates. A numeric scalar or vector specifies
 #'   fixed candidates and `NULL` fits a default grid. `"auto"` requires
-#'   [calc_weight()], uniform observation weights and the standard squared
-#'   Euclidean cost (`p = 2`); otherwise the default grid is fit and
+#'   [calc_weight()], uniform observation weights and a conditionally negative definite cost
+#'   (built-in costs with `p <= 2` or a qualifying custom cost); otherwise the default grid is fit and
 #'   `lambda.selector` chooses among it.
 #'   It searches the multiplier of the median off-diagonal solver cost using
-#'   centered kernel ridge regression with an unpenalized intercept and
+#'   centered kernel ridge treatment prediction with the solver's Gibbs kernel
+#'   `exp(-C/lambda)` (Gaussian RBF for `p = 2`), an unpenalized intercept and
 #'   leave-one-out scoring, profiling nine ridge penalties. The full-data
 #'   ridge penalty is held fixed for deletion. The result is the best evaluated
 #'   score within a bounded search, not a global optimum. The default budget is
@@ -368,8 +369,8 @@ COT <- R6::R6Class(
 #'   candidate usable by both arm fits. `"bootstrap"` is the bootstrap selector
 #'   used in previous versions of the package, controlled by `nboot` and
 #'   `lambda.bootstrap`. `"auto"` uses `"bootstrap"` when its own rule does
-#'   not apply (non-uniform observation weights, `p != 2`, a custom
-#'   `cost.function`, or no finite positive candidate) and records why in
+#'   not apply (non-uniform weights, a cost that is not conditionally
+#'   negative definite, or no finite positive candidate) and records why in
 #'   `weights@info$metric$lambda.note`.
 #' @param lambda.selector.control Optional list of controls for lambda
 #'   selection. The only entry is `details`; `TRUE` keeps the evaluation trace

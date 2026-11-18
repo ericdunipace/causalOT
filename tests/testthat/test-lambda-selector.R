@@ -53,7 +53,7 @@ testthat::test_that("auto falls back to the bootstrap selector when the RBF rule
     causalOT:::Measure(x = x, adapt = "weights"),
     causalOT:::Measure(x = y, adapt = "none")
   )
-  ot$setup_arguments(lambda = c(10, 1), p = 1, cost.online = "tensorized")
+  ot$setup_arguments(lambda = c(10, 1), p = 3, cost.online = "tensorized")
   ot$solve(niter = 3L, tol = 1e-2, torch_optim = torch::optim_rmsprop,
            torch_args = list(lr = 1e-2))
   # three iterations leave the fits unconverged, which warns
@@ -62,7 +62,7 @@ testthat::test_that("auto falls back to the bootstrap selector when the RBF rule
   info <- ot$info()$hyperparam.metrics
   testthat::expect_equal(info$lambda.selector, "bootstrap")
   testthat::expect_match(info$lambda.note, "auto used the bootstrap selector")
-  testthat::expect_match(info$lambda.note, "p = 2")
+  testthat::expect_match(info$lambda.note, "p > 2", fixed = TRUE)
   testthat::expect_true(all(is.finite(info$lambda)))
 })
 

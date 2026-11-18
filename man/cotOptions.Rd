@@ -37,11 +37,12 @@ cotOptions(
 \code{"auto"}, selects one positive value before fitting by predicting binary
 treatment from pooled covariates. A numeric scalar or vector specifies
 fixed candidates and \code{NULL} fits a default grid. \code{"auto"} requires
-\code{\link[=calc_weight]{calc_weight()}}, uniform observation weights and the standard squared
-Euclidean cost (\code{p = 2}); otherwise the default grid is fit and
+\code{\link[=calc_weight]{calc_weight()}}, uniform observation weights and a conditionally negative definite cost
+(built-in costs with \code{p <= 2} or a qualifying custom cost); otherwise the default grid is fit and
 \code{lambda.selector} chooses among it.
 It searches the multiplier of the median off-diagonal solver cost using
-centered kernel ridge regression with an unpenalized intercept and
+centered kernel ridge treatment prediction with the solver's Gibbs kernel
+\code{exp(-C/lambda)} (Gaussian RBF for \code{p = 2}), an unpenalized intercept and
 leave-one-out scoring, profiling nine ridge penalties. The full-data
 ridge penalty is held fixed for deletion. The result is the best evaluated
 score within a bounded search, not a global optimum. The default budget is
@@ -113,8 +114,8 @@ binary-label prediction, without refitting. Grid ATE uses one score and a
 candidate usable by both arm fits. \code{"bootstrap"} is the bootstrap selector
 used in previous versions of the package, controlled by \code{nboot} and
 \code{lambda.bootstrap}. \code{"auto"} uses \code{"bootstrap"} when its own rule does
-not apply (non-uniform observation weights, \code{p != 2}, a custom
-\code{cost.function}, or no finite positive candidate) and records why in
+not apply (non-uniform weights, a cost that is not conditionally
+negative definite, or no finite positive candidate) and records why in
 \code{weights@info$metric$lambda.note}.}
 
 \item{lambda.selector.control}{Optional list of controls for lambda

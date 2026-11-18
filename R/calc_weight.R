@@ -92,23 +92,31 @@ calc_weight <- function(x, z,
   selection <- NULL
   if (method == "COT") {
     if (!inherits(options, "cotOptions")) options <- do.call(cotOptions, as.list(options))
-    # "auto" predicts treatment from pooled rows with uniform weights and standard cost
+    # "auto" predicts treatment from pooled rows with uniform weights and an eligible cost
     # otherwise use the bootstrap
     n <- length(data@z)
     auto_ok <- z_binary &&
       all(tabulate(data@z + 1L, 2L) >= 2L) &&
       all(is.finite(data@weights)) &&
       max(abs(data@weights - 1 / n)) <= 1e-10 / n &&
-      isTRUE(options$p == 2) && is.null(options$cost.function)
+      (!is.null(options$cost.function) || isTRUE(options$p <= 2))
+    noncnd_fallback <- FALSE
+    if (auto_ok && identical(options$lambda, "auto")) {
+      selection <- tryCatch(cot_select_trt_rbf(data, options),
+                            causalOT_noncnd_cost = function(e) NULL)
+      if (is.null(selection)) {
+        auto_ok <- FALSE
+        noncnd_fallback <- TRUE
+      }
+    }
     if (!auto_ok) {
       if (identical(options$lambda, "auto")) {
         options["lambda"] <- list(NULL)
         if (is.null(options$grid.length)) options$grid.length <- 7L
       }
-      if (identical(options$lambda.selector, "auto")) options$lambda.selector <- "bootstrap"
+      if (!noncnd_fallback && identical(options$lambda.selector, "auto")) options$lambda.selector <- "bootstrap"
     }
     if (identical(options$lambda, "auto")) {
-      selection <- cot_select_trt_rbf(data, options)
       options$lambda <- selection$lambda
     }
     # use original pooled observations for tuning across estimands

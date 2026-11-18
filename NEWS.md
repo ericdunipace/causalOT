@@ -17,9 +17,10 @@
 * New solvers: `cotOptions(solver = "mirror")` runs a mirror 
   descent solver for debiased COT weights and `"fixed_point"` runs fast fixed
   point iterations also for debiased COT weights. 
-* Lambda selection is now done via an RBF kernel. You can have the software
-  choose thiswith `lambda = "auto"` before the estimation of weights or after 
-  with weight estimation with option `lambda.selector = "auto"` in `cotOptions()`.
+* Lambda selection is now done via a Gibbs kernel. You can have the software
+  choose this with `lambda = "auto"` before the estimation of weights or after
+  with weight estimation with option `lambda.selector = "auto"` in `cotOptions()`. Lambda selection supports built-in costs with `p <= 2` and custom
+  conditionally negative definite costs; other costs fall back to bootstrap.
 * The lambda grid, selection scores, and selected value are stored in
   `causalWeights@info$metric`.
 * `Measure()` gains a `unit.id` argument to identify observations.

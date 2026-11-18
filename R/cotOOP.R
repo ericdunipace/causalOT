@@ -1285,7 +1285,7 @@ OTProblem_ <- R6::R6Class(
       #'   Shared IDs require explicit pooled data, and supplied IDs must be
       #'   unique. Identical covariate rows are not deduplicated. Composite
       #'   objectives require explicit data. RBF selection requires fixed
-      #'   supports, uniform original masses, standard p = 2 cost, and two
+      #'   supports, uniform original masses, a conditionally negative definite cost, and two
       #'   observations per class.
       #' @param lambda.selector.control Selection controls; set `details = TRUE`
       #'   to retain the adaptive evaluation trace.
@@ -1325,7 +1325,8 @@ OTProblem_ <- R6::R6Class(
             cot_to_numeric_matrix(m$x$detach())
           }
         )
-        private$rbf_cost_ok <- isTRUE(p == 2) && is.null(cost.function)
+        private$rbf_cost <- list(p = p, cost_function = cost.function)
+        private$rbf_cost_reason <- NULL
         private$rbf_snapshot <- tryCatch(
           {
             measures <- lapply(ls(private$measures), function(k) {
@@ -1803,6 +1804,8 @@ OTProblem_ <- R6::R6Class(
       #'   leave-one-out prediction of the pooled binary labels. Ties favor the
       #'   larger lambda. When that rule cannot be used for the problem, `"auto"`
       #'   uses `"bootstrap"`, the bootstrap selector of earlier versions.
+      #'   The kernel is the solver's Gibbs kernel `exp(-C/lambda)`
+      #'   (Gaussian RBF for `p = 2`).
       #' @param lambda.selector.control Optional list of controls for the
       #'   selected lambda selector.
       #' @param lambda.selection.data Optional replacement list of pooled `x`,
@@ -1880,6 +1883,7 @@ OTProblem_ <- R6::R6Class(
           private$rbf_snapshot <- context
           private$rbf_context_error <- NULL
           private$rbf_prepared <- NULL
+          private$rbf_cost_reason <- NULL
           private$rbf_cache <- new.env(parent = emptyenv())
         }
 
@@ -2277,20 +2281,30 @@ OTProblem_ <- R6::R6Class(
       rbf_hard_error = NULL,
       rbf_dimension = NULL,
       rbf_cache = NULL,
-      rbf_cost_ok = FALSE,
+      rbf_cost = NULL,
+      rbf_cost_reason = NULL,
       rbf_adaptive = NULL,
       rbf_input_order = NULL,
       # NULL when the RBF rule can score this problem, otherwise the reason
       rbf_unavailable = function() {
-        if (!isTRUE(private$rbf_cost_ok)) {
-          return(
-            "RBF selection requires the standard p = 2 cost without a custom cost.function."
+        if (!is.null(private$rbf_hard_error)) return(private$rbf_hard_error)
+        if (!is.null(private$rbf_context_error)) return(private$rbf_context_error)
+        if (is.null(private$rbf_snapshot)) return("RBF selection requires treatment data.")
+        if (is.null(private$rbf_cost$cost_function) && !isTRUE(private$rbf_cost$p <= 2)) {
+          return("RBF selection requires a conditionally negative definite cost; p > 2 is not generally conditionally negative definite.")
+        }
+        if (!is.null(private$rbf_cost$cost_function) &&
+            is.null(private$rbf_prepared) && is.null(private$rbf_cost_reason)) {
+          private$rbf_prepared <- tryCatch(
+            cot_trt_rbf_prepare(private$rbf_snapshot, p = private$rbf_cost$p,
+                                cost_function = private$rbf_cost$cost_function),
+            causalOT_noncnd_cost = function(e) {
+              private$rbf_cost_reason <- conditionMessage(e)
+              NULL
+            }
           )
         }
-        if (!is.null(private$rbf_hard_error)) {
-          return(private$rbf_hard_error)
-        }
-        private$rbf_context_error
+        private$rbf_cost_reason
       },
       prepare_rbf = function() {
         reason <- private$rbf_unavailable()
@@ -2306,7 +2320,10 @@ OTProblem_ <- R6::R6Class(
           }
         }
         if (is.null(private$rbf_prepared)) {
-          private$rbf_prepared <- cot_trt_rbf_prepare(private$rbf_snapshot)
+          private$rbf_prepared <- cot_trt_rbf_prepare(
+            private$rbf_snapshot, p = private$rbf_cost$p,
+            cost_function = private$rbf_cost$cost_function
+          )
         }
       },
       capture_fit_state = function(delta) {

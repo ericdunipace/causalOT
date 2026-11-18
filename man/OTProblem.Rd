@@ -665,7 +665,7 @@ caller chooses the pooling and labels for the intended comparison.
 Shared IDs require explicit pooled data, and supplied IDs must be
 unique. Identical covariate rows are not deduplicated. Composite
 objectives require explicit data. RBF selection requires fixed
-supports, uniform original masses, standard p = 2 cost, and two
+supports, uniform original masses, a conditionally negative definite cost, and two
 observations per class.}
       \item{\code{lambda.selector.control}}{Selection controls; set \code{details = TRUE}
 to retain the adaptive evaluation trace.}
@@ -829,7 +829,9 @@ fitted lambda grid. \code{"auto"} (default) directly scores each eligible
 finite, positive supplied lambda using centered kernel-ridge
 leave-one-out prediction of the pooled binary labels. Ties favor the
 larger lambda. When that rule cannot be used for the problem, \code{"auto"}
-uses \code{"bootstrap"}, the bootstrap selector of earlier versions.}
+uses \code{"bootstrap"}, the bootstrap selector of earlier versions.
+The kernel is the solver's Gibbs kernel \code{exp(-C/lambda)}
+(Gaussian RBF for \code{p = 2}).}
       \item{\code{lambda.selector.control}}{Optional list of controls for the
 selected lambda selector.}
       \item{\code{lambda.selection.data}}{Optional replacement list of pooled \code{x},

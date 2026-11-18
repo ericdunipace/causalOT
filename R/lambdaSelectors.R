@@ -303,7 +303,8 @@ cot_trt_rbf_context <- function(x, z, unit.id = NULL) {
   )
 }
 
-cot_trt_rbf_prepare <- function(context, max_sample = 2000L, seed = 2026L) {
+cot_trt_rbf_prepare <- function(context, max_sample = 2000L, seed = 2026L,
+                                p = 2, cost_function = NULL) {
   x <- context$x
   z <- context$z
   n <- length(z)
@@ -349,9 +350,22 @@ cot_trt_rbf_prepare <- function(context, max_sample = 2000L, seed = 2026L) {
     dtype = torch::torch_double(),
     device = torch::torch_device("cpu")
   )$contiguous()
-  C <- cot_to_numeric_matrix(cost(xs, xs, p = 2, tensorized = TRUE))
+  C <- cot_to_numeric_matrix(cost(xs, xs, p = p, tensorized = TRUE,
+                                  cost_function = cost_function))
   if (any(!is.finite(C))) {
     stop("lambda selection by 'auto' requires finite solver costs.")
+  }
+  if (max(abs(C - t(C))) > 1e-10 * max(1, max(abs(C)))) {
+    stop("lambda selection by 'auto' requires a symmetric cost.")
+  }
+  Cc <- sweep(sweep(C, 1L, rowMeans(C)), 2L, colMeans(C)) + mean(C)
+  ev <- eigen(-(Cc + t(Cc)) / 2, symmetric = TRUE, only.values = TRUE)$values
+  if (min(ev) < -1e-8 * max(1, max(abs(ev)))) {
+    stop(structure(list(message = paste0(
+      "lambda selection by 'auto' requires a conditionally negative definite cost ",
+      "(built-in costs with p <= 2 qualify); the Gibbs kernel ",
+      "exp(-C/lambda) is indefinite for this cost."
+    ), call = NULL), class = c("causalOT_noncnd_cost", "error", "condition")))
   }
   m <- stats::median(C[upper.tri(C)])
   if (!is.finite(m) || m <= 0) {
@@ -448,10 +462,8 @@ cot_select_trt_rbf <- function(
   max_eval = 50L,
   max_expand = 2L
 ) {
-  if (!isTRUE(options$p == 2) || !is.null(options$cost.function)) {
-    stop(
-      "lambda = 'auto' requires the standard p = 2 cost, without a custom cost.function."
-    )
+  if (is.null(options$cost.function) && !isTRUE(options$p <= 2)) {
+    stop("lambda selection requires a conditionally negative definite cost; p > 2 is not generally conditionally negative definite.")
   }
   n <- length(data@z)
   if (
@@ -464,7 +476,8 @@ cot_select_trt_rbf <- function(
   prepared <- cot_trt_rbf_prepare(
     cot_trt_rbf_context(data@x, data@z),
     max_sample,
-    seed
+    seed,
+    p = options$p, cost_function = options$cost.function
   )
   m <- prepared$median_cost
   result <- cot_trt_rbf_search(
