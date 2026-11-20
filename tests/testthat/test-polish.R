@@ -181,12 +181,9 @@ test_that('a polish that cannot descend returns the start unchanged', {
   expect_identical(ans$weights, f$a)
 })
 
-test_that('L-BFGS and online costs achieve the Newton answer', {
+test_that('online costs achieve the tensorized answer', {
   f <- polish_fixture()
   newton <- polish_run(f)
-  lbfgs <- polish_run(f, max_free = 2L, lbfgs_maxit = 80L)
-  expect_lte(lbfgs$loss, polish_loss(f, f$a))
-  expect_lt(abs(lbfgs$loss - newton$loss), 1e-6 * abs(newton$loss))
   online <- polish_run(f, mode = 'online')
   expect_equal(online$loss, newton$loss, tolerance = 1e-10)
   expect_equal(online$weights, newton$weights, tolerance = 1e-6)
@@ -205,12 +202,7 @@ test_that('polished fits converge, keep exact zeros, and return float64 weights'
       niter = 50L
     )
     expect_silent(cot$solve())
-    if (solver == 'lbfgs') {
-      # two lambdas and nboot = 0, so nothing is selected
-      expect_warning(cot$grid_search(), 'nboot >= 1')
-    } else {
-      cot$grid_search()
-    }
+    cot$grid_search()
     info <- fit_optimizer(cot)$info()
     expect_true(all(unlist(info$converged)))
     expect_true(all(unlist(info$reason) == 'ok'))
@@ -439,11 +431,7 @@ test_that('numerical failures store NA, are excluded from selection, and all-fai
   saved <- p$weights_list[['4']][[1]]
   expect_true(all(is.na(as.numeric(saved[[ls(saved)[[1]]]]))))
   optimizer <- fit_optimizer(cot)
-  for (selector in c(
-    'bootstrap_legacy',
-    'profile_symmetric_loo',
-    'mass_bootstrap_symmetric'
-  )) {
+  for (selector in c('bootstrap', 'auto')) {
     suppressWarnings(optimizer$choose_hyperparameters(
       n_boot_lambda = 1,
       n_boot_delta = 0,
@@ -470,7 +458,8 @@ test_that('numerical failures store NA, are excluded from selection, and all-fai
   expect_error(broken$solve(), 'programming error')
 })
 
-test_that('selection uses every valid fit and warns once when the selected fit is not converged', {
+test_that('unpolished selection warns only when phase 1 ran out of iterations', {
+  # gap above tolerance after phase 1 stopped by its rule: recorded, no warning
   cot <- fit_cot('none', lambda = c(4, 2))
   p <- fit_private(cot)
   replace_private(p, 'optimization_loop', function(niter, tol) {
@@ -485,12 +474,40 @@ test_that('selection uses every valid fit and warns once when the selected fit i
     calls <<- calls + 1L
     c(0, 1)[[calls]]
   })
+  expect_no_warning(
+    fit_optimizer(cot)$choose_hyperparameters(
+      n_boot_lambda = 1,
+      n_boot_delta = 0,
+      lambda.selector = 'bootstrap'
+    )
+  )
+  expect_equal(fit_optimizer(cot)$selected_lambda, 4)
+  expect_false(fit_optimizer(cot)$info()$converged[['4']][[1]])
+
+  # phase 1 hit niter: warn once
+  cot <- fit_cot('none', lambda = c(4, 2))
+  p <- fit_private(cot)
+  replace_private(p, 'optimization_loop', function(niter, tol) {
+    lambda <- p$ot_objects[[ls(p$ot_objects)[[1L]]]]$penalty
+    fake_phase1(loss = 0, fw_gap = .1, stopped_by_rule = lambda != 4)
+  })
+  cot$solve()
+  expect_identical(
+    unname(unlist(p$reason_run)),
+    c('niter', 'gap above tolerance')
+  )
+  calls <- 0L
+  replace_private(p, 'draw_boot_measure', function() NULL)
+  replace_private(p, 'eval_lambda', function(w, boot) {
+    calls <<- calls + 1L
+    c(0, 1)[[calls]]
+  })
   warnings <- character()
   withCallingHandlers(
     fit_optimizer(cot)$choose_hyperparameters(
       n_boot_lambda = 1,
       n_boot_delta = 0,
-      lambda.selector = 'bootstrap_legacy'
+      lambda.selector = 'bootstrap'
     ),
     warning = function(w) {
       warnings <<- c(warnings, conditionMessage(w))
@@ -499,7 +516,7 @@ test_that('selection uses every valid fit and warns once when the selected fit i
   )
   expect_equal(fit_optimizer(cot)$selected_lambda, 4)
   expect_length(warnings, 1L)
-  expect_match(warnings, 'not converged.*gap/D')
+  expect_match(warnings, 'not converged \\(niter.*gap/D')
 })
 
 test_that('only auto and none are polish options', {

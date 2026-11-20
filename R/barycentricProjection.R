@@ -594,7 +594,7 @@ bp_pow2 <- function(
       device = x$device
     )
     y_source <- online_by_rows(C_yx, x, y, function(Cb, i) {
-      (G - Cb / eps)$softmax(2)$mv(y_targ)
+      (Cb / (-eps))$add_(G)$softmax(2)$mv(y_targ)
     })$to(device = "cpu")
   }
 
@@ -697,7 +697,7 @@ bp_general <- function(
     for (lo in seq.int(1L, n, by = rows)) {
       i <- lo:min(n, lo + rows - 1L)
       W <- torch::with_no_grad(
-        (G - cost_block(C_yx, i, seq_len(m)) / eps)$softmax(2)
+        (cost_block(C_yx, i, seq_len(m)) / (-eps))$add_(G)$softmax(2)
       )
       C_st <- C_yx$fun(
         y_source[i]$view(c(-1L, 1L)),

@@ -10,8 +10,6 @@ cot_polish_ctl <- list(
   armijo = 1e-4,
   alpha_min = 1e-8,
   zero_tol = 1e-12,
-  lbfgs_m = 10L,
-  lbfgs_maxit = 200L,
   round_factor = 64, # multiple of eps treated as rounding noise
   sinkhorn_factor = 16 # multiple of the sinkhorn tol treated as noise in potentials
 )
@@ -146,30 +144,6 @@ cot_polish_sets <- function(a, g, scale, ctl = cot_polish_ctl) {
   )
 }
 
-cot_polish_lbfgs <- function(g, memory, mean_weight) {
-  q <- g - mean(g)
-  alpha <- numeric(length(memory))
-  for (i in rev(seq_along(memory))) {
-    pair <- memory[[i]]
-    alpha[i] <- sum(pair$s * q) / pair$sy
-    q <- q - alpha[i] * pair$y
-  }
-  scale <- if (length(memory)) {
-    p <- memory[[length(memory)]]
-    p$sy / sum(p$y^2)
-  } else {
-    magnitude <- max(abs(q))
-    if (magnitude > 0) mean_weight / magnitude else 1
-  }
-  r <- scale * q
-  for (i in seq_along(memory)) {
-    pair <- memory[[i]]
-    beta <- sum(pair$y * r) / pair$sy
-    r <- r + pair$s * (alpha[i] - beta)
-  }
-  -r + mean(r)
-}
-
 cot_polish_newton <- function(twin, a, ev, base, F, state, ctl) {
   H <- twin$hessian_weights(F)
 
@@ -231,16 +205,24 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
   done <- function(gap, loss) gap <= atol + ctl$tol * max(0, loss - y_self)
 
   gap_start <- fw_gap(a, ev$grad)
+  sets0 <- cot_polish_sets(a, ev$grad, scale, ctl)
+  if (length(sets0$free) > ctl$max_free) {
+    return(list(
+      weights = a,
+      loss = ev$loss,
+      divergence = ev$loss - y_self,
+      gap = gap_start,
+      changed = FALSE,
+      status = sprintf("skipped: free set larger than %d", ctl$max_free),
+      iterations = 0L,
+      atol = atol
+    ))
+  }
   status <- "maxit"
   accepted <- iter <- 0L
-  memory <- list()
-  prev_a <- prev_g <- NULL
-  last_dir <- ""
   qp_state <- new.env(parent = emptyenv())
   qp_state$binding <- logical(length(a))
-  # L-BFGS needs many more iterations than Newton
-  maxit <- if (sum(a > 0) > ctl$max_free) ctl$lbfgs_maxit else ctl$maxit
-  for (k in seq_len(maxit)) {
+  for (k in seq_len(ctl$maxit)) {
     gap <- fw_gap(a, ev$grad)
     if (done(gap, ev$loss)) {
       break
@@ -253,43 +235,15 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
       qp_state$active <- NULL
       qp_state$indices <- F
     }
-    dir <- if (length(F) > ctl$max_free) "lbfgs" else "newton"
-    if (dir != last_dir) {
-      memory <- list()
-      prev_a <- prev_g <- NULL
+    # the free set can grow past the start's; keep the Hessian bounded
+    if (length(F) > ctl$max_free) {
+      status <- sprintf("stopped: free set larger than %d", ctl$max_free)
+      break
     }
-    last_dir <- dir
     base <- numeric(length(a))
     base[sets$binding] <- -a[sets$binding]
     base[F] <- -sum(base) / length(F)
-    if (dir == "lbfgs") {
-      # Pairs are stored at full length and restricted to the current free set
-      if (!is.null(prev_a)) {
-        memory <- utils::tail(
-          c(memory, list(list(s = a - prev_a, y = ev$grad - prev_g))),
-          ctl$lbfgs_m
-        )
-      }
-      pairs <- list()
-      for (p in memory) {
-        s <- p$s[F] - mean(p$s[F])
-        y <- p$y[F] - mean(p$y[F])
-        sy <- sum(s * y)
-        if (sy > 1e-12 * sqrt(sum(s^2) * sum(y^2))) {
-          pairs <- c(pairs, list(list(s = s, y = y, sy = sy)))
-        }
-      }
-      d <- base
-      d[F] <- d[F] + cot_polish_lbfgs(ev$grad[F], pairs, mean(a))
-      # The first step is scaled to probability-mass units.
-      if (!length(pairs) && max(abs(d)) > mean(a)) {
-        d <- d * mean(a) / max(abs(d))
-      }
-      prev_a <- a
-      prev_g <- ev$grad
-    } else {
-      d <- cot_polish_newton(twin, a, ev, base, F, qp_state, ctl)
-    }
+    d <- cot_polish_newton(twin, a, ev, base, F, qp_state, ctl)
     if (!all(is.finite(d)) || sum(ev$grad * d) >= 0) {
       status <- "no_descent"
       break
@@ -318,15 +272,7 @@ cot_newton_polish <- function(twin, ctl = cot_polish_ctl) {
           }
         }
       }
-      shrink <- 0.5
-      if (dir == "lbfgs" && !length(pairs) && !is.null(next_ev) && slope < 0) {
-        # get curvature from rejected probe
-        curvature <- sum((next_ev$grad - ev$grad) * (cand - a))
-        if (is.finite(curvature) && curvature > 0) {
-          shrink <- max(0.05, min(0.5, -slope / curvature))
-        }
-      }
-      alpha <- alpha * shrink
+      alpha <- alpha * 0.5
     }
     if (!moved) {
       status <- "line_search_failed"

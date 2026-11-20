@@ -56,15 +56,11 @@ jobs:
             any::pak
           needs: check
 
-      - name: Check drat reachable
-        run: Rscript -e 'ap <- available.packages(repos="https://ericdunipace.github.io/drat"); cat("drat pkgs:", nrow(ap), "\n"); cat(any(ap[,"Package"]=="rkeops"), "\n")'
-
-      - name: Install rkeops from drat (explicit URL)
-        if: runner.os != 'Windows'
-        run: |
-          Rscript -e 'install.packages(c("future","Rdpack","RhpcBLASctl","stringi","stringr"))'
-          Rscript -e 'install.packages("https://ericdunipace.github.io/drat/src/contrib/rkeops_2.2.2.tar.gz", repos=NULL, type="source")'
-
+      - name: Install torch backend (lantern/libtorch)
+        run: Rscript -e 'torch::install_torch()'
+        env:
+          TORCH_INSTALL: 1
+      
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true

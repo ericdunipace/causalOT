@@ -39,7 +39,7 @@ cotCCPTrain <- R6::R6Class(
   inherit = OTProblem_,
   public = list(
     solve = function(
-      niter = 1000L,
+      niter = 500L,
       tol = 1e-5,
       osqp_args = NULL,
       quick.balance.function = TRUE,
@@ -312,10 +312,9 @@ cotCCPTrain <- R6::R6Class(
       private$ccp_state_ready <- TRUE
     },
 
-    # Bregman proximal gradient with backtracking on relative smoothness:
-    # accept tau if F(w+) <= F(w) + <g, w+ - w> + tau * KL(w+ || w), else
-    # double tau. After an accepted step, halve tau so the step can grow
-    # again, so the step size tracks the local curvature rather than lambda.
+    # Bregman proximal gradient with relative smoothness backtracking
+    # double tau until F(w+) <= F(w) + <g, w+ - w> + tau * KL(w+ || w)
+    # halve tau after acceptance to adapt to local curvature
     ccp_step_adaptive = function(ot, max_backtracks = 30L) {
       if (private$ccp_iter <= 1L) {
         # first step moves log weights by at most one unit
@@ -360,11 +359,8 @@ cotCCPTrain <- R6::R6Class(
       }
     },
 
-    # FISTA-type momentum on the log weights with gradient restart
-    # (O'Donoghue & Candes, 2015). The current state (ccp_w, ccp_direction,
-    # ccp_loss) is the extrapolated point y_k where the gradient is evaluated;
-    # x_{k+1} is the mirror step from y_k and y_{k+1} extrapolates x_{k+1}.
-    # Uses only gradients, so it is not affected by noise in the loss values.
+    # FISTA momentum on log weights with gradient restart (O'Donoghue & Candes, 2015)
+    # evaluate at extrapolated y_k, then take a mirror step to x_{k+1}
     ccp_step_accelerated = function(ot) {
       tau <- private$ccp_tau
       log_x <- (private$ccp_log_w + private$ccp_direction / tau)$log_softmax(1)
@@ -432,12 +428,16 @@ cotCCPTrain <- R6::R6Class(
     },
 
     iterate_over_lambda = function(niter, tol) {
-      for (l in private$penalty_list$lambda) {
+      private$state_run <- vector("list", length(private$penalty_list$lambda))
+      for (i in seq_along(private$penalty_list$lambda)) {
+        l <- private$penalty_list$lambda[[i]]
         private$set_lambda(l)
 
         res <- private$iterate_over_delta(niter, tol)
 
-        private$weights_list[[as.character(l)]] <- res$weights
+        private$weights_list[[i]] <- res$weights
+        names(private$weights_list)[i] <- as.character(l)
+        private$state_run[[i]] <- res$states
         private$iterations_run[[as.character(l)]] <- res$iter
         private$final_loss[[as.character(l)]] <- res$loss
         private$converged_run[[as.character(l)]] <- res$converged

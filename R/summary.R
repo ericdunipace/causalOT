@@ -62,7 +62,8 @@ summary.causalWeights <- function(object, r_eff = NULL,
                 pareto_k     = pareto_k,
                 n_eff        = n_eff,
                 mean.balance = mb,
-                estimand     = object@estimand)
+                estimand     = object@estimand,
+                lambda_selection = object@info$lambda_selection)
   
   class(res) <- "summary_causalWeights"
   return(res)
@@ -122,6 +123,15 @@ print.summary_causalWeights <- function(x,...) {
                                   row.names = row.labels)
   }
   
+  if (!is.null(object$lambda_selection)) {
+    sel <- object$lambda_selection
+    if (identical(sel$mode, "grid")) {
+      cat(sprintf("RBF grid lambda: %g (median cost %g, multiplier %g, alpha %g; grid boundary: %s)\n",
+        sel$lambda, sel$median_cost, sel$multiplier[sel$selected_index], sel$selected_alpha, sel$boundary))
+    } else {
+      cat(sprintf("Treatment-kernel lambda: %g (median cost %g, multiplier %g, alpha %g; %s)\n", sel$lambda, sel$median_cost, sel$multiplier, sel$alpha, sel$status))
+    }
+  }
   cat( paste0("Diagnostics for causalWeights for estimand ", estimand, "\n") )
   if(!is.null(control.output)) {
     cat( paste0("Control group\n") )

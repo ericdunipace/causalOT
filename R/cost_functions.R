@@ -37,8 +37,7 @@ costTensor <- R6::R6Class(
           if (!inherits(x2, "torch_tensor")) {
             x2 <- torch::torch_tensor(x2, dtype = torch::torch_double())
           }
-          # Explicit tensor scalar avoids rounding 1/p to float32
-          # when the points and costs are evaluated in float64.
+          # avoid float32 rounding of 1/p for float64 costs
           denominator <- torch::torch_tensor(
             p,
             dtype = x1$dtype,
