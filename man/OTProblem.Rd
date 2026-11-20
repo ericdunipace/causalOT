@@ -2,7 +2,6 @@
 % Please edit documentation in R/cotOOP.R
 \name{OTProblem}
 \alias{OTProblem}
-\alias{OTProblem_}
 \title{OTProblem}
 \usage{
 OTProblem(measure_1, measure_2, ...)
