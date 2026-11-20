@@ -19,7 +19,7 @@
 )
 }
 \arguments{
-\item{x}{A \linkS4class{causalWeights} object}
+\item{x}{A \link[=causalWeights-class]{causalWeights} object}
 
 \item{r_eff}{The \eqn{r_\text{eff}} to use for the \code{\link[=PSIS_diag]{PSIS_diag()}} function.}
 

@@ -4,12 +4,16 @@
 \alias{vcov.causalEffect}
 \title{Get the variance of a causalEffect}
 \usage{
-\method{vcov}{causalEffect}(object, ...)
+\method{vcov}{causalEffect}(object, type = c("if", "components"), ...)
 }
 \arguments{
 \item{object}{An object of class \link[=causalEffect-class]{causalEffect}}
 
-\item{...}{Passed on to the sandwich estimator if there is a model fit that supports one}
+\item{type}{How to compute the semiparametric variance. \code{"if"} uses the
+empirical second moment of the full plug-in influence function. \code{"components"}
+uses the legacy three-component calculation without cross terms.}
+
+\item{...}{Unused.}
 }
 \value{
 The variance of the treatment effect as a matrix

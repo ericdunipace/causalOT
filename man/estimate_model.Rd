@@ -9,7 +9,7 @@ estimate_model(data, causalWeights, model.function, separate.estimation, ...)
 \arguments{
 \item{data}{A \code{\link[=dataHolder]{dataHolder()}} object}
 
-\item{causalWeights}{A \linkS4class{causalWeights} object}
+\item{causalWeights}{A \link[=causalWeights-class]{causalWeights} object}
 
 \item{model.function}{The model function passed by the user}
 

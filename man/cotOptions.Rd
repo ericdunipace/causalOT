@@ -5,10 +5,13 @@
 \title{Options available for the COT method}
 \usage{
 cotOptions(
-  lambda = NULL,
+  lambda = "auto",
   delta = NULL,
-  opt.direction = c("dual", "primal"),
+  opt.direction = deprecated(),
+  dual.solver = c("fixed_point_joint", "joint", "entropy", "fixed_point"),
   debias = TRUE,
+  solver = c("fixed_point", "lbfgs", "mirror"),
+  polish = c("auto", "none"),
   p = 2,
   cost.function = NULL,
   cost.online = "auto",
@@ -18,9 +21,11 @@ cotOptions(
   grid.length = 7L,
   torch.optimizer = torch::optim_rmsprop,
   torch.scheduler = torch::lr_multiplicative,
-  niter = 2000,
+  niter = 500L,
   nboot = 100L,
   lambda.bootstrap = 0.05,
+  lambda.selector = c("auto", "bootstrap"),
+  lambda.selector.control = list(),
   tol = 1e-04,
   device = NULL,
   dtype = NULL,
@@ -28,13 +33,56 @@ cotOptions(
 )
 }
 \arguments{
-\item{lambda}{The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.}
+\item{lambda}{The entropy penalty in solver cost units. The default,
+\code{"auto"}, selects one positive value before fitting by predicting binary
+treatment from pooled covariates. A numeric scalar or vector specifies
+fixed candidates and \code{NULL} fits a default grid. \code{"auto"} requires
+\code{\link[=calc_weight]{calc_weight()}}, uniform observation weights and a conditionally negative definite cost
+(built-in costs with \code{p <= 2} or a qualifying custom cost); otherwise the default grid is fit and
+\code{lambda.selector} chooses among it.
+It searches the multiplier of the median off-diagonal solver cost using
+centered kernel ridge treatment prediction with the solver's Gibbs kernel
+\code{exp(-C/lambda)} (Gaussian RBF for \code{p = 2}), an unpenalized intercept and
+leave-one-out scoring, profiling nine ridge penalties. The full-data
+ridge penalty is held fixed for deletion. The result is the best evaluated
+score within a bounded search, not a global optimum. The default budget is
+50 evaluations with at most two boundary expansions; scores within
+\verb{1e-10 * max(1, abs(best score))} are tied in favor of larger multipliers.
+Selection evaluates solver costs on CPU in double precision, independently
+of the final fit's device and dtype, for stable spectral calculations.
+Each evaluation requires dense cubic-time linear algebra. Above 2000 rows a
+reproducible treatment-stratified subsample determines the cost scale and
+lambda, while final weights use all rows. Selection diagnostics are in
+\code{weights@info$lambda_selection}; set \code{lambda.selector.control = list(details = TRUE)} to retain the evaluation trace. Numeric lambda values
+remain in solver units; for squared Euclidean cost the median solver cost
+is half the median squared distance.}
 
 \item{delta}{The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.}
 
-\item{opt.direction}{Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.}
+\item{opt.direction}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{solver}
+instead. Should the optimizer solve the primal or dual problems. One of
+"dual" or "primal".}
+
+\item{dual.solver}{Legacy solver selection when \code{opt.direction = "dual"}.
+\code{"fixed_point"} selects the entropy-potential fixed-point solver; the
+legacy default \code{"fixed_point_joint"} is a different joint KL trainer.
+\code{"joint"} and \code{"entropy"} select the other legacy dual trainers.}
 
 \item{debias}{Should debiased optimal transport be used? TRUE or FALSE.}
+
+\item{solver}{Solver for COT weight optimization. \code{"fixed_point"} (the
+default) uses entropy-potential updates with Anderson acceleration and
+requires debiased transport without balance constraints. When omitted,
+balance constraints or \code{debias = FALSE} select \code{"lbfgs"} instead.
+\code{"lbfgs"} optimizes weights directly and \code{"mirror"} uses mirror descent.}
+
+\item{polish}{"auto" (the default) or "none". "auto" refines eligible
+fixed-point, L-BFGS, and mirror fits with one debiased weight problem and
+no balance constraints in float64. It skips refinement when the initial
+free set exceeds 2000 points. \code{info()$polish} reports the status and number
+of refinement iterations; convergence is reported in \code{info()$converged}
+and \code{info()$reason}. Fixed-point fits with \code{"none"} may stop at the
+iteration cap without a warning and retain their phase-1 convergence status.}
 
 \item{p}{The power of the cost function to use for the cost.}
 
@@ -50,23 +98,60 @@ cotOptions(
 
 \item{grid.length}{The number of penalty parameters to explore in a grid search if none are provided in arguments \code{lambda} or \code{delta}.}
 
-\item{torch.optimizer}{The torch optimizer to use for methods using debiased entropy penalized optimal transport. If \code{debiased} is FALSE or \code{opt.direction} is "primal", will default to \code{\link[torch:optim_lbfgs]{torch::optim_lbfgs()}}. Otherwise \code{\link[torch:optim_rmsprop]{torch::optim_rmsprop()}} is used.}
+\item{torch.optimizer}{The torch optimizer to use for methods using debiased entropy penalized optimal transport. If \code{debiased} is FALSE or \code{opt.direction} is "primal", will default to \code{\link[torch:optim_lbfgs]{torch::optim_lbfgs()}}. Otherwise \code{\link[torch:optim_rmsprop]{torch::optim_rmsprop()}} is used for the dual potential block. Joint dual solvers use an internal RMSprop optimizer for the trainable log-weight block.}
 
-\item{torch.scheduler}{The scheduler for the optimizer. Defaults to \code{\link[torch:lr_multiplicative]{torch::lr_multiplicative()}}.}
+\item{torch.scheduler}{The scheduler for the optimizer. Defaults to \code{\link[torch:lr_multiplicative]{torch::lr_multiplicative()}} for RMSprop-based dual solvers and \code{\link[torch:lr_reduce_on_plateau]{torch::lr_reduce_on_plateau()}} for LBFGS.}
 
-\item{niter}{The number of iterations to run the solver}
+\item{niter}{The maximum number of solver iterations (default 500).}
 
 \item{nboot}{The number of iterations for the bootstrap to select the final penalty parameters.}
 
 \item{lambda.bootstrap}{The penalty parameter to use for the bootstrap hyperparameter selection of lambda.}
 
-\item{tol}{The tolerance for convergence}
+\item{lambda.selector}{How to select lambda among a fitted grid. The
+default, \code{"auto"}, scores the positive finite candidates by pooled
+binary-label prediction, without refitting. Grid ATE uses one score and a
+candidate usable by both arm fits. \code{"bootstrap"} is the bootstrap selector
+used in previous versions of the package, controlled by \code{nboot} and
+\code{lambda.bootstrap}. \code{"auto"} uses \code{"bootstrap"} when its own rule does
+not apply (non-uniform weights, a cost that is not conditionally
+negative definite, or no finite positive candidate) and records why in
+\code{weights@info$metric$lambda.note}.}
 
-\item{device}{An object of class \code{torch_device} denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.}
+\item{lambda.selector.control}{Optional list of controls for lambda
+selection. The only entry is \code{details}; \code{TRUE} keeps the evaluation trace
+of the \code{"auto"} search.}
+
+\item{tol}{Relative tolerance for final fit convergence (default 1e-4),
+shared by phase 1 and polish: \code{gap <= atol + tol * max(0, D)}, where
+\code{D} is the debiased divergence. Unpolished fits use \code{atol = ot_tol}
+(default 1e-3) and must stop normally rather than reach \code{niter}.
+Thus unpolished \code{converged} means accurate to about \code{ot_tol} in absolute
+terms; when \code{D} is much smaller than \code{ot_tol}, even a large gap/D can pass.
+Lower \code{ot_tol} for more phase-1 accuracy, or use the polish for \code{tol}
+relative accuracy. Polished fits use \code{atol = 64 * eps64 * scale} plus 16
+times the polish's Sinkhorn tolerance (1e-13), where \code{scale} is the cost
+scale, regardless of phase-1 iteration caps. \code{ot_tol} is also the inner
+Sinkhorn tolerance: iterations stop once the largest change in the
+potentials is below \code{ot_tol * lambda}, that is, once the log marginal
+violation is below \code{ot_tol}.}
+
+\item{device}{An object of class \code{torch_device} denoting which device the data will be located on. Default is NULL, which uses the CPU. Pass \code{torch::torch_device("cuda")} or \code{torch::torch_device("mps")} to use a GPU.}
 
 \item{dtype}{An object of class \code{torch_dtype} that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.}
 
-\item{...}{Arguments passed to the solvers. See details}
+\item{...}{Arguments passed to the solvers. See details. Named arguments
+not used by any solver produce a warning. For \code{dual.solver = "fixed_point"},
+these include \code{fixed_point_update} (\code{"anderson"} or \code{"momentum"}),
+\code{fixed_point_eta} (default 1), \code{fixed_point_beta} (default 0.9),
+\code{anderson_m} (default 5), \code{check_every} (default 50), and
+\code{fixed_point_lambda_order} (\code{"ascending"}, the default, or \code{"descending"}).
+\code{fixed_point_warm_start_mix} (default 1) is the fraction of uniform mass
+mixed into the incoming weights before the entropy potential is rebuilt
+when more iterations are needed. The default 1 restarts each lambda from
+uniform weights; values below 1 keep part of the previous solution. Each
+new lambda first checks the incoming weights and returns them exactly if
+they already pass the gap test.}
 }
 \value{
 A list of class \code{cotOptions} with the following slots
@@ -74,6 +159,8 @@ A list of class \code{cotOptions} with the following slots
 \item \code{lambda}The penalty parameter for the optimal transport distance
 \item \code{delta}The constraint for the balancing functions
 \item \code{opt.direction} Whether to solve the primal or dual optimization problems
+\item \code{dual.solver} Solver used for dual optimization problems.
+\item \code{solver} Solver used for the selected optimization direction.
 \item \code{debias}TRUE or FALSE if debiased optimal transport distances are used
 \item \code{balance.formula} The formula giving how to generate the balancing functions.
 \item \code{quick.balance.function} TRUE or FALSE whether quick balance functions will be run.
@@ -90,6 +177,8 @@ A list of class \code{cotOptions} with the following slots
 \item \code{niter} The number of iterations to run the solver
 \item \code{nboot} The number of bootstrap samples
 \item \code{lambda.bootstrap} The penalty parameter to use for the bootstrap hyperparameter selection.
+\item \code{lambda.selector} The normalized lambda selection rule used after fitting the lambda grid.
+\item \code{lambda.selector.control} The lambda selector control list.
 \item \code{tol} The tolerance for convergence.
 \item \code{device} An object of class \code{torch_device}.
 \item \code{dtype} An object of class \code{torch_dtype}.
@@ -107,7 +196,7 @@ The optimal transport problem solved is \eqn{min_w OT_\lambda(w,b) } where \deqn
 
 \subsection{Sinkhorn Divergences}{
 
-The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the \code{torch} package in \code{R} and by default will use the \code{optim_rmsprop} solver. Your desired \code{torch} optimizer can be passed via \code{torch.optimizer} with a scheduler passed via \code{torch.scheduler}. GPU support is available as detailed in the \code{torch} package. Additional arguments in \code{...} are passed as extra arguments to the \code{torch} optimizer and schedulers as appropriate.
+The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the \code{torch} package in \code{R}. Dual solvers default to \code{optim_rmsprop} for the potential block. Joint dual solvers additionally use an internal RMSprop optimizer for the trainable log-weight block. Your desired \code{torch} optimizer can be passed via \code{torch.optimizer} with a scheduler passed via \code{torch.scheduler}. GPU support is available as detailed in the \code{torch} package. Additional arguments in \code{...} are passed as extra arguments to the \code{torch} optimizer and schedulers as appropriate.
 }
 }
 
@@ -126,5 +215,6 @@ if ( torch::torch_is_installed()) {
 opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_rmsprop)
 opts2 <- cotOptions(lambda = NULL)
 opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
+opts4 <- cotOptions(lambda = "auto")
 }
 }

@@ -1,4 +1,43 @@
-# causalOT
+# causalOT 1.1
+
+## Breaking changes
+* `vcov()` for `causalEffect` objects now computes the variance from the full
+  plug-in influence function. Standard errors and confidence intervals will differ
+  from earlier versions. `vcov(object, type = "components")` gives the
+  previous calculation (which ignores cross terms)
+* `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
+* `cotOptions()` now defaults to `solver = "fixed_point"` and `niter = 500`
+  for all solvers. 
+* `device = NULL` now always uses the CPU. Previously it picked CUDA or MPS
+  when available. Pass `device = torch::torch_device("cuda")` or
+  `torch::torch_device("mps")` to use a GPU.
+
+## New features
+* Updated convergence criterion to prevent needless long runs
+* `cotOptions(polish = "auto")` refines COT weights with a monotone Newton
+  polish using an exact Hessian. It is on by default and skips fits with
+  more than 2,000 source points. 
+* New solvers: `cotOptions(solver = "mirror")` runs a mirror 
+  descent solver for debiased COT weights and `"fixed_point"` runs fast fixed
+  point iterations also for debiased COT weights. 
+* Lambda selection is now done via a Gibbs kernel. You can have the software
+  choose this with `lambda = "auto"` before the estimation of weights or after
+  with weight estimation with option `lambda.selector = "auto"` in `cotOptions()`. Lambda selection supports built-in costs with `p <= 2` and custom
+  conditionally negative definite costs; other costs fall back to bootstrap.
+* The lambda grid, selection scores, and selected value are stored in
+  `causalWeights@info$metric`.
+* `Measure()` gains a `unit.id` argument to identify observations.
+* `cotOptions()` now accepts `ot_niter` and `ot_tol` to control the inner
+  Sinkhorn iterations.
+
+## Minor improvements and fixes
+* Bootstrap scores normalize resampled weights in `eval_lambda`, `eval_delta`,
+  and `sbw_oop_bs_`; lambda scoring preserves the resampled candidate weights.
+* `cotOptions()` now warns about arguments in `...` that no solver uses.
+  Previously, misspelled arguments were silently ignored.
+
+## Miscellaneous
+* Updated maintainer e-mail address
 
 # causalOT 1.0.4
 

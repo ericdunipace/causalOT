@@ -25,8 +25,7 @@ testthat::test_that("SCM object forms", {
   testthat::expect_output(scm <- causalOT:::SCM$new(source = x, target = y,
                                                     options = list(polish = TRUE)))
 
-  # OSQP may override/report internal settings differently across builds;
-  # constructing with solver options should not error.
+  # OSQP settings may vary by build; construction should not error
   testthat::expect_s3_class(scm, "SCM")
   
 })

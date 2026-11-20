@@ -18,7 +18,7 @@ estimate_effect(
 \arguments{
 \item{causalWeights}{An object of class \link[=causalWeights-class]{causalWeights}}
 
-\item{x}{A dataHolder, matrix, data.frame, or object of class DataSim. See \link[=calc_weight]{calc_weight} for more details how to input the data. If \code{NULL}, will use the info in the \code{causalWeights} argument.}
+\item{x}{A dataHolder, matrix, data.frame, or object of class DataSim. See \link{calc_weight} for more details how to input the data. If \code{NULL}, will use the info in the \code{causalWeights} argument.}
 
 \item{y}{The outcome vector.}
 
@@ -45,7 +45,7 @@ data <- Hainmueller$new()
 data$gen_data()
 
 # calculate quantities
-weight <- calc_weight(data, method = "COT", 
+weight <- calc_weight(data, method = "COT",
                       estimand = "ATT",
                       options = list(lambda = 0))
 tx_eff <- estimate_effect(causalWeights = weight)

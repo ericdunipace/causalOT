@@ -12,6 +12,7 @@
 #' @importFrom utils capture.output data methods setTxtProgressBar txtProgressBar
 #' @importFrom R6 R6Class
 #' @importFrom methods setOldClass
+#' @importFrom lifecycle deprecated
 #' @rdname causalOT-package
 #' @keywords internal 
 "_PACKAGE"

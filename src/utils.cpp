@@ -1,7 +1,7 @@
 #include "utils.h"
 
 //[[Rcpp::export]]
-double logSumExp(vector & x_) {
+double logSumExp(const vector & x_) {
   double alpha = x_(0);
   double r = 0.0;
   int N = x_.rows();
@@ -19,7 +19,7 @@ double logSumExp(vector & x_) {
   return(std::log(r) + alpha);
 }
 
-double logSumExp(matrix & x_) {
+double logSumExp(const matrix & x_) {
   double alpha = x_(0,0);
   double r = 0.0;
   int N = x_.rows();
@@ -41,7 +41,7 @@ double logSumExp(matrix & x_) {
 }
 
 //[[Rcpp::export]]
-vector rowLogSumExp(matrix & x_) {
+vector rowLogSumExp(const matrix & x_) {
   int N = x_.rows();
   int M = x_.cols();
   
@@ -69,7 +69,7 @@ vector rowLogSumExp(matrix & x_) {
 }
 
 //[[Rcpp::export]]
-vector colLogSumExp(matrix & x_) {
+vector colLogSumExp(const matrix & x_) {
   int N = x_.rows();
   int M = x_.cols();
   
@@ -92,4 +92,3 @@ vector colLogSumExp(matrix & x_) {
   }
   return(out);
 }
-
