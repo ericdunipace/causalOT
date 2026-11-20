@@ -1,4 +1,5 @@
 testthat::test_that("fixed-point routing and compatibility defaults are explicit", {
+  testthat::skip_if_not(torch::torch_is_installed())
   default <- causalOT::cotOptions()
   testthat::expect_identical(default$solver, "fixed_point")
   testthat::expect_identical(default$opt.direction, "dual")

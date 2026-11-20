@@ -19,6 +19,7 @@ test_that("centered kernel score equals explicit deleted fits", {
 })
 
 test_that("treatment selection respects solver costs and scale", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq(-2, 2, length.out = 12), ncol = 1)
   z <- rep(c(0, 1), 6)
   d <- dataHolder(x, z)
@@ -45,6 +46,7 @@ test_that("search reports budget and handles flat and multimodal objectives", {
 })
 
 test_that("input validation and deterministic stratified sampling work", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq_len(80), ncol = 2); z <- rep(0:1, each = 20)
   o <- cotOptions(lambda = "auto")
   expect_true(is.finite(cot_select_trt_rbf(dataHolder(x, z), cotOptions(lambda = "auto", p = 1))$lambda))
@@ -61,6 +63,7 @@ test_that("input validation and deterministic stratified sampling work", {
 })
 
 test_that("selected lambda is shared and passed directly to ATE fits", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(4)
   x <- matrix(rnorm(24), ncol = 1); z <- rep(0:1, each = 12)
   w <- suppressWarnings(calc_weight(x, z, estimand = "ATE", method = "COT",
@@ -75,6 +78,7 @@ test_that("selected lambda is shared and passed directly to ATE fits", {
 })
 
 test_that("search expands improving boundaries and rejects invalid scores", {
+  testthat::skip_if_not(torch::torch_is_installed())
   f <- function(t) list(score = -log(t), alpha = 1)
   a <- cot_trt_rbf_search(f, max_expand = 2)
   expect_equal(a$expansions, 2L)
@@ -88,6 +92,7 @@ test_that("search expands improving boundaries and rejects invalid scores", {
 })
 
 test_that("automatic mode does not break omitted lambda in direct solver setup", {
+  testthat::skip_if_not(torch::torch_is_installed())
   ot <- OTProblem(Measure(matrix(1:4, ncol = 1), adapt = "weights"),
                   Measure(matrix(5:8, ncol = 1)))
   expect_no_error(ot$setup_arguments())
@@ -96,6 +101,7 @@ test_that("automatic mode does not break omitted lambda in direct solver setup",
 })
 
 test_that("integer p and single precision fits can select a stable bandwidth", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(1)
   d <- dataHolder(matrix(rnorm(300), 100, 3), rep(0:1, each = 50))
   a <- cot_select_trt_rbf(d, cotOptions(lambda = "auto", p = 2L,
@@ -128,6 +134,7 @@ test_that("boundary expansion prioritizes the better of two improving edges", {
 
 
 test_that("grid selection scores solver-unit candidates directly", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(c(-3, -2, -1, 0, .3, 1, 2, 4), ncol = 1)
   z <- rep(0:1, each = 4)
   prep <- cot_trt_rbf_prepare(cot_trt_rbf_context(x, z))
@@ -149,6 +156,7 @@ test_that("grid selection scores solver-unit candidates directly", {
 })
 
 test_that("OTProblem selects and reselects fitted RBF grids", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq_len(8), ncol = 1)
   ot <- OTProblem(Measure(x[1:4, , drop = FALSE], adapt = "weights"),
                   Measure(x[5:8, , drop = FALSE]))
@@ -164,6 +172,7 @@ test_that("OTProblem selects and reselects fitted RBF grids", {
 })
 
 test_that("RBF contexts validate identities and unsupported geometry", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq_len(8), ncol = 1)
   expect_error(cot_trt_rbf_context(x, rep(0:1, each = 4), rep(1, 8)), "unique")
   a <- Measure(x[1:4, , drop = FALSE], unit.id = 1:4, adapt = "weights")
@@ -176,6 +185,7 @@ test_that("RBF contexts validate identities and unsupported geometry", {
 
 
 test_that("calc_weight uses pooled data for single-arm RBF grids", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(11)
   x <- matrix(rnorm(20), ncol = 1); z <- rep(0:1, each = 10)
   options <- list(lambda = c(1, 2), lambda.selector = "auto", niter = 2, nboot = 0)
@@ -188,6 +198,7 @@ test_that("calc_weight uses pooled data for single-arm RBF grids", {
 
 
 test_that("dual selectors restore their exact stored fitted state", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(18)
   x <- matrix(rnorm(16), ncol = 1)
   for (cls in list(cotDualLegacyTrain, cotDualTrain, cotDualEntropyFixedPointTrain)) {
@@ -209,6 +220,7 @@ test_that("dual selectors restore their exact stored fitted state", {
 })
 
 test_that("shared RBF eligibility excludes candidates failed in either ATE arm", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(19)
   x <- matrix(rnorm(20), ncol = 1); z <- rep(0:1, each = 10)
   opts <- cotOptions(lambda = c(.1, 1, 10), lambda.selector = "auto", niter = 2, nboot = 0)
@@ -231,6 +243,7 @@ test_that("shared RBF eligibility excludes candidates failed in either ATE arm",
 })
 
 test_that("adaptive OTProblem and pooled selector agree", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(c(-3, -2, -1, -.5, .2, .7, 2, 4), ncol = 1)
   z <- rep(0:1, each = 4)
   direct <- cot_select_trt_rbf(dataHolder(x, z), cotOptions(lambda = "auto"))
@@ -254,6 +267,7 @@ test_that("adaptive OTProblem and pooled selector agree", {
 })
 
 test_that("adaptive snapshots retain original uniform masses after fitting", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq_len(10), ncol = 1)
   a <- Measure(x[1:5, , drop = FALSE], adapt = "weights")
   b <- Measure(x[6:10, , drop = FALSE])
@@ -271,6 +285,7 @@ test_that("adaptive snapshots retain original uniform masses after fitting", {
 })
 
 test_that("replacing the RBF context invalidates cached scores", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(c(-3, -2, -1, 0, .1, 1, 2, 4), ncol = 1)
   z <- rep(0:1, each = 4)
   ot <- OTProblem(Measure(x[1:4, , drop = FALSE], adapt = "weights"),
@@ -288,6 +303,7 @@ test_that("replacing the RBF context invalidates cached scores", {
 })
 
 test_that("composite objectives use one explicit pooled criterion", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq_len(8), ncol = 1); z <- rep(0:1, each = 4)
   a <- Measure(x[1:4, , drop = FALSE], adapt = "weights")
   b <- Measure(x[5:8, , drop = FALSE])
@@ -304,6 +320,7 @@ test_that("composite objectives use one explicit pooled criterion", {
 })
 
 test_that("zero and infinite input candidates cannot be selected", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq_len(8), ncol = 1)
   ot <- OTProblem(Measure(x[1:4, , drop = FALSE], adapt = "weights"),
                   Measure(x[5:8, , drop = FALSE]))
@@ -317,6 +334,7 @@ test_that("zero and infinite input candidates cannot be selected", {
 })
 
 test_that("grid selection does not snap the adaptive optimum to the grid", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(c(-.591566350158614, .722962029282451, -.364993894031002,
     -.245858948803953, -.161587704274692, .71444891843344, .0653653255014037,
     1.41584111899645, .984983285227803, .290975219761947, -1.11889606371966,
@@ -331,6 +349,7 @@ test_that("grid selection does not snap the adaptive optimum to the grid", {
 })
 
 test_that("mirror RBF selection preserves the fitted potentials", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(c(-2, -1, -.5, 0, .2, .6, 1, 3), ncol = 1)
   ot <- cotCCPTrain$new(Measure(x[1:4, , drop = FALSE], adapt = "weights"),
                         Measure(x[5:8, , drop = FALSE]))
@@ -360,6 +379,7 @@ test_that("mirror RBF selection preserves the fitted potentials", {
 })
 
 testthat::test_that("eligible built-in and custom costs use the solver kernel", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(614)
   x <- matrix(rnorm(48), 24, 2)
   z <- rep(0:1, each = 12)
@@ -383,6 +403,7 @@ testthat::test_that("eligible built-in and custom costs use the solver kernel", 
 })
 
 testthat::test_that("invalid custom costs are rejected before kernel search", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(615)
   x <- matrix(rnorm(40), 20, 2)
   z <- rep(0:1, each = 10)
@@ -399,6 +420,7 @@ testthat::test_that("invalid custom costs are rejected before kernel search", {
 })
 
 testthat::test_that("OTProblem uses L1 kernels for adaptive and grid selection", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(616)
   x <- matrix(rnorm(24), 12, 2)
   ot <- OTProblem(Measure(x[1:6, , drop = FALSE], adapt = "weights"),
@@ -414,6 +436,7 @@ testthat::test_that("OTProblem uses L1 kernels for adaptive and grid selection",
 })
 
 testthat::test_that("custom cost eligibility is lazy and auto falls back on failures", {
+  testthat::skip_if_not(torch::torch_is_installed())
   set.seed(617)
   x <- matrix(rnorm(24), 12, 2)
   bad <- function(x1, x2, p) torch::torch_cdist(x1, x2, p = 2)^4

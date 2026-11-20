@@ -133,6 +133,7 @@ testthat::test_that("collapse case improves on joint solver and matches polished
 })
 
 testthat::test_that("balance functions are rejected clearly", {
+  testthat::skip_if_not(torch::torch_is_installed())
   source <- causalOT:::Measure(matrix(1:12, 6), adapt = "weights",
     target.values = c(2, 8), dtype = torch::torch_double(), device = torch::torch_device("cpu"))
   target <- causalOT:::Measure(matrix(2:13, 6), adapt = "none", dtype = torch::torch_double(), device = torch::torch_device("cpu"))
@@ -213,6 +214,7 @@ testthat::test_that("refitting a certified lambda stops at iteration zero withou
 })
 
 testthat::test_that("a sparse certified warm start is checked and returned exactly", {
+  testthat::skip_if_not(torch::torch_is_installed())
   x <- matrix(seq_len(8), ncol = 1)
   a <- c(0, .1, 0, .2, 0, .3, 0, .4)
   source <- causalOT:::Measure(x, weights = a, adapt = "weights", dtype = torch::torch_double(), device = torch::torch_device("cpu"))
@@ -295,6 +297,7 @@ testthat::test_that("an iteration error restores phase_start before the next lam
 })
 
 testthat::test_that("native three-lambda paths agree with cold fits at the default and a partial mix", {
+  testthat::skip_if_not(torch::torch_is_installed())
   testthat::expect_equal(causalOT:::cotDualEntropyFixedPointTrain$private_fields$warm_start_mix, 1)
   x <- matrix(c(0, 1, 2), ncol = 1)
   # a 1e-3 mix lost the middle point on this path
