@@ -48,13 +48,8 @@ OT <- R6::R6Class(
 
       # device check
       if (is.null(device) || !torch::is_torch_device(device)) {
-        use_cuda <- torch::cuda_is_available() &&
-          torch::cuda_device_count() >= 1
-        if (use_cuda) {
-          self$device <- torch::torch_device("cuda")
-        } else {
-          self$device <- torch::torch_device("cpu")
-        }
+        use_cuda <- FALSE
+        self$device <- torch::torch_device("cpu")
       } else {
         self$device <- device
         attempt_cuda <- grepl("cuda", capture.output(print(self$device)))

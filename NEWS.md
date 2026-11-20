@@ -8,6 +8,9 @@
 * `cotOptions(opt.direction)` is deprecated. Use `cotOptions(solver)` instead.
 * `cotOptions()` now defaults to `solver = "fixed_point"` and `niter = 500`
   for all solvers. 
+* `device = NULL` now always uses the CPU. Previously it picked CUDA or MPS
+  when available. Pass `device = torch::torch_device("cuda")` or
+  `torch::torch_device("mps")` to use a GPU.
 
 ## New features
 * Updated convergence criterion to prevent needless long runs

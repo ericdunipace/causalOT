@@ -36,7 +36,7 @@ Measure(
 
 \item{dtype}{The torch_tensor dtype or NULL.}
 
-\item{device}{The device to have the data on. Should be result of \code{\link[torch:torch_device]{torch::torch_device()}} or NULL.}
+\item{device}{The device to have the data on. Should be result of \code{\link[torch:torch_device]{torch::torch_device()}} or NULL. NULL uses the CPU.}
 }
 \value{
 Returns a \code{Measure} object

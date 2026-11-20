@@ -395,7 +395,7 @@ COT <- R6::R6Class(
 #'   Sinkhorn tolerance: iterations stop once the largest change in the
 #'   potentials is below `ot_tol * lambda`, that is, once the log marginal
 #'   violation is below `ot_tol`.
-#' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
+#' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL, which uses the CPU. Pass `torch::torch_device("cuda")` or `torch::torch_device("mps")` to use a GPU.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
 #' @param ... Arguments passed to the solvers. See details. Named arguments
 #'   not used by any solver produce a warning. For `dual.solver = "fixed_point"`,

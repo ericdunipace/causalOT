@@ -232,34 +232,36 @@ test_that('float32 and float64 fits agree on the support and the weights', {
   expect_lt(max(abs(w[[1]] - w[[2]])), 1e-4)
 })
 
-test_that('default accelerator fits are polished and return float64 weights', {
+test_that('accelerator fits are polished and return float64 weights', {
   causalOT:::torch_check()
-  skip_if_not(
-    torch::backends_mps_is_available() || torch::cuda_is_available(),
-    'MPS/CUDA unavailable'
+  skip_on_cran()
+  devices <- c(
+    if (torch::cuda_is_available()) 'cuda',
+    if (torch::backends_mps_is_available()) 'mps'
   )
-  skip_if(
-    causalOT:::cuda_device_check(NULL)$type == 'cpu',
-    'Default device is CPU'
-  )
+  skip_if(length(devices) == 0, 'MPS/CUDA unavailable')
   f <- polish_fixture()
-  opts <- cotOptions(
-    lambda = 2,
-    solver = 'mirror',
-    polish = 'auto',
-    niter = 30L,
-    nboot = 0,
-    cost.online = 'tensorized'
-  )
-  cot <- causalOT:::COT$new(source = f$x, target = f$y, options = opts)
-  cot$solve()
-  cot$grid_search()
-  expect_true(
-    fit_optimizer(cot)$info()$polish[[1]][[1]]$status %in%
-      c('refined', 'already_optimal')
-  )
-  expect_equal(sum(cot$weights), 1, tolerance = 1e-12)
-  expect_equal(cot$weights, polish_run(f)$weights, tolerance = 1e-4)
+  for (d in devices) {
+    opts <- cotOptions(
+      lambda = 2,
+      solver = 'mirror',
+      polish = 'auto',
+      niter = 30L,
+      nboot = 0,
+      cost.online = 'tensorized',
+      device = torch::torch_device(d)
+    )
+    cot <- causalOT:::COT$new(source = f$x, target = f$y, options = opts)
+    expect_identical(cot$.__enclos_env__$private$source$device$type, d)
+    cot$solve()
+    cot$grid_search()
+    expect_true(
+      fit_optimizer(cot)$info()$polish[[1]][[1]]$status %in%
+        c('refined', 'already_optimal')
+    )
+    expect_equal(sum(cot$weights), 1, tolerance = 1e-12)
+    expect_equal(cot$weights, polish_run(f)$weights, tolerance = 1e-4)
+  }
 })
 
 test_that('a source containing the target converges at zero divergence through atol', {

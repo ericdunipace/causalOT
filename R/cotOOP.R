@@ -311,7 +311,7 @@ Measure_ <- R6::R6Class(
       #' @param balance.functions A matrix of functions of the covariates to target for mean balance. If NULL and `target.values` are provided, will use the data in `x`.
       #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
       #' @param dtype The [torch::torch_dtype] or NULL.
-      #' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL.
+      #' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL. NULL uses the CPU.
       initialize = function(
         x,
         weights = NULL,
@@ -853,7 +853,7 @@ Measure_ <- R6::R6Class(
 #' @param target.values The targets for the balance functions. Should be the same length as columns in `balance.functions.`
 #' @param unit.id Optional unit identifiers. If NULL, non-automatic row names from `x` are used when available.
 #' @param dtype The torch_tensor dtype or NULL.
-#' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL.
+#' @param device The device to have the data on. Should be result of [torch::torch_device()] or NULL. NULL uses the CPU.
 #' @return Returns a `Measure` object
 #' @export
 Measure <- function(

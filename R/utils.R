@@ -601,16 +601,9 @@ get_dtype <- function(...) {
 }
 
 cuda_device_check <- function(device) {
+  # accelerators are opt-in: pass torch_device("cuda") or torch_device("mps")
   if (is.null(device)) {
-    cuda_opt <- torch::cuda_is_available() && torch::cuda_device_count() >= 1
-    mps_opt <- torch::backends_mps_is_available()
-    if (cuda_opt) {
-      device <- torch::torch_device("cuda")
-    } else if (mps_opt) {
-      device <- torch::torch_device("mps")
-    } else {
-      device <- torch::torch_device("cpu")
-    }
+    device <- torch::torch_device("cpu")
   }
   stopifnot(
     "device argument must be NULL or an object of class 'torch_device'" = torch::is_torch_device(

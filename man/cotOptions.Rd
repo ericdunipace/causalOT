@@ -136,7 +136,7 @@ Sinkhorn tolerance: iterations stop once the largest change in the
 potentials is below \code{ot_tol * lambda}, that is, once the log marginal
 violation is below \code{ot_tol}.}
 
-\item{device}{An object of class \code{torch_device} denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.}
+\item{device}{An object of class \code{torch_device} denoting which device the data will be located on. Default is NULL, which uses the CPU. Pass \code{torch::torch_device("cuda")} or \code{torch::torch_device("mps")} to use a GPU.}
 
 \item{dtype}{An object of class \code{torch_dtype} that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.}
 

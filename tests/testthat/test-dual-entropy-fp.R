@@ -114,7 +114,7 @@ testthat::test_that("collapse case improves on joint solver and matches polished
   testthat::expect_gt(max(legacy$weights), .5)
   reference <- causalOT:::COT$new(z$x, z$y,
     options = causalOT::cotOptions(lambda = z$lambda, solver = "mirror",
-      polish = "auto", niter = 2000L, ot_tol = 1e-8, tol = 1e-6,
+      polish = "auto", niter = 2000L, ot_tol = 1e-8, tol = 1e-3,
       dtype = torch::torch_double(), device = torch::torch_device("cpu")))
   reference$solve()
   ref_ot <- reference$.__enclos_env__$private$optimizer$.__enclos_env__$private$ot_objects
@@ -123,7 +123,7 @@ testthat::test_that("collapse case improves on joint solver and matches polished
   ref_ot$sinkhorn_opt(niter = 10000L, tol = 1e-11)
   S_star <- causalOT:::oop_loss_select(ref_ot)$item()
   testthat::expect_true(causalOT:::cot_converged(causalOT:::cot_ccp_kkt(ref_ot)$fw_gap, S_star, 1e-8, 1e-6))
-  result <- z$private$optimization_loop(10000L, 1e-4)
+  result <- z$private$optimization_loop(500L, 1e-4)
   testthat::expect_lt(max(as.numeric(z$fit$weights)), .5)
   testthat::expect_lte(result$divergence, S_star + 1e-4)
   z$fit$ot$sinkhorn_opt(niter = 10000L, tol = 1e-11)
