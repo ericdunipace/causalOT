@@ -237,6 +237,7 @@ setMethod("dataHolder", signature(x = "matrix", z = "ANY", y = "ANY", weights = 
 #' dataHolder-methods
 #' @rdname dataHolder-methods
 #' @keywords internal
+#' @method dataHolder DataSim
 dataHolder.DataSim <- function(x, z, y = NA_real_, weights = NA_real_) {
   
   ds <- x

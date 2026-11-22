@@ -4,7 +4,7 @@
 \alias{PSIS.causalWeights}
 \title{PSIS casualWeights class}
 \usage{
-PSIS.causalWeights(x, r_eff = NULL, ...)
+\method{PSIS}{causalWeights}(x, r_eff = NULL, ...)
 }
 \arguments{
 \item{x}{object of class causalWeights}

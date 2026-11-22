@@ -65,7 +65,10 @@ jobs:
           # Ensure rcmdcheck exists for the summary step below
           extra-packages: any::rcmdcheck
 
+      # Skip on sanitizer containers: lantern is dlopen()ed with RTLD_DEEPBIND,
+      # which ASAN rejects. CRAN sanitizer checks do not have lantern either.
       - name: Install torch backend (lantern/libtorch)
+        if: ${{ !contains(matrix.config.label, 'san') }}
         run: Rscript -e 'torch::install_torch()'
         env:
           TORCH_INSTALL: 1
