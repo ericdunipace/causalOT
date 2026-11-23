@@ -47,9 +47,7 @@ testthat::test_that("costTensor class forms", {
 })
 
 testthat::test_that("costOnline class forms", {
-  testthat::skip_on_cran()
-  causalOT:::rkeops_check()
-  testthat::skip_on_ci()
+  causalOT:::torch_check()
   set.seed(124123)
   n <- 10
   m <- 11
@@ -64,37 +62,22 @@ testthat::test_that("costOnline class forms", {
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
-  causalOT:::rkeops_check()
-  keops_sum <- rkeops::keops_kernel(
-    formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
-    args = c(
-      paste0("X = Vi(",d,")"),
-      paste0("Y = Vj(",d,")"))
-  )
-  testthat::expect_equivalent(object = sum(keops_sum(list(X = cost$data$x,
-                                                 Y = cost$data$y) )), 
+  ones <- torch::torch_ones(m, dtype = cost$data$y$dtype)
+  testthat::expect_equivalent(object = sum(as.numeric(causalOT:::online_cost_mv(cost, cost$data$x, cost$data$y, ones))),
                               expected = sum((as.matrix(stats::dist(rbind(x,y)))[1:n,(n+1):(m+n)]^2) / 2),
                               ignore_attr = TRUE,
                               tolerance = 1e-5)
-  
-  
+
+
   # given cost_function
-  cost_fun <- "Abs(X - Y)"
+  cost_fun <- function(x, y, p) torch::torch_cdist(x, y, p = 1)
   testthat::expect_silent(cost <- causalOT:::costOnline$new(x = x, y = y, cost_function = cost_fun))
   testthat::expect_equal(dim(cost$data$x), c(n,d))
   testthat::expect_equal(dim(cost$data$y), c(m,d))
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
-  causalOT:::rkeops_check()
-  keops_sum2 <- rkeops::keops_kernel(
-    formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
-    args = c(
-      paste0("X = Vi(",d,")"),
-      paste0("Y = Vj(",d,")"))
-  )
-  testthat::expect_equivalent(object = sum(keops_sum2(list(X = cost$data$x,
-                                                          Y = cost$data$y) )), 
+  testthat::expect_equivalent(object = sum(as.numeric(causalOT:::online_cost_mv(cost, cost$data$x, cost$data$y, ones))),
                               expected = sum(as.matrix(stats::dist(rbind(x,y), method = "manhattan"))[1:n,(n+1):(m+n)]),
                               ignore_attr = TRUE,
                               tolerance = 1e-5)
@@ -144,10 +127,7 @@ testthat::test_that("cost function forms appropriate classes", {
                          expected = causalOT:::costTensor$new(x = x, y = y, p = 1L)$data)
   
   # online
-  testthat::skip_on_cran()
-  causalOT:::rkeops_check()
-  testthat::skip_on_ci()
-  
+
   # given just p
   testthat::expect_silent(cost <- causalOT:::cost(x = x, y = y, p = 2L, tensorized = FALSE))
   testthat::expect_equal(dim(cost$data$x), c(n,d))
@@ -155,42 +135,23 @@ testthat::test_that("cost function forms appropriate classes", {
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
-  causalOT:::rkeops_check()
-  keops_sum <- rkeops::keops_kernel(
-    formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
-    args = c(
-      paste0("X = Vi(",d,")"),
-      paste0("Y = Vj(",d,")"))
-  )
-  testthat::expect_equivalent(object = sum(keops_sum(list(X = cost$data$x,
-                                                          Y = cost$data$y) )), 
+  ones <- torch::torch_ones(m, dtype = cost$data$y$dtype)
+  testthat::expect_equivalent(object = sum(as.numeric(causalOT:::online_cost_mv(cost, cost$data$x, cost$data$y, ones))),
                               expected = sum((as.matrix(stats::dist(rbind(x,y)))[1:n,(n+1):(m+n)]^2) / 2),
                               ignore_attr = TRUE,
                               tolerance = 1e-5)
-  
-  
+
+
   # given cost_function
-  cost_fun <- function(x,y) {
-    n <- nrow(x)
-    m <- nrow(y)
-    as.matrix(stats::dist(rbind(x,y), method = "manhattan"))[1:n,(n+1):(m+n)]
-  }
-  testthat::expect_error(cost <- causalOT:::cost(x = x, y = y, cost_function = cost_fun, tensorized = FALSE))
-  testthat::expect_silent(cost <- causalOT:::cost(x = x, y = y, cost_function = "Sum(Abs(X-Y))", tensorized = FALSE))
+  cost_fun <- function(x, y, p) torch::torch_cdist(x, y, p = 1)
+  testthat::expect_error(cost <- causalOT:::cost(x = x, y = y, cost_function = "Sum(Abs(X-Y))", tensorized = FALSE))
+  testthat::expect_silent(cost <- causalOT:::cost(x = x, y = y, cost_function = cost_fun, tensorized = FALSE))
   testthat::expect_equal(dim(cost$data$x), c(n,d))
   testthat::expect_equal(dim(cost$data$y), c(m,d))
   testthat::expect_true(inherits(cost, "R6"))
   testthat::expect_true(inherits(cost, "costOnline"))
   testthat::expect_true(inherits(cost, "cost"))
-  causalOT:::rkeops_check()
-  keops_sum2 <- rkeops::keops_kernel(
-    formula = paste0("Sum_Reduction(", cost$fun, ", 0)"),
-    args = c(
-      paste0("X = Vi(",d,")"),
-      paste0("Y = Vj(",d,")"))
-  )
-  testthat::expect_equivalent(object = sum(keops_sum2(list(X = cost$data$x,
-                                                           Y = cost$data$y) )), 
+  testthat::expect_equivalent(object = sum(as.numeric(causalOT:::online_cost_mv(cost, cost$data$x, cost$data$y, ones))),
                               expected = sum(as.matrix(stats::dist(rbind(x,y), method = "manhattan"))[1:n,(n+1):(m+n)]),
                               ignore_attr = TRUE,
                               tolerance = 1e-5)

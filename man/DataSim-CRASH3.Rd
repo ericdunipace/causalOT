@@ -7,17 +7,12 @@
 An \link[R6:R6Class]{R6} object of class \link{DataSim}
 }
 \description{
-CRASH3 data example
-
-CRASH3 data example
-}
-\details{
 Returns the CRASH3 data. Note that \code{gen_data()} will initialize the fixed data for x and y, but z is generated from Binom(0.5).
 }
 \examples{
 
 ## ------------------------------------------------
-## Method `CRASH3$new`
+## Method `CRASH3$new()`
 ## ------------------------------------------------
 
 crash <- CRASH3$new()
@@ -26,140 +21,144 @@ crash$get_n()
 crash$site_id
 }
 \section{Super class}{
-\code{\link[causalOT:DataSim]{causalOT::DataSim}} -> \code{CRASH3}
+\code{\link[causalOT:DataSim]{DataSim}} -> \code{CRASH3}
 }
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{site_id}}{The site of the observation in terms of the original RCT.}
-}
-\if{html}{\out{</div>}}
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{site_id}}{The site of the observation in terms of the original RCT.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-CRASH3-gen_data}{\code{CRASH3$gen_data()}}
-\item \href{#method-CRASH3-gen_x}{\code{CRASH3$gen_x()}}
-\item \href{#method-CRASH3-gen_y}{\code{CRASH3$gen_y()}}
-\item \href{#method-CRASH3-gen_z}{\code{CRASH3$gen_z()}}
-\item \href{#method-CRASH3-new}{\code{CRASH3$new()}}
-\item \href{#method-CRASH3-clone}{\code{CRASH3$clone()}}
+  \itemize{
+    \item \href{#method-CRASH3-gen_data}{\code{CRASH3$gen_data()}}
+    \item \href{#method-CRASH3-gen_x}{\code{CRASH3$gen_x()}}
+    \item \href{#method-CRASH3-gen_y}{\code{CRASH3$gen_y()}}
+    \item \href{#method-CRASH3-gen_z}{\code{CRASH3$gen_z()}}
+    \item \href{#method-CRASH3-initialize}{\code{CRASH3$new()}}
+    \item \href{#method-CRASH3-clone}{\code{CRASH3$clone()}}
+  }
 }
-}
-\if{html}{\out{
-<details><summary>Inherited methods</summary>
+\if{html}{\out{<details><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_n"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_n'><code>causalOT::DataSim$get_n()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_p"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_p'><code>causalOT::DataSim$get_p()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_tau"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_tau'><code>causalOT::DataSim$get_tau()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x'><code>causalOT::DataSim$get_x()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x0"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x0'><code>causalOT::DataSim$get_x0()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x1"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x1'><code>causalOT::DataSim$get_x1()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_y"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_y'><code>causalOT::DataSim$get_y()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_z"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_z'><code>causalOT::DataSim$get_z()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_n"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_n'><code>DataSim$get_n()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_p"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_p'><code>DataSim$get_p()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_tau"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_tau'><code>DataSim$get_tau()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x'><code>DataSim$get_x()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x0"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x0'><code>DataSim$get_x0()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_x1"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_x1'><code>DataSim$get_x1()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_y"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_y'><code>DataSim$get_y()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="causalOT" data-topic="DataSim" data-id="get_z"><a href='../../causalOT/html/DataSim.html#method-DataSim-get_z'><code>DataSim$get_z()</code></a></span></li>
 </ul>
-</details>
-}}
+</details>}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CRASH3-gen_data"></a>}}
 \if{latex}{\out{\hypertarget{method-CRASH3-gen_data}{}}}
-\subsection{Method \code{gen_data()}}{
-The site ID for the observations
+\subsection{\code{CRASH3$gen_data()}}{
+  The site ID for the observations
 
 
-Draws new treatment indicators. x and y data are fixed.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CRASH3$gen_data()}\if{html}{\out{</div>}}
+  Draws new treatment indicators. x and y data are fixed.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CRASH3$gen_data()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CRASH3-gen_x"></a>}}
 \if{latex}{\out{\hypertarget{method-CRASH3-gen_x}{}}}
-\subsection{Method \code{gen_x()}}{
-Sets up the covariate data. This data is fixed.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CRASH3$gen_x()}\if{html}{\out{</div>}}
+\subsection{\code{CRASH3$gen_x()}}{
+  Sets up the covariate data. This data is fixed.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CRASH3$gen_x()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CRASH3-gen_y"></a>}}
 \if{latex}{\out{\hypertarget{method-CRASH3-gen_y}{}}}
-\subsection{Method \code{gen_y()}}{
-Sets up the outcome data. This data is fixed.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CRASH3$gen_y()}\if{html}{\out{</div>}}
+\subsection{\code{CRASH3$gen_y()}}{
+  Sets up the outcome data. This data is fixed.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CRASH3$gen_y()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CRASH3-gen_z"></a>}}
 \if{latex}{\out{\hypertarget{method-CRASH3-gen_z}{}}}
-\subsection{Method \code{gen_z()}}{
-Sets up the treatment indicator. Drawn as Z ~ Binom(0.5)
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CRASH3$gen_z()}\if{html}{\out{</div>}}
+\subsection{\code{CRASH3$gen_z()}}{
+  Sets up the treatment indicator. Drawn as Z ~ Binom(0.5)
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CRASH3$gen_z()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-CRASH3-new"></a>}}
-\if{latex}{\out{\hypertarget{method-CRASH3-new}{}}}
-\subsection{Method \code{new()}}{
-Initializes the CRASH3 object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CRASH3$new(n = NULL, p = NULL, param = list(), design = NA_character_, ...)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{n}}{Not used.
+\if{html}{\out{<a id="method-CRASH3-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-CRASH3-initialize}{}}}
+\subsection{\code{CRASH3$new()}}{
+  Initializes the CRASH3 object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CRASH3$new(n = NULL, p = NULL, param = list(), design = NA_character_, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{n}}{Not used.
 Maintained for symmetry with other
 DataSim objects.}
-
-\item{\code{p}}{Not used.
+      \item{\code{p}}{Not used.
 Maintained for symmetry with other
 DataSim objects.}
-
-\item{\code{param}}{Not used.
+      \item{\code{param}}{Not used.
 Maintained for symmetry with other
 DataSim objects.}
-
-\item{\code{design}}{Not used}
-
-\item{\code{...}}{Not used.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{crash <- CRASH3$new()
+      \item{\code{design}}{Not used}
+      \item{\code{...}}{Not used.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{crash <- CRASH3$new()
 crash$gen_data()
 crash$get_n()
 crash$site_id
 }
-\if{html}{\out{</div>}}
-
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CRASH3-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-CRASH3-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CRASH3$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{CRASH3$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CRASH3$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

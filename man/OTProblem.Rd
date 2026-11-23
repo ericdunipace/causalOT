@@ -2,7 +2,6 @@
 % Please edit documentation in R/cotOOP.R
 \name{OTProblem}
 \alias{OTProblem}
-\alias{OTProblem_}
 \title{OTProblem}
 \usage{
 OTProblem(measure_1, measure_2, ...)
@@ -43,17 +42,17 @@ if (torch::torch_is_installed()) {
   m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
-  
+
   y <- matrix(2, 100, 10)
   m2 <- Measure(x = y, adapt = "weights",
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
-  
+
   z <- matrix(3,102, 10)
   m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
-  
+
   # setup OT problems
   ot1 <- OTProblem(m1, m2,
              device = torch::torch_device("cpu"),
@@ -61,21 +60,21 @@ if (torch::torch_is_installed()) {
   ot2 <- OTProblem(m3, m2,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
-  
-  # you can add or subtract OTProblem objects into 
+
+  # you can add or subtract OTProblem objects into
   # a new OTProblem
   ot <- 0.5 * ot1 + 0.5 * ot2
   print(ot)
-  
+
   # Then you choose the hyperparameters
   ot$setup_arguments(lambda = 1000)
-  
+
   # then you can solve the objective function
   ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
   }
 
 ## ------------------------------------------------
-## Method `OTProblem_$add`
+## Method `OTProblem$add()`
 ## ------------------------------------------------
 
 # example code
@@ -85,35 +84,35 @@ if (torch::torch_is_installed()) {
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$add(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
+
 }
 
 ## ------------------------------------------------
-## Method `OTProblem_$subtract`
+## Method `OTProblem$subtract()`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -122,35 +121,35 @@ if (torch::torch_is_installed()) {
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$subtract(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
+
 }
 
 ## ------------------------------------------------
-## Method `OTProblem_$multiply`
+## Method `OTProblem$multiply()`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -159,35 +158,35 @@ if (torch::torch_is_installed()) {
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$multiply(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
+
 }
 
 ## ------------------------------------------------
-## Method `OTProblem_$divide`
+## Method `OTProblem$divide()`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -196,35 +195,35 @@ if (torch::torch_is_installed()) {
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$divide(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
+
 }
 
 ## ------------------------------------------------
-## Method `OTProblem_$setup_arguments`
+## Method `OTProblem$setup_arguments()`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -237,13 +236,13 @@ if (torch::torch_is_installed()) {
  m2 <- Measure(x = y, adapt = "weights",
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  ot <- OTProblem(m1, m2)
  ot$setup_arguments(lambda = 1000)
 }
 
 ## ------------------------------------------------
-## Method `OTProblem_$solve`
+## Method `OTProblem$solve()`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -256,14 +255,14 @@ if (torch::torch_is_installed()) {
  m2 <- Measure(x = y, adapt = "weights",
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  ot <- OTProblem(m1, m2)
  ot$setup_arguments(lambda = 1000)
  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
 }
 
 ## ------------------------------------------------
-## Method `OTProblem_$choose_hyperparameters`
+## Method `OTProblem$choose_hyperparameters()`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -276,15 +275,26 @@ if (torch::torch_is_installed()) {
  m2 <- Measure(x = y, adapt = "weights",
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  ot <- OTProblem(m1, m2)
  ot$setup_arguments(lambda = c(1,1000))
  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
  ot$choose_hyperparameters(n_boot_lambda = 2, n_boot_delta = 10, lambda_bootstrap = 100)
+
+ # Fixed-support two-sample membership can be inferred. For overlapping
+ # supports or composite objectives, supply pooled x, binary z, and
+ # optional unique unit.id through lambda.selection.data at setup.
+ x0 <- matrix(c(-2, -1, 0, 1), ncol = 1)
+ x1 <- matrix(c(0, 1, 2, 3), ncol = 1)
+ rbf <- OTProblem(Measure(x0, adapt = "weights"), Measure(x1))
+ rbf$setup_arguments(lambda = c(.1, 1, 10))
+ rbf$solve(niter = 2)
+ rbf$choose_hyperparameters(lambda.selector = "auto")
+ rbf$info()$hyperparam.metrics$lambda.details
 }
 
 ## ------------------------------------------------
-## Method `OTProblem_$info`
+## Method `OTProblem$info()`
 ## ------------------------------------------------
 
 if (torch::torch_is_installed()) {
@@ -292,316 +302,325 @@ if (torch::torch_is_installed()) {
 }
 }
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{device}}{the \code{\link[torch:torch_device]{torch::torch_device()}} of the data.}
 
-\item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
+    \item{\code{dtype}}{the \link[torch:torch_dtype]{torch::torch_dtype} of the data.}
 
-\item{\code{selected_delta}}{the delta value selected after \code{choose_hyperparameters}}
+    \item{\code{selected_delta}}{the delta value selected after \code{choose_hyperparameters}}
 
-\item{\code{selected_lambda}}{the lambda value selected after \code{choose_hyperparameters}}
-}
-\if{html}{\out{</div>}}
+    \item{\code{selected_lambda}}{the lambda value selected after \code{choose_hyperparameters}}
+
+    \item{\code{polished_weights}}{Float64 source weights of the selected fit when
+it was polished, otherwise \code{NULL}.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{loss}}{Prints the current value of the objective. Only available after the solve method has been run}
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{loss}}{Prints the current value of the objective. Only available after the solve method has been run}
 
-\item{\code{penalty}}{Returns a list of the lambda and delta penalities that will be iterated through. To set these values, use the \code{setup_arguments} function.}
-}
-\if{html}{\out{</div>}}
+    \item{\code{penalty}}{Returns a list of the lambda and delta penalities that will be iterated through. To set these values, use the \code{setup_arguments} function.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-OTProblem-add}{\code{OTProblem_$add()}}
-\item \href{#method-OTProblem-subtract}{\code{OTProblem_$subtract()}}
-\item \href{#method-OTProblem-multiply}{\code{OTProblem_$multiply()}}
-\item \href{#method-OTProblem-divide}{\code{OTProblem_$divide()}}
-\item \href{#method-OTProblem-print}{\code{OTProblem_$print()}}
-\item \href{#method-OTProblem-new}{\code{OTProblem_$new()}}
-\item \href{#method-OTProblem-setup_arguments}{\code{OTProblem_$setup_arguments()}}
-\item \href{#method-OTProblem-solve}{\code{OTProblem_$solve()}}
-\item \href{#method-OTProblem-choose_hyperparameters}{\code{OTProblem_$choose_hyperparameters()}}
-\item \href{#method-OTProblem-info}{\code{OTProblem_$info()}}
-\item \href{#method-OTProblem-clone}{\code{OTProblem_$clone()}}
-}
+  \itemize{
+    \item \href{#method-OTProblem-add}{\code{OTProblem$add()}}
+    \item \href{#method-OTProblem-subtract}{\code{OTProblem$subtract()}}
+    \item \href{#method-OTProblem-multiply}{\code{OTProblem$multiply()}}
+    \item \href{#method-OTProblem-divide}{\code{OTProblem$divide()}}
+    \item \href{#method-OTProblem-print}{\code{OTProblem$print()}}
+    \item \href{#method-OTProblem-initialize}{\code{OTProblem$new()}}
+    \item \href{#method-OTProblem-setup_arguments}{\code{OTProblem$setup_arguments()}}
+    \item \href{#method-OTProblem-solve}{\code{OTProblem$solve()}}
+    \item \href{#method-OTProblem-rbf_path_eligibility}{\code{OTProblem$rbf_path_eligibility()}}
+    \item \href{#method-OTProblem-rbf_grid}{\code{OTProblem$rbf_grid()}}
+    \item \href{#method-OTProblem-rbf_shared_scores}{\code{OTProblem$rbf_shared_scores()}}
+    \item \href{#method-OTProblem-choose_hyperparameters}{\code{OTProblem$choose_hyperparameters()}}
+    \item \href{#method-OTProblem-info}{\code{OTProblem$info()}}
+    \item \href{#method-OTProblem-clone}{\code{OTProblem$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-add"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-add}{}}}
-\subsection{Method \code{add()}}{
-adds \code{o2} to the \code{OTProblem}
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$add(o2)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{o2}}{A number or object of class \code{OTProblem}}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{# example code
+\subsection{\code{OTProblem$add()}}{
+  adds \code{o2} to the \code{OTProblem}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$add(o2)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{o2}}{A number or object of class \code{OTProblem}}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{# example code
 if (torch::torch_is_installed()) {
  # setup measures
  x <- matrix(1, 100, 10)
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$add(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
-}
-}
-\if{html}{\out{</div>}}
 
 }
-
 }
+    \if{html}{\out{</div>}}
+  }
+}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-subtract"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-subtract}{}}}
-\subsection{Method \code{subtract()}}{
-subtracts \code{o2} from \code{OTProblem}
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$subtract(o2)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{o2}}{A number or object of class \code{OTProblem}}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
+\subsection{\code{OTProblem$subtract()}}{
+  subtracts \code{o2} from \code{OTProblem}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$subtract(o2)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{o2}}{A number or object of class \code{OTProblem}}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{if (torch::torch_is_installed()) {
  # setup measures
  x <- matrix(1, 100, 10)
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$subtract(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
-}
-}
-\if{html}{\out{</div>}}
 
 }
-
 }
+    \if{html}{\out{</div>}}
+  }
+}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-multiply"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-multiply}{}}}
-\subsection{Method \code{multiply()}}{
-multiplies \code{OTProblem} by \code{o2}
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$multiply(o2)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{o2}}{A number or object of class OTProblem}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
+\subsection{\code{OTProblem$multiply()}}{
+  multiplies \code{OTProblem} by \code{o2}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$multiply(o2)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{o2}}{A number or object of class OTProblem}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{if (torch::torch_is_installed()) {
  # setup measures
  x <- matrix(1, 100, 10)
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$multiply(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
-}
-}
-\if{html}{\out{</div>}}
 
 }
-
 }
+    \if{html}{\out{</div>}}
+  }
+}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-divide"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-divide}{}}}
-\subsection{Method \code{divide()}}{
-divides OTProblem by agument \code{o2}
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$divide(o2)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{o2}}{A number or object of class OTProblem}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
+\subsection{\code{OTProblem$divide()}}{
+  divides OTProblem by agument \code{o2}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$divide(o2)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{o2}}{A number or object of class OTProblem}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{if (torch::torch_is_installed()) {
  # setup measures
  x <- matrix(1, 100, 10)
  m1 <- Measure(x = x,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  y <- matrix(2, 100, 10)
  m2 <- Measure(x = y,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  z <- matrix(3,102, 10)
- 
+
  m3 <- Measure(x = z,
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
 # setup OT problems
  ot1 <- OTProblem(m1, m2)
- 
+
  ot2 <- OTProblem(m3, m2)
- 
+
  print(ot1)
  print(ot2)
- 
+
  ot1$divide(ot2)
- 
+
  print(ot1)
  print(ot2)
- 
-}
-}
-\if{html}{\out{</div>}}
 
 }
-
 }
+    \if{html}{\out{</div>}}
+  }
+}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-print"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-print}{}}}
-\subsection{Method \code{print()}}{
-prints the OT problem object
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$print(...)}\if{html}{\out{</div>}}
+\subsection{\code{OTProblem$print()}}{
+  prints the OT problem object
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Not used at this time}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Not used at this time}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-OTProblem-new"></a>}}
-\if{latex}{\out{\hypertarget{method-OTProblem-new}{}}}
-\subsection{Method \code{new()}}{
-Constructor method
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$new(measure_1, measure_2)}\if{html}{\out{</div>}}
+\if{html}{\out{<a id="method-OTProblem-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-OTProblem-initialize}{}}}
+\subsection{\code{OTProblem$new()}}{
+  Constructor method
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$new(measure_1, measure_2)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{measure_1}}{An object of class \link{Measure}}
+      \item{\code{measure_2}}{An object of class \link{Measure}}
+      \item{\code{...}}{Not used at this time}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    An R6 object of class \code{OTProblem}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{measure_1}}{An object of class \link{Measure}}
-
-\item{\code{measure_2}}{An object of class \link{Measure}}
-
-\item{\code{...}}{Not used at this time}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-An R6 object of class \code{OTProblem}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-setup_arguments"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-setup_arguments}{}}}
-\subsection{Method \code{setup_arguments()}}{
-Sets up the OT problems for the \code{OTProblem} object. This should be run before \code{choose_hyperparameters} and \code{solve}.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$setup_arguments(
+\subsection{\code{OTProblem$setup_arguments()}}{
+  Sets up the OT problems for the \code{OTProblem} object. This should be run before \code{choose_hyperparameters} and \code{solve}.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$setup_arguments(
   lambda,
   delta,
   grid.length = 7L,
@@ -611,41 +630,53 @@ Sets up the OT problems for the \code{OTProblem} object. This should be run befo
   debias = TRUE,
   diameter = NULL,
   ot_niter = 1000L,
-  ot_tol = 0.001
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{lambda}}{The penalty parameters to try for the \code{OTProblem.} If not provided, the function will select some.}
-
-\item{\code{delta}}{The constraint paramters to try for the balance function problems, if any.}
-
-\item{\code{grid.length}}{The number of hyperparameters to try if not provided}
-
-\item{\code{cost.function}}{The cost function for the data. Can be any function that takes arguments \code{x1}, \code{x2}, \code{p}. Defaults to the Euclidean distance.}
-
-\item{\code{p}}{The power to raise the cost matrix by. Default is 2}
-
-\item{\code{cost.online}}{Should online costs be used? Default is "auto" but "tensorized" stores the cost matrix in memory while "online" will calculate it on the fly.}
-
-\item{\code{debias}}{Should debiased a debiased \code{OTProblem} be used? Defaults to TRUE}
-
-\item{\code{diameter}}{Diameter of the cost function.}
-
-\item{\code{ot_niter}}{Number of iterations to run the solver}
-
-\item{\code{ot_tol}}{The tolerance for convergence of the objective function}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-returns the object invisibly
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
+  ot_tol = 0.001,
+  polish = c("none", "auto"),
+  lambda.selection.data = NULL,
+  lambda.selector.control = list()
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{lambda}}{Numeric penalty candidates in solver cost units, or
+\code{"auto"} to select one positive value before fitting using
+pooled binary-label prediction. If omitted, a default grid is used.}
+      \item{\code{delta}}{The constraint paramters to try for the balance function problems, if any.}
+      \item{\code{grid.length}}{The number of hyperparameters to try if not provided}
+      \item{\code{cost.function}}{The cost function for the data. Can be any function that takes arguments \code{x1}, \code{x2}, \code{p}. Defaults to the Euclidean distance.}
+      \item{\code{p}}{The power to raise the cost matrix by. Default is 2}
+      \item{\code{cost.online}}{Should online costs be used? Default is "auto" but "tensorized" stores the cost matrix in memory while "online" will calculate it on the fly.}
+      \item{\code{debias}}{Should debiased a debiased \code{OTProblem} be used? Defaults to TRUE}
+      \item{\code{diameter}}{Diameter of the cost function.}
+      \item{\code{ot_niter}}{Number of iterations to run the solver}
+      \item{\code{ot_tol}}{Sinkhorn tolerance: iterations stop once the largest change
+in the potentials is below \code{ot_tol * lambda}.}
+      \item{\code{polish}}{Primal weight refinement, \code{"auto"} or \code{"none"}; see \code{\link[=cotOptions]{cotOptions()}}.}
+      \item{\code{lambda.selection.data}}{Optional list containing pooled covariates \code{x},
+binary labels \code{z}, and optional unique \code{unit.id}. Covariates must have
+the solver's feature order and scaling. For a single two-sample term,
+labels can instead be inferred from measure membership; absent unit IDs,
+this assumes independent samples. In a general OT problem these labels
+represent sample membership, not necessarily causal treatment. The
+caller chooses the pooling and labels for the intended comparison.
+Shared IDs require explicit pooled data, and supplied IDs must be
+unique. Identical covariate rows are not deduplicated. Composite
+objectives require explicit data. RBF selection requires fixed
+supports, uniform original masses, a conditionally negative definite cost, and two
+observations per class.}
+      \item{\code{lambda.selector.control}}{Selection controls; set \code{details = TRUE}
+to retain the adaptive evaluation trace.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    returns the object invisibly
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{if (torch::torch_is_installed()) {
  # setup measures
  x <- matrix(1, 100, 10)
  m1 <- Measure(x = x,
@@ -655,24 +686,24 @@ returns the object invisibly
  m2 <- Measure(x = y, adapt = "weights",
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  ot <- OTProblem(m1, m2)
  ot$setup_arguments(lambda = 1000)
 }
 }
-\if{html}{\out{</div>}}
-
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-solve"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-solve}{}}}
-\subsection{Method \code{solve()}}{
-Solve the \code{OTProblem} at each parameter value. Must run setup_arguments first.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$solve(
-  niter = 1000L,
+\subsection{\code{OTProblem$solve()}}{
+  Solve the \code{OTProblem} at each parameter value. Must run setup_arguments first.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$solve(
+  niter = 500L,
   tol = 1e-05,
   optimizer = c("torch", "frank-wolfe"),
   torch_optim = torch::optim_lbfgs,
@@ -680,36 +711,29 @@ Solve the \code{OTProblem} at each parameter value. Must run setup_arguments fir
   torch_args = NULL,
   osqp_args = NULL,
   quick.balance.function = TRUE
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{niter}}{The nubmer of iterations to run solver at each combination of hyperparameter values}
-
-\item{\code{tol}}{The tolerance for convergence}
-
-\item{\code{optimizer}}{The optimizer to use. One of "torch" or "frank-wolfe"}
-
-\item{\code{torch_optim}}{The \code{torch_optimizer} to use. Default is \link[torch:optim_lbfgs]{torch::optim_lbfgs}}
-
-\item{\code{torch_scheduler}}{The \link[torch:lr_scheduler]{torch::lr_scheduler} to use. Default is \link[torch:lr_reduce_on_plateau]{torch::lr_reduce_on_plateau}}
-
-\item{\code{torch_args}}{Arguments passed to the torch optimizer and scheduler}
-
-\item{\code{osqp_args}}{Arguments passed to \code{\link[osqp:osqpSettings]{osqp::osqpSettings()}} if appropriate}
-
-\item{\code{quick.balance.function}}{Should \code{\link[osqp:osqp]{osqp::osqp()}} be used to select balance function constraints (delta) or not. Default true.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-returns the object invisibly
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{niter}}{The nubmer of iterations to run solver at each combination of hyperparameter values}
+      \item{\code{tol}}{The tolerance for convergence}
+      \item{\code{optimizer}}{The optimizer to use. One of "torch" or "frank-wolfe"}
+      \item{\code{torch_optim}}{The \code{torch_optimizer} to use. Default is \link[torch:optim_lbfgs]{torch::optim_lbfgs}}
+      \item{\code{torch_scheduler}}{The \link[torch:lr_scheduler]{torch::lr_scheduler} to use. Default is \link[torch:lr_reduce_on_plateau]{torch::lr_reduce_on_plateau}}
+      \item{\code{torch_args}}{Arguments passed to the torch optimizer and scheduler}
+      \item{\code{osqp_args}}{Arguments passed to \code{\link[osqp:osqpSettings]{osqp::osqpSettings()}} if appropriate}
+      \item{\code{quick.balance.function}}{Should \code{\link[osqp:osqp]{osqp::osqp()}} be used to select balance function constraints (delta) or not. Default true.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    returns the object invisibly
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{if (torch::torch_is_installed()) {
  # setup measures
  x <- matrix(1, 100, 10)
  m1 <- Measure(x = x,
@@ -719,47 +743,109 @@ returns the object invisibly
  m2 <- Measure(x = y, adapt = "weights",
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  ot <- OTProblem(m1, m2)
  ot$setup_arguments(lambda = 1000)
  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
 }
 }
-\if{html}{\out{</div>}}
-
+    \if{html}{\out{</div>}}
+  }
 }
 
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-OTProblem-rbf_path_eligibility"></a>}}
+\if{latex}{\out{\hypertarget{method-OTProblem-rbf_path_eligibility}{}}}
+\subsection{\code{OTProblem$rbf_path_eligibility()}}{
+  Internal: inspect numerical eligibility for ATE coordination.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$rbf_path_eligibility()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A lambda grid and eligibility vector.
+  }
 }
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-OTProblem-rbf_grid"></a>}}
+\if{latex}{\out{\hypertarget{method-OTProblem-rbf_grid}{}}}
+\subsection{\code{OTProblem$rbf_grid()}}{
+  Internal: the lambda grid the \code{"auto"} selector would score.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$rbf_grid()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The input lambda grid, or \code{NULL} if \code{"auto"} cannot score it.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-OTProblem-rbf_shared_scores"></a>}}
+\if{latex}{\out{\hypertarget{method-OTProblem-rbf_shared_scores}{}}}
+\subsection{\code{OTProblem$rbf_shared_scores()}}{
+  Internal: share a prepared RBF context and score cache.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$rbf_shared_scores()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The prepared context and cache.
+  }
+}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-choose_hyperparameters"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-choose_hyperparameters}{}}}
-\subsection{Method \code{choose_hyperparameters()}}{
-Selects the hyperparameter values through a bootstrap algorithm
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$choose_hyperparameters(
+\subsection{\code{OTProblem$choose_hyperparameters()}}{
+  Selects the hyperparameter values through a bootstrap algorithm
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$choose_hyperparameters(
   n_boot_lambda = 100L,
   n_boot_delta = 1000L,
-  lambda_bootstrap = Inf
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{n_boot_lambda}}{The number of bootstrap iterations to run when selecting lambda}
-
-\item{\code{n_boot_delta}}{The number of bootstrap iterations to run when selecting delta}
-
-\item{\code{lambda_bootstrap}}{The penalty parameter to use when selecting lambda. Higher numbers run faster.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-returns the object invisibly
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
+  lambda_bootstrap = Inf,
+  lambda.selector = c("auto", "bootstrap"),
+  lambda.selector.control = list(),
+  lambda.selection.data = NULL,
+  .rbf.eligible = NULL,
+  .rbf.shared = NULL
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{n_boot_lambda}}{The number of bootstrap iterations to run when selecting lambda}
+      \item{\code{n_boot_delta}}{The number of bootstrap iterations to run when selecting delta}
+      \item{\code{lambda_bootstrap}}{The penalty parameter to use when selecting lambda. Higher numbers run faster.}
+      \item{\code{lambda.selector}}{Lambda selection rule to apply across the
+fitted lambda grid. \code{"auto"} (default) directly scores each eligible
+finite, positive supplied lambda using centered kernel-ridge
+leave-one-out prediction of the pooled binary labels. Ties favor the
+larger lambda. When that rule cannot be used for the problem, \code{"auto"}
+uses \code{"bootstrap"}, the bootstrap selector of earlier versions.
+The kernel is the solver's Gibbs kernel \code{exp(-C/lambda)}
+(Gaussian RBF for \code{p = 2}).}
+      \item{\code{lambda.selector.control}}{Optional list of controls for the
+selected lambda selector.}
+      \item{\code{lambda.selection.data}}{Optional replacement list of pooled \code{x},
+binary \code{z}, and optional unique \code{unit.id}, in the solver's feature
+representation. If omitted, reuse the setup snapshot.}
+      \item{\code{.rbf.eligible, .rbf.shared}}{Internal arguments for coordinating ATE arms.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    returns the object invisibly
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{if (torch::torch_is_installed()) {
  # setup measures
  x <- matrix(1, 100, 10)
  m1 <- Measure(x = x,
@@ -769,61 +855,80 @@ returns the object invisibly
  m2 <- Measure(x = y, adapt = "weights",
              device = torch::torch_device("cpu"),
              dtype = torch::torch_double())
- 
+
  ot <- OTProblem(m1, m2)
  ot$setup_arguments(lambda = c(1,1000))
  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
  ot$choose_hyperparameters(n_boot_lambda = 2, n_boot_delta = 10, lambda_bootstrap = 100)
-}
-}
-\if{html}{\out{</div>}}
 
+ # Fixed-support two-sample membership can be inferred. For overlapping
+ # supports or composite objectives, supply pooled x, binary z, and
+ # optional unique unit.id through lambda.selection.data at setup.
+ x0 <- matrix(c(-2, -1, 0, 1), ncol = 1)
+ x1 <- matrix(c(0, 1, 2, 3), ncol = 1)
+ rbf <- OTProblem(Measure(x0, adapt = "weights"), Measure(x1))
+ rbf$setup_arguments(lambda = c(.1, 1, 10))
+ rbf$solve(niter = 2)
+ rbf$choose_hyperparameters(lambda.selector = "auto")
+ rbf$info()$hyperparam.metrics$lambda.details
+}
+}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-info"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-info}{}}}
-\subsection{Method \code{info()}}{
-Provides diagnostics after solve and choose_hyperparameter methods have been run.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$info()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-a list with slots
+\subsection{\code{OTProblem$info()}}{
+  Provides diagnostics after solve and choose_hyperparameter methods have been run.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$info()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    a list with slots
 \itemize{
 \item \code{loss} the final loss values
 \item \code{iterations} The number of iterations run for each combination of parameters
 \item \code{balance.function.differences} The final differences in the balance functions
-\item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{if (torch::torch_is_installed()) {
+\item \code{hyperparam.metrics} A list of the bootstrap evaluation for delta and lambda values
+\item \code{polish} Per-lambda and per-delta polish \code{status} and \code{iterations}.
+Eligible fixed-point fits report the same refinement or skip statuses
+as eligible primal fits; \code{none} means polishing was disabled.
+\item \code{converged} whether the Frank–Wolfe gap is below atol + tol * D.
+\item \code{reason} Per-lambda and per-delta outcome message: \code{ok}, \code{niter},
+\verb{gap above tolerance}, \verb{gap unavailable}, \verb{polish error: <msg>}, or
+\verb{error: <msg>}.}
+  }
+  \subsection{Examples}{
+    \if{html}{\out{<div class="r example copy">}}
+    \preformatted{if (torch::torch_is_installed()) {
   ot$info()
 }
 }
-\if{html}{\out{</div>}}
-
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-OTProblem-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-OTProblem-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OTProblem_$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{OTProblem$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{OTProblem$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

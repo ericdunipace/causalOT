@@ -26,6 +26,7 @@ PSIS.numeric <- PSIS.default
 #' @return object of class causalPSIS
 #' @keywords internal
 #' @include weightsClass.R
+#' @method PSIS causalWeights
 PSIS.causalWeights <- function(x, r_eff = NULL, ...) {
   
   if(!is.null(r_eff)) {

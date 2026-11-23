@@ -1,4 +1,3 @@
-
 # setOldClass(c("gridSearchClass","R6"))
 # setOldClass("balanceFunction")
 # setOldClass(c("OT","R6"))
@@ -12,180 +11,301 @@
 #' COT base class
 COT <- R6::R6Class(
   classname = "COT",
-  public = {list(
-    niter = "integer",
-    tol = "numeric",
-    lambda_bootstrap = "numeric",
-    nboot = "integer",
-    gridInit = function(...) {
-      private$optimizer$penalty$lambda
-    },
-    grid_search = function(...) {
-      
-      private$optimizer$choose_hyperparameters(n_boot_lambda = self$nboot, 
-                                               n_boot_delta = self$nboot,
-                                               lambda_bootstrap = self$lambda_bootstrap)
-      
-      lambda <- private$optimizer$selected_lambda
-      if (length( private$optimizer$selected_delta ) == 1 && is.numeric(private$optimizer$selected_delta) ) {
-        delta <- private$optimizer$selected_delta
-      } else if (length( private$optimizer$selected_delta ) == 1 && length(private$optimizer$selected_delta[[1]]) == 1 && is.list(private$optimizer$selected_delta)) {
-        delta <- private$optimizer$selected_delta[[1]]
-      } else {
-        delta <- NULL
-      }
-      # private$weights_metrics
-      # browser()
-      return(
-        list(
-          weight = self$weights,
-          penalty = c(lambda = lambda,
-                      delta  = delta),
-          metric  = private$optimizer$info()$hyperparam.metrics,
-          penalty.grid = private$optimizer$penalty
+  public = {
+    list(
+      niter = "integer",
+      tol = "numeric",
+      lambda_bootstrap = "numeric",
+      lambda_selector = "character",
+      lambda_selector_control = "list",
+      nboot = "integer",
+      gridInit = function(...) {
+        private$optimizer$penalty$lambda
+      },
+      rbf_path_eligibility = function() {
+        private$optimizer$rbf_path_eligibility()
+      },
+      rbf_grid = function() private$optimizer$rbf_grid(),
+      rbf_shared_scores = function() private$optimizer$rbf_shared_scores(),
+      grid_search = function(.rbf.eligible = NULL, .rbf.shared = NULL, ...) {
+        private$optimizer$choose_hyperparameters(
+          n_boot_lambda = self$nboot,
+          n_boot_delta = self$nboot,
+          lambda_bootstrap = self$lambda_bootstrap,
+          lambda.selector = self$lambda_selector,
+          lambda.selector.control = self$lambda_selector_control,
+          .rbf.eligible = .rbf.eligible,
+          .rbf.shared = .rbf.shared
         )
-      )
-    },
-    solve = function(...) {
-      # niter = 100L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
-      # torch_optim = torch::optim_lbfgs,
-      # torch_scheduler = torch::lr_reduce_on_plateau,
-      # torch_args = NULL,
-      # osqp_args = NULL,
-      # quick.balance.function = TRUE
-      private$optimizer$solve(niter = self$niter, 
-                              tol = self$tol,
-                              torch_optim = private$torch_optim,
-                              torch_scheduler = private$torch_sched,
-                              torch_args = private$torch_optim_args,
-                              osqp_args = private$osqp_args,
-                              quick.balance.function = private$quick.balance.function)
-      
-    },
-    initialize = function(source, target,
-                          a = NULL, b = NULL,
-                          options = list(NULL)) {
-      # browser()
-      if (missing(source) || missing(target)) stop("Must provide source and target")
-      if (!inherits(options, "cotOptions")) options <- do.call(cotOptions, options)
-      
-      self$niter = options$niter
-      self$tol = options$tol
-      self$nboot = options$nboot
-      self$lambda_bootstrap = options$lambda.bootstrap
-      
-      #setup bf
-      if (!is.null(options$balance.formula)) {
-        if (is.null(colnames(source))) colnames(source) <- paste0("X", 1:ncol(source))
-        if (is.null(colnames(target))) colnames(target) <- colnames(source)
-        dfs <- data.frame(source)
-        tbf <- terms(formula(options$balance.formula), data = dfs)
-        attr(tbf, "intercept") <- 0
-        source.bf <- model.matrix(tbf, dfs)
-        target.bf <- model.matrix(tbf, data.frame(target))
-        
-        target.sd <- matrixStats::colSds(target.bf)
-        target.bf <- scale(target.bf, center = FALSE, scale = target.sd)
-        
-        balance.functions <- scale(source.bf, center = FALSE, scale = target.sd)
-        target.values <- colMeans(target.bf)
-        
-      } else {
-        balance.functions <- NULL
-        target.values <- NA_real_
+
+        lambda <- private$optimizer$selected_lambda
+        if (
+          length(private$optimizer$selected_delta) == 1 &&
+            is.numeric(private$optimizer$selected_delta)
+        ) {
+          delta <- private$optimizer$selected_delta
+        } else if (
+          length(private$optimizer$selected_delta) == 1 &&
+            length(private$optimizer$selected_delta[[1]]) == 1 &&
+            is.list(private$optimizer$selected_delta)
+        ) {
+          delta <- private$optimizer$selected_delta[[1]]
+        } else {
+          delta <- NULL
+        }
+        # private$weights_metrics
+        # browser()
+        return(
+          list(
+            weight = self$weights,
+            penalty = c(lambda = lambda, delta = delta),
+            metric = private$optimizer$info()$hyperparam.metrics,
+            penalty.grid = private$optimizer$penalty
+          )
+        )
+      },
+      solve = function(...) {
+        # niter = 100L, tol = 1e-5, optimizer = c("torch", "frank-wolfe"),
+        # torch_optim = torch::optim_lbfgs,
+        # torch_scheduler = torch::lr_reduce_on_plateau,
+        # torch_args = NULL,
+        # osqp_args = NULL,
+        # quick.balance.function = TRUE
+        if (identical(private$solver, "mirror")) {
+          solve_args <- c(
+            list(
+              niter = self$niter,
+              tol = self$tol,
+              osqp_args = private$osqp_args,
+              quick.balance.function = private$quick.balance.function
+            ),
+            private$solve_args,
+            list(...)
+          )
+          solve_args <- solve_args[
+            !duplicated(names(solve_args), fromLast = TRUE)
+          ]
+          do.call(
+            private$optimizer$solve,
+            solve_args
+          )
+        } else {
+          solve_args <- c(
+            list(
+              niter = self$niter,
+              tol = self$tol,
+              optimizer = "torch",
+              torch_optim = private$torch_optim,
+              torch_scheduler = private$torch_sched,
+              torch_args = private$torch_optim_args,
+              osqp_args = private$osqp_args,
+              quick.balance.function = private$quick.balance.function
+            ),
+            private$solve_args,
+            list(...)
+          )
+          solve_args <- solve_args[
+            !duplicated(names(solve_args), fromLast = TRUE)
+          ]
+          do.call(
+            private$optimizer$solve,
+            solve_args
+          )
+        }
+        if (
+          inherits(private$optimizer, "cotDualTrain") ||
+            inherits(private$optimizer, "cotDualJointTrain") ||
+            inherits(private$optimizer, "cotDualLegacyTrain")
+        ) {
+          self$weights <- as.numeric(private$optimizer$weights$to(
+            device = "cpu"
+          ))
+        }
+      },
+      initialize = function(
+        source,
+        target,
+        a = NULL,
+        b = NULL,
+        options = list(NULL)
+      ) {
+        # browser()
+        if (missing(source) || missing(target)) {
+          stop("Must provide source and target")
+        }
+        if (!inherits(options, "cotOptions")) {
+          options <- do.call(cotOptions, options)
+        }
+
+        # lambda = "auto" needs pooled data; otherwise use the default grid
+        if (identical(options$lambda, "auto")) {
+          options["lambda"] <- list(NULL)
+          if (is.null(options$grid.length)) options$grid.length <- 7L
+        }
+
+        self$niter <- options$niter
+        self$tol <- options$tol
+        self$nboot <- options$nboot
+        self$lambda_bootstrap <- options$lambda.bootstrap
+        self$lambda_selector <- options$lambda.selector
+        self$lambda_selector_control <- options$lambda.selector.control
+
+        #setup bf
+        if (!is.null(options$balance.formula)) {
+          if (is.null(colnames(source))) {
+            colnames(source) <- paste0("X", 1:ncol(source))
+          }
+          if (is.null(colnames(target))) {
+            colnames(target) <- colnames(source)
+          }
+          dfs <- data.frame(source)
+          tbf <- terms(formula(options$balance.formula), data = dfs)
+          attr(tbf, "intercept") <- 0
+          source.bf <- model.matrix(tbf, dfs)
+          target.bf <- model.matrix(tbf, data.frame(target))
+
+          target.sd <- matrixStats::colSds(target.bf)
+          target.bf <- scale(target.bf, center = FALSE, scale = target.sd)
+
+          balance.functions <- scale(
+            source.bf,
+            center = FALSE,
+            scale = target.sd
+          )
+          target.values <- colMeans(target.bf)
+        } else {
+          balance.functions <- NULL
+          target.values <- NA_real_
+        }
+
+        private$source <- Measure(
+          x = source,
+          weights = a,
+          adapt = "weights",
+          balance.functions = balance.functions,
+          target.values = target.values,
+          dtype = options$dtype,
+          device = options$device
+        )
+        private$target <- Measure(
+          x = target,
+          weights = b,
+          adapt = "none",
+          dtype = options$dtype,
+          device = options$device
+        )
+
+        # select dual or primal optimization
+        opt <- options$opt.direction
+        stopifnot(
+          "Option `opt.direction` should be one of `dual` or `primal`." = opt %in%
+            c("primal", "dual")
+        )
+
+        runbf <- !(all(is.na(private$source$balance_target)))
+        n_lambda <- length(options$lambda)
+
+        which.opt.fun <- if (n_lambda == 1 && options$lambda == 0 && !runbf) {
+          "nnm"
+        } else if (n_lambda == 1 && options$lambda == 0 && runbf) {
+          "dual"
+        } else if (n_lambda == 1 && is.infinite(options$lambda)) {
+          "primal"
+        } else if (opt == "dual") {
+          "dual"
+        } else if (opt == "primal") {
+          "primal"
+        } else {
+          stop("You found a bug! Please report this issue")
+        }
+
+        opt_fun <- switch(
+          which.opt.fun,
+          "primal" = if (identical(options$solver, "mirror")) {
+            cotCCPTrain
+          } else {
+            OTProblem_
+          },
+          "dual" = switch(
+            options$dual.solver,
+            "joint" = cotDualTrain,
+            "fixed_point_joint" = cotDualFixedPointJointTrain,
+            "fixed_point" = cotDualEntropyFixedPointTrain,
+            "entropy" = cotDualLegacyTrain
+          ),
+          "nnm" = NNM
+        )
+
+        private$optimizer <- opt_fun$new(private$source, private$target)
+        # the order is important, first measure must be the one to be adapted
+
+        #
+        private$quick.balance.function <- isTRUE(options$quick.balance.function)
+        private$solver <- options$solver
+
+        private$torch_sched <- options$torch.scheduler
+        private$torch_optim <- options$torch.optimizer
+        private$torch_optim_args <- c(
+          options$solver.options,
+          options$scheduler.options
+        )
+        private$osqp_args <- options$osqp.options
+        solve_arg_names <- names(formals(private$optimizer$solve))
+        private$solve_args <- options$solve.options[
+          names(options$solve.options) %in% solve_arg_names
+        ]
+
+        names_args <- names(options)
+        optim_args_names <- names(formals(private$optimizer$setup_arguments))
+        opt_args <- options[match(optim_args_names, names_args, nomatch = 0L)]
+        do.call(private$optimizer$setup_arguments, opt_args)
+
+        return(invisible(self))
       }
-      
-      private$source <- Measure(x = source, weights = a, adapt = "weights",
-                                balance.functions = balance.functions,
-                                target.values = target.values,
-                                dtype = options$dtype,
-                                device = options$device)
-      private$target <- Measure(x = target, weights = b, adapt = "none",
-                                dtype = options$dtype,
-                                device = options$device)
-      
-      
-      # select dual or primal optimization
-      opt <- options$opt.direction
-      stopifnot("Option `opt.direction` should be one of `dual` or `primal`." = opt %in% c("primal","dual"))
-      
-      runbf <- !(all(is.na(private$source$balance_target)))
-      n_lambda <- length(options$lambda)
-      
-      which.opt.fun <- if (n_lambda == 1 && options$lambda == 0 && !runbf ) {
-        "nnm"
-      } else if (n_lambda == 1 && options$lambda == 0 && runbf ) {
-        "dual"
-      } else if (n_lambda == 1 && is.infinite(options$lambda) ) {
-        "primal"
-      } else if ( opt == "dual" ) {
-        "dual"
-      } else if ( opt == "primal" ) {
-        "primal"
-      } else {
-        stop("You found a bug! Please report this issue")
+    )
+  },
+  active = {
+    list(
+      b = function(value) {
+        as.numeric(private$target$weights$to(device = "cpu"))
+      },
+      weights = function(value) {
+        if (missing(value)) {
+          polished <- private$optimizer$polished_weights
+          if (is.numeric(polished)) {
+            return(polished)
+          }
+          as.numeric(private$source$weights$to(device = "cpu"))
+        } else {
+          private$source$weights <- value
+        }
+      },
+      penalty = function(value) {
+        if (missing(value)) {
+          return(private$optimizer$penalty)
+        } else {
+          stopifnot(is.list(value))
+          stopifnot(all(names(value) %in% c("lambda", "delta")))
+          stopifnot(all(c("lambda", "delta") %in% names(value)))
+          private$optimizer$penalty <- value
+        }
       }
-      
-      opt_fun <- switch(which.opt.fun,
-                        "primal" = OTProblem_,
-                        "dual" = cotDualTrain,
-                        "nnm" = NNM)
-      
-      private$optimizer <- opt_fun$new(private$source, private$target) 
-      # the order is important, first measure must be the one to be adapted
-      
-      # 
-      private$quick.balance.function <- isTRUE(options$quick.balance.function)
-      
-      
-      
-      private$torch_sched <- options$torch.scheduler
-      private$torch_optim <- options$torch.optimizer
-      private$torch_optim_args <- c(options$solver.options, options$scheduler.options)
-      private$osqp_args <- options$osqp.options
-      
-      names_args <- names(options)
-      optim_args_names <- names(formals(private$optimizer$setup_arguments))
-      opt_args <- options[match(optim_args_names,
-                                names_args, nomatch = 0L)]
-      do.call(private$optimizer$setup_arguments, opt_args)
-      
-      return(invisible(self))
-    }
-  )},
-  active = {list(
-    b = function(value) {
-      as.numeric(private$target$weights$to(device = "cpu"))
-    },
-    weights = function(value) {
-      if(missing(value)) {
-        as.numeric(private$source$weights$to(device = "cpu"))
-      } else {
-        private$source$weights <- value
-      }
-    },
-    penalty = function(value) {
-      if(missing(value)) {
-        return(private$optimizer$penalty)
-      } else {
-        stopifnot(is.list(value))
-        stopifnot(all(names(value) %in% c("lambda", "delta")))
-        stopifnot(all(c("lambda", "delta") %in% names(value)))
-        private$optimizer$penalty <- value
-      }
-      
-    }
-  )},
-  private = {list(
-    optimizer = "OTProblem",
-    osqp_args = "list",
-    quick.balance.function = "logical",
-    source = "Measure",
-    target = "Measure",
-    torch_optim = "torch_optim",
-    torch_sched = "torch_sched",
-    torch_optim_args = "list"
-  )}
+    )
+  },
+  private = {
+    list(
+      optimizer = "OTProblem",
+      osqp_args = "list",
+      quick.balance.function = "logical",
+      source = "Measure",
+      target = "Measure",
+      torch_optim = "torch_optim",
+      torch_sched = "torch_sched",
+      torch_optim_args = "list",
+      solve_args = "list",
+      solver = "character"
+    )
+  }
 )
 
 #### options function to make things hopefully easier for users ####
@@ -193,32 +313,109 @@ COT <- R6::R6Class(
 # COT options function
 #' Options available for the COT method
 #'
-#' @param lambda The penalty parameter for the entropy penalized optimal transport. Default is NULL. Can be a single number or a set of numbers to try.
+#' @param lambda The entropy penalty in solver cost units. The default,
+#'   `"auto"`, selects one positive value before fitting by predicting binary
+#'   treatment from pooled covariates. A numeric scalar or vector specifies
+#'   fixed candidates and `NULL` fits a default grid. `"auto"` requires
+#'   [calc_weight()], uniform observation weights and a conditionally negative definite cost
+#'   (built-in costs with `p <= 2` or a qualifying custom cost); otherwise the default grid is fit and
+#'   `lambda.selector` chooses among it.
+#'   It searches the multiplier of the median off-diagonal solver cost using
+#'   centered kernel ridge treatment prediction with the solver's Gibbs kernel
+#'   `exp(-C/lambda)` (Gaussian RBF for `p = 2`), an unpenalized intercept and
+#'   leave-one-out scoring, profiling nine ridge penalties. The full-data
+#'   ridge penalty is held fixed for deletion. The result is the best evaluated
+#'   score within a bounded search, not a global optimum. The default budget is
+#'   50 evaluations with at most two boundary expansions; scores within
+#'   `1e-10 * max(1, abs(best score))` are tied in favor of larger multipliers.
+#'   Selection evaluates solver costs on CPU in double precision, independently
+#'   of the final fit's device and dtype, for stable spectral calculations.
+#'   Each evaluation requires dense cubic-time linear algebra. Above 2000 rows a
+#'   reproducible treatment-stratified subsample determines the cost scale and
+#'   lambda, while final weights use all rows. Selection diagnostics are in
+#'   `weights@info$lambda_selection`; set `lambda.selector.control =
+#'   list(details = TRUE)` to retain the evaluation trace. Numeric lambda values
+#'   remain in solver units; for squared Euclidean cost the median solver cost
+#'   is half the median squared distance.
 #' @param delta The bound for balancing functions if they are being used. Only available for biased entropy penalized optimal transport. Can be a single number or a set of numbers to try.
-#' @param opt.direction Should the optimizer solve the primal or dual problems. Should be one of "dual" or "primal" with a default of "dual" since it is typically faster.
+#' @param opt.direction `r lifecycle::badge("deprecated")` Use `solver`
+#'   instead. Should the optimizer solve the primal or dual problems. One of
+#'   "dual" or "primal".
+#' @param dual.solver Legacy solver selection when `opt.direction = "dual"`.
+#'   `"fixed_point"` selects the entropy-potential fixed-point solver; the
+#'   legacy default `"fixed_point_joint"` is a different joint KL trainer.
+#'   `"joint"` and `"entropy"` select the other legacy dual trainers.
 #' @param debias Should debiased optimal transport be used? TRUE or FALSE.
+#' @param solver Solver for COT weight optimization. `"fixed_point"` (the
+#'   default) uses entropy-potential updates with Anderson acceleration and
+#'   requires debiased transport without balance constraints. When omitted,
+#'   balance constraints or `debias = FALSE` select `"lbfgs"` instead.
+#'   `"lbfgs"` optimizes weights directly and `"mirror"` uses mirror descent.
 #' @param p The power of the cost function to use for the cost.
 #' @param cost.function A function to calculate the pairwise costs. Should take arguments `x1`, `x2`, and `p`. Default is NULL.
 #' @param cost.online Should an online cost algorithm be used? One of "auto", "online", or "tensorized". "tensorized" is the offline option.
 #' @param diameter The diameter of the covariate space, if known. Default is NULL.
 #' @param balance.formula Formula for the balancing functions.
-#' @param quick.balance.function TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE. 
+#' @param quick.balance.function TRUE or FALSE denoting whether balance function constraints should be selected via a linear program (TRUE) or just checked for feasibility (FALSE). Default is TRUE.
 #' @param grid.length The number of penalty parameters to explore in a grid search if none are provided in arguments `lambda` or `delta`.
-#' @param torch.optimizer The torch optimizer to use for methods using debiased entropy penalized optimal transport. If `debiased` is FALSE or `opt.direction` is "primal", will default to [torch::optim_lbfgs()]. Otherwise [torch::optim_rmsprop()] is used.
-#' @param torch.scheduler The scheduler for the optimizer. Defaults to [torch::lr_multiplicative()].
-#' @param niter The number of iterations to run the solver
+#' @param torch.optimizer The torch optimizer to use for methods using debiased entropy penalized optimal transport. If `debiased` is FALSE or `opt.direction` is "primal", will default to [torch::optim_lbfgs()]. Otherwise [torch::optim_rmsprop()] is used for the dual potential block. Joint dual solvers use an internal RMSprop optimizer for the trainable log-weight block.
+#' @param torch.scheduler The scheduler for the optimizer. Defaults to [torch::lr_multiplicative()] for RMSprop-based dual solvers and [torch::lr_reduce_on_plateau()] for LBFGS.
+#' @param niter The maximum number of solver iterations (default 500).
 #' @param nboot The number of iterations for the bootstrap to select the final penalty parameters.
 #' @param lambda.bootstrap The penalty parameter to use for the bootstrap hyperparameter selection of lambda.
-#' @param tol The tolerance for convergence
-#' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL which will try to use a gpu if available.
+#' @param lambda.selector How to select lambda among a fitted grid. The
+#'   default, `"auto"`, scores the positive finite candidates by pooled
+#'   binary-label prediction, without refitting. Grid ATE uses one score and a
+#'   candidate usable by both arm fits. `"bootstrap"` is the bootstrap selector
+#'   used in previous versions of the package, controlled by `nboot` and
+#'   `lambda.bootstrap`. `"auto"` uses `"bootstrap"` when its own rule does
+#'   not apply (non-uniform weights, a cost that is not conditionally
+#'   negative definite, or no finite positive candidate) and records why in
+#'   `weights@info$metric$lambda.note`.
+#' @param lambda.selector.control Optional list of controls for lambda
+#'   selection. The only entry is `details`; `TRUE` keeps the evaluation trace
+#'   of the `"auto"` search.
+#' @param polish "auto" (the default) or "none". "auto" refines eligible
+#'   fixed-point, L-BFGS, and mirror fits with one debiased weight problem and
+#'   no balance constraints in float64. It skips refinement when the initial
+#'   free set exceeds 2000 points. `info()$polish` reports the status and number
+#'   of refinement iterations; convergence is reported in `info()$converged`
+#'   and `info()$reason`. Fixed-point fits with `"none"` may stop at the
+#'   iteration cap without a warning and retain their phase-1 convergence status.
+#' @param tol Relative tolerance for final fit convergence (default 1e-4),
+#'   shared by phase 1 and polish: `gap <= atol + tol * max(0, D)`, where
+#'   `D` is the debiased divergence. Unpolished fits use `atol = ot_tol`
+#'   (default 1e-3) and must stop normally rather than reach `niter`.
+#'   Thus unpolished `converged` means accurate to about `ot_tol` in absolute
+#'   terms; when `D` is much smaller than `ot_tol`, even a large gap/D can pass.
+#'   Lower `ot_tol` for more phase-1 accuracy, or use the polish for `tol`
+#'   relative accuracy. Polished fits use `atol = 64 * eps64 * scale` plus 16
+#'   times the polish's Sinkhorn tolerance (1e-13), where `scale` is the cost
+#'   scale, regardless of phase-1 iteration caps. `ot_tol` is also the inner
+#'   Sinkhorn tolerance: iterations stop once the largest change in the
+#'   potentials is below `ot_tol * lambda`, that is, once the log marginal
+#'   violation is below `ot_tol`.
+#' @param device An object of class `torch_device` denoting which device the data will be located on. Default is NULL, which uses the CPU. Pass `torch::torch_device("cuda")` or `torch::torch_device("mps")` to use a GPU.
 #' @param dtype An object of class `torch_dtype` that determines data type of the data, i.e. double, float, integer. Default is NULL which will try to select for you.
-#' @param ... Arguments passed to the solvers. See details
-#'
+#' @param ... Arguments passed to the solvers. See details. Named arguments
+#'   not used by any solver produce a warning. For `dual.solver = "fixed_point"`,
+#'   these include `fixed_point_update` (`"anderson"` or `"momentum"`),
+#'   `fixed_point_eta` (default 1), `fixed_point_beta` (default 0.9),
+#'   `anderson_m` (default 5), `check_every` (default 50), and
+#'   `fixed_point_lambda_order` (`"ascending"`, the default, or `"descending"`).
+#'   `fixed_point_warm_start_mix` (default 1) is the fraction of uniform mass
+#'   mixed into the incoming weights before the entropy potential is rebuilt
+#'   when more iterations are needed. The default 1 restarts each lambda from
+#'   uniform weights; values below 1 keep part of the previous solution. Each
+#'   new lambda first checks the incoming weights and returns them exactly if
+#'   they already pass the gap test.
 #' @return A list of class `cotOptions` with the following slots
 #' \itemize{
 #' \item `lambda`The penalty parameter for the optimal transport distance
 #' \item `delta`The constraint for the balancing functions
 #' \item `opt.direction` Whether to solve the primal or dual optimization problems
+#' \item `dual.solver` Solver used for dual optimization problems.
+#' \item `solver` Solver used for the selected optimization direction.
 #' \item `debias`TRUE or FALSE if debiased optimal transport distances are used
 #' \item `balance.formula` The formula giving how to generate the balancing functions.
 #' \item `quick.balance.function` TRUE or FALSE whether quick balance functions will be run.
@@ -235,117 +432,177 @@ COT <- R6::R6Class(
 #' \item `niter` The number of iterations to run the solver
 #' \item `nboot` The number of bootstrap samples
 #' \item `lambda.bootstrap` The penalty parameter to use for the bootstrap hyperparameter selection.
+#' \item `lambda.selector` The normalized lambda selection rule used after fitting the lambda grid.
+#' \item `lambda.selector.control` The lambda selector control list.
 #' \item `tol` The tolerance for convergence.
 #' \item `device` An object of class `torch_device`.
 #' \item `dtype` An object of class `torch_dtype`.
 #' }
 #' @export
-#' 
-#' @details 
+#'
+#' @details
 #' # Solvers and distances
-#' The function is setup to direct the COT optimizer to run two basic methods: debiased entropy penalized optimal transport (Sinkhorn Divergences) or entropy penalized optimal transport (Sinkhorn Distances). 
-#' 
+#' The function is setup to direct the COT optimizer to run two basic methods: debiased entropy penalized optimal transport (Sinkhorn Divergences) or entropy penalized optimal transport (Sinkhorn Distances).
+#'
 #' ## Sinkhorn Distances
-#' The optimal transport problem solved is \eqn{min_w OT_\lambda(w,b) } where \deqn{OT_\lambda(w,b) = \sum_{ij} C(x_i, x_j) P_{ij} + \lambda \sum_{ij} P_{ij}\log(P_{ij}),} such that the rows of the matrix \eqn{P_{ij}} sum to \eqn{w} and the columns sum to \eqn{b}. In this case \eqn{C(,)} is the cost between units i and j. 
-#' 
+#' The optimal transport problem solved is \eqn{min_w OT_\lambda(w,b) } where \deqn{OT_\lambda(w,b) = \sum_{ij} C(x_i, x_j) P_{ij} + \lambda \sum_{ij} P_{ij}\log(P_{ij}),} such that the rows of the matrix \eqn{P_{ij}} sum to \eqn{w} and the columns sum to \eqn{b}. In this case \eqn{C(,)} is the cost between units i and j.
+#'
 #' ## Sinkhorn Divergences
-#' The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the `torch` package in `R` and by default will use the `optim_rmsprop` solver. Your desired `torch` optimizer can be passed via `torch.optimizer` with a scheduler passed via `torch.scheduler`. GPU support is available as detailed in the `torch` package. Additional arguments in `...` are passed as extra arguments to the `torch` optimizer and schedulers as appropriate.
-#' 
+#' The Sinkhorn Divergence solves \deqn{min_w OT_\lambda(w,b) - 0.5 OT_\lambda(w,w) - 0.5 * OT_\lambda(b,b).} The solver for this function uses the `torch` package in `R`. Dual solvers default to `optim_rmsprop` for the potential block. Joint dual solvers additionally use an internal RMSprop optimizer for the trainable log-weight block. Your desired `torch` optimizer can be passed via `torch.optimizer` with a scheduler passed via `torch.scheduler`. GPU support is available as detailed in the `torch` package. Additional arguments in `...` are passed as extra arguments to the `torch` optimizer and schedulers as appropriate.
+#'
 #' # Function balancing
 #' There may be certain functions of the covariates that we wish to balance within some tolerance, \eqn{\delta}. For these functions \eqn{B}, we will desire
 #' \deqn{\frac{\sum_{i: Z_i = 0} w_i B(x_i) - \sum_{j: Z_j = 1} B(x_j)/n_1}{\sigma} \leq \delta}, where in this case we are targeting balance with the treatment group for the ATT. \eqn{\sigma} is the pooled standard deviation prior to balancing.
-#' 
+#'
 #' # Cost functions
 #' The cost function specifies pairwise distances. If argument `cost.function` is NULL, the function will default to using \eqn{L_p^p} distances with a default \eqn{p = 2} supplied by the argument `p`. So for `p = 2`, the cost between units \eqn{x_i} and \eqn{x_j} will be \deqn{C(x_i, x_j) = \frac{1}{2} \| x_i - x_j \|_2^2.}
 #' If `cost.function` is provided, it should be a function that takes arguments `x1`, `x2`, and `p`: `function(x1, x2, p){...}`.
-#' 
+#'
 #'
 #' @examples
 #' if ( torch::torch_is_installed()) {
 #' opts1 <- cotOptions(lambda = 1e3, torch.optimizer = torch::optim_rmsprop)
 #' opts2 <- cotOptions(lambda = NULL)
 #' opts3 <- cotOptions(lambda = seq(0.1, 100, length.out = 7))
+#' opts4 <- cotOptions(lambda = "auto")
 #' }
-cotOptions <- function(lambda = NULL,
-                       delta = NULL,
-                       opt.direction = c("dual", "primal"),
-                       debias = TRUE,
-                       p = 2.0,
-                       cost.function = NULL,
-                       cost.online = "auto",
-                       diameter = NULL,
-                       balance.formula = NULL,
-                       quick.balance.function = TRUE,
-                       grid.length = 7L,
-                       torch.optimizer = torch::optim_rmsprop,
-                       torch.scheduler = torch::lr_multiplicative,
-                       niter = 2e3,
-                       nboot = 100L,
-                       lambda.bootstrap = 0.05,
-                       tol = 1e-4, 
-                       device = NULL,
-                       dtype = NULL,
-                       ...) { # dots are the solver and scheduler args
+cotOptions <- function(
+  lambda = "auto",
+  delta = NULL,
+  opt.direction = deprecated(),
+  dual.solver = c("fixed_point_joint", "joint", "entropy", "fixed_point"),
+  debias = TRUE,
+  solver = c("fixed_point", "lbfgs", "mirror"),
+  polish = c("auto", "none"),
+  p = 2.0,
+  cost.function = NULL,
+  cost.online = "auto",
+  diameter = NULL,
+  balance.formula = NULL,
+  quick.balance.function = TRUE,
+  grid.length = 7L,
+  torch.optimizer = torch::optim_rmsprop,
+  torch.scheduler = torch::lr_multiplicative,
+  niter = 500L,
+  nboot = 100L,
+  lambda.bootstrap = 0.05,
+  lambda.selector = c("auto", "bootstrap"),
+  lambda.selector.control = list(),
+  tol = 1e-4,
+  device = NULL,
+  dtype = NULL,
+  ...
+) {
+  # dots are the solver and scheduler args
   # setup_arguments function arguments
-  # lambda, delta, 
+  # lambda, delta,
   # grid.length = 7L,
-  # cost.function = NULL, 
+  # cost.function = NULL,
   # p = 2,
   # cost.online = "auto",
   # debias = TRUE,
   # diameter = NULL, niter = 1000L,
   # tol = 1e-3
-  
+
   mc <- match.call()
   used.args <- as.list(mc)[-1]
   # browser()
   gsOpts <- gridSearchOptions(nboot = nboot, grid.length = grid.length)
-  
+
   nboot <- gsOpts$nboot
   grid.length <- gsOpts$grid.length
-  
+
   output <- list()
-  if(missing(lambda) || arg_not_used(lambda)) {
+  if (missing(lambda) || identical(lambda, "auto")) {
+    output$lambda <- "auto"
+  } else if (arg_not_used(lambda)) {
     output["lambda"] <- list(NULL)
   } else {
-    if(any(lambda < 0)) stop("lambda must be >= 0")
+    if (!is.numeric(lambda) || anyNA(lambda)) {
+      stop("lambda must be numeric, NULL, or 'auto'.")
+    }
+    if (any(lambda < 0)) {
+      stop("lambda must be >= 0")
+    }
     output$lambda <- sort(lambda, decreasing = TRUE)
   }
 
-  if(missing(delta) || arg_not_used(delta)) {
-    output["delta"]<- list(NULL)
+  if (missing(delta) || arg_not_used(delta)) {
+    output["delta"] <- list(NULL)
   } else {
-    if(any(delta < 0)) stop("delta must be >= 0")
+    if (any(delta < 0)) {
+      stop("delta must be >= 0")
+    }
     output$delta <- sort(delta, decreasing = TRUE)
   }
-  
-  if(missing(opt.direction) || arg_not_used(opt.direction)) {
-    output[["opt.direction"]] <- "dual"
-  } else {
+
+  if (lifecycle::is_present(opt.direction) && !arg_not_used(opt.direction)) {
+    # COT$new() and calc_weight() reach here through do.call(), so use the
+    # global env as the user env, otherwise lifecycle blames causalOT
+    lifecycle::deprecate_warn(
+      when = "1.1",
+      what = "cotOptions(opt.direction)",
+      with = "cotOptions(solver)",
+      user_env = globalenv()
+    )
     output[["opt.direction"]] <- match.arg(opt.direction, c("dual", "primal"))
-  }
-  
-  if (missing(debias) || arg_not_used(debias) ) {
-      output$debias  <- TRUE
   } else {
-    output$debias  <- isTRUE( debias )
+    output[["opt.direction"]] <- "primal"
   }
-  if ((! output$debias) && output$opt.direction == "dual") output$opt.direction <- "primal"
-  
-  if(missing(balance.formula) || arg_not_used(balance.formula) ) {
+  if (missing(dual.solver) || arg_not_used(dual.solver)) {
+    output[["dual.solver"]] <- "fixed_point_joint"
+  } else {
+    output[["dual.solver"]] <- match.arg(
+      dual.solver,
+      c("fixed_point_joint", "joint", "entropy", "fixed_point")
+    )
+  }
+
+  if (missing(debias) || arg_not_used(debias)) {
+    output$debias <- TRUE
+  } else {
+    output$debias <- isTRUE(debias)
+  }
+  solver_missing <- missing(solver) || arg_not_used(solver)
+  has_balance <- !is.null(output$delta) ||
+    (!missing(balance.formula) &&
+      (inherits(balance.formula, "formula") || !arg_not_used(balance.formula)))
+  legacy_direction <- lifecycle::is_present(opt.direction) && !arg_not_used(opt.direction)
+  if (solver_missing) {
+    output[["solver"]] <- if (!output$debias || has_balance || legacy_direction) {
+      "lbfgs"
+    } else {
+      "fixed_point"
+    }
+  } else {
+    output[["solver"]] <- match.arg(solver, c("fixed_point", "lbfgs", "mirror"))
+  }
+  if (output$solver == "fixed_point") {
+    if (!output$debias) stop("solver = 'fixed_point' requires debias = TRUE.")
+    if (has_balance) stop("solver = 'fixed_point' does not support balance constraints.")
+    output$opt.direction <- "dual"
+    output$dual.solver <- "fixed_point"
+  } else if (!output$debias && output$opt.direction == "dual") {
+    output$opt.direction <- "primal"
+  }
+
+  output$polish <- match.arg(polish)
+
+  if (missing(balance.formula) ||
+      (!inherits(balance.formula, "formula") && arg_not_used(balance.formula))) {
     output["balance.formula"] <- list(NULL)
   } else {
     balance.formula <- as.character(balance.formula)
     bf_split <- strsplit(balance.formula, "~")
     output$balance.formula <- paste0("~ 0 +", bf_split[[1]][2])
   }
-  
-  if(missing(quick.balance.function) ||  arg_not_used(quick.balance.function) ) {
+
+  if (missing(quick.balance.function) || arg_not_used(quick.balance.function)) {
     output[["quick.balance.function"]] <- TRUE
   } else {
     output[["quick.balance.function"]] <- isTRUE(quick.balance.function)
   }
-  if (missing(grid.length) ||  arg_not_used(grid.length) ) {
+  if (missing(grid.length) || arg_not_used(grid.length)) {
     output$grid.length <- 7L
   } else {
     output$grid.length <- as.integer(grid.length)
@@ -354,63 +611,91 @@ cotOptions <- function(lambda = NULL,
   if (!is.null(output$lambda) && !is.null(output$delta)) {
     output["grid.length"] <- list(NULL)
   }
-  
-  if (missing(p) || arg_not_used(p) ) {
+
+  if (missing(p) || arg_not_used(p)) {
     output[["p"]] <- 2.0
   } else {
-    stopifnot(is.numeric(p)) 
+    stopifnot(is.numeric(p))
     stopifnot(p >= 1.0)
     output[["p"]] <- p
   }
-  
-  if ( missing(cost.online) || arg_not_used(cost.online) ) {
+
+  if (missing(cost.online) || arg_not_used(cost.online)) {
     output$cost.online <- "auto"
   } else {
-    output$cost.online <- match.arg(cost.online,
-                                             c("auto",
-                                               "tensorized",
-                                               "online"))
+    output$cost.online <- match.arg(
+      cost.online,
+      c("auto", "tensorized", "online")
+    )
   }
-  if (missing(cost.function) || arg_not_used(cost.function) ) {
+  # check for a function first: arg_not_used() calls is.na(), which warns on one
+  if (!missing(cost.function) && is.function(cost.function)) {
+    output["cost.function"] <- list(cost.function)
+  } else if (missing(cost.function) || arg_not_used(cost.function)) {
     output["cost.function"] <- list(NULL)
   } else {
-    output["cost.function"]  <- cost.function
+    stop("cost.function must be a function or NULL.")
   }
-  if (missing(diameter) ||  arg_not_used(diameter) ) {
+  if (missing(diameter) || arg_not_used(diameter)) {
     output["diameter"] <- list(NULL)
   } else {
-    output["diameter"]  <- as.numeric(diameter)
+    output["diameter"] <- as.numeric(diameter)
   }
-  
-  if ( is.null(torch.optimizer) ) {
+
+  if (is.null(torch.optimizer)) {
     output["torch.optimizer"] <- list(NULL)
     output["solver.options"] <- list(NULL)
-  } else if (missing(torch.optimizer) ) {
-    output$torch.optimizer <- switch(output$opt.direction,
-                                     "primal" = torch::optim_lbfgs,
-                                     "dual" = torch::optim_rmsprop)
-    output$solver.options <- list(...)[...names() %in% methods::formalArgs(output$torch.optimizer)]
-    
-    if(output$opt.direction == "dual" && is.null(output$solver.options$momentum) ) {
+  } else if (missing(torch.optimizer)) {
+    output$torch.optimizer <- switch(
+      output$opt.direction,
+      "primal" = torch::optim_lbfgs,
+      "dual" = torch::optim_rmsprop
+    )
+    output$solver.options <- list(...)[
+      ...names() %in% methods::formalArgs(output$torch.optimizer)
+    ]
+
+    if (
+      output$opt.direction == "dual" &&
+        inherits(output$torch.optimizer, "optim_rmsprop") &&
+        is.null(output$solver.options$momentum)
+    ) {
       output$solver.options$momentum <- 0.9
     }
   } else {
     if (!inherits(torch.optimizer, "torch_optimizer_generator")) {
-      stop("torch.optimizer must be a torch_optimizer_generator function or NULL")
+      stop(
+        "torch.optimizer must be a torch_optimizer_generator function or NULL"
+      )
     }
     output$torch.optimizer <- torch.optimizer
-    output$solver.options <- list(...)[...names() %in% methods::formalArgs(output$torch.optimizer)]
+    output$solver.options <- list(...)[
+      ...names() %in% methods::formalArgs(output$torch.optimizer)
+    ]
   }
-  
-  if ( missing(torch.scheduler) && missing(torch.optimizer) ) {
-    if (inherits(output$torch.optimizer, "optim_lbfgs") ) {
+
+  # use strong Wolfe by default to avoid weight collapse from full LBFGS steps
+  if (
+    inherits(output$torch.optimizer, "optim_lbfgs") &&
+      !("line_search_fn" %in% names(list(...)))
+  ) {
+    output$solver.options$line_search_fn <- "strong_wolfe"
+  }
+
+  if (missing(torch.scheduler) && missing(torch.optimizer)) {
+    if (inherits(output$torch.optimizer, "optim_lbfgs")) {
       output$torch.scheduler <- torch::lr_reduce_on_plateau
-    } else if ( inherits(output$torch.optimizer, "optim_rmsprop")) {
+    } else if (inherits(output$torch.optimizer, "optim_rmsprop")) {
       output$torch.scheduler <- torch::lr_multiplicative
-      output$scheduler.options <- list(lr_lambda = function(epoch) {0.99})
+      output$scheduler.options <- list(lr_lambda = function(epoch) {
+        0.99
+      })
     }
-    
-  } else if (missing(torch.scheduler) || is.null(torch.scheduler) || is.null(torch.optimizer)) {
+  } else if (
+    missing(torch.scheduler) ||
+      is.null(torch.scheduler) ||
+      is.null(torch.optimizer)
+  ) {
     output["torch.scheduler"] <- list(NULL)
     output["scheduler.options"] <- list(NULL)
   } else {
@@ -418,26 +703,54 @@ cotOptions <- function(lambda = NULL,
       stop("torch.scheduler must be a lr_scheduler function or NULL")
     }
     output$torch.scheduler <- torch.scheduler
-    output$scheduler.options <- list(...)[...names() %in% methods::formalArgs(torch.scheduler)]
+    output$scheduler.options <- list(...)[
+      ...names() %in% methods::formalArgs(torch.scheduler)
+    ]
   }
 
-  if (arg_not_used (niter)) {
-    output$niter <- 1000L
+  if (arg_not_used(niter)) {
+    output$niter <- 500L
   } else {
     output$niter <- as.integer(niter)
   }
 
-  if (arg_not_used (nboot)) {
+  if (arg_not_used(nboot)) {
     output$nboot <- 100L
   } else {
     output$nboot <- as.integer(nboot)
   }
-  
-  if (missing(lambda.bootstrap) || arg_not_used (lambda.bootstrap)) {
+
+  if (missing(lambda.bootstrap) || arg_not_used(lambda.bootstrap)) {
     output$lambda.bootstrap <- 0.05
   } else {
     output$lambda.bootstrap <- as.numeric(lambda.bootstrap)
-    stopifnot("lambda.bootstrap must be > 0"= lambda.bootstrap>0)
+    stopifnot("lambda.bootstrap must be > 0" = lambda.bootstrap > 0)
+  }
+
+  if (missing(lambda.selector) || arg_not_used(lambda.selector)) {
+    output$lambda.selector <- "auto"
+  } else {
+    output$lambda.selector <- cot_normalize_lambda_selector(lambda.selector)
+  }
+
+  # keep RBF input order for fitted-path indices
+  if (
+    identical(output$lambda.selector, "auto") &&
+      !missing(lambda) &&
+      is.numeric(lambda)
+  ) {
+    output$lambda <- lambda
+  }
+
+  if (
+    missing(lambda.selector.control) ||
+      arg_not_used(lambda.selector.control)
+  ) {
+    output$lambda.selector.control <- cot_normalize_lambda_selector_control()
+  } else {
+    output$lambda.selector.control <- cot_normalize_lambda_selector_control(
+      lambda.selector.control
+    )
   }
 
   if (arg_not_used(tol)) {
@@ -445,37 +758,133 @@ cotOptions <- function(lambda = NULL,
   } else {
     output$tol <- as.double(tol)
   }
-  
-  
+
   output$device <- cuda_device_check(device)
-  output$dtype  <- cuda_dtype_check(dtype, output$device)
-  
+  output$dtype <- cuda_dtype_check(dtype, output$device)
+
   # check combinations
   # if(output$debias && is.null(output$torch.optimizer)) {
   #   stop("Must supply a 'torch_optimizer_generator' object in options argument 'torch.optimizer' when option debias is TRUE")
   # }
-  
-  output$osqp.options <- list(...)[...names() %in% methods::formalArgs(osqp::osqpSettings)]
-  
+
+  output$osqp.options <- list(...)[
+    ...names() %in% methods::formalArgs(osqp::osqpSettings)
+  ]
+
+  solve_option_names <- c(
+    "joint_optimize_weights",
+    "n_potential_steps",
+    "n_weight_steps",
+    "a_log_lr_mult",
+    "a_log_momentum",
+    "fixed_point_eta",
+    "fixed_point_beta",
+    "fixed_point_update",
+    "fixed_point_lambda_order",
+    "fixed_point_warm_start_mix",
+    "anderson_m",
+    "check_every",
+    "fixed_point_weight_floor",
+    "fixed_point_objective_check_every",
+    "fixed_point_objective_bad_limit",
+    "fixed_point_objective_eta_decay",
+    "fixed_point_eta_anneal_every",
+    "fixed_point_eta_anneal_factor",
+    "fixed_point_eta_min",
+    "fixed_point_eta_anneal_tol",
+    "debug_joint"
+  )
+  output$solve.options <- list(...)[
+    ...names() %in% solve_option_names
+  ]
+
+  # inner Sinkhorn iterations, passed on to the optimizer's setup_arguments
+  ot_option_names <- c("ot_niter", "ot_tol")
+  output <- c(output, list(...)[...names() %in% ot_option_names])
+
   # if(output$debias && output$penalty.function == "L2") {
   #   warning("No debias options with L2 penalty. Defaulting to debias=FALSE")
   #   output$debias <- FALSE
   # }
-  
+
   # if (output$penalty.function == "L2") {
   #   output$solver.options <- list(...)[...names() %in% formalArgs(osqp::osqpSettings)]
   # }
   # if (!output$debias && output$penalty.function == "entropy" && output$cost.online != "online") {
   #   output$solver.options <- lbfgs3c_control(...)
   # }
-  
-  if(inherits(output$torch.optimizer, "optim_lbfgs") && output$opt.direction == "dual") {
-    warning("LBFGS doesn't work with the dual optimization function. Switching to optim_rmsprop.")
+
+  if (
+    inherits(output$torch.optimizer, "optim_lbfgs") &&
+      output$opt.direction == "dual"
+  ) {
+    warning(
+      "LBFGS doesn't work with the dual optimization function. Switching to optim_rmsprop."
+    )
     output$torch.optimizer <- torch::optim_rmsprop
-    output$solver.options <- list(...)[...names() %in% methods::formalArgs(output$torch.optimizer)]
+    output$solver.options <- list(...)[
+      ...names() %in% methods::formalArgs(output$torch.optimizer)
+    ]
+    if (
+      inherits(output$torch.optimizer, "optim_rmsprop") &&
+        is.null(output$solver.options$momentum)
+    ) {
+      output$solver.options$momentum <- 0.9
+    }
+    if (missing(torch.scheduler)) {
+      output$torch.scheduler <- torch::lr_multiplicative
+      output$scheduler.options <- list(lr_lambda = function(epoch) {
+        0.99
+      })
+    }
   }
-  
-  
+  if (output$solver == "mirror") {
+    if (output$opt.direction != "primal") {
+      stop("solver = 'mirror' is only available with opt.direction = 'primal'.")
+    }
+    if (!isTRUE(output$debias)) {
+      stop("solver = 'mirror' is only available with debias = TRUE.")
+    }
+    if (
+      is.null(output$lambda) ||
+        (!identical(output$lambda, "auto") &&
+          (length(output$lambda) != 1L ||
+            !is.finite(output$lambda) ||
+            output$lambda <= 0))
+    ) {
+      stop("solver = 'mirror' requires a single finite positive lambda.")
+    }
+    if (!is.null(output$delta) || !is.null(output$balance.formula)) {
+      stop("solver = 'mirror' does not yet support balance constraints.")
+    }
+  }
+
+  # warn about arguments in ... that no solver will use
+  dot_names <- ...names()
+  if (!is.null(dot_names)) {
+    known_dot_names <- c(
+      if (!is.null(output$torch.optimizer)) {
+        methods::formalArgs(output$torch.optimizer)
+      },
+      if (!is.null(output$torch.scheduler)) {
+        methods::formalArgs(output$torch.scheduler)
+      },
+      methods::formalArgs(osqp::osqpSettings),
+      solve_option_names,
+      ot_option_names
+    )
+    unused_dots <- dot_names[!(dot_names %in% known_dot_names)]
+    if (length(unused_dots) > 0L) {
+      unused_dots[unused_dots == ""] <- "<unnamed>"
+      warning(
+        sprintf(
+          "Ignoring unused arguments passed to cotOptions(): %s",
+          paste(sprintf("'%s'", unique(unused_dots)), collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+  }
 
   class(output) <- "cotOptions"
   return(output)
@@ -483,41 +892,51 @@ cotOptions <- function(lambda = NULL,
 
 #### general functions ####
 
-balanceDistributions <- function(source, target,
-                                 a, b,
-                                 method, options) {
-  if(method == "SCM") {
-    if (!is.list(options)) options <- list(options)
-    
-    if(!inherits(options, "scmOptions")) options <- do.call(scmOptions, options)
-    
-    prob <- SCM$new(source = source, target = target,
-                    a = a, b = b,
-                    options = options)
-  } else if ( method %in% cot_methods() ) {
-    if (!is.list(options)) options <- list(options)
-    
-    if(!inherits(options, "cotOptions")) options <- do.call(cotOptions, options)
-    options["lambda"] <- list(switch(method,
-                             "EnergyBW" = Inf,
-                             "NNM" = 0,
-                             options$lambda))
-    
-    prob <- COT$new(source = source, target = target,
-                      a = a, b= b,
-                      options = options)
+balanceDistributions <- function(source, target, a, b, method, options) {
+  if (method == "SCM") {
+    if (!is.list(options)) {
+      options <- list(options)
+    }
+
+    if (!inherits(options, "scmOptions")) {
+      options <- do.call(scmOptions, options)
+    }
+
+    prob <- SCM$new(
+      source = source,
+      target = target,
+      a = a,
+      b = b,
+      options = options
+    )
+  } else if (method %in% cot_methods()) {
+    if (!is.list(options)) {
+      options <- list(options)
+    }
+
+    if (!inherits(options, "cotOptions")) {
+      options <- do.call(cotOptions, options)
+    }
+    options["lambda"] <- list(switch(
+      method,
+      "EnergyBW" = Inf,
+      "NNM" = 0,
+      options$lambda
+    ))
+
+    prob <- COT$new(
+      source = source,
+      target = target,
+      a = a,
+      b = b,
+      options = options
+    )
     penalty <- prob$penalty
     options["lambda"] <- list(penalty$lambda)
     options["delta"] <- list(penalty$delta)
-   
   } else {
     stop("Method not found in function balanceDistributions.")
   }
-    
-  return(list(problem = prob,
-              options = options))
 
+  return(list(problem = prob, options = options))
 }
-
-
-
