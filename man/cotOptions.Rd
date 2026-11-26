@@ -21,7 +21,7 @@ cotOptions(
   grid.length = 7L,
   torch.optimizer = torch::optim_rmsprop,
   torch.scheduler = torch::lr_multiplicative,
-  niter = 500L,
+  niter = 1000L,
   nboot = 100L,
   lambda.bootstrap = 0.05,
   lambda.selector = c("auto", "bootstrap"),

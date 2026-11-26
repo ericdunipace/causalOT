@@ -483,7 +483,7 @@ cotOptions <- function(
   grid.length = 7L,
   torch.optimizer = torch::optim_rmsprop,
   torch.scheduler = torch::lr_multiplicative,
-  niter = 500L,
+  niter = 1000L,
   nboot = 100L,
   lambda.bootstrap = 0.05,
   lambda.selector = c("auto", "bootstrap"),
@@ -567,9 +567,12 @@ cotOptions <- function(
   has_balance <- !is.null(output$delta) ||
     (!missing(balance.formula) &&
       (inherits(balance.formula, "formula") || !arg_not_used(balance.formula)))
-  legacy_direction <- lifecycle::is_present(opt.direction) && !arg_not_used(opt.direction)
+  legacy_direction <- lifecycle::is_present(opt.direction) &&
+    !arg_not_used(opt.direction)
   if (solver_missing) {
-    output[["solver"]] <- if (!output$debias || has_balance || legacy_direction) {
+    output[["solver"]] <- if (
+      !output$debias || has_balance || legacy_direction
+    ) {
       "lbfgs"
     } else {
       "fixed_point"
@@ -578,8 +581,12 @@ cotOptions <- function(
     output[["solver"]] <- match.arg(solver, c("fixed_point", "lbfgs", "mirror"))
   }
   if (output$solver == "fixed_point") {
-    if (!output$debias) stop("solver = 'fixed_point' requires debias = TRUE.")
-    if (has_balance) stop("solver = 'fixed_point' does not support balance constraints.")
+    if (!output$debias) {
+      stop("solver = 'fixed_point' requires debias = TRUE.")
+    }
+    if (has_balance) {
+      stop("solver = 'fixed_point' does not support balance constraints.")
+    }
     output$opt.direction <- "dual"
     output$dual.solver <- "fixed_point"
   } else if (!output$debias && output$opt.direction == "dual") {
@@ -588,8 +595,10 @@ cotOptions <- function(
 
   output$polish <- match.arg(polish)
 
-  if (missing(balance.formula) ||
-      (!inherits(balance.formula, "formula") && arg_not_used(balance.formula))) {
+  if (
+    missing(balance.formula) ||
+      (!inherits(balance.formula, "formula") && arg_not_used(balance.formula))
+  ) {
     output["balance.formula"] <- list(NULL)
   } else {
     balance.formula <- as.character(balance.formula)

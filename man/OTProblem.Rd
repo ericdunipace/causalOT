@@ -703,7 +703,7 @@ to retain the adaptive evaluation trace.}
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{OTProblem$solve(
-  niter = 500L,
+  niter = 1000L,
   tol = 1e-05,
   optimizer = c("torch", "frank-wolfe"),
   torch_optim = torch::optim_lbfgs,

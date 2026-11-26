@@ -1644,7 +1644,7 @@ OTProblem_ <- R6::R6Class(
       #'  ot$solve(niter = 1, torch_optim = torch::optim_rmsprop)
       #' }
       solve = function(
-        niter = 500L,
+        niter = 1000L,
         tol = 1e-5,
         optimizer = c("torch", "frank-wolfe"),
         torch_optim = torch::optim_lbfgs,
@@ -2287,17 +2287,34 @@ OTProblem_ <- R6::R6Class(
       rbf_input_order = NULL,
       # NULL when the RBF rule can score this problem, otherwise the reason
       rbf_unavailable = function() {
-        if (!is.null(private$rbf_hard_error)) return(private$rbf_hard_error)
-        if (!is.null(private$rbf_context_error)) return(private$rbf_context_error)
-        if (is.null(private$rbf_snapshot)) return("RBF selection requires treatment data.")
-        if (is.null(private$rbf_cost$cost_function) && !isTRUE(private$rbf_cost$p <= 2)) {
-          return("RBF selection requires a conditionally negative definite cost; p > 2 is not generally conditionally negative definite.")
+        if (!is.null(private$rbf_hard_error)) {
+          return(private$rbf_hard_error)
         }
-        if (!is.null(private$rbf_cost$cost_function) &&
-            is.null(private$rbf_prepared) && is.null(private$rbf_cost_reason)) {
+        if (!is.null(private$rbf_context_error)) {
+          return(private$rbf_context_error)
+        }
+        if (is.null(private$rbf_snapshot)) {
+          return("RBF selection requires treatment data.")
+        }
+        if (
+          is.null(private$rbf_cost$cost_function) &&
+            !isTRUE(private$rbf_cost$p <= 2)
+        ) {
+          return(
+            "RBF selection requires a conditionally negative definite cost; p > 2 is not generally conditionally negative definite."
+          )
+        }
+        if (
+          !is.null(private$rbf_cost$cost_function) &&
+            is.null(private$rbf_prepared) &&
+            is.null(private$rbf_cost_reason)
+        ) {
           private$rbf_prepared <- tryCatch(
-            cot_trt_rbf_prepare(private$rbf_snapshot, p = private$rbf_cost$p,
-                                cost_function = private$rbf_cost$cost_function),
+            cot_trt_rbf_prepare(
+              private$rbf_snapshot,
+              p = private$rbf_cost$p,
+              cost_function = private$rbf_cost$cost_function
+            ),
             causalOT_noncnd_cost = function(e) {
               private$rbf_cost_reason <- conditionMessage(e)
               NULL
@@ -2321,7 +2338,8 @@ OTProblem_ <- R6::R6Class(
         }
         if (is.null(private$rbf_prepared)) {
           private$rbf_prepared <- cot_trt_rbf_prepare(
-            private$rbf_snapshot, p = private$rbf_cost$p,
+            private$rbf_snapshot,
+            p = private$rbf_cost$p,
             cost_function = private$rbf_cost$cost_function
           )
         }
@@ -2899,8 +2917,10 @@ OTProblem_ <- R6::R6Class(
       },
 
       polish_eligible = function() {
-        if (inherits(self, "cotDualLegacyTrain") &&
-            !inherits(self, "cotDualEntropyFixedPointTrain")) {
+        if (
+          inherits(self, "cotDualLegacyTrain") &&
+            !inherits(self, "cotDualEntropyFixedPointTrain")
+        ) {
           return("dual solvers are outside gap convergence scope")
         }
         if (!private$optimality_check_eligible()) {
@@ -2986,8 +3006,11 @@ OTProblem_ <- R6::R6Class(
           private$polish_weights[[key]][[dkey]] <- NULL
         }
         self$polished_weights <- NULL
-        if (inherits(self, "cotDualEntropyFixedPointTrain") &&
-            !is.null(res$reason) && startsWith(res$reason, "error:")) {
+        if (
+          inherits(self, "cotDualEntropyFixedPointTrain") &&
+            !is.null(res$reason) &&
+            startsWith(res$reason, "error:")
+        ) {
           save("failed")
           return(res)
         }
@@ -3762,7 +3785,11 @@ OTProblem_ <- R6::R6Class(
           reason <- private$rbf_unavailable()
           if (
             is.null(reason) &&
-              !any(!failed & is.finite(lambda_input_values) & lambda_input_values > 0)
+              !any(
+                !failed &
+                  is.finite(lambda_input_values) &
+                  lambda_input_values > 0
+              )
           ) {
             reason <- "No finite positive lambda candidates were available."
           }
@@ -5039,7 +5066,7 @@ cotDualLegacyTrain <- R6::R6Class(
         return(invisible(self))
       },
       solve = function(
-        niter = 500L,
+        niter = 1000L,
         tol = 1e-5,
         optimizer = c("torch", "frank-wolfe"),
         torch_optim = torch::optim_lbfgs,
@@ -5636,7 +5663,7 @@ cotDualTrain <- R6::R6Class(
         invisible(self)
       },
       solve = function(
-        niter = 500L,
+        niter = 1000L,
         tol = 1e-5,
         optimizer = c("torch", "frank-wolfe"),
         torch_optim = torch::optim_lbfgs,
@@ -6364,7 +6391,7 @@ cotDualFixedPointJointTrain <- R6::R6Class(
   classname = "cotDualFixedPointJointTrain",
   public = list(
     solve = function(
-      niter = 500L,
+      niter = 1000L,
       tol = 1e-5,
       optimizer = c("torch", "frank-wolfe"),
       torch_optim = torch::optim_lbfgs,
@@ -6469,7 +6496,7 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
       invisible(self)
     },
     solve = function(
-      niter = 500L,
+      niter = 1000L,
       tol = 1e-5,
       optimizer = c("torch", "frank-wolfe"),
       torch_optim = torch::optim_lbfgs,
@@ -6679,7 +6706,9 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
     },
     fp_checkpoint = function(w) {
       self$ot$a <- w$detach()
-      self$ot$sinkhorn_opt(niter = private$ot_niter, tol = private$ot_tol)
+      eps <- torch::torch_finfo(self$ot$dtype)$eps
+      check_tol <- max(private$ot_tol * 1e-3, 64 * eps)
+      self$ot$sinkhorn_opt(niter = private$ot_niter, tol = check_tol)
       list(
         divergence = oop_loss_select(self$ot)$detach()$item(),
         fw_gap = cot_ccp_kkt(self$ot)$fw_gap
@@ -6753,7 +6782,8 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
           slack <- private$safeguard_slack *
             private$ot_tol *
             cot_conv_scale(self$ot)
-          if (cert$divergence < best$divergence) {
+          passed <- private$fp_converged(cert, tol)
+          if (passed || cert$divergence < best$divergence) {
             best <<- c(
               cert,
               list(u = u$detach()$clone(), weights = res$w2$detach()$clone())
@@ -6766,7 +6796,6 @@ cotDualEntropyFixedPointTrain <- R6::R6Class(
           } else {
             stagnant_checks <<- stagnant_checks + 1L
           }
-          passed <- private$fp_converged(cert, tol)
           action <- "none"
           if (!passed && cert$divergence > best$divergence + slack) {
             U <<- R <<- list()

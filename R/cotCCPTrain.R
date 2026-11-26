@@ -39,7 +39,7 @@ cotCCPTrain <- R6::R6Class(
   inherit = OTProblem_,
   public = list(
     solve = function(
-      niter = 500L,
+      niter = 1000L,
       tol = 1e-5,
       osqp_args = NULL,
       quick.balance.function = TRUE,
@@ -376,7 +376,9 @@ cotCCPTrain <- R6::R6Class(
       t_new <- (1 + sqrt(1 + 4 * t_old^2)) / 2
       beta <- if (is.null(private$ccp_prev_log_x)) 0 else (t_old - 1) / t_new
       if (beta > 0) {
-        y <- (log_x + beta * (log_x - private$ccp_prev_log_x))$log_softmax(1)$exp()
+        y <- (log_x + beta * (log_x - private$ccp_prev_log_x))$log_softmax(
+          1
+        )$exp()
       } else {
         y <- x
       }
@@ -418,8 +420,10 @@ cotCCPTrain <- R6::R6Class(
         ot$potentials$f_xx$detach(),
         torch::jit_scalar(1e-10)
       )$fw_gap$item()
-      private$phase1_cert <- list(fw_gap = fw_gap,
-        divergence = private$ccp_loss - private$ccp_loss_offset)
+      private$phase1_cert <- list(
+        fw_gap = fw_gap,
+        divergence = private$ccp_loss - private$ccp_loss_offset
+      )
       private$ccp_kkt_resid <- fw_gap /
         max(
           abs(private$ccp_loss - private$ccp_loss_offset),
@@ -521,9 +525,14 @@ cotCCPTrain <- R6::R6Class(
       private$lbfgs_count <- private$lbfgs_reset <- 0L
 
       # stopped_by_rule means stopped, not necessarily converged.
-      return(list(loss = loss, iter = i, converged = converged_flag,
-        stopped_by_rule = converged_flag, fw_gap = private$phase1_cert$fw_gap,
-        divergence = private$phase1_cert$divergence))
+      return(list(
+        loss = loss,
+        iter = i,
+        converged = converged_flag,
+        stopped_by_rule = converged_flag,
+        fw_gap = private$phase1_cert$fw_gap,
+        divergence = private$phase1_cert$divergence
+      ))
     }
   )
 )
